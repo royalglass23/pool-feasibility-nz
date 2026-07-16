@@ -1,0 +1,46 @@
+{
+  "type": "FeatureCollection",
+  "crs": { "type": "name", "properties": { "name": "EPSG:4326" } },
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [174.608015485403, -36.8602063735916]
+      },
+      "properties": {
+        "address_id": 969138,
+        "full_address": "42 Bahari Drive, Ranui, Auckland",
+        "full_address_number": "42",
+        "address_number": 42,
+        "address_number_suffix": null,
+        "road_name": "Bahari",
+        "road_name_type": "Drive",
+        "suburb_locality": "Ranui",
+        "town_city": "Auckland",
+        "territorial_authority": "Auckland",
+        "address_lifecycle": "Current"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [174.607906917203, -36.8602038189915]
+      },
+      "properties": {
+        "address_id": 2359811,
+        "full_address": "42A Bahari Drive, Ranui, Auckland",
+        "full_address_number": "42A",
+        "address_number": 42,
+        "address_number_suffix": "A",
+        "road_name": "Bahari",
+        "road_name_type": "Drive",
+        "suburb_locality": "Ranui",
+        "town_city": "Auckland",
+        "territorial_authority": "Auckland",
+        "address_lifecycle": "Current"
+      }
+    }
+  ]
+}

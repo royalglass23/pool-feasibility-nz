@@ -1,0 +1,13 @@
+# Data classification — Job 01 official data-access spike
+
+| Data                                    | Classification                            | At rest                                          | In transit                          | Retention                                                        | Notes                                  |
+| --------------------------------------- | ----------------------------------------- | ------------------------------------------------ | ----------------------------------- | ---------------------------------------------------------------- | -------------------------------------- |
+| Supplied residential address            | Personal in context                       | Intended CLI output; approved screenshot header  | HTTPS to official providers         | Generic screenshots ignored and deleted after local verification | Required to resolve the property       |
+| LINZ address, parcel, and building data | Public                                    | Bounded permitted fixtures and approved evidence | HTTPS                               | Regression fixtures/evidence                                     | LINZ attribution required              |
+| Auckland Council counts                 | Public, reuse-conditional                 | CLI output only                                  | HTTPS                               | Process/output capture only                                      | Always `spike_only`                    |
+| Aerial screenshot                       | Personal in context plus licensed imagery | `output/playwright/`                             | HTTPS tiles                         | Only address ID `2359811` is repository-retainable               | Generic outputs are Git-ignored        |
+| LINZ API keys                           | Secret                                    | Ignored `.env` only                              | Required LINZ HTTPS query parameter | Until rotation                                                   | Zero scan hits outside `.env`          |
+| Safe provider errors and timings        | Internal                                  | CLI output and verification evidence             | N/A                                 | Project evidence                                                 | No raw upstream message or secret      |
+| Unavailable dataset decisions           | Public/internal decision                  | CLI output and docs                              | N/A                                 | Project evidence                                                 | No Watercare/culvert geometry inferred |
+
+No database or durable application store is implemented in Job 01.

@@ -1,0 +1,53 @@
+{
+  "address": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Point",
+          "coordinates": [174.899769829008, -36.8868090715903]
+        },
+        "properties": {
+          "address_id": 2453674,
+          "unit": "2",
+          "full_address": "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland",
+          "full_address_number": "2/49",
+          "territorial_authority": "Auckland",
+          "address_lifecycle": "Current"
+        }
+      }
+    ]
+  },
+  "parcel": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [174.899623566708, -36.8868922823903],
+              [174.899672000008, -36.8867208490903],
+              [174.900030100008, -36.8867861157903],
+              [174.900051033308, -36.8867899157903],
+              [174.900046283307, -36.8868066990903],
+              [174.900002600007, -36.8869613657903],
+              [174.899623566708, -36.8868922823903]
+            ]
+          ]
+        },
+        "properties": {
+          "id": 4789010,
+          "appellation": "Lot 87 DP 67795",
+          "parcel_intent": "DCDB",
+          "land_district": "North Auckland",
+          "titles": "NA33D/17,NA33D/18,NA33D/19",
+          "survey_area": 675,
+          "calc_area": 676
+        }
+      }
+    ]
+  }
+}
