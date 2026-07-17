@@ -1,5 +1,6 @@
 import "dotenv/config";
-import { OfficialGisGateway } from "../src/modules/data-access-spike/official-gis-gateway";
+import { providerTimeoutMs } from "@/shared/http/provider-runtime";
+import { OfficialGisGateway } from "../src/modules/providers/official-gis-gateway";
 import { runDataAccessSpike } from "../src/modules/data-access-spike/run-data-access-spike";
 
 async function main(): Promise<void> {
@@ -18,7 +19,7 @@ async function main(): Promise<void> {
   const result = await runDataAccessSpike({
     requestedAddress,
     gateway: new OfficialGisGateway({
-      timeoutMs: Number(process.env.PROVIDER_TIMEOUT_MS ?? 10_000),
+      timeoutMs: providerTimeoutMs(),
     }),
     basemapApiKey: process.env.LINZ_BASEMAPS_API_KEY || undefined,
   });

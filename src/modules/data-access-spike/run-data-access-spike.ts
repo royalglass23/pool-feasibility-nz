@@ -1,30 +1,29 @@
 import { bbox } from "@turf/turf";
 import type { Feature, Polygon } from "geojson";
 import { z } from "zod";
+import type {
+  AddressMatch,
+  DataAccessSpikeGateway,
+  DatasetEvidence,
+  ParcelMatch,
+  ProviderEvidenceErrorCode,
+} from "./data-access-gateway";
+import { providerEvidenceErrorCode } from "./data-access-gateway";
 import {
-  datasetCatalog,
   datasetKeys,
   queryableDatasetKeys,
   type DatasetKey,
-  type QueryableDatasetKey,
 } from "./dataset-catalog";
 
-export type Position = [longitude: number, latitude: number];
-
-export interface CountResult {
-  count: number;
-  durationMs: number;
-}
-
-export interface DataAccessSpikeGateway {
-  searchAddresses(requestedAddress: string): Promise<unknown>;
-  findParcelsAt(position: Position): Promise<unknown>;
-  countFeatures(
-    dataset: QueryableDatasetKey,
-    envelope: [number, number, number, number],
-  ): Promise<CountResult>;
-  checkAerial(apiKey: string): Promise<{ durationMs: number }>;
-}
+export type {
+  AddressMatch,
+  AerialAttribution,
+  CountResult,
+  DataAccessSpikeGateway,
+  ParcelMatch,
+  ParcelQueryResult,
+  Position,
+} from "./data-access-gateway";
 
 export class DataAccessSpikeError extends Error {
   constructor(
@@ -33,25 +32,15 @@ export class DataAccessSpikeError extends Error {
       | "ADDRESS_AMBIGUOUS"
       | "PARCEL_NOT_FOUND"
       | "PARCEL_AMBIGUOUS"
-      | "OUTSIDE_SUPPORTED_REGION"
-      | "PROVIDER_RESPONSE_INVALID",
+      | "OUTSIDE_SUPPORTED_REGION",
+    readonly addressOptions: AddressOption[] = [],
   ) {
     super(code);
     this.name = "DataAccessSpikeError";
   }
 }
 
-type DatasetObservation = {
-  provider: string;
-  dataset: string;
-  status: "success" | "unavailable" | "error";
-  licenceStatus: "permitted" | "conditional" | "unavailable";
-  evidenceUse: "report_allowed" | "spike_only" | "unavailable";
-  featureCount?: number;
-  durationMs?: number;
-  reason?: string;
-  errorCode?: "PROVIDER_REQUEST_FAILED";
-};
+export type AddressOption = Pick<AddressMatch, "addressId" | "fullAddress">;
 
 export interface DataAccessSpikeResult {
   requestedAddress: string;
@@ -73,234 +62,121 @@ export interface DataAccessSpikeResult {
     distinctFromAlternatives: boolean;
     duplicateParcelRowsRemoved: number;
   };
-  datasets: Record<DatasetKey, DatasetObservation>;
+  datasets: Record<DatasetKey, DatasetEvidence>;
   successfulDatasets: DatasetKey[];
   unavailableDatasets: DatasetKey[];
   reportEligibleDatasets: DatasetKey[];
   spikeOnlyDatasets: DatasetKey[];
+  internalReferenceDatasets: DatasetKey[];
   providerErrors: Array<{
     dataset: DatasetKey;
-    code: "PROVIDER_REQUEST_FAILED";
+    code: ProviderEvidenceErrorCode;
   }>;
   generatedAt: string;
   blockers: string[];
 }
 
-type AddressMatch = {
-  addressId: string;
-  fullAddress: string;
-  fullAddressNumber: string;
-  unit: string | null;
-  coordinates: Position;
-};
-
-type ParcelMatch = {
-  parcelId: string;
-  appellation: string;
-  parcelIntent: string;
-  landDistrict: string;
-  titles: string[];
-  surveyAreaSquareMetres: number | null;
-  calculatedAreaSquareMetres: number | null;
-  geometry: Polygon;
-};
-
 const addressInputSchema = z.string().trim().min(8).max(200);
-const positionSchema = z.tuple([
-  z.number().min(160).max(180),
-  z.number().min(-48).max(-33),
-]);
-const addressCollectionSchema = z.object({
-  type: z.literal("FeatureCollection"),
-  features: z
-    .array(
-      z.object({
-        type: z.literal("Feature"),
-        geometry: z.object({
-          type: z.literal("Point"),
-          coordinates: positionSchema,
-        }),
-        properties: z.object({
-          address_id: z.union([z.string(), z.number()]),
-          full_address: z.string(),
-          full_address_number: z.string(),
-          unit: z.string().nullable().optional(),
-          territorial_authority: z.string(),
-          address_lifecycle: z.string(),
-        }),
-      }),
-    )
-    .max(20),
-});
-const parcelCollectionSchema = z.object({
-  type: z.literal("FeatureCollection"),
-  features: z
-    .array(
-      z.object({
-        type: z.literal("Feature"),
-        geometry: z.object({
-          type: z.literal("Polygon"),
-          coordinates: z
-            .array(z.array(positionSchema).min(4).max(5_000))
-            .min(1)
-            .max(100),
-        }),
-        properties: z.object({
-          id: z.union([z.string(), z.number()]),
-          appellation: z.string(),
-          parcel_intent: z.string(),
-          land_district: z.string(),
-          titles: z.string().nullable(),
-          survey_area: z.number().nullable(),
-          calc_area: z.number().nullable(),
-        }),
-      }),
-    )
-    .max(20),
-});
 
 export async function runDataAccessSpike(input: {
   requestedAddress: string;
+  selectedAddressId?: string;
   gateway: DataAccessSpikeGateway;
   basemapApiKey?: string;
   now?: () => Date;
 }): Promise<DataAccessSpikeResult> {
   const requestedAddress = addressInputSchema.parse(input.requestedAddress);
-  const addressResponse = parseProviderResponse(
-    addressCollectionSchema,
-    await input.gateway.searchAddresses(requestedAddress),
-  );
-  const addressMatches = addressResponse.features.map<AddressMatch>(
-    (feature) => ({
-      addressId: String(feature.properties.address_id),
-      fullAddress: feature.properties.full_address,
-      fullAddressNumber: feature.properties.full_address_number,
-      unit: feature.properties.unit ?? null,
-      coordinates: feature.geometry.coordinates,
-    }),
-  );
+  const retrievedAt = (input.now?.() ?? new Date()).toISOString();
+  const addressMatches = await input.gateway.searchAddresses(requestedAddress);
 
-  const exactMatches = addressMatches.filter(
-    (candidate) =>
-      normalizeAddress(candidate.fullAddress) ===
-      normalizeAddress(requestedAddress),
-  );
-  if (exactMatches.length === 0) {
+  const resolvedAddress = input.selectedAddressId
+    ? addressMatches.find(
+        (candidate) => candidate.addressId === input.selectedAddressId,
+      )
+    : resolveUnselectedAddress(addressMatches, requestedAddress);
+  if (!resolvedAddress) {
     throw new DataAccessSpikeError("ADDRESS_NOT_FOUND");
   }
-  if (exactMatches.length > 1) {
-    throw new DataAccessSpikeError("ADDRESS_AMBIGUOUS");
-  }
-
-  const resolvedAddress = exactMatches[0];
-  const resolvedFeature = addressResponse.features.find(
-    (feature) =>
-      String(feature.properties.address_id) === resolvedAddress.addressId,
-  );
-  if (resolvedFeature?.properties.territorial_authority !== "Auckland") {
+  if (resolvedAddress.territorialAuthority !== "Auckland") {
     throw new DataAccessSpikeError("OUTSIDE_SUPPORTED_REGION");
   }
 
-  const resolvedParcelResponse = parseProviderResponse(
-    parcelCollectionSchema,
-    await input.gateway.findParcelsAt(resolvedAddress.coordinates),
+  const resolvedParcels = await input.gateway.findParcelsAt(
+    resolvedAddress.coordinates,
   );
-  const resolvedParcels = deduplicateParcels(resolvedParcelResponse.features);
   const parcel = requireSingleParcel(resolvedParcels.parcels);
-  const parcelMatch = assessParcelMatch(resolvedAddress, parcel);
+  const parcelMatch = assessParcelMatch(parcel);
 
   const addressAlternatives = addressMatches.filter(
     (candidate) => candidate.addressId !== resolvedAddress.addressId,
   );
-  const comparisonParcels = await Promise.all(
-    addressAlternatives.slice(0, 5).map(async (alternative) => {
-      const response = parseProviderResponse(
-        parcelCollectionSchema,
-        await input.gateway.findParcelsAt(alternative.coordinates),
-      );
-      const comparison = requireSingleParcel(
-        deduplicateParcels(response.features).parcels,
-      );
-      return {
-        addressId: alternative.addressId,
-        fullAddress: alternative.fullAddress,
-        parcelId: comparison.parcelId,
-        appellation: comparison.appellation,
-      };
-    }),
-  );
+  const comparisonParcels: DataAccessSpikeResult["comparisonParcels"] = [];
+  for (const alternative of addressAlternatives) {
+    const response = await input.gateway.findParcelsAt(alternative.coordinates);
+    const comparison = requireSingleParcel(response.parcels);
+    comparisonParcels.push({
+      addressId: alternative.addressId,
+      fullAddress: alternative.fullAddress,
+      parcelId: comparison.parcelId,
+      appellation: comparison.appellation,
+    });
+  }
 
   const envelope = bbox(parcel.geometry) as [number, number, number, number];
-  const datasetEntries = await Promise.all(
-    queryableDatasetKeys.map(async (key) => {
-      const catalog = datasetCatalog[key];
-      try {
-        const result = await input.gateway.countFeatures(key, envelope);
-        return [
-          key,
-          {
-            provider: catalog.provider,
-            dataset: catalog.dataset,
-            status: "success",
-            licenceStatus: catalog.licenceStatus,
-            evidenceUse:
-              catalog.licenceStatus === "permitted"
-                ? "report_allowed"
-                : "spike_only",
-            featureCount: result.count,
-            durationMs: result.durationMs,
-          } satisfies DatasetObservation,
-        ] as const;
-      } catch {
-        return [
-          key,
-          {
-            provider: catalog.provider,
-            dataset: catalog.dataset,
-            status: "error",
-            licenceStatus: catalog.licenceStatus,
-            evidenceUse: "unavailable",
-            errorCode: "PROVIDER_REQUEST_FAILED",
-          } satisfies DatasetObservation,
-        ] as const;
-      }
-    }),
-  );
+  const datasetEntries: Array<readonly [DatasetKey, DatasetEvidence]> = [];
+  for (const key of queryableDatasetKeys) {
+    const evidence = input.gateway.datasetEvidence(key, retrievedAt);
+    try {
+      const geometry = await input.gateway.queryFeatures?.(key, envelope);
+      const result = geometry
+        ? { count: geometry.features.length, durationMs: undefined }
+        : await input.gateway.countFeatures(key, envelope);
+      datasetEntries.push([
+        key,
+        {
+          ...evidence,
+          status: "success",
+          confidence:
+            evidence.licenceStatus === "permitted" ? "high" : "limited",
+          featureCount: result.count,
+          ...(result.durationMs === undefined
+            ? {}
+            : { durationMs: result.durationMs }),
+          ...(geometry ? { geometry } : {}),
+        },
+      ]);
+    } catch (error) {
+      datasetEntries.push([
+        key,
+        {
+          ...evidence,
+          status: "error",
+          evidenceUse: "unavailable",
+          confidence: "unavailable",
+          errorCode: providerEvidenceErrorCode(error),
+        },
+      ]);
+    }
+  }
 
   const datasets = Object.fromEntries(datasetEntries) as Record<
     DatasetKey,
-    DatasetObservation
+    DatasetEvidence
   >;
   datasets.address_resolution = {
-    provider: "LINZ",
-    dataset: "NZ Addresses",
-    status: "success",
-    licenceStatus: "permitted",
-    evidenceUse: "report_allowed",
+    ...input.gateway.datasetEvidence("address_resolution", retrievedAt),
     featureCount: addressMatches.length,
   };
   datasets.legal_parcel = {
-    provider: "LINZ",
-    dataset: "NZ Primary Parcels",
-    status: "success",
-    licenceStatus: "permitted",
-    evidenceUse: "report_allowed",
+    ...input.gateway.datasetEvidence("legal_parcel", retrievedAt),
     featureCount: 1,
   };
   datasets.aerial_imagery = await observeAerial(
     input.gateway,
     input.basemapApiKey,
+    retrievedAt,
   );
-  datasets.wastewater_assets = unavailableWatercare("Wastewater assets");
-  datasets.public_water_assets = unavailableWatercare("Public water assets");
-  datasets.culverts = {
-    provider: "Auckland Council",
-    dataset: "Culverts",
-    status: "unavailable",
-    licenceStatus: "unavailable",
-    evidenceUse: "unavailable",
-    reason: "No dedicated official culvert endpoint was verified in this spike",
-  };
+  datasets.culverts = input.gateway.datasetEvidence("culverts", retrievedAt);
 
   const successfulDatasets = datasetKeys.filter(
     (key) => datasets[key].status === "success",
@@ -315,17 +191,32 @@ export async function runDataAccessSpike(input: {
   );
   const spikeOnlyDatasets = datasetKeys.filter(
     (key) =>
-      datasets[key].status === "success" &&
+      (datasets[key].status === "success" ||
+        datasets[key].status === "available") &&
       datasets[key].evidenceUse === "spike_only",
+  );
+  const internalReferenceDatasets = datasetKeys.filter(
+    (key) =>
+      datasets[key].status === "success" &&
+      datasets[key].evidenceUse === "internal_reference",
   );
   const providerErrors = datasetKeys.flatMap((key) =>
     datasets[key].status === "error"
-      ? [{ dataset: key, code: "PROVIDER_REQUEST_FAILED" as const }]
+      ? [
+          {
+            dataset: key,
+            code: datasets[key].errorCode ?? "PROVIDER_REQUEST_FAILED",
+          },
+        ]
       : [],
   );
   const distinctFromAlternatives = comparisonParcels.every(
     (comparison) => comparison.parcelId !== parcel.parcelId,
   );
+  const exactAddressMatched =
+    !input.selectedAddressId &&
+    normalizeAddress(resolvedAddress.fullAddress) ===
+      normalizeAddress(requestedAddress);
 
   return {
     requestedAddress,
@@ -335,7 +226,7 @@ export async function runDataAccessSpike(input: {
     parcelMatch,
     comparisonParcels,
     identityCheck: {
-      exactAddressMatched: true,
+      exactAddressMatched,
       distinctFromAlternatives,
       duplicateParcelRowsRemoved: resolvedParcels.duplicatesRemoved,
     },
@@ -344,10 +235,11 @@ export async function runDataAccessSpike(input: {
     unavailableDatasets,
     reportEligibleDatasets,
     spikeOnlyDatasets,
+    internalReferenceDatasets,
     providerErrors,
-    generatedAt: (input.now?.() ?? new Date()).toISOString(),
+    generatedAt: retrievedAt,
     blockers: [
-      ...(datasets.aerial_imagery.status === "success"
+      ...(datasets.aerial_imagery.status === "available"
         ? []
         : [
             "Real aerial map not verified: LINZ Basemaps access is unavailable",
@@ -355,22 +247,41 @@ export async function runDataAccessSpike(input: {
       ...(parcelMatch.status === "mapped_primary_parcel"
         ? []
         : [
-            "The mapped containing parcel cannot be treated as the unit's confirmed legal parcel",
+            "The mapped containing parcel cannot be treated as the confirmed legal parcel",
           ]),
       "Auckland Council generated-report reuse requires licence confirmation",
-      "Watercare automated access and generated-report reuse rights are unverified",
+      "Watercare geometry is internal reference data only and must be independently verified before action",
     ],
   };
 }
 
+function resolveUnselectedAddress(
+  addressMatches: AddressMatch[],
+  requestedAddress: string,
+): AddressMatch {
+  const exactMatches = addressMatches.filter(
+    (candidate) =>
+      normalizeAddress(candidate.fullAddress) ===
+      normalizeAddress(requestedAddress),
+  );
+  if (exactMatches.length === 1) return exactMatches[0];
+
+  const options = (exactMatches.length > 1 ? exactMatches : addressMatches).map(
+    ({ addressId, fullAddress }) => ({ addressId, fullAddress }),
+  );
+  if (options.length > 1) {
+    throw new DataAccessSpikeError("ADDRESS_AMBIGUOUS", options);
+  }
+
+  throw new DataAccessSpikeError("ADDRESS_NOT_FOUND");
+}
+
 function assessParcelMatch(
-  address: AddressMatch,
   parcel: ParcelMatch,
 ): DataAccessSpikeResult["parcelMatch"] {
   const reasons = [
-    ...(address.unit ? ["The supplied address is a unit address"] : []),
-    ...(parcel.titles.length > 1
-      ? ["The containing parcel is associated with multiple titles"]
+    ...(parcel.titles.length !== 1
+      ? ["The containing parcel must be associated with exactly one title"]
       : []),
     ...(parcel.parcelIntent !== "Fee Simple Title"
       ? ["The containing parcel is not identified as a fee simple title parcel"]
@@ -384,14 +295,6 @@ function assessParcelMatch(
         : "containing_parcel_requires_confirmation",
     reasons,
   };
-}
-
-function parseProviderResponse<T>(schema: z.ZodType<T>, value: unknown): T {
-  const result = schema.safeParse(value);
-  if (!result.success) {
-    throw new DataAccessSpikeError("PROVIDER_RESPONSE_INVALID");
-  }
-  return result.data;
 }
 
 function normalizeAddress(value: string): string {
@@ -410,34 +313,6 @@ function normalizeAddress(value: string): string {
   return addressTokens.join(" ");
 }
 
-function deduplicateParcels(
-  features: z.infer<typeof parcelCollectionSchema>["features"],
-): { parcels: ParcelMatch[]; duplicatesRemoved: number } {
-  const byId = new Map<string, ParcelMatch>();
-  for (const feature of features) {
-    const parcelId = String(feature.properties.id);
-    if (byId.has(parcelId)) continue;
-
-    byId.set(parcelId, {
-      parcelId,
-      appellation: feature.properties.appellation,
-      parcelIntent: feature.properties.parcel_intent,
-      landDistrict: feature.properties.land_district,
-      titles: feature.properties.titles
-        ? feature.properties.titles.split(",").map((title) => title.trim())
-        : [],
-      surveyAreaSquareMetres: feature.properties.survey_area,
-      calculatedAreaSquareMetres: feature.properties.calc_area,
-      geometry: feature.geometry as Polygon,
-    });
-  }
-
-  return {
-    parcels: [...byId.values()],
-    duplicatesRemoved: features.length - byId.size,
-  };
-}
-
 function requireSingleParcel(parcels: ParcelMatch[]): ParcelMatch {
   if (parcels.length === 0) {
     throw new DataAccessSpikeError("PARCEL_NOT_FOUND");
@@ -451,14 +326,16 @@ function requireSingleParcel(parcels: ParcelMatch[]): ParcelMatch {
 async function observeAerial(
   gateway: DataAccessSpikeGateway,
   apiKey: string | undefined,
-): Promise<DatasetObservation> {
+  retrievedAt: string,
+): Promise<DatasetEvidence> {
+  const commonEvidence = gateway.datasetEvidence("aerial_imagery", retrievedAt);
+
   if (!apiKey) {
     return {
-      provider: "LINZ",
-      dataset: "LINZ Basemaps Aerial",
+      ...commonEvidence,
       status: "unavailable",
-      licenceStatus: "permitted",
       evidenceUse: "unavailable",
+      confidence: "unavailable",
       reason: "LINZ_BASEMAPS_API_KEY is not configured",
     };
   }
@@ -466,35 +343,22 @@ async function observeAerial(
   try {
     const result = await gateway.checkAerial(apiKey);
     return {
-      provider: "LINZ",
-      dataset: "LINZ Basemaps Aerial",
-      status: "success",
-      licenceStatus: "permitted",
-      evidenceUse: "report_allowed",
+      ...commonEvidence,
+      status: "available",
+      evidenceUse: "spike_only",
+      confidence: "limited",
       durationMs: result.durationMs,
+      attribution: result.attribution,
     };
-  } catch {
+  } catch (error) {
     return {
-      provider: "LINZ",
-      dataset: "LINZ Basemaps Aerial",
+      ...commonEvidence,
       status: "error",
-      licenceStatus: "permitted",
       evidenceUse: "unavailable",
-      errorCode: "PROVIDER_REQUEST_FAILED",
+      confidence: "unavailable",
+      errorCode: providerEvidenceErrorCode(error),
     };
   }
-}
-
-function unavailableWatercare(dataset: string): DatasetObservation {
-  return {
-    provider: "Watercare",
-    dataset,
-    status: "unavailable",
-    licenceStatus: "unavailable",
-    evidenceUse: "unavailable",
-    reason:
-      "No official automated endpoint with suitable commercial generated-report reuse rights was verified",
-  };
 }
 
 export function parcelFeature(parcel: ParcelMatch): Feature<Polygon> {

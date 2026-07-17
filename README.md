@@ -6,7 +6,7 @@ The product is a desktop screening tool, not an approval, consent, engineering, 
 
 ## Current status
 
-Stage 1 is complete and the bounded Stage 2 official-data spike is implemented. The spike accepts a supplied Auckland address, performs LINZ address/parcel matching, and probes the allow-listed datasets. It is not yet the public address-entry flow and does **not** implement candidate generation, scoring, report retrieval, or PDF generation.
+Stage 1 is complete and the bounded Stage 2 official-data spike is implemented. A simple internal property-data inspector now accepts a supplied Auckland address, performs LINZ address/parcel matching, probes the allow-listed datasets, displays normalized results, and downloads the returned snapshot as JSON. It does **not** implement candidate generation, scoring, report retrieval, or PDF generation.
 
 Later implementation remains gated on review of [the architecture](docs/architecture.md), [the verified data-source register](docs/data-sources.md), and [the implementation stages](docs/implementation-plan.md). Authenticated LINZ aerial verification has passed; Auckland Council generated-report reuse remains conditional.
 
@@ -41,6 +41,35 @@ The current scaffold can build without importing database-backed application mod
 Copy `.env.example` to `.env.local`. All GIS, database, rate-limit, storage, and optional AI credentials are server-only. No provider key may be exposed with a `NEXT_PUBLIC_` prefix unless Stage 2 proves that the provider explicitly intends the key to be public and its licence permits the proposed use.
 
 See [environment variables](docs/architecture.md#environment-boundary) for the proposed contract.
+
+## Property data inspector
+
+Start the local application:
+
+```bash
+npm run dev
+```
+
+Open <http://localhost:3000>, enter a supported Auckland property address, and
+select **Fetch property data**. The page displays the resolved LINZ address,
+mapped parcel identity, dataset availability, evidence-use status, and current
+licensing/data blockers. **Download JSON** saves the exact normalized result,
+including the parcel GeoJSON geometry.
+
+The browser calls `POST /api/internal/data-access`. Provider credentials remain
+server-side, requests and provider responses are bounded, and duplicate form
+submissions are disabled while an analysis is running. This is a data-inspection
+tool only; it does not produce a pool-feasibility assessment or PDF.
+
+The result map uses MapLibre to show authenticated LINZ aerial imagery, the
+confirmed parcel boundary, and the resolved address point with visible LINZ
+attribution. A server-side tile route keeps the LINZ Basemaps key out of browser
+requests.
+
+Loopback development (`localhost` or `127.0.0.1` under `next dev`) is available
+without staff credentials. Every non-loopback or deployed request fails closed
+unless `INTERNAL_ACCESS_USERNAME` and `INTERNAL_ACCESS_PASSWORD` are both set;
+the browser then uses HTTP Basic authentication for Royal Glass staff access.
 
 ## Quality commands
 
@@ -79,12 +108,17 @@ Run the internal spike with an explicit address:
 ```bash
 npm run spike:data-access -- "42A Bahari Drive, Ranui, Auckland"
 npm run spike:verify-aerial -- "42A Bahari Drive, Ranui, Auckland"
+npm run smoke:live-layers
 ```
 
 The aerial verifier accepts any supported address, performs the same live
 address/parcel resolution, checks point-in-parcel alignment, loads real LINZ
 aerial tiles, and saves a local verification screenshot under `output/playwright/`.
 It is an internal data-access check, not a pool-feasibility finding.
+
+The live-layer smoke is a separate manual provider check. It prints only safe,
+normalized availability and feature-count evidence; automated tests use local
+fixtures and do not call live GIS services.
 
 Generic verification screenshots can contain a full residential address and
 precise imagery, so they are ignored by Git and should be deleted after the local

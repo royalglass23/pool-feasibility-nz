@@ -112,7 +112,7 @@ Store and render geometry in WGS84 GeoJSON for interoperability. Stage 2 must do
 
 ## Error contract
 
-Application failures use stable codes: `ADDRESS_NOT_FOUND`, `ADDRESS_AMBIGUOUS`, `PARCEL_NOT_FOUND`, `OUTSIDE_SUPPORTED_REGION`, `REQUIRED_DATA_UNAVAILABLE`, `DATA_PROVIDER_ERROR`, `ANALYSIS_FAILED`, and `REPORT_GENERATION_FAILED`. Route handlers map them to safe HTTP responses and correlation IDs. Provider URLs, keys, raw payloads, stack traces, and internal database errors are never returned.
+Application failures use stable codes: `INVALID_ADDRESS`, `ADDRESS_FORMAT_UNSUPPORTED`, `ADDRESS_NOT_FOUND`, `ADDRESS_AMBIGUOUS`, `PARCEL_NOT_FOUND`, `PARCEL_AMBIGUOUS`, `PARCEL_UNCONFIRMED`, `OUTSIDE_SUPPORTED_REGION`, `REQUIRED_DATA_UNAVAILABLE`, `DATA_PROVIDER_ERROR`, `ANALYSIS_FAILED`, and `REPORT_GENERATION_FAILED`. Internal delivery adapters additionally use `INVALID_REQUEST`, `UNAUTHORIZED`, `ACCESS_CONTROL_MISCONFIGURED`, `INVALID_TILE`, `AERIAL_IMAGERY_UNAVAILABLE`, and `AERIAL_PROVIDER_ERROR`. Route handlers map them to safe HTTP responses, return the same correlation ID in the `X-Correlation-ID` header and error body, and accept only bounded safe incoming correlation IDs. Provider URLs, keys, raw payloads, stack traces, and internal database errors are never returned.
 
 ## Environment boundary
 
@@ -129,6 +129,7 @@ Required when the corresponding adapter is enabled:
 | `BLOB_READ_WRITE_TOKEN`                       | Server only            | Durable generated-PDF storage if selected           |
 | `AI_PROVIDER`, `OPENAI_API_KEY`               | Server only, optional  | Constrained narrative enhancement                   |
 | `PROVIDER_TIMEOUT_MS`, `PROVIDER_RETRY_COUNT` | Server only            | Bounded provider behavior                           |
+| `INTERNAL_ACCESS_USERNAME/PASSWORD`           | Server only            | Required paired credentials for deployed staff UI   |
 | `ANALYSIS_VERSION`, `LOG_LEVEL`               | Server only            | Reproducibility and observability                   |
 
 No credential receives a `NEXT_PUBLIC_` name in Stage 1.

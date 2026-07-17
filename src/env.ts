@@ -1,5 +1,9 @@
 import { createEnv } from "@t3-oss/env-nextjs";
 import { z } from "zod";
+import {
+  DEFAULT_PROVIDER_RETRY_COUNT,
+  DEFAULT_PROVIDER_TIMEOUT_MS,
+} from "@/shared/http/provider-runtime";
 
 export const env = createEnv({
   server: {
@@ -13,8 +17,15 @@ export const env = createEnv({
       .int()
       .min(1_000)
       .max(30_000)
-      .default(10_000),
-    PROVIDER_RETRY_COUNT: z.coerce.number().int().min(0).max(3).default(2),
+      .default(DEFAULT_PROVIDER_TIMEOUT_MS),
+    PROVIDER_RETRY_COUNT: z.coerce
+      .number()
+      .int()
+      .min(0)
+      .max(3)
+      .default(DEFAULT_PROVIDER_RETRY_COUNT),
+    INTERNAL_ACCESS_USERNAME: z.string().min(1).optional(),
+    INTERNAL_ACCESS_PASSWORD: z.string().min(12).optional(),
     DATABASE_URL: z.url(),
     LINZ_DATA_SERVICE_API_KEY: z.string().min(1).optional(),
     LINZ_BASEMAPS_API_KEY: z.string().min(1).optional(),
@@ -32,6 +43,8 @@ export const env = createEnv({
     LOG_LEVEL: process.env.LOG_LEVEL,
     PROVIDER_TIMEOUT_MS: process.env.PROVIDER_TIMEOUT_MS,
     PROVIDER_RETRY_COUNT: process.env.PROVIDER_RETRY_COUNT,
+    INTERNAL_ACCESS_USERNAME: process.env.INTERNAL_ACCESS_USERNAME,
+    INTERNAL_ACCESS_PASSWORD: process.env.INTERNAL_ACCESS_PASSWORD,
     DATABASE_URL: process.env.DATABASE_URL,
     LINZ_DATA_SERVICE_API_KEY: process.env.LINZ_DATA_SERVICE_API_KEY,
     LINZ_BASEMAPS_API_KEY: process.env.LINZ_BASEMAPS_API_KEY,
