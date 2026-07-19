@@ -77,7 +77,10 @@ describe("official property layer integration", () => {
       status: "unavailable",
       geometryUsed: null,
     });
-    expect(result.compactAnalysis).toMatchObject({
+    const compactAnalysis = result.scenarioComparison.scenarios.find(
+      (analysis) => analysis.scenario.id === "compact",
+    );
+    expect(compactAnalysis).toMatchObject({
       scenario: {
         id: "compact",
         shellLengthMetres: 5,

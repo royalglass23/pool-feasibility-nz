@@ -12,7 +12,13 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
-import { CompactScreeningResult } from "@/components/compact-screening-result";
+import { PoolScenarioComparisonResult } from "@/components/pool-scenario-comparison-result";
+import {
+  poolLocationOptions,
+  poolScenarioCatalogue,
+  type PreferredPoolLocation,
+  type PoolScenarioId,
+} from "@/config/pool-scenarios";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
 import { PropertyAerialMap } from "@/components/map/property-aerial-map";
 
@@ -28,6 +34,9 @@ type ApiResponse =
 
 export function DataAccessInspector() {
   const [address, setAddress] = useState("");
+  const [preferredSize, setPreferredSize] = useState<PoolScenarioId | "">("");
+  const [preferredLocation, setPreferredLocation] =
+    useState<PreferredPoolLocation>("any");
   const [result, setResult] = useState<DataAccessSpikeResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [addressOptions, setAddressOptions] = useState<
@@ -66,6 +75,8 @@ export function DataAccessInspector() {
         body: JSON.stringify({
           address: requestedAddress,
           ...(selectedAddressId ? { selectedAddressId } : {}),
+          ...(preferredLocation === "any" ? {} : { preferredLocation }),
+          ...(preferredSize ? { preferredSize } : {}),
         }),
       });
       const body = (await response.json()) as ApiResponse;
@@ -134,6 +145,49 @@ export function DataAccessInspector() {
               Auckland addresses only for this proof of concept.
             </p>
           </div>
+        </div>
+
+        <div className="mb-4 grid gap-3 sm:grid-cols-2">
+          <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+            Preferred pool size
+            <select
+              value={preferredSize}
+              onChange={(event) => {
+                const scenario = poolScenarioCatalogue.scenarios.find(
+                  (item) => item.id === event.target.value,
+                );
+                setPreferredSize(scenario?.id ?? "");
+              }}
+              className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 font-normal text-slate-950 outline-none focus:border-teal-600 focus:bg-white focus:ring-4 focus:ring-teal-600/10"
+            >
+              <option value="">No preference</option>
+              {poolScenarioCatalogue.scenarios.map((scenario) => (
+                <option key={scenario.id} value={scenario.id}>
+                  {scenario.label} - {scenario.shell.lengthMetres}m x{" "}
+                  {scenario.shell.widthMetres}m
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+            Preferred pool location
+            <select
+              value={preferredLocation}
+              onChange={(event) => {
+                const location = poolLocationOptions.find(
+                  (item) => item.id === event.target.value,
+                );
+                setPreferredLocation(location?.id ?? "any");
+              }}
+              className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 font-normal text-slate-950 outline-none focus:border-teal-600 focus:bg-white focus:ring-4 focus:ring-teal-600/10"
+            >
+              {poolLocationOptions.map((location) => (
+                <option key={location.id} value={location.id}>
+                  {location.label}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
 
         <label htmlFor="property-address" className="sr-only">
@@ -324,7 +378,7 @@ function PropertyDataResult({
 
       <PropertyAerialMap result={result} onRetry={onRetry} />
 
-      <CompactScreeningResult analysis={result.compactAnalysis} />
+      <PoolScenarioComparisonResult comparison={result.scenarioComparison} />
 
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.6fr]">
         <div className="space-y-6">

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { poolLocationIds, poolScenarioIds } from "@/config/pool-scenarios";
 import {
   DataAccessSpikeError,
   runDataAccessSpike,
@@ -12,6 +13,8 @@ const requestSchema = z
   .object({
     address: z.string().trim().min(8).max(200),
     selectedAddressId: z.string().trim().min(1).max(100).optional(),
+    preferredLocation: z.enum(poolLocationIds).optional(),
+    preferredSize: z.enum(poolScenarioIds).nullable().optional(),
   })
   .strict();
 
@@ -62,6 +65,10 @@ export async function executeDataAccessRequest(input: {
     const data = await runDataAccessSpike({
       requestedAddress: request.data.address,
       selectedAddressId: request.data.selectedAddressId,
+      preferences: {
+        preferredLocation: request.data.preferredLocation ?? "any",
+        preferredSize: request.data.preferredSize ?? null,
+      },
       gateway: input.gateway,
       basemapApiKey: input.basemapApiKey,
       now: input.now,

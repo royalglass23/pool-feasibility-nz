@@ -67,13 +67,18 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   ).toBeVisible();
   await expect(page.getByText("Official map layers")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Compact screening result" }),
+    page.getByRole("heading", { name: "Pool scenario comparison" }),
   ).toBeVisible();
-  await expect(page.getByText("3 ranked candidates")).toBeVisible();
+  await expect(page.getByText("5m x 3m to 9m x 4m")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Candidate 1" }),
+    page.getByRole("heading", { name: "Compact", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("2.4 m", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Standard", exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Large", exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("Compact candidate 1")).toBeVisible();
   await expect(
     page.getByText(
@@ -119,6 +124,67 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   expect(download.suggestedFilename()).toBe("property-data-2359811.json");
 });
 
+test("compares configured scenarios with staff size and location preferences", async ({
+  page,
+}) => {
+  let submittedBody: Record<string, unknown> | undefined;
+  await page.route("**/api/internal/data-access", async (route) => {
+    submittedBody = route.request().postDataJSON();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          ...dataAccessResult,
+          scenarioComparison: {
+            ...dataAccessResult.scenarioComparison,
+            preferences: {
+              preferredLocation: "north",
+              preferredSize: "standard",
+            },
+            rankedScenarioIds: [
+              "standard",
+              "compact-plus",
+              "standard-plus",
+              "compact",
+              "large",
+            ],
+          },
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Preferred pool size").selectOption("standard");
+  await page.getByLabel("Preferred pool location").selectOption("north");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+
+  const comparison = page.getByRole("region", {
+    name: "Pool scenario comparison",
+  });
+  await expect(comparison).toBeVisible();
+  await expect(comparison.getByText("5m x 3m to 9m x 4m")).toBeVisible();
+  await expect(comparison.getByText("Preferred Size")).toBeVisible();
+  await expect(
+    comparison.getByText("Standard", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(comparison.getByText("North", { exact: true })).toBeVisible();
+  await expect(
+    comparison.getByText("Configured intermediate").first(),
+  ).toBeVisible();
+  await expect(
+    comparison.getByText("Specialist Review Required"),
+  ).toBeVisible();
+  await expect(comparison.getByRole("heading").nth(1)).toHaveText("Standard");
+  expect(submittedBody).toEqual({
+    address,
+    preferredLocation: "north",
+    preferredSize: "standard",
+  });
+});
+
 test("retries after a controlled provider failure", async ({ page }) => {
   await stubAerialTiles(page);
   let attempts = 0;
@@ -161,12 +227,17 @@ test("shows the honest no-clear-candidate wording for a controlled screening res
       body: JSON.stringify({
         data: {
           ...dataAccessResult,
-          compactAnalysis: {
-            ...dataAccessResult.compactAnalysis,
-            status: "no_clear_candidate",
-            resultWording:
-              "No clear candidate area was identified using the tested screening scenarios.",
-            candidates: [],
+          scenarioComparison: {
+            ...dataAccessResult.scenarioComparison,
+            scenarios: dataAccessResult.scenarioComparison.scenarios.map(
+              (scenario) => ({
+                ...scenario,
+                status: "no_clear_candidate",
+                candidates: [],
+              }),
+            ),
+            successfulShells: [],
+            shellRange: null,
           },
         },
       }),
@@ -178,12 +249,12 @@ test("shows the honest no-clear-candidate wording for a controlled screening res
   await page.getByRole("button", { name: "Fetch property data" }).click();
 
   await expect(
-    page.getByText(
-      "No clear candidate area was identified using the tested screening scenarios.",
-    ),
+    page
+      .getByText("No successful candidate geometry supports this shell size.")
+      .first(),
   ).toBeVisible();
   await expect(
-    page.getByText("No Clear Candidate", { exact: true }),
+    page.getByText("No Clear Candidate", { exact: true }).first(),
   ).toBeVisible();
   await expect(page.getByText(/pool impossible/i)).toHaveCount(0);
 });
@@ -480,49 +551,100 @@ const dataAccessResult = {
     "wastewater_fittings",
   ],
   providerErrors: [{ dataset: "flood_plains", code: "PROVIDER_TIMEOUT" }],
-  compactAnalysis: {
-    scenario: {
-      id: "compact",
-      label: "Compact",
-      version: "compact-screening-v1",
-      shellLengthMetres: 5,
-      shellWidthMetres: 3,
-      constructionAllowanceMetres: 1,
-      rotationsDegrees: [0, 45, 90, 135],
-      placementSpacingMetres: 0.5,
-      maximumTestedPlacements: 4_000,
-      maximumCandidates: 3,
-    },
-    status: "candidates_found",
-    resultWording:
-      "Indicative Compact screening candidates were identified from deterministic mapped geometry. These are not approved pool positions.",
-    testedPlacementCount: 84,
-    testedRotationsDegrees: [0, 45, 90, 135],
-    usableAreaSquareMetres: 118.6,
-    analysisEvidence: {
-      parcel: fixtureSpatialEvidence(
-        "legal_parcel",
-        "NZ Primary Parcels",
-        "LINZ",
-      ),
-      buildings: fixtureSpatialEvidence(
-        "building_footprints",
-        "NZ Building Outlines",
-        "LINZ",
-      ),
-    },
-    candidates: [
-      compactCandidate(1, [174.607955, -36.86013], 0, 2.4),
-      compactCandidate(2, [174.60789, -36.86013], 90, 1.8),
-      compactCandidate(3, [174.60793, -36.860145], 0, 1.2),
-    ],
-    missingRequiredEvidence: [],
-  },
+  scenarioComparison: comparisonFixture(),
   generatedAt: "2026-07-16T00:00:00.000Z",
   blockers: [
     "Watercare geometry is internal reference data only and must be independently verified before action",
   ],
 };
+
+function comparisonFixture() {
+  const definitions = [
+    ["compact", "Compact", "anchor", 5, 3],
+    ["compact-plus", "Compact Plus", "intermediate", 6, 3.25],
+    ["standard", "Standard", "anchor", 7, 3.5],
+    ["standard-plus", "Standard Plus", "intermediate", 8, 3.75],
+    ["large", "Large", "anchor", 9, 4],
+  ] as const;
+  const scenarios = definitions.map(
+    ([id, label, kind, shellLengthMetres, shellWidthMetres], index) => {
+      const candidate = {
+        ...compactCandidate(
+          1,
+          [174.607955 - index * 0.00001, -36.86013 - index * 0.000005],
+          index % 2 === 0 ? 0 : 90,
+          2.4 + index,
+        ),
+        id: `${id}-1`,
+      };
+      return {
+        scenario: {
+          id,
+          label,
+          kind,
+          version: "pool-scenario-comparison-v1",
+          shellLengthMetres,
+          shellWidthMetres,
+          constructionAllowanceMetres: 1,
+          rotationsDegrees: [0, 45, 90, 135],
+          placementSpacingMetres: 0.5,
+          maximumTestedPlacements: 4_000,
+          maximumCandidates: 3,
+        },
+        status:
+          index === 4
+            ? "specialist_review_required"
+            : "possible_with_constraints",
+        resultWording: `${label} was tested against controlled mapped geometry.`,
+        testedPlacementCount: 84,
+        testedRotationsDegrees: [0, 45, 90, 135],
+        usableAreaSquareMetres: 118.6,
+        analysisEvidence: {
+          parcel: fixtureSpatialEvidence(
+            "legal_parcel",
+            "NZ Primary Parcels",
+            "LINZ",
+          ),
+          buildings: fixtureSpatialEvidence(
+            "building_footprints",
+            "NZ Building Outlines",
+            "LINZ",
+          ),
+        },
+        candidates: [candidate],
+        missingRequiredEvidence: [],
+      };
+    },
+  );
+  const successfulShells = scenarios.map((analysis) => ({
+    scenarioId: analysis.scenario.id,
+    label: analysis.scenario.label,
+    lengthMetres: analysis.scenario.shellLengthMetres,
+    widthMetres: analysis.scenario.shellWidthMetres,
+    candidateId: analysis.candidates[0].id,
+  }));
+  return {
+    version: "pool-scenario-comparison-v1",
+    preferences: { preferredLocation: "any", preferredSize: null },
+    scenarios,
+    rankedScenarioIds: definitions.map(([id]) => id),
+    successfulShells,
+    shellRange: {
+      minimum: {
+        scenarioId: "compact",
+        lengthMetres: 5,
+        widthMetres: 3,
+        candidateId: "compact-1",
+      },
+      maximum: {
+        scenarioId: "large",
+        lengthMetres: 9,
+        widthMetres: 4,
+        candidateId: "large-1",
+      },
+    },
+  };
+}
 
 function compactCandidate(
   rank: number,

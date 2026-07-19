@@ -93,13 +93,9 @@ describe("DataAccessInspector", () => {
     expect(screen.getAllByText("Lot 1 DP 576345")).toHaveLength(2);
     expect(screen.getByText("Dataset availability")).toBeVisible();
     expect(
-      screen.getByRole("heading", { name: "Compact screening result" }),
+      screen.getByRole("heading", { name: "Pool scenario comparison" }),
     ).toBeVisible();
-    expect(
-      screen.getByText(
-        "Insufficient verified mapped data is available to test Compact screening candidates safely.",
-      ),
-    ).toBeVisible();
+    expect(screen.getByText("No successfully placed range")).toBeVisible();
     expect(
       screen.getByRole("region", {
         name: `Aerial map for ${requestedAddress}`,
@@ -118,6 +114,44 @@ describe("DataAccessInspector", () => {
     expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
     expect(clickAnchor).toHaveBeenCalledOnce();
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:property-data");
+  });
+
+  it("submits staff preferences and renders the scenario comparison", async () => {
+    const user = userEvent.setup();
+    const result = await createResult();
+    const fetchMock = vi.fn<typeof fetch>(async () =>
+      Response.json({ data: result }, { status: 200 }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DataAccessInspector />);
+    await user.selectOptions(
+      screen.getByLabelText("Preferred pool size"),
+      "standard",
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Preferred pool location"),
+      "north",
+    );
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Fetch property data" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Pool scenario comparison" }),
+    ).toBeVisible();
+    expect(JSON.parse(fetchMock.mock.calls[0]![1]!.body as string)).toEqual({
+      address: requestedAddress,
+      preferredLocation: "north",
+      preferredSize: "standard",
+    });
+    expect(screen.getByRole("heading", { name: "Compact" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Standard" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Large" })).toBeVisible();
   });
 
   it("shows mapped official layers with controls, provenance, and honest unavailable states", async () => {

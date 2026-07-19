@@ -45,6 +45,9 @@ export function PropertyAerialMap({
   const [layerVisibility, setLayerVisibility] = useState<
     Record<string, boolean>
   >({});
+  const compactAnalysis = result.scenarioComparison.scenarios.find(
+    (analysis) => analysis.scenario.id === "compact",
+  );
   const aerialConfigured =
     result.datasets.aerial_imagery.status === "available";
   const aerialFailed =
@@ -169,12 +172,12 @@ export function PropertyAerialMap({
           });
         }
       }
-      if (result.compactAnalysis.candidates.length > 0) {
+      if (compactAnalysis && compactAnalysis.candidates.length > 0) {
         sources["compact-envelopes"] = {
           type: "geojson",
           data: {
             type: "FeatureCollection",
-            features: result.compactAnalysis.candidates.map((candidate) => ({
+            features: compactAnalysis.candidates.map((candidate) => ({
               ...candidate.envelope,
               properties: { candidateRank: candidate.rank },
             })),
@@ -184,7 +187,7 @@ export function PropertyAerialMap({
           type: "geojson",
           data: {
             type: "FeatureCollection",
-            features: result.compactAnalysis.candidates.map((candidate) => ({
+            features: compactAnalysis.candidates.map((candidate) => ({
               ...candidate.shell,
               properties: { candidateRank: candidate.rank },
             })),
@@ -279,7 +282,13 @@ export function PropertyAerialMap({
       cancelled = true;
       map?.remove();
     };
-  }, [aerialAttribution, aerialConfigured, result, visibleMappedLayers]);
+  }, [
+    aerialAttribution,
+    aerialConfigured,
+    compactAnalysis,
+    result,
+    visibleMappedLayers,
+  ]);
 
   return (
     <section
@@ -375,7 +384,7 @@ export function PropertyAerialMap({
         <div>
           <h4 className="font-semibold text-slate-950">Legend</h4>
           <ul className="mt-3 space-y-2 text-sm text-slate-600">
-            {result.compactAnalysis.candidates.map((candidate) => (
+            {compactAnalysis?.candidates.map((candidate) => (
               <li key={candidate.id} className="flex items-center gap-2">
                 <span
                   aria-hidden="true"

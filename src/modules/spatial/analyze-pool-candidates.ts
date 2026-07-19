@@ -10,7 +10,6 @@ import {
   distance,
   feature,
   featureCollection,
-  intersect,
   lineString,
   point,
   pointToLineDistance,
@@ -25,7 +24,11 @@ import type {
   Polygon,
   Position,
 } from "geojson";
-import type { PoolScenarioConfig } from "@/config/pool-scenarios";
+import type {
+  PoolScenarioConfig,
+  PoolScenarioId,
+  PreferredPoolLocation,
+} from "@/config/pool-scenarios";
 
 export interface SpatialEvidenceProvenance {
   provider: string;
@@ -62,7 +65,7 @@ export interface MappedServiceDistance {
   distanceMetres: number | null;
 }
 
-export interface CompactCandidate {
+export interface PoolCandidate {
   id: string;
   rank: number;
   centre: Position;
@@ -78,10 +81,11 @@ export interface CompactCandidate {
   rankingEvidence: string[];
 }
 
-export interface CompactCandidateAnalysis {
+export interface PoolCandidateAnalysis {
   scenario: {
-    id: "compact";
-    label: "Compact";
+    id: PoolScenarioId;
+    label: string;
+    kind: "anchor" | "intermediate";
     version: string;
     shellLengthMetres: number;
     shellWidthMetres: number;
@@ -100,11 +104,11 @@ export interface CompactCandidateAnalysis {
     parcel: SpatialEvidenceInput;
     buildings: SpatialEvidenceInput;
   };
-  candidates: CompactCandidate[];
+  candidates: PoolCandidate[];
   missingRequiredEvidence: string[];
 }
 
-export function analyzeCompactCandidates(input: {
+export function analyzePoolCandidates(input: {
   parcel: Polygon;
   parcelStatus: "confirmed" | "unconfirmed";
   parcelEvidence: SpatialEvidenceInput;
@@ -112,7 +116,8 @@ export function analyzeCompactCandidates(input: {
   constraints: SpatialEvidenceInput[];
   mappedServices: SpatialEvidenceInput[];
   config: PoolScenarioConfig;
-}): CompactCandidateAnalysis {
+  preferredLocation?: PreferredPoolLocation;
+}): PoolCandidateAnalysis {
   if (input.parcelStatus !== "confirmed") {
     return insufficientData(input, ["legal_parcel"]);
   }
@@ -147,7 +152,7 @@ export function analyzeCompactCandidates(input: {
     rotations.length,
     input.config,
   );
-  const candidates: CompactCandidate[] = [];
+  const candidates: PoolCandidate[] = [];
   let testedPlacementCount = 0;
 
   for (const x of xPositions) {
@@ -173,15 +178,22 @@ export function analyzeCompactCandidates(input: {
         if (!booleanWithin(envelope, parcelFeature)) continue;
         if (buildings.some((building) => !booleanDisjoint(envelope, building)))
           continue;
-
         const constraintIntersections = input.constraints.map((evidence) =>
           measureConstraintIntersection(envelope, evidence),
         );
+        if (
+          constraintIntersections.some(
+            (measurement) =>
+              measurement.status === "measured" && measurement.intersects,
+          )
+        ) {
+          continue;
+        }
         const mappedServiceDistances = input.mappedServices.map((evidence) =>
           measureMappedServiceDistance(envelope, evidence),
         );
         candidates.push({
-          id: `compact-${candidates.length + 1}`,
+          id: `${input.config.id}-${candidates.length + 1}`,
           rank: 0,
           centre,
           rotationDegrees,
@@ -203,7 +215,9 @@ export function analyzeCompactCandidates(input: {
   }
 
   const ranked = candidates
-    .sort(compareCandidates)
+    .sort((left, right) =>
+      compareCandidates(left, right, input.preferredLocation ?? "any", origin),
+    )
     .slice(0, input.config.maximumCandidates)
     .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
 
@@ -212,7 +226,7 @@ export function analyzeCompactCandidates(input: {
     status: ranked.length > 0 ? "candidates_found" : "no_clear_candidate",
     resultWording:
       ranked.length > 0
-        ? "Indicative Compact screening candidates were identified from deterministic mapped geometry. These are not approved pool positions."
+        ? `Indicative ${input.config.label} screening candidates were identified from deterministic mapped geometry. These are not approved pool positions.`
         : "No clear candidate area was identified using the tested screening scenarios.",
     testedPlacementCount,
     testedRotationsDegrees: rotations,
@@ -230,6 +244,7 @@ function scenarioResult(config: PoolScenarioConfig) {
   return {
     id: config.id,
     label: config.label,
+    kind: config.kind,
     version: config.version,
     shellLengthMetres: config.shell.lengthMetres,
     shellWidthMetres: config.shell.widthMetres,
@@ -242,14 +257,13 @@ function scenarioResult(config: PoolScenarioConfig) {
 }
 
 function insufficientData(
-  input: Parameters<typeof analyzeCompactCandidates>[0],
+  input: Parameters<typeof analyzePoolCandidates>[0],
   missingRequiredEvidence: string[],
-): CompactCandidateAnalysis {
+): PoolCandidateAnalysis {
   return {
     scenario: scenarioResult(input.config),
     status: "insufficient_data",
-    resultWording:
-      "Insufficient verified mapped data is available to test Compact screening candidates safely.",
+    resultWording: `Insufficient verified mapped data is available to test ${input.config.label} screening candidates safely.`,
     testedPlacementCount: 0,
     testedRotationsDegrees: [...input.config.rotationsDegrees],
     usableAreaSquareMetres: null,
@@ -329,35 +343,14 @@ function measureConstraintIntersection(
     };
   }
 
-  let intersects = false;
-  let affectedAreaSquareMetres = 0;
-  for (const constraint of evidence.geometry.features) {
-    if (!booleanIntersects(envelope, constraint)) continue;
-    intersects = true;
-    if (
-      constraint.geometry.type === "Polygon" ||
-      constraint.geometry.type === "MultiPolygon"
-    ) {
-      const overlap = intersect(
-        featureCollection([
-          envelope,
-          constraint as Feature<Polygon | MultiPolygon>,
-        ]),
-      );
-      if (overlap) affectedAreaSquareMetres += area(overlap);
-    }
-  }
+  const intersects = evidence.geometry.features.some((constraint) =>
+    booleanIntersects(envelope, constraint),
+  );
   return {
     evidence,
     status: "measured",
     intersects,
-    affectedEnvelopePercent:
-      affectedAreaSquareMetres === 0
-        ? null
-        : roundTo(
-            Math.min(100, (affectedAreaSquareMetres / area(envelope)) * 100),
-            1,
-          ),
+    affectedEnvelopePercent: null,
   };
 }
 
@@ -424,7 +417,12 @@ function rankingEvidence(
   ];
 }
 
-function compareCandidates(left: CompactCandidate, right: CompactCandidate) {
+function compareCandidates(
+  left: PoolCandidate,
+  right: PoolCandidate,
+  preferredLocation: PreferredPoolLocation,
+  origin: Position,
+) {
   const leftIntersections = left.constraintIntersections.filter(
     (measurement) => measurement.intersects,
   ).length;
@@ -438,6 +436,7 @@ function compareCandidates(left: CompactCandidate, right: CompactCandidate) {
   return (
     leftIntersections - rightIntersections ||
     leftUnknown - rightUnknown ||
+    comparePreferredLocation(left, right, preferredLocation, origin) ||
     rightDistance - leftDistance ||
     left.centre[1] - right.centre[1] ||
     left.centre[0] - right.centre[0] ||
@@ -445,7 +444,24 @@ function compareCandidates(left: CompactCandidate, right: CompactCandidate) {
   );
 }
 
-function unknownEvidenceCount(candidate: CompactCandidate) {
+function comparePreferredLocation(
+  left: PoolCandidate,
+  right: PoolCandidate,
+  preferredLocation: PreferredPoolLocation,
+  origin: Position,
+) {
+  if (preferredLocation === "north") return right.centre[1] - left.centre[1];
+  if (preferredLocation === "south") return left.centre[1] - right.centre[1];
+  if (preferredLocation === "centre") {
+    return (
+      distance(point(left.centre), point(origin), { units: "meters" }) -
+      distance(point(right.centre), point(origin), { units: "meters" })
+    );
+  }
+  return 0;
+}
+
+function unknownEvidenceCount(candidate: PoolCandidate) {
   return (
     candidate.constraintIntersections.filter(
       (measurement) => measurement.status === "unavailable",
@@ -456,7 +472,7 @@ function unknownEvidenceCount(candidate: CompactCandidate) {
   );
 }
 
-function nearestMappedServiceDistance(candidate: CompactCandidate) {
+function nearestMappedServiceDistance(candidate: PoolCandidate) {
   const distances = candidate.mappedServiceDistances.flatMap((measurement) =>
     measurement.distanceMetres === null ? [] : [measurement.distanceMetres],
   );

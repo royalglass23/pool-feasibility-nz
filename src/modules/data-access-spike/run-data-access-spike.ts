@@ -1,7 +1,7 @@
 import { bbox } from "@turf/turf";
 import type { Feature, Polygon } from "geojson";
 import { z } from "zod";
-import { compactPoolScenario } from "@/config/pool-scenarios";
+import { poolScenarioCatalogue } from "@/config/pool-scenarios";
 import type {
   AddressMatch,
   DataAccessSpikeGateway,
@@ -16,10 +16,11 @@ import {
   type DatasetKey,
 } from "./dataset-catalog";
 import {
-  analyzeCompactCandidates,
-  type CompactCandidateAnalysis,
+  analyzePoolScenarios,
+  type PoolScenarioComparison,
+  type PoolScenarioPreferences,
   type SpatialEvidenceInput,
-} from "../spatial/analyze-compact-candidates";
+} from "../spatial/analyze-pool-scenarios";
 
 export type {
   AddressMatch,
@@ -78,7 +79,7 @@ export interface DataAccessSpikeResult {
     dataset: DatasetKey;
     code: ProviderEvidenceErrorCode;
   }>;
-  compactAnalysis: CompactCandidateAnalysis;
+  scenarioComparison: PoolScenarioComparison;
   generatedAt: string;
   blockers: string[];
 }
@@ -108,6 +109,7 @@ export async function runDataAccessSpike(input: {
   gateway: DataAccessSpikeGateway;
   basemapApiKey?: string;
   now?: () => Date;
+  preferences?: PoolScenarioPreferences;
 }): Promise<DataAccessSpikeResult> {
   const requestedAddress = addressInputSchema.parse(input.requestedAddress);
   const retrievedAt = (input.now?.() ?? new Date()).toISOString();
@@ -241,7 +243,7 @@ export async function runDataAccessSpike(input: {
     !input.selectedAddressId &&
     normalizeAddress(resolvedAddress.fullAddress) ===
       normalizeAddress(requestedAddress);
-  const compactAnalysis = analyzeCompactCandidates({
+  const scenarioComparison = analyzePoolScenarios({
     parcel: parcel.geometry,
     parcelStatus:
       parcelMatch.status === "mapped_primary_parcel"
@@ -258,7 +260,11 @@ export async function runDataAccessSpike(input: {
     mappedServices: mappedServiceDatasetKeys.map((key) =>
       spatialEvidence(key, datasets),
     ),
-    config: compactPoolScenario,
+    catalogue: poolScenarioCatalogue,
+    preferences: input.preferences ?? {
+      preferredLocation: "any",
+      preferredSize: null,
+    },
   });
 
   return {
@@ -280,7 +286,7 @@ export async function runDataAccessSpike(input: {
     spikeOnlyDatasets,
     internalReferenceDatasets,
     providerErrors,
-    compactAnalysis,
+    scenarioComparison,
     generatedAt: retrievedAt,
     blockers: [
       ...(datasets.aerial_imagery.status === "available"

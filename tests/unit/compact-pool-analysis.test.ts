@@ -10,9 +10,9 @@ import type { FeatureCollection, Geometry, Polygon } from "geojson";
 import { describe, expect, it } from "vitest";
 import { compactPoolScenario } from "@/config/pool-scenarios";
 import {
-  analyzeCompactCandidates,
+  analyzePoolCandidates,
   type SpatialEvidenceInput,
-} from "@/modules/spatial/analyze-compact-candidates";
+} from "@/modules/spatial/analyze-pool-candidates";
 
 const centre = [174.6079, -36.8602] as const;
 const parcel = rectangleParcel(centre, 0.00018, 0.00013);
@@ -49,10 +49,10 @@ describe("Compact pool candidate analysis", () => {
     }
   });
 
-  it("records intersections, mapped-service distance, provenance, and deterministic ranking", () => {
+  it("records available constraints, mapped-service distance, provenance, and deterministic ranking", () => {
     const result = analyze({
       parcel,
-      constraints: [evidence("flood_plains", collection([parcel]))],
+      constraints: [evidence("flood_plains", collection([]))],
       mappedServices: [
         evidence(
           "wastewater_assets",
@@ -66,6 +66,7 @@ describe("Compact pool candidate analysis", () => {
       ],
     });
 
+    expect(result.candidates).toHaveLength(3);
     const rankedDistances = result.candidates.map((candidate) =>
       Math.min(
         ...candidate.mappedServiceDistances.flatMap((measurement) =>
@@ -88,8 +89,8 @@ describe("Compact pool candidate analysis", () => {
           },
         },
         status: "measured",
-        intersects: true,
-        affectedEnvelopePercent: 100,
+        intersects: false,
+        affectedEnvelopePercent: null,
       });
       expect(candidate.mappedServiceDistances[0]).toMatchObject({
         evidence: { id: "wastewater_assets" },
@@ -174,7 +175,7 @@ function analyze(input: {
   constraints?: SpatialEvidenceInput[];
   mappedServices?: SpatialEvidenceInput[];
 }) {
-  return analyzeCompactCandidates({
+  return analyzePoolCandidates({
     parcel: input.parcel,
     parcelStatus: input.parcelStatus ?? "confirmed",
     parcelEvidence: evidence("legal_parcel", collection([input.parcel])),

@@ -54,6 +54,29 @@ describe("executeDataAccessRequest", () => {
     expect(response.data.identityCheck.exactAddressMatched).toBe(true);
   });
 
+  it("validates and applies pool comparison preferences", async () => {
+    const response = await executeDataAccessRequest({
+      body: {
+        address: "42A Bahari Drive, Ranui, Auckland",
+        preferredLocation: "north",
+        preferredSize: "standard",
+      },
+      gateway: createGateway(),
+      now: () => new Date("2026-07-20T00:00:00.000Z"),
+    });
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) return;
+
+    expect(response.data.scenarioComparison.preferences).toEqual({
+      preferredLocation: "north",
+      preferredSize: "standard",
+    });
+    expect(response.data.scenarioComparison.rankedScenarioIds[0]).toBe(
+      "standard",
+    );
+  });
+
   it("maps a known address failure to a useful safe response", async () => {
     const response = await executeDataAccessRequest({
       body: { address: "99 Example Road, Auckland" },
