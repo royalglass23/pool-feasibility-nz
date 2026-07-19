@@ -93,6 +93,14 @@ describe("DataAccessInspector", () => {
     expect(screen.getAllByText("Lot 1 DP 576345")).toHaveLength(2);
     expect(screen.getByText("Dataset availability")).toBeVisible();
     expect(
+      screen.getByRole("heading", { name: "Compact screening result" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Insufficient verified mapped data is available to test Compact screening candidates safely.",
+      ),
+    ).toBeVisible();
+    expect(
       screen.getByRole("region", {
         name: `Aerial map for ${requestedAddress}`,
       }),

@@ -169,6 +169,58 @@ export function PropertyAerialMap({
           });
         }
       }
+      if (result.compactAnalysis.candidates.length > 0) {
+        sources["compact-envelopes"] = {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: result.compactAnalysis.candidates.map((candidate) => ({
+              ...candidate.envelope,
+              properties: { candidateRank: candidate.rank },
+            })),
+          },
+        };
+        sources["compact-shells"] = {
+          type: "geojson",
+          data: {
+            type: "FeatureCollection",
+            features: result.compactAnalysis.candidates.map((candidate) => ({
+              ...candidate.shell,
+              properties: { candidateRank: candidate.rank },
+            })),
+          },
+        };
+        layers.push(
+          {
+            id: "compact-envelope-fill",
+            type: "fill",
+            source: "compact-envelopes",
+            paint: { "fill-color": "#facc15", "fill-opacity": 0.16 },
+          },
+          {
+            id: "compact-envelope-outline",
+            type: "line",
+            source: "compact-envelopes",
+            paint: {
+              "line-color": "#ca8a04",
+              "line-width": 2,
+              "line-dasharray": [2, 2],
+            },
+          },
+          {
+            id: "compact-shell-fill",
+            type: "fill",
+            source: "compact-shells",
+            paint: { "fill-color": "#14b8a6", "fill-opacity": 0.5 },
+          },
+          {
+            id: "compact-shell-outline",
+            type: "line",
+            source: "compact-shells",
+            paint: { "line-color": "#0f766e", "line-width": 3 },
+          },
+        );
+      }
       layers.push(
         {
           id: "parcel-fill",
@@ -323,6 +375,15 @@ export function PropertyAerialMap({
         <div>
           <h4 className="font-semibold text-slate-950">Legend</h4>
           <ul className="mt-3 space-y-2 text-sm text-slate-600">
+            {result.compactAnalysis.candidates.map((candidate) => (
+              <li key={candidate.id} className="flex items-center gap-2">
+                <span
+                  aria-hidden="true"
+                  className="size-3 rounded-sm bg-teal-500 ring-2 ring-yellow-400"
+                />
+                Compact candidate {candidate.rank}
+              </li>
+            ))}
             {visibleMappedLayers.map(({ definition, evidence }) => (
               <li key={definition.key} className="flex items-center gap-2">
                 <span

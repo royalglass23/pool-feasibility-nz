@@ -67,6 +67,20 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   ).toBeVisible();
   await expect(page.getByText("Official map layers")).toBeVisible();
   await expect(
+    page.getByRole("heading", { name: "Compact screening result" }),
+  ).toBeVisible();
+  await expect(page.getByText("3 ranked candidates")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Candidate 1" }),
+  ).toBeVisible();
+  await expect(page.getByText("2.4 m", { exact: true })).toBeVisible();
+  await expect(page.getByText("Compact candidate 1")).toBeVisible();
+  await expect(
+    page.getByText(
+      "Screening evidence only - no candidate is an approved design or pool position.",
+    ),
+  ).toBeVisible();
+  await expect(
     page.getByRole("checkbox", { name: "NZ Building Outlines" }),
   ).toBeChecked();
   await expect(
@@ -134,6 +148,44 @@ test("retries after a controlled provider failure", async ({ page }) => {
 
   await expect(page.getByRole("heading", { name: address })).toBeVisible();
   expect(attempts).toBe(2);
+});
+
+test("shows the honest no-clear-candidate wording for a controlled screening result", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          ...dataAccessResult,
+          compactAnalysis: {
+            ...dataAccessResult.compactAnalysis,
+            status: "no_clear_candidate",
+            resultWording:
+              "No clear candidate area was identified using the tested screening scenarios.",
+            candidates: [],
+          },
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+
+  await expect(
+    page.getByText(
+      "No clear candidate area was identified using the tested screening scenarios.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByText("No Clear Candidate", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByText(/pool impossible/i)).toHaveCount(0);
 });
 
 test("revokes verified imagery and retries when a LINZ tile fails", async ({
@@ -428,8 +480,146 @@ const dataAccessResult = {
     "wastewater_fittings",
   ],
   providerErrors: [{ dataset: "flood_plains", code: "PROVIDER_TIMEOUT" }],
+  compactAnalysis: {
+    scenario: {
+      id: "compact",
+      label: "Compact",
+      version: "compact-screening-v1",
+      shellLengthMetres: 5,
+      shellWidthMetres: 3,
+      constructionAllowanceMetres: 1,
+      rotationsDegrees: [0, 45, 90, 135],
+      placementSpacingMetres: 0.5,
+      maximumTestedPlacements: 4_000,
+      maximumCandidates: 3,
+    },
+    status: "candidates_found",
+    resultWording:
+      "Indicative Compact screening candidates were identified from deterministic mapped geometry. These are not approved pool positions.",
+    testedPlacementCount: 84,
+    testedRotationsDegrees: [0, 45, 90, 135],
+    usableAreaSquareMetres: 118.6,
+    analysisEvidence: {
+      parcel: fixtureSpatialEvidence(
+        "legal_parcel",
+        "NZ Primary Parcels",
+        "LINZ",
+      ),
+      buildings: fixtureSpatialEvidence(
+        "building_footprints",
+        "NZ Building Outlines",
+        "LINZ",
+      ),
+    },
+    candidates: [
+      compactCandidate(1, [174.607955, -36.86013], 0, 2.4),
+      compactCandidate(2, [174.60789, -36.86013], 90, 1.8),
+      compactCandidate(3, [174.60793, -36.860145], 0, 1.2),
+    ],
+    missingRequiredEvidence: [],
+  },
   generatedAt: "2026-07-16T00:00:00.000Z",
   blockers: [
     "Watercare geometry is internal reference data only and must be independently verified before action",
   ],
 };
+
+function compactCandidate(
+  rank: number,
+  centre: [number, number],
+  rotationDegrees: number,
+  nearestServiceMetres: number,
+) {
+  return {
+    id: `compact-${rank}`,
+    rank,
+    centre,
+    rotationDegrees,
+    shell: fixtureRectangle(centre, 0.000028, 0.0000135),
+    envelope: fixtureRectangle(centre, 0.000039, 0.0000225),
+    placementEvidence: {
+      parcel: fixtureSpatialEvidence(
+        "legal_parcel",
+        "NZ Primary Parcels",
+        "LINZ",
+      ),
+      buildings: fixtureSpatialEvidence(
+        "building_footprints",
+        "NZ Building Outlines",
+        "LINZ",
+      ),
+    },
+    constraintIntersections: [
+      {
+        evidence: fixtureSpatialEvidence(
+          "flood_prone_areas",
+          "Flood Prone Areas",
+          "Auckland Council",
+        ),
+        status: "measured",
+        intersects: false,
+        affectedEnvelopePercent: null,
+      },
+    ],
+    mappedServiceDistances: [
+      {
+        evidence: fixtureSpatialEvidence(
+          "wastewater_assets",
+          "Wastewater Pipes",
+          "Watercare",
+        ),
+        status: "measured",
+        distanceMetres: nearestServiceMetres,
+      },
+    ],
+    rankingEvidence: [
+      "Entire indicative construction envelope is inside the mapped parcel.",
+      "Envelope does not intersect a known LINZ building footprint.",
+      `Nearest mapped service is approximately ${nearestServiceMetres.toFixed(1)} m from the indicative construction envelope.`,
+    ],
+  };
+}
+
+function fixtureSpatialEvidence(id: string, label: string, provider: string) {
+  return {
+    id,
+    label,
+    status: "available",
+    provenance: {
+      provider,
+      dataset: label,
+      datasetIdentifier: `fixture:${id}`,
+      retrievedAt: "2026-07-16T00:00:00.000Z",
+      datasetDate: null,
+      licence: "Controlled test fixture",
+      attribution: null,
+      geometryUsed: "controlled fixture geometry",
+      attributesUsed: [],
+      evidenceType: "controlled_fixture",
+      confidence: "high",
+    },
+  };
+}
+
+function fixtureRectangle(
+  [longitude, latitude]: [number, number],
+  halfLongitude: number,
+  halfLatitude: number,
+) {
+  return {
+    type: "Feature" as const,
+    properties: {},
+    geometry: {
+      type: "Polygon" as const,
+      coordinates: [
+        [
+          [longitude - halfLongitude, latitude - halfLatitude],
+          [longitude + halfLongitude, latitude - halfLatitude],
+          [longitude + halfLongitude, latitude + halfLatitude],
+          [longitude - halfLongitude, latitude + halfLatitude],
+          [longitude - halfLongitude, latitude - halfLatitude],
+        ],
+      ],
+    },
+  };
+}

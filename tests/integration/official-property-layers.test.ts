@@ -77,6 +77,19 @@ describe("official property layer integration", () => {
       status: "unavailable",
       geometryUsed: null,
     });
+    expect(result.compactAnalysis).toMatchObject({
+      scenario: {
+        id: "compact",
+        shellLengthMetres: 5,
+        shellWidthMetres: 3,
+        constructionAllowanceMetres: 1,
+      },
+      status: "no_clear_candidate",
+      testedRotationsDegrees: [0, 45, 90, 135],
+      candidates: [],
+      resultWording:
+        "No clear candidate area was identified using the tested screening scenarios.",
+    });
     expect(result.blockers).toContain(
       "Watercare geometry is internal reference data only and must be independently verified before action",
     );

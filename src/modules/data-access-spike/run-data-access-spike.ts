@@ -1,6 +1,7 @@
 import { bbox } from "@turf/turf";
 import type { Feature, Polygon } from "geojson";
 import { z } from "zod";
+import { compactPoolScenario } from "@/config/pool-scenarios";
 import type {
   AddressMatch,
   DataAccessSpikeGateway,
@@ -14,6 +15,11 @@ import {
   queryableDatasetKeys,
   type DatasetKey,
 } from "./dataset-catalog";
+import {
+  analyzeCompactCandidates,
+  type CompactCandidateAnalysis,
+  type SpatialEvidenceInput,
+} from "../spatial/analyze-compact-candidates";
 
 export type {
   AddressMatch,
@@ -72,11 +78,29 @@ export interface DataAccessSpikeResult {
     dataset: DatasetKey;
     code: ProviderEvidenceErrorCode;
   }>;
+  compactAnalysis: CompactCandidateAnalysis;
   generatedAt: string;
   blockers: string[];
 }
 
 const addressInputSchema = z.string().trim().min(8).max(200);
+const constraintDatasetKeys = [
+  "planning_overlays",
+  "flood_plains",
+  "flood_prone_areas",
+  "overland_flow_paths",
+  "watercourses",
+] as const satisfies readonly DatasetKey[];
+const mappedServiceDatasetKeys = [
+  "public_stormwater_assets",
+  "manholes",
+  "catchpits",
+  "wastewater_assets",
+  "public_water_assets",
+  "wastewater_manholes",
+  "water_fittings",
+  "wastewater_fittings",
+] as const satisfies readonly DatasetKey[];
 
 export async function runDataAccessSpike(input: {
   requestedAddress: string;
@@ -217,6 +241,25 @@ export async function runDataAccessSpike(input: {
     !input.selectedAddressId &&
     normalizeAddress(resolvedAddress.fullAddress) ===
       normalizeAddress(requestedAddress);
+  const compactAnalysis = analyzeCompactCandidates({
+    parcel: parcel.geometry,
+    parcelStatus:
+      parcelMatch.status === "mapped_primary_parcel"
+        ? "confirmed"
+        : "unconfirmed",
+    parcelEvidence: spatialEvidence("legal_parcel", datasets, {
+      type: "FeatureCollection",
+      features: [parcelFeature(parcel)],
+    }),
+    buildings: spatialEvidence("building_footprints", datasets),
+    constraints: constraintDatasetKeys.map((key) =>
+      spatialEvidence(key, datasets),
+    ),
+    mappedServices: mappedServiceDatasetKeys.map((key) =>
+      spatialEvidence(key, datasets),
+    ),
+    config: compactPoolScenario,
+  });
 
   return {
     requestedAddress,
@@ -237,6 +280,7 @@ export async function runDataAccessSpike(input: {
     spikeOnlyDatasets,
     internalReferenceDatasets,
     providerErrors,
+    compactAnalysis,
     generatedAt: retrievedAt,
     blockers: [
       ...(datasets.aerial_imagery.status === "available"
@@ -252,6 +296,35 @@ export async function runDataAccessSpike(input: {
       "Auckland Council generated-report reuse requires licence confirmation",
       "Watercare geometry is internal reference data only and must be independently verified before action",
     ],
+  };
+}
+
+function spatialEvidence(
+  key: DatasetKey,
+  datasets: Record<DatasetKey, DatasetEvidence>,
+  geometryOverride?: DatasetEvidence["geometry"],
+): SpatialEvidenceInput {
+  const evidence = datasets[key];
+  const geometry = geometryOverride ?? evidence.geometry;
+  return {
+    id: key,
+    label: evidence.dataset,
+    status:
+      evidence.status === "success" && geometry ? "available" : "unavailable",
+    ...(geometry ? { geometry } : {}),
+    provenance: {
+      provider: evidence.provider,
+      dataset: evidence.dataset,
+      datasetIdentifier: evidence.datasetIdentifier,
+      retrievedAt: evidence.retrievedAt,
+      datasetDate: evidence.datasetDate,
+      licence: evidence.licence,
+      attribution: evidence.attribution,
+      geometryUsed: evidence.geometryUsed,
+      attributesUsed: [...evidence.attributesUsed],
+      evidenceType: evidence.evidenceType,
+      confidence: evidence.confidence,
+    },
   };
 }
 

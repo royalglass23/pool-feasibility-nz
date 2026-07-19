@@ -6,7 +6,7 @@ The product is a desktop screening tool, not an approval, consent, engineering, 
 
 ## Current status
 
-Stage 1 is complete and the bounded Stage 2 official-data spike is implemented. A simple internal property-data inspector now accepts a supplied Auckland address, performs LINZ address/parcel matching, probes the allow-listed datasets, displays normalized results, and downloads the returned snapshot as JSON. It does **not** implement candidate generation, scoring, report retrieval, or PDF generation.
+Stage 1 and the bounded official-data proof are complete. The internal property-data inspector accepts a supplied Auckland address, performs LINZ address/parcel matching, loads normalized official geometry, and deterministically tests the Compact 5 m by 3 m shell plus its indicative construction envelope. It displays up to three ranked screening candidates, or an honest no-clear-candidate/insufficient-data result, and downloads the returned snapshot as JSON. It does **not** yet implement Standard/Large scenario comparison, scoring, report retrieval, or PDF generation.
 
 Later implementation remains gated on review of [the architecture](docs/architecture.md), [the verified data-source register](docs/data-sources.md), and [the implementation stages](docs/implementation-plan.md). Authenticated LINZ aerial verification has passed; Auckland Council generated-report reuse remains conditional.
 
@@ -52,9 +52,11 @@ npm run dev
 
 Open <http://localhost:3000>, enter a supported Auckland property address, and
 select **Fetch property data**. The page displays the resolved LINZ address,
-mapped parcel identity, dataset availability, evidence-use status, and current
-licensing/data blockers. **Download JSON** saves the exact normalized result,
-including the parcel GeoJSON geometry.
+mapped parcel identity, dataset availability, evidence-use status, the
+deterministic Compact screening result, and current licensing/data blockers.
+Candidate shells and their indicative construction envelopes are drawn on the
+map when the verified geometry produces a clear tested placement. **Download
+JSON** saves the exact normalized result, including parcel and candidate GeoJSON.
 
 The browser calls `POST /api/internal/data-access`. Provider credentials remain
 server-side, requests and provider responses are bounded, and duplicate form
@@ -81,7 +83,7 @@ npm test
 npm run build
 ```
 
-Playwright configuration is present, but the required report journey is a later-stage fixture-backed test:
+Playwright covers the controlled property-data and Compact candidate/no-clear-candidate journeys. The full report journey remains a later-stage fixture-backed test:
 
 ```bash
 npm run test:e2e

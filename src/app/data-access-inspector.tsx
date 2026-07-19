@@ -12,8 +12,9 @@ import {
   Search,
   ShieldCheck,
 } from "lucide-react";
+import { CompactScreeningResult } from "@/components/compact-screening-result";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
-import { PropertyAerialMap } from "./property-aerial-map";
+import { PropertyAerialMap } from "@/components/map/property-aerial-map";
 
 type ApiResponse =
   | { data: DataAccessSpikeResult }
@@ -322,6 +323,8 @@ function PropertyDataResult({
       </div>
 
       <PropertyAerialMap result={result} onRetry={onRetry} />
+
+      <CompactScreeningResult analysis={result.compactAnalysis} />
 
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.6fr]">
         <div className="space-y-6">
