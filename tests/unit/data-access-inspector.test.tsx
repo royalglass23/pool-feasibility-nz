@@ -95,6 +95,22 @@ describe("DataAccessInspector", () => {
     expect(
       screen.getByRole("heading", { name: "Pool scenario comparison" }),
     ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Feasibility assessment" }),
+    ).toBeVisible();
+    expect(screen.getByText("Not scored")).toBeVisible();
+    expect(screen.getByText("Indeterminate")).toBeVisible();
+    expect(screen.getByText("Low data confidence")).toBeVisible();
+    expect(
+      screen.getByText(
+        "Insufficient core data is available for a preliminary recommendation.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        /Required core data is unavailable: building_footprints/i,
+      ),
+    ).toBeVisible();
     expect(screen.getByText("No successfully placed range")).toBeVisible();
     expect(
       screen.getByRole("region", {

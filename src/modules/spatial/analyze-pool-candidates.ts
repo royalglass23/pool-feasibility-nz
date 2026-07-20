@@ -10,10 +10,12 @@ import {
   distance,
   feature,
   featureCollection,
+  intersect,
   lineString,
   point,
   pointToLineDistance,
   polygonToLine,
+  union,
 } from "@turf/turf";
 import type {
   Feature,
@@ -104,8 +106,36 @@ export interface PoolCandidateAnalysis {
     parcel: SpatialEvidenceInput;
     buildings: SpatialEvidenceInput;
   };
+  constraintScreening: ConstraintScreeningSummary[];
+  constraintGroupScreening: ConstraintGroupScreeningSummary[];
   candidates: PoolCandidate[];
   missingRequiredEvidence: string[];
+}
+
+export interface ConstraintScreeningSummary {
+  evidenceId: string;
+  status: "measured" | "unavailable";
+  apparentPlacementCount: number;
+  intersectingPlacementCount: number | null;
+  allApparentPlacementsAffected: boolean | null;
+}
+
+export interface ConstraintScreeningGroup {
+  id: string;
+  evidenceIds: readonly string[];
+}
+
+export interface ConstraintGroupScreeningSummary {
+  groupId: string;
+  status: "measured" | "unavailable";
+  apparentPlacementCount: number;
+  minimumAffectedEnvelopePercent: number | null;
+}
+
+interface PreparedConstraintGroup {
+  groupId: string;
+  status: "measured" | "unavailable";
+  polygonGeometry: Feature<Polygon | MultiPolygon> | null;
 }
 
 export function analyzePoolCandidates(input: {
@@ -114,6 +144,7 @@ export function analyzePoolCandidates(input: {
   parcelEvidence: SpatialEvidenceInput;
   buildings: SpatialEvidenceInput;
   constraints: SpatialEvidenceInput[];
+  constraintGroups?: readonly ConstraintScreeningGroup[];
   mappedServices: SpatialEvidenceInput[];
   config: PoolScenarioConfig;
   preferredLocation?: PreferredPoolLocation;
@@ -153,6 +184,25 @@ export function analyzePoolCandidates(input: {
     input.config,
   );
   const candidates: PoolCandidate[] = [];
+  const constraintScreening = input.constraints.map((evidence) => ({
+    evidenceId: evidence.id,
+    status:
+      evidence.status === "available" && evidence.geometry
+        ? ("measured" as const)
+        : ("unavailable" as const),
+    apparentPlacementCount: 0,
+    intersectingPlacementCount:
+      evidence.status === "available" && evidence.geometry ? 0 : null,
+  }));
+  const preparedConstraintGroups = (input.constraintGroups ?? []).map((group) =>
+    prepareConstraintGroup(group, input.constraints),
+  );
+  const constraintGroupScreening = preparedConstraintGroups.map((prepared) => ({
+    groupId: prepared.groupId,
+    status: prepared.status,
+    apparentPlacementCount: 0,
+    minimumAffectedEnvelopePercent: null as number | null,
+  }));
   let testedPlacementCount = 0;
 
   for (const x of xPositions) {
@@ -181,6 +231,33 @@ export function analyzePoolCandidates(input: {
         const constraintIntersections = input.constraints.map((evidence) =>
           measureConstraintIntersection(envelope, evidence),
         );
+        constraintIntersections.forEach((measurement, index) => {
+          const summary = constraintScreening[index];
+          summary.apparentPlacementCount += 1;
+          if (
+            measurement.intersects &&
+            summary.intersectingPlacementCount !== null
+          ) {
+            summary.intersectingPlacementCount += 1;
+          }
+        });
+        preparedConstraintGroups.forEach((prepared, index) => {
+          const summary = constraintGroupScreening[index];
+          summary.apparentPlacementCount += 1;
+          const affectedPercent = measurePreparedConstraintGroupAffectedPercent(
+            envelope,
+            prepared,
+          );
+          if (affectedPercent !== null) {
+            summary.minimumAffectedEnvelopePercent =
+              summary.minimumAffectedEnvelopePercent === null
+                ? affectedPercent
+                : Math.min(
+                    summary.minimumAffectedEnvelopePercent,
+                    affectedPercent,
+                  );
+          }
+        });
         if (
           constraintIntersections.some(
             (measurement) =>
@@ -235,6 +312,16 @@ export function analyzePoolCandidates(input: {
       parcel: input.parcelEvidence,
       buildings: input.buildings,
     },
+    constraintScreening: constraintScreening.map((summary) => ({
+      ...summary,
+      allApparentPlacementsAffected:
+        summary.intersectingPlacementCount === null
+          ? null
+          : summary.apparentPlacementCount > 0 &&
+            summary.intersectingPlacementCount ===
+              summary.apparentPlacementCount,
+    })),
+    constraintGroupScreening,
     candidates: ranked,
     missingRequiredEvidence: [],
   };
@@ -271,6 +358,26 @@ function insufficientData(
       parcel: input.parcelEvidence,
       buildings: input.buildings,
     },
+    constraintScreening: input.constraints.map((evidence) => ({
+      evidenceId: evidence.id,
+      status:
+        evidence.status === "available" && evidence.geometry
+          ? "measured"
+          : "unavailable",
+      apparentPlacementCount: 0,
+      intersectingPlacementCount:
+        evidence.status === "available" && evidence.geometry ? 0 : null,
+      allApparentPlacementsAffected:
+        evidence.status === "available" && evidence.geometry ? false : null,
+    })),
+    constraintGroupScreening: (input.constraintGroups ?? []).map((group) => ({
+      groupId: group.id,
+      status: constraintGroupIsAvailable(group, input.constraints)
+        ? "measured"
+        : "unavailable",
+      apparentPlacementCount: 0,
+      minimumAffectedEnvelopePercent: null,
+    })),
     candidates: [],
     missingRequiredEvidence,
   };
@@ -352,6 +459,63 @@ function measureConstraintIntersection(
     intersects,
     affectedEnvelopePercent: null,
   };
+}
+
+function constraintGroupIsAvailable(
+  group: ConstraintScreeningGroup,
+  constraints: SpatialEvidenceInput[],
+): boolean {
+  return group.evidenceIds.every((evidenceId) => {
+    const evidence = constraints.find((item) => item.id === evidenceId);
+    return evidence?.status === "available" && Boolean(evidence.geometry);
+  });
+}
+
+function prepareConstraintGroup(
+  group: ConstraintScreeningGroup,
+  constraints: SpatialEvidenceInput[],
+): PreparedConstraintGroup {
+  if (!constraintGroupIsAvailable(group, constraints)) {
+    return {
+      groupId: group.id,
+      status: "unavailable",
+      polygonGeometry: null,
+    };
+  }
+  const polygonFeatures = group.evidenceIds.flatMap((evidenceId) => {
+    const evidence = constraints.find((item) => item.id === evidenceId);
+    return (evidence?.geometry?.features ?? []).flatMap((constraint) =>
+      constraint.geometry.type === "Polygon" ||
+      constraint.geometry.type === "MultiPolygon"
+        ? [constraint as Feature<Polygon | MultiPolygon>]
+        : [],
+    );
+  });
+  return {
+    groupId: group.id,
+    status: "measured",
+    polygonGeometry:
+      polygonFeatures.length === 0
+        ? null
+        : polygonFeatures.length === 1
+          ? polygonFeatures[0]
+          : union(featureCollection(polygonFeatures)),
+  };
+}
+
+function measurePreparedConstraintGroupAffectedPercent(
+  envelope: Feature<Polygon>,
+  prepared: PreparedConstraintGroup,
+): number | null {
+  if (prepared.status === "unavailable") return null;
+  if (!prepared.polygonGeometry) return 0;
+  const overlap = intersect(
+    featureCollection([envelope, prepared.polygonGeometry]),
+  );
+  if (!overlap) return 0;
+  const envelopeArea = area(envelope);
+  if (envelopeArea === 0) return 0;
+  return roundTo(Math.min(100, (area(overlap) / envelopeArea) * 100), 1);
 }
 
 function measureMappedServiceDistance(

@@ -2,6 +2,7 @@ import { bbox } from "@turf/turf";
 import type { Feature, Polygon } from "geojson";
 import { z } from "zod";
 import { poolScenarioCatalogue } from "@/config/pool-scenarios";
+import { feasibilityScoringRules } from "@/config/feasibility-scoring";
 import type {
   AddressMatch,
   DataAccessSpikeGateway,
@@ -21,6 +22,8 @@ import {
   type PoolScenarioPreferences,
   type SpatialEvidenceInput,
 } from "../spatial/analyze-pool-scenarios";
+import { assessDataAccessFeasibility } from "../scoring/assess-data-access-feasibility";
+import type { FeasibilityAssessment } from "../scoring/assess-feasibility";
 
 export type {
   AddressMatch,
@@ -80,28 +83,16 @@ export interface DataAccessSpikeResult {
     code: ProviderEvidenceErrorCode;
   }>;
   scenarioComparison: PoolScenarioComparison;
+  feasibilityAssessment: FeasibilityAssessment;
   generatedAt: string;
   blockers: string[];
 }
 
 const addressInputSchema = z.string().trim().min(8).max(200);
-const constraintDatasetKeys = [
-  "planning_overlays",
-  "flood_plains",
-  "flood_prone_areas",
-  "overland_flow_paths",
-  "watercourses",
-] as const satisfies readonly DatasetKey[];
-const mappedServiceDatasetKeys = [
-  "public_stormwater_assets",
-  "manholes",
-  "catchpits",
-  "wastewater_assets",
-  "public_water_assets",
-  "wastewater_manholes",
-  "water_fittings",
-  "wastewater_fittings",
-] as const satisfies readonly DatasetKey[];
+const constraintDatasetKeys =
+  feasibilityScoringRules.evidenceRequirements.constraintLayers;
+const mappedServiceDatasetKeys =
+  feasibilityScoringRules.evidenceRequirements.infrastructure;
 
 export async function runDataAccessSpike(input: {
   requestedAddress: string;
@@ -257,6 +248,7 @@ export async function runDataAccessSpike(input: {
     constraints: constraintDatasetKeys.map((key) =>
       spatialEvidence(key, datasets),
     ),
+    constraintGroups: Object.values(feasibilityScoringRules.constraintGroups),
     mappedServices: mappedServiceDatasetKeys.map((key) =>
       spatialEvidence(key, datasets),
     ),
@@ -265,6 +257,18 @@ export async function runDataAccessSpike(input: {
       preferredLocation: "any",
       preferredSize: null,
     },
+  });
+  const feasibilityAssessment = assessDataAccessFeasibility({
+    scenarioComparison,
+    exactAddressMatched,
+    parcelMatchStatus: parcelMatch.status,
+    parcel,
+    datasets,
+    terrainEvidence: {
+      status: "unknown",
+      maximumSlopeDegrees: null,
+    },
+    assessedAt: retrievedAt,
   });
 
   return {
@@ -287,6 +291,7 @@ export async function runDataAccessSpike(input: {
     internalReferenceDatasets,
     providerErrors,
     scenarioComparison,
+    feasibilityAssessment,
     generatedAt: retrievedAt,
     blockers: [
       ...(datasets.aerial_imagery.status === "available"

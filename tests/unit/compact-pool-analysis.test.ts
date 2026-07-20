@@ -102,6 +102,41 @@ describe("Compact pool candidate analysis", () => {
     }
   });
 
+  it("aggregates split constraint-layer coverage for every apparent placement", () => {
+    const result = analyze({
+      parcel,
+      constraints: [
+        evidence(
+          "flood_plains",
+          collection([
+            rectangleParcel([centre[0] - 0.00009, centre[1]], 0.00009, 0.00013),
+          ]),
+        ),
+        evidence(
+          "flood_prone_areas",
+          collection([
+            rectangleParcel([centre[0] + 0.00009, centre[1]], 0.00009, 0.00013),
+          ]),
+        ),
+      ],
+      constraintGroups: [
+        {
+          id: "flood_hazards",
+          evidenceIds: ["flood_plains", "flood_prone_areas"],
+        },
+      ],
+    });
+
+    expect(result.constraintGroupScreening).toEqual([
+      expect.objectContaining({
+        groupId: "flood_hazards",
+        status: "measured",
+        apparentPlacementCount: expect.any(Number),
+        minimumAffectedEnvelopePercent: 100,
+      }),
+    ]);
+  });
+
   it("preserves Compact metric dimensions, rotation, and coordinate order at Auckland latitude", () => {
     const unrotated = analyze({
       parcel: rectangleParcel(centre, 0.00014, 0.00003),
@@ -173,6 +208,7 @@ function analyze(input: {
   parcelStatus?: "confirmed" | "unconfirmed";
   buildings?: SpatialEvidenceInput;
   constraints?: SpatialEvidenceInput[];
+  constraintGroups?: Array<{ id: string; evidenceIds: string[] }>;
   mappedServices?: SpatialEvidenceInput[];
 }) {
   return analyzePoolCandidates({
@@ -182,6 +218,7 @@ function analyze(input: {
     buildings:
       input.buildings ?? evidence("building_footprints", collection([])),
     constraints: input.constraints ?? [],
+    constraintGroups: input.constraintGroups ?? [],
     mappedServices: input.mappedServices ?? [],
     config: compactPoolScenario,
   });

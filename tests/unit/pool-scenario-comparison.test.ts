@@ -205,6 +205,23 @@ describe("pool scenario comparison", () => {
         (scenario) => scenario.status === "no_clear_candidate",
       ),
     ).toBe(true);
+    for (const scenario of result.scenarios) {
+      expect(scenario.constraintScreening).toEqual([
+        expect.objectContaining({
+          evidenceId: "known_constraint",
+          status: "measured",
+          apparentPlacementCount: expect.any(Number),
+          intersectingPlacementCount: expect.any(Number),
+          allApparentPlacementsAffected: true,
+        }),
+      ]);
+      expect(
+        scenario.constraintScreening[0].apparentPlacementCount,
+      ).toBeGreaterThan(0);
+      expect(scenario.constraintScreening[0].intersectingPlacementCount).toBe(
+        scenario.constraintScreening[0].apparentPlacementCount,
+      );
+    }
     expect(result.successfulShells).toEqual([]);
     expect(result.shellRange).toBeNull();
   });

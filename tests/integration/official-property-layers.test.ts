@@ -93,6 +93,27 @@ describe("official property layer integration", () => {
       resultWording:
         "No clear candidate area was identified using the tested screening scenarios.",
     });
+    expect(result.feasibilityAssessment).toMatchObject({
+      analysisVersion: "feasibility-scoring-v1",
+      score: 0,
+      band: "low_preliminary_feasibility",
+      qualification: "normal",
+      finalRecommendation:
+        "Low preliminary feasibility based on known mapped evidence.",
+      confidence: {
+        level: expect.stringMatching(/^(high|medium|low)$/),
+      },
+    });
+    expect(
+      result.feasibilityAssessment.categories.find(
+        (category) => category.id === "available_space",
+      ),
+    ).toMatchObject({ status: "scored", awardedPoints: 0 });
+    expect(
+      result.feasibilityAssessment.confidence.factors.find(
+        (factor) => factor.id === "easements",
+      ),
+    ).toMatchObject({ status: "unavailable", awardedPoints: 0 });
     expect(result.blockers).toContain(
       "Watercare geometry is internal reference data only and must be independently verified before action",
     );

@@ -13,6 +13,7 @@ import {
   ShieldCheck,
 } from "lucide-react";
 import { PoolScenarioComparisonResult } from "@/components/pool-scenario-comparison-result";
+import { FeasibilityAssessmentResult } from "@/components/feasibility-assessment-result";
 import {
   poolLocationOptions,
   poolScenarioCatalogue,
@@ -379,6 +380,7 @@ function PropertyDataResult({
       <PropertyAerialMap result={result} onRetry={onRetry} />
 
       <PoolScenarioComparisonResult comparison={result.scenarioComparison} />
+      <FeasibilityAssessmentResult assessment={result.feasibilityAssessment} />
 
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.6fr]">
         <div className="space-y-6">

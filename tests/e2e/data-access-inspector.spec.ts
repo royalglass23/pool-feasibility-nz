@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 import providerFixtures from "../fixtures/providers/official-property-layers.json";
+import { assessFeasibility } from "@/modules/scoring/assess-feasibility";
+import type { PoolScenarioComparison } from "@/modules/spatial/analyze-pool-scenarios";
 
 const address = "42A Bahari Drive, Ranui, Auckland";
 
@@ -68,6 +70,19 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   await expect(page.getByText("Official map layers")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Pool scenario comparison" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Feasibility assessment" }),
+  ).toBeVisible();
+  await expect(page.getByText("82 / 100")).toBeVisible();
+  await expect(
+    page.getByText("Likely feasible with normal investigations"),
+  ).toBeVisible();
+  await expect(page.getByText("High data confidence")).toBeVisible();
+  await expect(
+    page.getByText(
+      "Likely feasible with normal onsite and specialist investigations.",
+    ),
   ).toBeVisible();
   await expect(page.getByText("5m x 3m to 9m x 4m")).toBeVisible();
   await expect(
@@ -552,11 +567,48 @@ const dataAccessResult = {
   ],
   providerErrors: [{ dataset: "flood_plains", code: "PROVIDER_TIMEOUT" }],
   scenarioComparison: comparisonFixture(),
+  feasibilityAssessment: assessmentFixture(),
   generatedAt: "2026-07-16T00:00:00.000Z",
   blockers: [
     "Watercare geometry is internal reference data only and must be independently verified before action",
   ],
 };
+
+function assessmentFixture() {
+  const provider = (id: string) => ({
+    id,
+    required: true,
+    status: "available" as const,
+    retrievedAt: "2026-07-16T00:00:00.000Z",
+    datasetDate: "2026-07-01T00:00:00.000Z",
+    confidence: "high" as const,
+  });
+  return assessFeasibility({
+    scenarioComparison: comparisonFixture() as PoolScenarioComparison,
+    address: { status: "confirmed", exactMatch: true },
+    parcel: {
+      status: "confirmed",
+      titleEvidence: "available",
+      easementEvidence: "unavailable",
+    },
+    providers: [
+      provider("address_resolution"),
+      provider("legal_parcel"),
+      provider("building_footprints"),
+      provider("contours"),
+      provider("wastewater_assets"),
+    ],
+    screening: {
+      infrastructure: "clear",
+      flood: "unknown",
+      flowPath: "clear",
+      terrain: "unknown",
+      restrictedOverlay: "clear",
+      constructionAccess: "unknown",
+    },
+    assessedAt: "2026-07-16T00:00:00.000Z",
+  });
+}
 
 function comparisonFixture() {
   const definitions = [
@@ -611,6 +663,8 @@ function comparisonFixture() {
             "LINZ",
           ),
         },
+        constraintScreening: [],
+        constraintGroupScreening: [],
         candidates: [candidate],
         missingRequiredEvidence: [],
       };

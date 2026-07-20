@@ -5,6 +5,7 @@ import type {
 } from "@/config/pool-scenarios";
 import {
   analyzePoolCandidates,
+  type ConstraintScreeningGroup,
   type PoolCandidateAnalysis,
   type SpatialEvidenceInput,
 } from "./analyze-pool-candidates";
@@ -57,6 +58,7 @@ export function analyzePoolScenarios(input: {
   parcelEvidence: SpatialEvidenceInput;
   buildings: SpatialEvidenceInput;
   constraints: SpatialEvidenceInput[];
+  constraintGroups?: readonly ConstraintScreeningGroup[];
   mappedServices: SpatialEvidenceInput[];
   catalogue: {
     version: string;
@@ -71,6 +73,7 @@ export function analyzePoolScenarios(input: {
       parcelEvidence: input.parcelEvidence,
       buildings: input.buildings,
       constraints: input.constraints,
+      constraintGroups: input.constraintGroups,
       mappedServices: input.mappedServices,
       config,
       preferredLocation: input.preferences.preferredLocation,
