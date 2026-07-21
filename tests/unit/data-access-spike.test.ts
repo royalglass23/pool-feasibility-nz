@@ -1,31 +1,16 @@
-import addressesFixture from "../fixtures/linz/42-bahari-addresses.json";
 import parcelsFixture from "../fixtures/linz/42-bahari-parcels.json";
 import unitAddressFixture from "../fixtures/linz/2-49-pigeon-mountain.json";
-import { describe, expect, it, vi } from "vitest";
 import {
-  runDataAccessSpike,
-  type DataAccessSpikeGateway,
-} from "@/modules/data-access-spike/run-data-access-spike";
+  addressMatchesFrom,
+  createDataAccessGateway as createGateway,
+  parcelQueryFrom,
+} from "../fixtures/normalized-data-access";
+import { describe, expect, it, vi } from "vitest";
+import { runDataAccessSpike } from "@/modules/data-access-spike/run-data-access-spike";
 import { assessAddressParcelAlignment } from "@/modules/data-access-spike/aerial-alignment";
 import { resolveAerialVerificationPath } from "@/modules/data-access-spike/verification-artifact";
 
 const requestedAddress = "42A Bahari Drive, Ranui, Auckland";
-
-function createGateway(
-  overrides: Partial<DataAccessSpikeGateway> = {},
-): DataAccessSpikeGateway {
-  return {
-    searchAddresses: async () => addressesFixture,
-    findParcelsAt: async ([longitude]) =>
-      longitude < 174.608 ? parcelsFixture["42A"] : parcelsFixture["42"],
-    countFeatures: async (dataset) => ({
-      count: dataset === "planning_zone" ? 2 : 0,
-      durationMs: 12,
-    }),
-    checkAerial: async () => ({ durationMs: 10 }),
-    ...overrides,
-  };
-}
 
 describe("runDataAccessSpike", () => {
   it("resolves 42A to its distinct legal parcel and deduplicates LINZ rows", async () => {
@@ -114,8 +99,9 @@ describe("runDataAccessSpike", () => {
     const result = await runDataAccessSpike({
       requestedAddress: "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland",
       gateway: createGateway({
-        searchAddresses: async () => unitAddressFixture.address,
-        findParcelsAt: async () => unitAddressFixture.parcel,
+        searchAddresses: async () =>
+          addressMatchesFrom(unitAddressFixture.address),
+        findParcelsAt: async () => parcelQueryFrom(unitAddressFixture.parcel),
       }),
     });
 
@@ -127,18 +113,23 @@ describe("runDataAccessSpike", () => {
     expect(result.parcelMatch).toEqual({
       status: "containing_parcel_requires_confirmation",
       reasons: [
-        "The supplied address is a unit address",
-        "The containing parcel is associated with multiple titles",
+        "The containing parcel must be associated with exactly one title",
         "The containing parcel is not identified as a fee simple title parcel",
       ],
     });
     expect(result.blockers).toContain(
-      "The mapped containing parcel cannot be treated as the unit's confirmed legal parcel",
+      "The mapped containing parcel cannot be treated as the confirmed legal parcel",
     );
   });
 
-  it("reports aerial and Watercare datasets as unavailable without making them up", async () => {
-    const checkAerial = vi.fn(async () => ({ durationMs: 10 }));
+  it("keeps aerial unavailable and labels Watercare geometry as internal reference", async () => {
+    const checkAerial = vi.fn(async () => ({
+      durationMs: 10,
+      attribution: {
+        text: "© CC BY 4.0 LINZ",
+        url: "https://www.linz.govt.nz/data/linz-data/linz-basemaps/data-attribution",
+      },
+    }));
 
     const result = await runDataAccessSpike({
       requestedAddress,
@@ -152,10 +143,16 @@ describe("runDataAccessSpike", () => {
       reason: "LINZ_BASEMAPS_API_KEY is not configured",
     });
     expect(result.datasets.wastewater_assets).toMatchObject({
-      status: "unavailable",
-      reason: expect.stringContaining("reuse rights"),
+      status: "success",
+      evidenceUse: "internal_reference",
     });
-    expect(result.datasets.public_water_assets.status).toBe("unavailable");
+    expect(result.datasets.public_water_assets).toMatchObject({
+      status: "success",
+      evidenceUse: "internal_reference",
+    });
+    expect(result.datasets.wastewater_manholes.evidenceUse).toBe(
+      "internal_reference",
+    );
   });
 
   it("keeps technically accessible Council data out of report evidence pending permission", async () => {
@@ -171,10 +168,171 @@ describe("runDataAccessSpike", () => {
       status: "success",
       evidenceUse: "spike_only",
     });
-    expect(result.datasets.wastewater_assets.evidenceUse).toBe("unavailable");
+    expect(result.datasets.wastewater_assets.evidenceUse).toBe(
+      "internal_reference",
+    );
     expect(result.reportEligibleDatasets).toContain("building_footprints");
     expect(result.reportEligibleDatasets).not.toContain("planning_zone");
+    expect(result.reportEligibleDatasets).not.toContain("wastewater_assets");
     expect(result.spikeOnlyDatasets).toContain("planning_zone");
+    expect(result.spikeOnlyDatasets).not.toContain("wastewater_assets");
+    expect(result.internalReferenceDatasets).toContain("wastewater_assets");
+  });
+
+  it("carries normalized official geometry into evidence instead of reducing it to a count", async () => {
+    const buildingGeometry = {
+      type: "FeatureCollection" as const,
+      features: [
+        {
+          type: "Feature" as const,
+          id: "building-901",
+          geometry: {
+            type: "Polygon" as const,
+            coordinates: [
+              [
+                [174.60782, -36.86028],
+                [174.60796, -36.86028],
+                [174.60796, -36.86016],
+                [174.60782, -36.86016],
+                [174.60782, -36.86028],
+              ],
+            ],
+          },
+          properties: { building_id: 901 },
+        },
+      ],
+    };
+    const gateway = createGateway({
+      queryFeatures: async (dataset: string) =>
+        dataset === "building_footprints"
+          ? buildingGeometry
+          : { type: "FeatureCollection", features: [] },
+    } as never);
+
+    const result = await runDataAccessSpike({ requestedAddress, gateway });
+
+    expect(result.datasets.building_footprints).toMatchObject({
+      status: "success",
+      featureCount: 1,
+      geometry: buildingGeometry,
+    });
+    expect(result.datasets.planning_zone).toMatchObject({
+      status: "success",
+      featureCount: 0,
+      geometry: { type: "FeatureCollection", features: [] },
+    });
+  });
+
+  it("raises the terrain critical flag from validated contour elevations", async () => {
+    const result = await runDataAccessSpike({
+      requestedAddress,
+      gateway: createGateway({
+        queryFeatures: async (dataset) => ({
+          type: "FeatureCollection",
+          features:
+            dataset === "contours"
+              ? [
+                  {
+                    type: "Feature",
+                    geometry: {
+                      type: "LineString",
+                      coordinates: [
+                        [174.6078, -36.8602],
+                        [174.608, -36.8602],
+                      ],
+                    },
+                    properties: { elevation: 40 },
+                  },
+                  {
+                    type: "Feature",
+                    geometry: {
+                      type: "LineString",
+                      coordinates: [
+                        [174.6078, -36.86019],
+                        [174.608, -36.86019],
+                      ],
+                    },
+                    properties: { elevation: 41 },
+                  },
+                ]
+              : [],
+        }),
+      }),
+    });
+
+    expect(result.feasibilityAssessment.criticalFlags).toContainEqual(
+      expect.objectContaining({ id: "severe_mapped_terrain" }),
+    );
+  });
+
+  it("returns complete normalized provenance without calling style access verified imagery", async () => {
+    const result = await runDataAccessSpike({
+      requestedAddress,
+      gateway: createGateway(),
+      basemapApiKey: "test-basemap-key",
+      now: () => new Date("2026-07-17T00:00:00.000Z"),
+    });
+
+    for (const evidence of Object.values(result.datasets)) {
+      expect(evidence).toEqual(
+        expect.objectContaining({
+          datasetIdentifier: expect.any(String),
+          retrievedAt: "2026-07-17T00:00:00.000Z",
+          datasetDate: expect.toSatisfy(
+            (value) => value === null || typeof value === "string",
+          ),
+          licence: expect.any(String),
+          attribution: expect.toSatisfy(
+            (value) =>
+              value === null ||
+              (typeof value?.text === "string" &&
+                typeof value?.url === "string"),
+          ),
+          geometryUsed: expect.toSatisfy(
+            (value) => value === null || typeof value === "string",
+          ),
+          attributesUsed: expect.any(Array),
+          evidenceType: expect.any(String),
+          confidence: expect.stringMatching(/^(high|limited|unavailable)$/),
+        }),
+      );
+    }
+    expect(result.datasets.address_resolution).toMatchObject({
+      evidenceType: "address_resolution",
+      geometryUsed: "address_point",
+      confidence: "high",
+    });
+    expect(result.datasets.aerial_imagery).toMatchObject({
+      status: "available",
+      evidenceUse: "spike_only",
+      evidenceType: "aerial_style_metadata",
+      geometryUsed: null,
+      confidence: "limited",
+    });
+    expect(result.reportEligibleDatasets).not.toContain("aerial_imagery");
+  });
+
+  it("keeps official dataset probes within the conservative concurrency limit", async () => {
+    let activeRequests = 0;
+    let maximumActiveRequests = 0;
+
+    await runDataAccessSpike({
+      requestedAddress,
+      gateway: createGateway({
+        countFeatures: async () => {
+          activeRequests += 1;
+          maximumActiveRequests = Math.max(
+            maximumActiveRequests,
+            activeRequests,
+          );
+          await new Promise((resolve) => setTimeout(resolve, 0));
+          activeRequests -= 1;
+          return { count: 0, durationMs: 1 };
+        },
+      }),
+    });
+
+    expect(maximumActiveRequests).toBe(1);
   });
 
   it("fails closed when more than one distinct parcel contains the address point", async () => {
@@ -189,7 +347,7 @@ describe("runDataAccessSpike", () => {
     const result = runDataAccessSpike({
       requestedAddress,
       gateway: createGateway({
-        findParcelsAt: async () => ambiguousParcels,
+        findParcelsAt: async () => parcelQueryFrom(ambiguousParcels),
       }),
     });
 
@@ -218,30 +376,44 @@ describe("runDataAccessSpike", () => {
     expect(JSON.stringify(result)).not.toContain("super-secret-value");
   });
 
-  it("rejects provider parcel geometry that exceeds the ring vertex limit", async () => {
-    const oversizedRing = Array.from({ length: 5_001 }, (_, index) => [
-      174.6078 + index / 1_000_000_000,
-      -36.8602,
-    ]);
-    const oversizedParcelResponse = {
-      ...parcelsFixture["42A"],
-      features: parcelsFixture["42A"].features.map((feature) => ({
-        ...feature,
-        geometry: {
-          ...feature.geometry,
-          coordinates: [oversizedRing],
-        },
-      })),
-    };
+  it("preserves a stable timeout evidence state without exposing the provider error", async () => {
+    const gateway = createGateway({
+      countFeatures: async (dataset) => {
+        if (dataset === "flood_plains") {
+          throw new Error(
+            "PROVIDER_TIMEOUT https://example.invalid?api=super-secret-value",
+          );
+        }
+        return { count: 0, durationMs: 5 };
+      },
+    });
 
-    await expect(
-      runDataAccessSpike({
-        requestedAddress,
-        gateway: createGateway({
-          findParcelsAt: async () => oversizedParcelResponse,
-        }),
+    const result = await runDataAccessSpike({ requestedAddress, gateway });
+
+    expect(result.datasets.flood_plains).toMatchObject({
+      status: "error",
+      errorCode: "PROVIDER_TIMEOUT",
+    });
+    expect(JSON.stringify(result)).not.toContain("super-secret-value");
+  });
+
+  it("preserves a stable aerial timeout evidence state", async () => {
+    const result = await runDataAccessSpike({
+      requestedAddress,
+      gateway: createGateway({
+        checkAerial: async () => {
+          throw new Error("PROVIDER_TIMEOUT upstream-secret");
+        },
       }),
-    ).rejects.toMatchObject({ code: "PROVIDER_RESPONSE_INVALID" });
+      basemapApiKey: "test-key",
+    });
+
+    expect(result.datasets.aerial_imagery).toMatchObject({
+      status: "error",
+      evidenceUse: "unavailable",
+      errorCode: "PROVIDER_TIMEOUT",
+    });
+    expect(JSON.stringify(result)).not.toContain("upstream-secret");
   });
 });
 

@@ -11,3 +11,25 @@ The application must always list unverified information including private stormw
 Provider unavailability, unclear licence rights, stale coverage, low-resolution terrain, and missing title information reduce confidence. They never prove that a constraint is absent. Failure to place an automated scenario must use: `No clear candidate area was identified using the tested screening scenarios.`
 
 Only Auckland is supported in the POC. Inputs outside the supported region return `OUTSIDE_SUPPORTED_REGION` rather than a partial national assessment.
+
+## POC operating boundary
+
+- Do not infer property frontage from the address point or parcel geometry.
+  Front/rear/side-yard ranking is available only when staff supplies a known
+  cardinal front-boundary direction; otherwise use no location preference.
+- Royal Glass staff only; localhost is credential-free only during development,
+  while non-loopback and deployed access fails closed without paired staff
+  credentials.
+- No database, durable report history, background processing, or external
+  customer delivery. Refreshing or closing the browser loses the session result
+  unless staff explicitly download the bounded JSON assessment.
+- The AI provider is optional and may explain only validated deterministic facts.
+  It cannot change geometry, candidates, size range, score, confidence, critical
+  flags, risks, actions, or sources. Invalid, unsupported, timed-out, or
+  unavailable AI output is replaced with deterministic wording.
+- LINZ evidence may be used only with its recorded attribution. Auckland Council
+  geometry remains `spike_only` pending generated-report reuse confirmation.
+  Watercare geometry remains `internal_reference` under the recorded
+  non-commercial/no-derivatives licence and must not become report evidence.
+- Live GIS smoke checks are manual operational evidence. Their responses and
+  screenshots are not copied into the controlled CI fixture set.

@@ -16,6 +16,7 @@
     "test:e2e": "playwright test",
     "spike:data-access": "tsx scripts/data-access-spike.ts",
     "spike:verify-aerial": "tsx scripts/verify-aerial-alignment.ts",
+    "smoke:live-layers": "tsx scripts/verify-live-property-layers.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:studio": "drizzle-kit studio"

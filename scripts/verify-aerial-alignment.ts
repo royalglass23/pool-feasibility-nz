@@ -1,4 +1,6 @@
 import "dotenv/config";
+import { providerTimeoutMs } from "@/shared/http/provider-runtime";
+import { escapeHtml } from "@/shared/html/escape-html";
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { chromium } from "playwright";
@@ -6,7 +8,7 @@ import { bbox } from "@turf/turf";
 import type { Feature, FeatureCollection, Point, Polygon } from "geojson";
 import type * as MapLibre from "maplibre-gl";
 import { assessAddressParcelAlignment } from "../src/modules/data-access-spike/aerial-alignment";
-import { OfficialGisGateway } from "../src/modules/data-access-spike/official-gis-gateway";
+import { OfficialGisGateway } from "../src/modules/providers/official-gis-gateway";
 import { runDataAccessSpike } from "../src/modules/data-access-spike/run-data-access-spike";
 import { resolveAerialVerificationPath } from "../src/modules/data-access-spike/verification-artifact";
 
@@ -23,7 +25,7 @@ async function main(): Promise<void> {
   const result = await runDataAccessSpike({
     requestedAddress: verificationAddress,
     gateway: new OfficialGisGateway({
-      timeoutMs: Number(process.env.PROVIDER_TIMEOUT_MS ?? 10_000),
+      timeoutMs: providerTimeoutMs(),
     }),
     basemapApiKey,
   });
@@ -38,8 +40,12 @@ async function main(): Promise<void> {
   if (!alignment.selectedParcelSeparatedFromAlternatives) {
     throw new Error("ALTERNATIVE_ADDRESS_INSIDE_SELECTED_PARCEL");
   }
-  if (result.datasets.aerial_imagery.status !== "success") {
+  if (result.datasets.aerial_imagery.status !== "available") {
     throw new Error("AERIAL_IMAGERY_UNAVAILABLE");
+  }
+  const aerialAttribution = result.datasets.aerial_imagery.attribution;
+  if (!aerialAttribution) {
+    throw new Error("AERIAL_ATTRIBUTION_UNAVAILABLE");
   }
 
   const parcelFeature: Feature<Polygon> = {
@@ -90,13 +96,23 @@ async function main(): Promise<void> {
       path: resolve("node_modules", "maplibre-gl", "dist", "maplibre-gl.js"),
     });
     const renderResult = await page.evaluate(
-      async ({ apiKey, parcel, selectedAddress, alternatives, bounds }) => {
+      async ({
+        apiKey,
+        attribution,
+        parcel,
+        selectedAddress,
+        alternatives,
+        bounds,
+      }) => {
         const maplibregl = (
           window as typeof window & { maplibregl: typeof MapLibre }
         ).maplibregl;
         if (!maplibregl) {
           throw new Error("MAPLIBRE_NOT_LOADED");
         }
+        const attributionLink = document.createElement("a");
+        attributionLink.href = attribution.url;
+        attributionLink.textContent = attribution.text;
 
         const map = new maplibregl.Map({
           container: "map",
@@ -109,8 +125,7 @@ async function main(): Promise<void> {
                   `https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/{z}/{x}/{y}.webp?api=${apiKey}`,
                 ],
                 tileSize: 256,
-                attribution:
-                  '© <a href="https://www.linz.govt.nz/linz-copyright">LINZ CC BY 4.0</a> © <a href="https://www.linz.govt.nz/products-services/data/linz-basemaps/data-attribution">Imagery Basemap contributors</a>',
+                attribution: attributionLink.outerHTML,
               },
             },
             layers: [{ id: "aerial", type: "raster", source: "aerial" }],
@@ -211,6 +226,7 @@ async function main(): Promise<void> {
       },
       {
         apiKey: basemapApiKey,
+        attribution: aerialAttribution,
         parcel: parcelFeature,
         selectedAddress: selectedAddressFeature,
         alternatives: alternativeAddressFeatures,
@@ -298,15 +314,6 @@ function mapVerificationDocument(
     </div>
   </body>
 </html>`;
-}
-
-function escapeHtml(value: string): string {
-  return value
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
 }
 
 main().catch((error: unknown) => {

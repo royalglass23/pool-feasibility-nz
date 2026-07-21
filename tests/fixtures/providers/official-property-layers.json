@@ -1,0 +1,202 @@
+{
+  "building_footprints": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "building-901",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [174.60782, -36.86028],
+              [174.60796, -36.86028],
+              [174.60796, -36.86016],
+              [174.60782, -36.86016],
+              [174.60782, -36.86028]
+            ]
+          ]
+        },
+        "properties": { "building_id": 901, "capture_source": "Aerial imagery" }
+      }
+    ]
+  },
+  "contours": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "contour-44",
+        "geometry": {
+          "type": "MultiLineString",
+          "coordinates": [
+            [
+              [174.6078, -36.86026],
+              [174.608, -36.86022]
+            ],
+            [
+              [174.6078, -36.86018],
+              [174.608, -36.86014]
+            ]
+          ]
+        },
+        "properties": { "elevation": 44 }
+      }
+    ]
+  },
+  "planning_zone": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "zone-4",
+        "geometry": {
+          "type": "Polygon",
+          "coordinates": [
+            [
+              [174.6077, -36.8604],
+              [174.6081, -36.8604],
+              [174.6081, -36.86],
+              [174.6077, -36.86],
+              [174.6077, -36.8604]
+            ]
+          ]
+        },
+        "properties": { "zone": "Residential - Mixed Housing Suburban" }
+      }
+    ]
+  },
+  "planning_overlays": { "type": "FeatureCollection", "features": [] },
+  "flood_plains": { "type": "FeatureCollection", "features": [] },
+  "flood_prone_areas": { "type": "FeatureCollection", "features": [] },
+  "overland_flow_paths": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "flow-22",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [174.60779, -36.8603],
+            [174.60801, -36.86011]
+          ]
+        },
+        "properties": { "asset_id": "flow-22" }
+      }
+    ]
+  },
+  "public_stormwater_assets": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "storm-8",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [174.60777, -36.86029],
+            [174.60802, -36.86012]
+          ]
+        },
+        "properties": { "asset_id": "storm-8", "owner": "Auckland Council" }
+      }
+    ]
+  },
+  "manholes": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "sw-mh-2",
+        "geometry": { "type": "Point", "coordinates": [174.6078, -36.86013] },
+        "properties": { "asset_id": "sw-mh-2" }
+      }
+    ]
+  },
+  "catchpits": { "type": "FeatureCollection", "features": [] },
+  "watercourses": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "course-7",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [174.60778, -36.86031],
+            [174.608, -36.8601]
+          ]
+        },
+        "properties": { "asset_id": "course-7" }
+      }
+    ]
+  },
+  "wastewater_assets": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "ww-pipe-41",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [174.60775, -36.86027],
+            [174.60803, -36.86015]
+          ]
+        },
+        "properties": { "COMPKEY": 41, "STATUS": "In Service" }
+      }
+    ]
+  },
+  "public_water_assets": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "water-pipe-51",
+        "geometry": {
+          "type": "LineString",
+          "coordinates": [
+            [174.60774, -36.86025],
+            [174.60804, -36.86017]
+          ]
+        },
+        "properties": { "COMPKEY": 51, "STATUS": "In Service" }
+      }
+    ]
+  },
+  "wastewater_manholes": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "ww-mh-317",
+        "geometry": { "type": "Point", "coordinates": [174.60777, -36.86009] },
+        "properties": { "COMPKEY": 317, "STATUS": "In Service" }
+      }
+    ]
+  },
+  "water_fittings": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "water-fit-61",
+        "geometry": { "type": "Point", "coordinates": [174.60781, -36.86012] },
+        "properties": { "COMPKEY": 61, "STATUS": "In Service" }
+      }
+    ]
+  },
+  "wastewater_fittings": {
+    "type": "FeatureCollection",
+    "features": [
+      {
+        "type": "Feature",
+        "id": "ww-fit-71",
+        "geometry": { "type": "Point", "coordinates": [174.60782, -36.86011] },
+        "properties": { "COMPKEY": 71, "STATUS": "In Service" }
+      }
+    ]
+  }
+}

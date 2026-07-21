@@ -3,20 +3,23 @@
 ## Status and decision
 
 This register records the Stage 2 data-access spike performed on 16 July 2026
-for `42A Bahari Drive, Ranui, Auckland`. The live script is:
+and the MT-211 mapped-layer verification performed on 17 July 2026 for
+`42A Bahari Drive, Ranui, Auckland`. The live scripts are:
 
 ```powershell
 npm run spike:data-access -- "42A Bahari Drive, Ranui, Auckland"
+npm run smoke:live-layers
 ```
 
-The exact-address, legal-parcel, and authenticated real-aerial map gates passed.
-Full report implementation must not start yet because Auckland Council's
-generated-report reuse position requires review. Watercare assets remain
-unavailable and must never be inferred.
+The exact-address, legal-parcel, authenticated real-aerial, and official mapped
+layer gates passed. Full report implementation must not start yet because
+Auckland Council's generated-report reuse position requires review. Watercare's
+official public services are mapped for internal reference only under the
+recorded non-commercial/no-derivatives licence; they are not report evidence.
 
-Raw feature counts below are bounded parcel-envelope query results, not final
-parcel intersections or feasibility findings. A zero count does not establish
-that a real-world constraint or private asset is absent.
+Mapped features and counts below are bounded parcel-envelope query results, not
+final parcel intersections or feasibility findings. A zero count does not
+establish that a real-world constraint or private asset is absent.
 
 ## Licence sources applying to multiple datasets
 
@@ -31,10 +34,13 @@ that a real-world constraint or private asset is absent.
 ## Code-enforced evidence-use gate
 
 Technical availability and report eligibility are separate. The spike labels
-each observation `report_allowed`, `spike_only`, or `unavailable`. Auckland
+each observation `report_allowed`, `spike_only`, `internal_reference`, or
+`unavailable`. Auckland
 Council layers remain `spike_only` even when their bounded API calls succeed;
 they cannot enter `reportEligibleDatasets` until the proposed generated-report
-and static-PDF reuse is approved. A public endpoint is not treated as a licence.
+and static-PDF reuse is approved. Watercare layers remain `internal_reference`
+and require independent verification before action. A public endpoint is not
+treated as a licence.
 
 ## Dataset records
 
@@ -89,10 +95,12 @@ and static-PDF reuse is approved. A public endpoint is not treated as a licence.
 - **Metadata:** <https://www.linz.govt.nz/guidance/data-service/linz-basemaps-guide/how-use-linz-basemaps-apis>
 - **Endpoint:** `https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/`
   XYZ tile API and related style/copyright APIs
-- **Licence:** underlying open datasets are generally CC BY 4.0; attribution
-  may vary by imagery source and must be obtained from the style/copyright API
-- **Attribution:** visible map and PDF attribution required; preserve source-
-  specific notices returned by Basemaps
+- **Licence:** underlying open datasets are generally CC BY 4.0; attribution is
+  read from the authenticated aerial StyleJSON rather than duplicated in UI code
+- **Attribution:** visible map and PDF attribution required; preserve the raster
+  source notice returned by Basemaps and link it to LINZ's custom aerial
+  attribution/copyright page. The live aerial style returned `© CC BY 4.0 LINZ`
+  when verified on 2026-07-17.
 - **Geometry / CRS:** raster XYZ/WMTS tiles, EPSG:3857
 - **Relevant attributes:** tileset/style metadata and source copyright entries
 - **Update status:** mosaic is updated as source imagery changes; property capture
@@ -261,30 +269,37 @@ and static-PDF reuse is approved. A public endpoint is not treated as a licence.
 
 - **Provider:** Watercare
 - **Metadata:** Watercare GIS maps page linked above
-- **Endpoint:** no documented automated endpoint suitable for this product found;
-  interactive viewer and manual CSV/KML/ESRI downloads only
+- **Official public endpoints:** `Wastewater_Network/FeatureServer/5` (pipes),
+  `/3` (manholes), and `/1` (fittings), owned by Watercare's official ArcGIS
+  organisation
 - **Licence:** CC BY-NC-ND 3.0 NZ shown by Watercare
-- **Attribution:** Watercare and stated licence for any authorised use
-- **Geometry / CRS / attributes / update:** available in manual datasets but not
-  adopted by this automated spike
-- **Usable:** no
+- **Attribution:** Watercare Services Limited, CC BY-NC-ND 3.0 NZ
+- **Geometry / CRS:** provider line and point geometry requested as WGS84 GeoJSON
+- **Relevant attributes:** provider properties are retained only as validated
+  internal reference metadata
+- **Usable:** internal reference only; not report evidence
 - **Limitations:** no inference of public or private wastewater position, depth,
-  accuracy, or absence
+  accuracy, connectivity, or absence; independently verify before action
 - **Commercial use:** no under the recorded non-commercial licence
 - **Additional permission:** yes
-- **Live proof:** unavailable; zero automated requests made
+- **Live proof (2026-07-17):** 7 pipes, 2 manholes, and 3 fittings returned for
+  the bounded 42A parcel envelope
 
 ### 13. Public water assets
 
 - **Provider:** Watercare
-- **Metadata / endpoint / licence / attribution:** same Watercare source and
-  CC BY-NC-ND 3.0 NZ position as wastewater
-- **Geometry / CRS / attributes / update:** not adopted for automated use
-- **Usable:** no
-- **Limitations:** no inference of water-main position, depth, accuracy, or absence
+- **Official public endpoints:** `Water_Network/FeatureServer/5` (pipes) and
+  `/4` (fittings), under the same official Watercare ArcGIS organisation
+- **Licence / attribution:** same Watercare source and CC BY-NC-ND 3.0 NZ
+  position as wastewater
+- **Geometry / CRS:** provider line and point geometry requested as WGS84 GeoJSON
+- **Usable:** internal reference only; not report evidence
+- **Limitations:** no inference of private services, water-main position, depth,
+  accuracy, connectivity, or absence; independently verify before action
 - **Commercial use:** no under the recorded non-commercial licence
 - **Additional permission:** yes
-- **Live proof:** unavailable; zero automated requests made
+- **Live proof (2026-07-17):** 6 pipes and 2 fittings returned for the bounded
+  42A parcel envelope
 
 ### 14. Manholes — Stormwater Manhole and Chamber
 
@@ -363,6 +378,12 @@ and static-PDF reuse is approved. A public endpoint is not treated as a licence.
 | Duplicate parcel rows removed | 3                                        |
 | Provider errors               | 0                                        |
 
+The separate MT-211 live layer smoke on `2026-07-17T03:51:43.994Z` returned
+mapped official geometry for 1 LINZ building outline; 6 Council contours,
+2 planning-zone features, 1 flood plain and 1 stormwater pipe; and the Watercare
+internal-reference features listed above. Layers returning zero features remain
+valid empty provider results. Culverts remain explicitly unavailable.
+
 ## Go/no-go gates
 
 - **Address/parcel:** pass.
@@ -370,8 +391,14 @@ and static-PDF reuse is approved. A public endpoint is not treated as a licence.
   passed numerically and visually, and required attribution is visible.
 - **Auckland Council reuse:** conditional; obtain written confirmation for the
   proposed automated generated-report and static-PDF use.
-- **Watercare:** unavailable; later confidence and actions must explicitly require
-  Watercare review, BeforeUdig plans and onsite utility locating.
+- **Watercare:** official public geometry is available for internal reference
+  only; later confidence and actions must still require Watercare review,
+  BeforeUdig plans and onsite utility locating.
 - **Address/parcel/map prototype:** unblocked using report-eligible LINZ evidence.
-- **Full constraint/report implementation:** stop pending review of Council reuse
-  and acceptance of unavailable Watercare evidence.
+- **Internal session-only POC:** eligible to proceed only when the release gates
+  in `docs/release-readiness.md` pass. Council evidence must remain labelled
+  `spike_only`, Watercare must remain `internal_reference`, and neither can be
+  promoted to report-eligible evidence.
+- **External/customer report or deployment:** no-go. Council generated-report
+  reuse, Watercare restrictions, access control, rate limiting, retention,
+  storage, and deployment operations require separate approval and evidence.
