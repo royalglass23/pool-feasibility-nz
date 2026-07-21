@@ -22,6 +22,7 @@ import { PoolScenarioComparisonResult } from "@/components/pool-scenario-compari
 import { FeasibilityAssessmentResult } from "@/components/feasibility-assessment-result";
 import { SessionAssessmentResult } from "@/components/session-assessment-result";
 import { AssessmentExplanationResult } from "@/components/assessment-explanation-result";
+import { AssessmentWorkspace } from "@/components/assessment-workspace";
 import {
   frontageDirectionOptions,
   poolLocationOptions,
@@ -346,9 +347,10 @@ export function DataAccessInspector() {
       </form>
 
       {result && (
-        <PropertyDataResult
+        <AssessmentWorkspace
+          key={result.resolvedAddress.addressId}
           result={result}
-          onDownload={downloadResult}
+          onDownloadData={downloadResult}
           onRetry={() => void requestPropertyData()}
         />
       )}
@@ -356,7 +358,7 @@ export function DataAccessInspector() {
   );
 }
 
-function PropertyDataResult({
+export function PropertyDataResult({
   result,
   onDownload,
   onRetry,

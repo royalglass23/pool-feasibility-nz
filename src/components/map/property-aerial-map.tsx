@@ -35,9 +35,11 @@ const mapLayerDefinitions: MapLayerDefinition[] = [
 export function PropertyAerialMap({
   result,
   onRetry,
+  onSnapshotReady,
 }: {
   result: DataAccessSpikeResult;
   onRetry: () => void;
+  onSnapshotReady?: (dataUrl: string | null) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [mapError, setMapError] = useState(false);
@@ -261,6 +263,7 @@ export function PropertyAerialMap({
         attributionControl: { compact: true },
         center: result.resolvedAddress.coordinates,
         zoom: 18,
+        canvasContextAttributes: { preserveDrawingBuffer: true },
       });
       map.addControl(new maplibregl.NavigationControl(), "top-right");
 
@@ -273,7 +276,14 @@ export function PropertyAerialMap({
       map.fitBounds(bounds, { padding: 48, maxZoom: 20, duration: 0 });
       map.on("error", () => setMapError(true));
       map.once("idle", () => {
-        if (!cancelled) setTilesLoaded(true);
+        if (!cancelled) {
+          setTilesLoaded(true);
+          try {
+            onSnapshotReady?.(map?.getCanvas().toDataURL("image/png") ?? null);
+          } catch {
+            onSnapshotReady?.(null);
+          }
+        }
       });
     }
 
@@ -288,6 +298,7 @@ export function PropertyAerialMap({
     compactAnalysis,
     result,
     visibleMappedLayers,
+    onSnapshotReady,
   ]);
 
   return (
