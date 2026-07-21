@@ -34,6 +34,7 @@ test("shows the controlled AI-enabled explanation without changing deterministic
   await page.goto("/");
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Constrained AI explanation" }),
@@ -77,6 +78,7 @@ test("shows deterministic fallback when the narrative provider is unavailable", 
   await page.goto("/");
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
 
   await expect(page.getByText("Deterministic fallback")).toBeVisible();
   await expect(
@@ -107,6 +109,7 @@ test("shows, downloads, and then clears the sourced session assessment", async (
   await page.goto("/");
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
 
   await expect(
     page.getByRole("heading", { name: "Session assessment" }),
@@ -136,9 +139,7 @@ test("shows, downloads, and then clears the sourced session assessment", async (
   ).toBeVisible();
 
   const downloadPromise = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "Download session assessment" })
-    .click();
+  await page.getByRole("button", { name: "Assessment data" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("session-assessment-2359811.json");
   const downloadPath = await download.path();
@@ -181,6 +182,90 @@ test("shows, downloads, and then clears the sourced session assessment", async (
   await expect(
     page.getByRole("heading", { name: "Session assessment" }),
   ).not.toBeVisible();
+});
+
+test("previews all three report pages and downloads the generated PDF", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: dataAccessResult }),
+    });
+  });
+  await page.route("**/api/internal/report/pdf", async (route) => {
+    const request = route.request().postDataJSON() as {
+      assessment: { property: { addressId: string } };
+      mapImageDataUrl: string;
+    };
+    expect(request.assessment.property.addressId).toBe("2359811");
+    expect(request.mapImageDataUrl).toMatch(/^data:image\/png;base64,/);
+    await route.fulfill({
+      status: 200,
+      contentType: "application/pdf",
+      headers: {
+        "Content-Disposition":
+          'attachment; filename="pool-feasibility-2359811.pdf"',
+      },
+      body: Buffer.from("%PDF-controlled"),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await expect(page.getByText("Imagery verified")).toBeVisible();
+  await page.getByRole("button", { name: "Preview PDF report" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "PDF report preview" }),
+  ).toBeVisible();
+  await expect(page.getByText("Page 1 of 3 · A4")).toBeVisible();
+  await page.getByRole("button", { name: "2" }).click();
+  await expect(page.getByText("Mapped property evidence")).toBeVisible();
+  await page.getByRole("button", { name: "3" }).click();
+  await expect(page.getByText("What needs attention next")).toBeVisible();
+
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download PDF" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("pool-feasibility-2359811.pdf");
+});
+
+test("keeps the expandable assessment and A4 preview usable on mobile", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: dataAccessResult }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await expect(
+    page.getByText("Preliminary recommendation", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Collapse all" }).click();
+  await page.getByText("Limits and unknowns").click();
+  await expect(
+    page.getByText("Preliminary desktop assessment only"),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Preview PDF report" }).click();
+  await page.getByRole("button", { name: "3" }).click();
+  await expect(page.getByText("What needs attention next")).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
 });
 
 test("selects the exact address, prevents duplicate work, maps the parcel, and downloads the result", async ({
@@ -242,6 +327,7 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   const resultHeading = page.getByRole("heading", { name: address });
   await expect(resultHeading).toBeVisible();
   await expect(resultHeading).toBeFocused();
+  await page.getByRole("button", { name: "Expand all" }).click();
   await expect(page.getByText("Parcel 8545868", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("table").getByText("NZ Addresses", { exact: true }),
@@ -258,13 +344,15 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   ).toBeVisible();
   await expect(page.getByText("82 / 100")).toBeVisible();
   await expect(
-    page.getByText("Likely feasible with normal investigations"),
+    page.getByText("Likely feasible with normal investigations", {
+      exact: true,
+    }),
   ).toBeVisible();
   await expect(page.getByText("High data confidence")).toBeVisible();
   await expect(
-    page.getByText(
-      "Likely feasible with normal onsite and specialist investigations.",
-    ),
+    page.getByRole("heading", {
+      name: "Likely feasible with normal onsite and specialist investigations.",
+    }),
   ).toBeVisible();
   await expect(page.getByText("5m x 3m to 9m x 4m")).toBeVisible();
   await expect(
@@ -316,9 +404,7 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   ]);
 
   const downloadPromise = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "Download session assessment" })
-    .click();
+  await page.getByRole("button", { name: "Assessment data" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("session-assessment-2359811.json");
 });
@@ -341,6 +427,7 @@ test("completes the controlled journey for a second Auckland address", async ({
 
   const resultHeading = page.getByRole("heading", { name: secondAddress });
   await expect(resultHeading).toBeFocused();
+  await page.getByRole("button", { name: "Expand all" }).click();
   await expect(page.getByText("Parcel 4789010", { exact: true })).toBeVisible();
   await expect(
     page.getByRole("region", { name: `Aerial map for ${secondAddress}` }),
@@ -360,9 +447,7 @@ test("completes the controlled journey for a second Auckland address", async ({
   ).toBeVisible();
 
   const downloadPromise = page.waitForEvent("download");
-  await page
-    .getByRole("button", { name: "Download session assessment" })
-    .click();
+  await page.getByRole("button", { name: "Assessment data" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("session-assessment-2453674.json");
 });
@@ -405,6 +490,7 @@ test("compares configured scenarios with staff size and location preferences", a
   await page.getByLabel("Front boundary direction").selectOption("south");
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
 
   const comparison = page.getByRole("region", {
     name: "Pool scenario comparison",
@@ -458,6 +544,7 @@ test("retries after a controlled provider failure", async ({ page }) => {
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("button", { name: "Fetch property data" }).click();
   await page.getByRole("button", { name: "Try again" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
 
   await expect(page.getByRole("heading", { name: address })).toBeVisible();
   expect(attempts).toBe(2);
@@ -494,6 +581,7 @@ test("shows the honest no-clear-candidate wording for a controlled screening res
   await page.goto("/");
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
 
   await expect(
     page
@@ -534,6 +622,7 @@ test("revokes verified imagery and retries when a LINZ tile fails", async ({
   await page.goto("/");
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
 
   await expect(page.getByText("Imagery unavailable")).toBeVisible();
   const retry = page.getByRole("button", { name: "Try imagery again" });

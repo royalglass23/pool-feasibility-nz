@@ -90,8 +90,18 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(
       await screen.findByRole("heading", { name: requestedAddress }),
     ).toBeVisible();
-    expect(screen.getAllByText("Lot 1 DP 576345")).toHaveLength(2);
-    expect(screen.getByText("Dataset availability")).toBeVisible();
+    expect(screen.getByText("Lot 1 DP 576345")).toBeVisible();
+    expect(screen.getByText("Assessment details")).toBeVisible();
+    expect(
+      screen.getByText("Property map and official evidence"),
+    ).toBeVisible();
+    expect(screen.getByText("Pool scenarios")).toBeVisible();
+    expect(screen.getByText("Assessment and scoring")).toBeVisible();
+    expect(screen.getByText("Risks and actions")).toBeVisible();
+    expect(screen.getByText("Sources and provenance")).toBeVisible();
+    expect(screen.getByText("Limits and unknowns")).toBeVisible();
+    await user.click(screen.getByText("Pool scenarios"));
+    await user.click(screen.getByText("Assessment and scoring"));
     expect(
       screen.getByRole("heading", { name: "Pool scenario comparison" }),
     ).toBeVisible();
@@ -102,10 +112,10 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(screen.getByText("Indeterminate")).toBeVisible();
     expect(screen.getByText("Low data confidence")).toBeVisible();
     expect(
-      screen.getByText(
+      screen.getAllByText(
         "Insufficient core data is available for a preliminary recommendation.",
       ),
-    ).toBeVisible();
+    ).toHaveLength(2);
     expect(
       screen.getAllByText(
         /Required core data is unavailable: building_footprints/i,
@@ -127,8 +137,20 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
 
     await user.click(
-      screen.getByRole("button", { name: "Download session assessment" }),
+      screen.getByRole("button", { name: "Preview PDF report" }),
     );
+    expect(
+      screen.getByRole("heading", { name: "PDF report preview" }),
+    ).toBeVisible();
+    expect(screen.getByText("Page 1 of 3 · A4")).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "2" }));
+    expect(screen.getByText("Mapped property evidence")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Download PDF" })).toBeDisabled();
+    await user.click(
+      screen.getByRole("button", { name: "Back to assessment" }),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Assessment data" }));
     expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
     expect(clickAnchor).toHaveBeenCalledOnce();
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:property-data");
@@ -162,10 +184,10 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByRole("button", { name: "Fetch property data" }),
     );
 
+    await screen.findByRole("heading", { name: requestedAddress });
+    await user.click(screen.getByText("Assessment and scoring"));
     expect(
-      await screen.findByRole("heading", {
-        name: "Constrained AI explanation",
-      }),
+      screen.getByRole("heading", { name: "Constrained AI explanation" }),
     ).toBeVisible();
     expect(screen.getByText("Constrained AI narrative")).toBeVisible();
     expect(
@@ -207,7 +229,9 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByRole("button", { name: "Fetch property data" }),
     );
 
-    expect(await screen.findByText("Deterministic fallback")).toBeVisible();
+    await screen.findByRole("heading", { name: requestedAddress });
+    await user.click(screen.getByText("Assessment and scoring"));
+    expect(screen.getByText("Deterministic fallback")).toBeVisible();
     expect(
       screen.getByRole("heading", {
         name: "Deterministic assessment explanation",
@@ -253,8 +277,10 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByRole("button", { name: "Fetch property data" }),
     );
 
+    await screen.findByRole("heading", { name: requestedAddress });
+    await user.click(screen.getByText("Pool scenarios"));
     expect(
-      await screen.findByRole("heading", { name: "Pool scenario comparison" }),
+      screen.getByRole("heading", { name: "Pool scenario comparison" }),
     ).toBeVisible();
     expect(JSON.parse(fetchMock.mock.calls[0]![1]!.body as string)).toEqual({
       address: requestedAddress,

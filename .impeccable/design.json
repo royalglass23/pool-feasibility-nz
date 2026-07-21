@@ -1,0 +1,223 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-07-21T14:54:28.8230798+12:00",
+  "title": "Design System: Pool Feasibility NZ",
+  "extensions": {
+    "colorMeta": {
+      "evidence-teal": {
+        "role": "primary",
+        "displayName": "Evidence Teal",
+        "canonical": "oklch(51.1% 0.096 186.391)",
+        "tonalRamp": [
+          "oklch(27.7% 0.046 192.524)",
+          "oklch(38.6% 0.063 188.416)",
+          "oklch(43.7% 0.078 188.216)",
+          "oklch(51.1% 0.096 186.391)",
+          "oklch(60% 0.118 184.704)",
+          "oklch(70.4% 0.14 182.503)",
+          "oklch(85.5% 0.138 181.071)",
+          "oklch(98.4% 0.014 180.72)"
+        ]
+      },
+      "survey-ink": {
+        "role": "neutral",
+        "displayName": "Survey Ink",
+        "canonical": "oklch(12.9% 0.042 264.695)",
+        "tonalRamp": [
+          "oklch(12.9% 0.042 264.695)",
+          "oklch(20.8% 0.042 265.755)",
+          "oklch(27.9% 0.041 260.031)",
+          "oklch(37.2% 0.044 257.287)",
+          "oklch(44.6% 0.043 257.281)",
+          "oklch(55.4% 0.046 257.417)",
+          "oklch(70.4% 0.04 256.788)",
+          "oklch(98.4% 0.003 247.858)"
+        ]
+      },
+      "caution-amber": {
+        "role": "secondary",
+        "displayName": "Caution Amber",
+        "canonical": "oklch(55.5% 0.163 48.998)",
+        "tonalRamp": [
+          "oklch(27.9% 0.077 45.635)",
+          "oklch(41.4% 0.112 45.904)",
+          "oklch(47.3% 0.137 46.201)",
+          "oklch(55.5% 0.163 48.998)",
+          "oklch(66.6% 0.179 58.318)",
+          "oklch(76.9% 0.188 70.08)",
+          "oklch(87.9% 0.169 91.605)",
+          "oklch(98.7% 0.022 95.277)"
+        ]
+      },
+      "blocker-red": {
+        "role": "tertiary",
+        "displayName": "Blocker Red",
+        "canonical": "oklch(50.5% 0.213 27.518)",
+        "tonalRamp": [
+          "oklch(25.8% 0.092 26.042)",
+          "oklch(39.6% 0.141 25.723)",
+          "oklch(44.4% 0.177 26.899)",
+          "oklch(50.5% 0.213 27.518)",
+          "oklch(57.7% 0.245 27.325)",
+          "oklch(70.4% 0.191 22.216)",
+          "oklch(88.5% 0.062 18.334)",
+          "oklch(97.1% 0.013 17.38)"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Page Purpose",
+        "purpose": "The single page-level statement of the staff task."
+      },
+      "headline": {
+        "displayName": "Result Identity",
+        "purpose": "Resolved address and major assessment headings."
+      },
+      "title": {
+        "displayName": "Evidence Section",
+        "purpose": "Section headings and prominent findings."
+      },
+      "body": {
+        "displayName": "Working Copy",
+        "purpose": "Instructions, evidence explanations, and limitations."
+      },
+      "label": {
+        "displayName": "Control Label",
+        "purpose": "Fields, buttons, table labels, and compact metadata."
+      }
+    },
+    "shadows": [
+      {
+        "name": "working-surface",
+        "value": "0 24px 80px -36px rgb(15 23 42 / 35%)",
+        "purpose": "Separates the primary address-and-analysis surface from the page."
+      },
+      {
+        "name": "panel-lift",
+        "value": "0 1px 2px 0 rgb(0 0 0 / 5%)",
+        "purpose": "Low lift for major results, the map, and important actions."
+      }
+    ],
+    "motion": [
+      {
+        "name": "state-transition",
+        "value": "150ms cubic-bezier(0.25, 1, 0.5, 1)",
+        "purpose": "Fast hover, focus, disclosure, and state feedback."
+      }
+    ],
+    "breakpoints": [
+      { "name": "sm", "value": "640px" },
+      { "name": "md", "value": "768px" },
+      { "name": "lg", "value": "1024px" },
+      { "name": "xl", "value": "1280px" }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Action",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "Runs the main property-data workflow with decisive contrast and teal feedback.",
+      "html": "<button class=\"ds-btn-primary\">Fetch property data</button>",
+      "css": ".ds-btn-primary { min-height: 52px; border: 0; border-radius: 18px; background: oklch(12.9% 0.042 264.695); color: white; padding: 14px 24px; font: 600 16px/1.25 Geist, Arial, sans-serif; transition: background 150ms cubic-bezier(0.25,1,0.5,1), transform 150ms cubic-bezier(0.25,1,0.5,1); } .ds-btn-primary:hover { background: oklch(43.7% 0.078 188.216); } .ds-btn-primary:focus-visible { outline: 2px solid oklch(51.1% 0.096 186.391); outline-offset: 2px; } .ds-btn-primary:active { transform: translateY(1px); }"
+    },
+    {
+      "name": "Secondary Action",
+      "kind": "button",
+      "refersTo": "button-secondary",
+      "description": "Supports download, retry, and map actions without competing with the primary workflow.",
+      "html": "<button class=\"ds-btn-secondary\">Download report</button>",
+      "css": ".ds-btn-secondary { min-height: 44px; border: 1px solid oklch(86.9% 0.022 252.894); border-radius: 14px; background: white; color: oklch(27.9% 0.041 260.031); padding: 10px 16px; font: 600 14px/1.25 Geist, Arial, sans-serif; transition: border-color 150ms cubic-bezier(0.25,1,0.5,1), color 150ms cubic-bezier(0.25,1,0.5,1); } .ds-btn-secondary:hover { border-color: oklch(60% 0.118 184.704); color: oklch(43.7% 0.078 188.216); } .ds-btn-secondary:focus-visible { outline: 2px solid oklch(51.1% 0.096 186.391); outline-offset: 2px; }"
+    },
+    {
+      "name": "Property Address Field",
+      "kind": "input",
+      "refersTo": "input-property",
+      "description": "A large, readable address entry field for the start of the staff journey.",
+      "html": "<label class=\"ds-field-label\" for=\"ds-address\">Auckland property address</label><input class=\"ds-input-property\" id=\"ds-address\" placeholder=\"e.g. 42A Bahari Drive, Ranui, Auckland\">",
+      "css": ".ds-field-label { display: block; margin-bottom: 6px; color: oklch(37.2% 0.044 257.287); font: 600 14px/1.25 Geist, Arial, sans-serif; } .ds-input-property { box-sizing: border-box; width: 100%; min-height: 52px; border: 1px solid oklch(92.9% 0.013 255.508); border-radius: 18px; background: oklch(98.4% 0.003 247.858); color: oklch(12.9% 0.042 264.695); padding: 12px 16px; font: 400 16px/1.5 Geist, Arial, sans-serif; transition: background 150ms cubic-bezier(0.25,1,0.5,1), border-color 150ms cubic-bezier(0.25,1,0.5,1), box-shadow 150ms cubic-bezier(0.25,1,0.5,1); } .ds-input-property::placeholder { color: oklch(55.4% 0.046 257.417); } .ds-input-property:focus { border-color: oklch(60% 0.118 184.704); background: white; box-shadow: 0 0 0 4px oklch(60% 0.118 184.704 / 10%); outline: none; }"
+    },
+    {
+      "name": "Result Panel",
+      "kind": "card",
+      "refersTo": "panel-result",
+      "description": "A major report section with border-led separation and restrained elevation.",
+      "html": "<section class=\"ds-result-panel\"><h3>Feasibility assessment</h3><p>Verified evidence, confidence, limitations, and actions remain grouped together.</p></section>",
+      "css": ".ds-result-panel { border: 1px solid oklch(92.9% 0.013 255.508); border-radius: 22px; background: white; color: oklch(12.9% 0.042 264.695); padding: 24px; box-shadow: 0 1px 2px 0 rgb(0 0 0 / 5%); font-family: Geist, Arial, sans-serif; } .ds-result-panel h3 { margin: 0 0 12px; font-size: 20px; line-height: 1.5; font-weight: 600; } .ds-result-panel p { margin: 0; max-width: 70ch; color: oklch(44.6% 0.043 257.281); font-size: 14px; line-height: 1.5; }"
+    },
+    {
+      "name": "Verified Status",
+      "kind": "chip",
+      "refersTo": "chip-success",
+      "description": "Marks successful or verified evidence with text and colour together.",
+      "html": "<span class=\"ds-chip-success\">Verified</span>",
+      "css": ".ds-chip-success { display: inline-flex; border-radius: 9999px; background: oklch(98.4% 0.014 180.72); color: oklch(43.7% 0.078 188.216); padding: 4px 10px; box-shadow: inset 0 0 0 1px oklch(60% 0.118 184.704 / 20%); font: 600 12px/1.25 Geist, Arial, sans-serif; }"
+    },
+    {
+      "name": "Expandable Evidence",
+      "kind": "custom",
+      "description": "Keeps a meaningful provenance summary visible while placing dense evidence behind native disclosure.",
+      "html": "<details class=\"ds-disclosure\"><summary>LINZ parcel evidence</summary><p>Provider, dataset, retrieval date, evidence use, and attribution.</p></details>",
+      "css": ".ds-disclosure { border: 1px solid oklch(92.9% 0.013 255.508); border-radius: 18px; background: white; padding: 12px 16px; color: oklch(12.9% 0.042 264.695); font-family: Geist, Arial, sans-serif; } .ds-disclosure summary { cursor: pointer; font-size: 14px; line-height: 1.4; font-weight: 600; } .ds-disclosure summary:focus-visible { outline: 2px solid oklch(51.1% 0.096 186.391); outline-offset: 3px; } .ds-disclosure p { margin: 12px 0 0; color: oklch(44.6% 0.043 257.281); font-size: 12px; line-height: 1.6; }"
+    },
+    {
+      "name": "Property Evidence Map",
+      "kind": "custom",
+      "description": "Frames imagery as attributed evidence with controls and context, never as decoration.",
+      "html": "<section class=\"ds-map\"><header><strong>Property aerial view</strong><span>Official imagery</span></header><div class=\"ds-map-canvas\">Parcel, address point, and candidate overlays</div><footer>LINZ attribution · Layer status visible</footer></section>",
+      "css": ".ds-map { overflow: hidden; border: 1px solid oklch(92.9% 0.013 255.508); border-radius: 22px; background: oklch(20.8% 0.042 265.755); box-shadow: 0 1px 2px 0 rgb(0 0 0 / 5%); font-family: Geist, Arial, sans-serif; } .ds-map header { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: oklch(12.9% 0.042 264.695); color: white; padding: 16px 20px; } .ds-map header span { color: oklch(91% 0.096 180.426); font-size: 12px; font-weight: 600; } .ds-map-canvas { min-height: 160px; display: grid; place-items: center; color: oklch(86.9% 0.022 252.894); font-size: 13px; } .ds-map footer { background: white; color: oklch(44.6% 0.043 257.281); padding: 10px 20px; font-size: 12px; line-height: 1.5; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Evidence Desk",
+    "overview": "The interface is a calm working surface for property investigation. It should feel like an organized evidence brief laid out for a trained operator: the preliminary decision is easy to locate, the supporting material remains close at hand, and uncertainty is never disguised as polish. The system is precise without becoming bureaucratic and responsive without becoming theatrical. Information density is welcome when it supports comparison or provenance, but long results should reveal detail progressively.",
+    "keyCharacteristics": [
+      "Restrained slate neutrals with teal reserved for evidence, interaction, and positive state.",
+      "White working surfaces separated by fine borders, tinted sections, and sparing elevation.",
+      "Compact, readable Geist typography with strong labels and tabular data where needed.",
+      "Progressive disclosure for dense evidence, limitations, provenance, and report sections.",
+      "Explicit warning, error, unavailable, loading, and verified states."
+    ],
+    "rules": [
+      {
+        "name": "The Evidence Colour Rule",
+        "body": "Teal means evidence, interaction, selection, or verified state. It must never become ambient decoration across a whole screen.",
+        "section": "colors"
+      },
+      {
+        "name": "The Honest State Rule",
+        "body": "Amber means incomplete, cautionary, or unknown; red means failed or blocked. Never soften a blocker into amber merely to make the page look calmer.",
+        "section": "colors"
+      },
+      {
+        "name": "The Operational Voice Rule",
+        "body": "Labels and controls use Geist at compact fixed sizes. Display styling never enters buttons, fields, tables, or status chips.",
+        "section": "typography"
+      },
+      {
+        "name": "The Border-Before-Shadow Rule",
+        "body": "Reach for a one-pixel Survey Line border or tonal background first. Never pair a fine border with a broad decorative shadow on ordinary cards.",
+        "section": "elevation"
+      }
+    ],
+    "dos": [
+      "Do lead with the preliminary decision and make its evidence available through progressive disclosure.",
+      "Do preserve clear distinctions between verified, unavailable, unknown, warning, and failed states.",
+      "Do use Evidence Teal only for interaction, selection, evidence, and positive state.",
+      "Do keep controls at least 44px high for primary staff workflows and provide visible keyboard focus.",
+      "Do use native disclosure semantics for expandable report sections and keep meaningful summaries visible when collapsed.",
+      "Do keep attribution, property identity, uncertainty, and screening limitations visible in downloadable and on-screen reports."
+    ],
+    "donts": [
+      "Don't make the interface resemble a flashy consumer sales funnel.",
+      "Don't make the interface resemble a generic SaaS dashboard.",
+      "Don't make the interface resemble an official Council approval system.",
+      "Don't use decorative complexity, sales-led urgency, or visual authority to overstate a preliminary result.",
+      "Don't turn every result into an identical card or nest cards inside cards; use spacing, dividers, tables, and disclosure first.",
+      "Don't use gradient text, decorative glassmorphism, coloured side-stripe borders, or oversized card radii.",
+      "Don't hide uncertainty, attribution, or unavailable evidence in collapsed sections when it materially changes the decision.",
+      "Don't use colour as the only carrier of status or animate content without a reduced-motion alternative."
+    ]
+  }
+}
