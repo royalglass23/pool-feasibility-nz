@@ -1,5 +1,6 @@
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
 import type { PoolScenarioStatus } from "@/modules/spatial/analyze-pool-scenarios";
+import { humanizeIdentifierTitleCase as humanize } from "@/shared/text/humanize-identifier";
 
 export function PoolScenarioComparisonResult({
   comparison,
@@ -50,7 +51,7 @@ export function PoolScenarioComparisonResult({
         </div>
       </div>
 
-      <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-2">
+      <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
         <Preference
           label="Preferred size"
           value={
@@ -62,6 +63,14 @@ export function PoolScenarioComparisonResult({
         <Preference
           label="Preferred location"
           value={humanize(comparison.preferences.preferredLocation)}
+        />
+        <Preference
+          label="Staff-supplied front boundary"
+          value={
+            comparison.preferences.frontageDirection
+              ? humanize(comparison.preferences.frontageDirection)
+              : "Not supplied"
+          }
         />
       </dl>
 
@@ -130,13 +139,6 @@ function Preference({ label, value }: { label: string; value: string }) {
 
 function formatShell(shell: { lengthMetres: number; widthMetres: number }) {
   return `${shell.lengthMetres}m x ${shell.widthMetres}m`;
-}
-
-function humanize(value: string): string {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function statusClass(status: PoolScenarioStatus) {

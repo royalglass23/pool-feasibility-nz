@@ -29,6 +29,7 @@ import type {
 import type {
   PoolScenarioConfig,
   PoolScenarioId,
+  PoolFrontageDirection,
   PreferredPoolLocation,
 } from "@/config/pool-scenarios";
 
@@ -148,6 +149,7 @@ export function analyzePoolCandidates(input: {
   mappedServices: SpatialEvidenceInput[];
   config: PoolScenarioConfig;
   preferredLocation?: PreferredPoolLocation;
+  frontageDirection?: PoolFrontageDirection | null;
 }): PoolCandidateAnalysis {
   if (input.parcelStatus !== "confirmed") {
     return insufficientData(input, ["legal_parcel"]);
@@ -293,7 +295,13 @@ export function analyzePoolCandidates(input: {
 
   const ranked = candidates
     .sort((left, right) =>
-      compareCandidates(left, right, input.preferredLocation ?? "any", origin),
+      compareCandidates(
+        left,
+        right,
+        input.preferredLocation ?? "any",
+        origin,
+        input.frontageDirection,
+      ),
     )
     .slice(0, input.config.maximumCandidates)
     .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
@@ -586,6 +594,7 @@ function compareCandidates(
   right: PoolCandidate,
   preferredLocation: PreferredPoolLocation,
   origin: Position,
+  frontageDirection?: PoolFrontageDirection | null,
 ) {
   const leftIntersections = left.constraintIntersections.filter(
     (measurement) => measurement.intersects,
@@ -600,7 +609,13 @@ function compareCandidates(
   return (
     leftIntersections - rightIntersections ||
     leftUnknown - rightUnknown ||
-    comparePreferredLocation(left, right, preferredLocation, origin) ||
+    comparePreferredLocation(
+      left,
+      right,
+      preferredLocation,
+      origin,
+      frontageDirection,
+    ) ||
     rightDistance - leftDistance ||
     left.centre[1] - right.centre[1] ||
     left.centre[0] - right.centre[0] ||
@@ -613,16 +628,32 @@ function comparePreferredLocation(
   right: PoolCandidate,
   preferredLocation: PreferredPoolLocation,
   origin: Position,
+  frontageDirection?: PoolFrontageDirection | null,
 ) {
-  if (preferredLocation === "north") return right.centre[1] - left.centre[1];
-  if (preferredLocation === "south") return left.centre[1] - right.centre[1];
-  if (preferredLocation === "centre") {
-    return (
-      distance(point(left.centre), point(origin), { units: "meters" }) -
-      distance(point(right.centre), point(origin), { units: "meters" })
+  if (preferredLocation === "any" || !frontageDirection) return 0;
+
+  const unitFront = {
+    north: [0, 1],
+    east: [1, 0],
+    south: [0, -1],
+    west: [-1, 0],
+  }[frontageDirection];
+  const score = (candidate: PoolCandidate) => {
+    const offset = [
+      candidate.centre[0] - origin[0],
+      candidate.centre[1] - origin[1],
+    ];
+    const frontProjection = offset[0] * unitFront[0] + offset[1] * unitFront[1];
+    const sideProjection = Math.abs(
+      offset[0] * -unitFront[1] + offset[1] * unitFront[0],
     );
-  }
-  return 0;
+    return preferredLocation === "side_yard" ? sideProjection : frontProjection;
+  };
+  const leftScore = score(left);
+  const rightScore = score(right);
+  return preferredLocation === "rear"
+    ? leftScore - rightScore
+    : rightScore - leftScore;
 }
 
 function unknownEvidenceCount(candidate: PoolCandidate) {

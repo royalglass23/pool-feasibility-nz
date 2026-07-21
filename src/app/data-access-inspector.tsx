@@ -1,6 +1,12 @@
 "use client";
 
-import { useState, type FormEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+  type FormEvent,
+  type ReactNode,
+} from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -14,17 +20,28 @@ import {
 } from "lucide-react";
 import { PoolScenarioComparisonResult } from "@/components/pool-scenario-comparison-result";
 import { FeasibilityAssessmentResult } from "@/components/feasibility-assessment-result";
+import { SessionAssessmentResult } from "@/components/session-assessment-result";
+import { AssessmentExplanationResult } from "@/components/assessment-explanation-result";
 import {
+  frontageDirectionOptions,
   poolLocationOptions,
   poolScenarioCatalogue,
+  type PoolFrontageDirection,
   type PreferredPoolLocation,
   type PoolScenarioId,
 } from "@/config/pool-scenarios";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
+import { buildSessionAssessment } from "@/modules/assessment/build-session-assessment";
+import type { AssessmentExplanation } from "@/modules/recommendations/generate-assessment-explanation";
 import { PropertyAerialMap } from "@/components/map/property-aerial-map";
+import { humanizeIdentifierTitleCase as humanize } from "@/shared/text/humanize-identifier";
+
+type DataAccessApiResult = DataAccessSpikeResult & {
+  assessmentExplanation?: AssessmentExplanation;
+};
 
 type ApiResponse =
-  | { data: DataAccessSpikeResult }
+  | { data: DataAccessApiResult }
   | {
       error: {
         code: string;
@@ -38,7 +55,10 @@ export function DataAccessInspector() {
   const [preferredSize, setPreferredSize] = useState<PoolScenarioId | "">("");
   const [preferredLocation, setPreferredLocation] =
     useState<PreferredPoolLocation>("any");
-  const [result, setResult] = useState<DataAccessSpikeResult | null>(null);
+  const [frontageDirection, setFrontageDirection] = useState<
+    PoolFrontageDirection | ""
+  >("");
+  const [result, setResult] = useState<DataAccessApiResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [addressOptions, setAddressOptions] = useState<
     Array<{ addressId: string; fullAddress: string }>
@@ -77,6 +97,7 @@ export function DataAccessInspector() {
           address: requestedAddress,
           ...(selectedAddressId ? { selectedAddressId } : {}),
           ...(preferredLocation === "any" ? {} : { preferredLocation }),
+          ...(frontageDirection ? { frontageDirection } : {}),
           ...(preferredSize ? { preferredSize } : {}),
         }),
       });
@@ -117,13 +138,17 @@ export function DataAccessInspector() {
   function downloadResult() {
     if (!result) return;
 
-    const blob = new Blob([JSON.stringify(result, null, 2)], {
+    const assessment = buildSessionAssessment(
+      result,
+      result.assessmentExplanation,
+    );
+    const blob = new Blob([JSON.stringify(assessment, null, 2)], {
       type: "application/json",
     });
     const objectUrl = URL.createObjectURL(blob);
     const anchor = document.createElement("a");
     anchor.href = objectUrl;
-    anchor.download = `property-data-${result.resolvedAddress.addressId}.json`;
+    anchor.download = `session-assessment-${result.resolvedAddress.addressId}.json`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
@@ -162,12 +187,14 @@ export function DataAccessInspector() {
               className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 font-normal text-slate-950 outline-none focus:border-teal-600 focus:bg-white focus:ring-4 focus:ring-teal-600/10"
             >
               <option value="">No preference</option>
-              {poolScenarioCatalogue.scenarios.map((scenario) => (
-                <option key={scenario.id} value={scenario.id}>
-                  {scenario.label} - {scenario.shell.lengthMetres}m x{" "}
-                  {scenario.shell.widthMetres}m
-                </option>
-              ))}
+              {poolScenarioCatalogue.scenarios
+                .filter((scenario) => scenario.kind === "anchor")
+                .map((scenario) => (
+                  <option key={scenario.id} value={scenario.id}>
+                    {scenario.label} - {scenario.shell.lengthMetres}m x{" "}
+                    {scenario.shell.widthMetres}m
+                  </option>
+                ))}
             </select>
           </label>
           <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
@@ -185,6 +212,28 @@ export function DataAccessInspector() {
               {poolLocationOptions.map((location) => (
                 <option key={location.id} value={location.id}>
                   {location.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
+            Front boundary direction
+            <select
+              value={frontageDirection}
+              required={preferredLocation !== "any"}
+              disabled={preferredLocation === "any"}
+              onChange={(event) => {
+                const direction = frontageDirectionOptions.find(
+                  ({ id }) => id === event.target.value,
+                );
+                setFrontageDirection(direction?.id ?? "");
+              }}
+              className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 font-normal text-slate-950 outline-none focus:border-teal-600 focus:bg-white focus:ring-4 focus:ring-teal-600/10 disabled:text-slate-400"
+            >
+              <option value="">Select known front boundary</option>
+              {frontageDirectionOptions.map(({ id, label }) => (
+                <option key={id} value={id}>
+                  {label}
                 </option>
               ))}
             </select>
@@ -312,10 +361,11 @@ function PropertyDataResult({
   onDownload,
   onRetry,
 }: {
-  result: DataAccessSpikeResult;
+  result: DataAccessApiResult;
   onDownload: () => void;
   onRetry: () => void;
 }) {
+  const headingRef = useRef<HTMLHeadingElement>(null);
   const datasets = Object.entries(result.datasets);
   const successfulCount = datasets.filter(
     ([, dataset]) => dataset.status === "success",
@@ -323,6 +373,10 @@ function PropertyDataResult({
   const unavailableCount = datasets.filter(
     ([, dataset]) => dataset.status === "unavailable",
   ).length;
+
+  useEffect(() => {
+    headingRef.current?.focus();
+  }, [result.resolvedAddress.addressId]);
 
   return (
     <section aria-labelledby="result-heading" className="space-y-6">
@@ -332,7 +386,9 @@ function PropertyDataResult({
             Official data result
           </p>
           <h2
+            ref={headingRef}
             id="result-heading"
+            tabIndex={-1}
             className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl"
           >
             {result.resolvedAddress.fullAddress}
@@ -348,7 +404,7 @@ function PropertyDataResult({
           className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 font-semibold text-slate-800 shadow-sm transition hover:border-teal-600 hover:text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
         >
           <Download className="size-4" aria-hidden="true" />
-          Download JSON
+          Download session assessment
         </button>
       </div>
 
@@ -381,6 +437,12 @@ function PropertyDataResult({
 
       <PoolScenarioComparisonResult comparison={result.scenarioComparison} />
       <FeasibilityAssessmentResult assessment={result.feasibilityAssessment} />
+      {result.assessmentExplanation ? (
+        <AssessmentExplanationResult
+          explanation={result.assessmentExplanation}
+        />
+      ) : null}
+      <SessionAssessmentResult assessment={buildSessionAssessment(result)} />
 
       <div className="grid gap-6 lg:grid-cols-[0.9fr_1.6fr]">
         <div className="space-y-6">
@@ -594,12 +656,6 @@ function StatusBadge({ status }: { status: string }) {
       {humanize(status)}
     </span>
   );
-}
-
-function humanize(value: string): string {
-  return value
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
 }
 
 function formatArea(value: number | null): string {

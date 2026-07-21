@@ -1,4 +1,4 @@
-import { bbox } from "@turf/turf";
+import { bbox, distance } from "@turf/turf";
 import type { Feature, Polygon } from "geojson";
 import { z } from "zod";
 import { poolScenarioCatalogue } from "@/config/pool-scenarios";
@@ -22,7 +22,10 @@ import {
   type PoolScenarioPreferences,
   type SpatialEvidenceInput,
 } from "../spatial/analyze-pool-scenarios";
-import { assessDataAccessFeasibility } from "../scoring/assess-data-access-feasibility";
+import {
+  assessDataAccessFeasibility,
+  type NormalizedTerrainEvidence,
+} from "../scoring/assess-data-access-feasibility";
 import type { FeasibilityAssessment } from "../scoring/assess-feasibility";
 
 export type {
@@ -254,6 +257,7 @@ export async function runDataAccessSpike(input: {
     ),
     catalogue: poolScenarioCatalogue,
     preferences: input.preferences ?? {
+      frontageDirection: null,
       preferredLocation: "any",
       preferredSize: null,
     },
@@ -264,10 +268,7 @@ export async function runDataAccessSpike(input: {
     parcelMatchStatus: parcelMatch.status,
     parcel,
     datasets,
-    terrainEvidence: {
-      status: "unknown",
-      maximumSlopeDegrees: null,
-    },
+    terrainEvidence: deriveTerrainEvidence(datasets.contours),
     assessedAt: retrievedAt,
   });
 
@@ -308,6 +309,103 @@ export async function runDataAccessSpike(input: {
       "Watercare geometry is internal reference data only and must be independently verified before action",
     ],
   };
+}
+
+function deriveTerrainEvidence(
+  contours: DatasetEvidence,
+): NormalizedTerrainEvidence {
+  if (contours.status !== "success" || !contours.geometry) {
+    return { status: "unknown", maximumSlopeDegrees: null };
+  }
+
+  const samplesByElevation = new Map<
+    number,
+    { longitudeTotal: number; latitudeTotal: number; count: number }
+  >();
+  for (const feature of contours.geometry.features) {
+    const elevation = contourElevation(feature.properties);
+    if (elevation === null) continue;
+    const coordinates = contourCoordinates(feature.geometry);
+    if (coordinates.length === 0) continue;
+
+    const sample = samplesByElevation.get(elevation) ?? {
+      longitudeTotal: 0,
+      latitudeTotal: 0,
+      count: 0,
+    };
+    for (const [longitude, latitude] of coordinates) {
+      sample.longitudeTotal += longitude;
+      sample.latitudeTotal += latitude;
+      sample.count += 1;
+    }
+    samplesByElevation.set(elevation, sample);
+  }
+
+  const samples = [...samplesByElevation.entries()]
+    .map(([elevation, sample]) => ({
+      elevation,
+      coordinate: [
+        sample.longitudeTotal / sample.count,
+        sample.latitudeTotal / sample.count,
+      ] as [number, number],
+    }))
+    .sort((left, right) => left.elevation - right.elevation);
+  if (samples.length < 2) {
+    return { status: "unknown", maximumSlopeDegrees: null };
+  }
+
+  let maximumSlopeDegrees = 0;
+  for (let index = 1; index < samples.length; index += 1) {
+    const lower = samples[index - 1];
+    const upper = samples[index];
+    const horizontalDistanceMetres = distance(
+      lower.coordinate,
+      upper.coordinate,
+      { units: "meters" },
+    );
+    if (horizontalDistanceMetres <= 0) continue;
+    maximumSlopeDegrees = Math.max(
+      maximumSlopeDegrees,
+      (Math.atan(
+        (upper.elevation - lower.elevation) / horizontalDistanceMetres,
+      ) *
+        180) /
+        Math.PI,
+    );
+  }
+
+  return maximumSlopeDegrees > 0
+    ? { status: "measured", maximumSlopeDegrees }
+    : { status: "unknown", maximumSlopeDegrees: null };
+}
+
+function contourElevation(
+  properties: GeoJSON.GeoJsonProperties,
+): number | null {
+  if (!properties) return null;
+  const entry = Object.entries(properties).find(
+    ([key]) => key.toLocaleLowerCase("en-NZ") === "elevation",
+  );
+  const elevation = Number(entry?.[1]);
+  return Number.isFinite(elevation) ? elevation : null;
+}
+
+function contourCoordinates(
+  geometry: GeoJSON.Geometry,
+): Array<[number, number]> {
+  if (geometry.type === "LineString") {
+    return geometry.coordinates.map(
+      ([longitude, latitude]) => [longitude, latitude] as [number, number],
+    );
+  }
+  if (geometry.type === "MultiLineString") {
+    return geometry.coordinates.flatMap((line) =>
+      line.map(
+        ([longitude, latitude]) => [longitude, latitude] as [number, number],
+      ),
+    );
+  }
+  return [];
 }
 
 function spatialEvidence(

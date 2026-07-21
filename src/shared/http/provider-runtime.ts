@@ -2,7 +2,7 @@ export const DEFAULT_PROVIDER_TIMEOUT_MS = 10_000;
 export const DEFAULT_PROVIDER_RETRY_COUNT = 2;
 export const DEFAULT_PROVIDER_CONCURRENCY_LIMIT = 4;
 
-export type ProviderKey = "linz" | "auckland_council" | "watercare";
+export type ProviderKey = "linz" | "auckland_council" | "watercare" | "openai";
 
 const providerGates = new Map<ProviderKey, ProviderConcurrencyGate>();
 
@@ -34,6 +34,7 @@ export async function fetchProviderBody(input: {
   timeoutMs: number;
   maxBytes: number;
   retryCount?: number;
+  signal?: AbortSignal;
 }): Promise<{ response: Response; bytes: Uint8Array | null }> {
   const gate = providerGate(input.provider);
   return gate.run(async () => {
@@ -43,9 +44,12 @@ export async function fetchProviderBody(input: {
     for (let attempt = 0; attempt <= retryCount; attempt += 1) {
       let response: Response;
       try {
+        const timeoutSignal = AbortSignal.timeout(input.timeoutMs);
         response = await input.fetch(input.url, {
           ...input.init,
-          signal: AbortSignal.timeout(input.timeoutMs),
+          signal: input.signal
+            ? AbortSignal.any([input.signal, timeoutSignal])
+            : timeoutSignal,
         });
       } catch (error) {
         lastError = new ProviderFetchError(
@@ -53,7 +57,7 @@ export async function fetchProviderBody(input: {
             ? "PROVIDER_TIMEOUT"
             : "PROVIDER_REQUEST_FAILED",
         );
-        if (attempt === retryCount) throw lastError;
+        if (input.signal?.aborted || attempt === retryCount) throw lastError;
         continue;
       }
 

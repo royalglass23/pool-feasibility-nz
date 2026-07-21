@@ -165,6 +165,12 @@ const allowedOrigins = new Set([
   "https://basemaps.linz.govt.nz",
 ]);
 
+export function assertAllowedProviderUrl(url: URL): void {
+  if (!allowedOrigins.has(url.origin)) {
+    throw new Error("PROVIDER_URL_NOT_ALLOWED");
+  }
+}
+
 const unitSlashAddressPattern =
   /^([\p{L}\p{N}-]+)\s*\/\s*(\d+)[\p{L}]?\s+([^,]+),/iu;
 const namedUnitAddressPattern =
@@ -346,9 +352,7 @@ export class OfficialGisGateway implements DataAccessSpikeGateway {
   }
 
   async #getJson(url: URL): Promise<unknown> {
-    if (!allowedOrigins.has(url.origin)) {
-      throw new Error("PROVIDER_URL_NOT_ALLOWED");
-    }
+    assertAllowedProviderUrl(url);
 
     let result: Awaited<ReturnType<typeof fetchProviderBody>>;
     try {

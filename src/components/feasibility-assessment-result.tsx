@@ -1,4 +1,5 @@
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
+import { humanizeIdentifier as humanize } from "@/shared/text/humanize-identifier";
 
 export function FeasibilityAssessmentResult({
   assessment,
@@ -120,9 +121,4 @@ function Summary({ label, value }: { label: string; value: string }) {
       <p className="mt-2 font-bold text-slate-950">{value}</p>
     </div>
   );
-}
-
-function humanize(value: string): string {
-  const words = value.replaceAll("_", " ").replaceAll(":", " ");
-  return `${words.charAt(0).toUpperCase()}${words.slice(1)}`;
 }

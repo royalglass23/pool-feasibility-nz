@@ -66,9 +66,9 @@ export const compactPoolScenario: PoolScenarioConfig = scenarioDefinitions[0];
 
 export const poolLocationOptions = [
   { id: "any", label: "No preference" },
-  { id: "north", label: "North side" },
-  { id: "centre", label: "Parcel centre" },
-  { id: "south", label: "South side" },
+  { id: "front", label: "Front yard" },
+  { id: "rear", label: "Rear yard" },
+  { id: "side_yard", label: "Side yard" },
 ] as const;
 
 export type PreferredPoolLocation = (typeof poolLocationOptions)[number]["id"];
@@ -76,3 +76,17 @@ export type PreferredPoolLocation = (typeof poolLocationOptions)[number]["id"];
 export const poolLocationIds = poolLocationOptions.map(
   (location) => location.id,
 ) as [PreferredPoolLocation, ...PreferredPoolLocation[]];
+
+export const frontageDirectionOptions = [
+  { id: "north", label: "North-facing front boundary" },
+  { id: "east", label: "East-facing front boundary" },
+  { id: "south", label: "South-facing front boundary" },
+  { id: "west", label: "West-facing front boundary" },
+] as const;
+
+export type PoolFrontageDirection =
+  (typeof frontageDirectionOptions)[number]["id"];
+
+export const frontageDirectionIds = frontageDirectionOptions.map(
+  ({ id }) => id,
+) as [PoolFrontageDirection, ...PoolFrontageDirection[]];

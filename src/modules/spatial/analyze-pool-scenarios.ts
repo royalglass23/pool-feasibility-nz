@@ -1,6 +1,7 @@
 import type {
   PoolScenarioConfig,
   PoolScenarioId,
+  PoolFrontageDirection,
   PreferredPoolLocation,
 } from "@/config/pool-scenarios";
 import {
@@ -14,6 +15,7 @@ import type { Polygon } from "geojson";
 export type { SpatialEvidenceInput } from "./analyze-pool-candidates";
 
 export interface PoolScenarioPreferences {
+  frontageDirection: PoolFrontageDirection | null;
   preferredLocation: PreferredPoolLocation;
   preferredSize: PoolScenarioId | null;
 }
@@ -77,6 +79,7 @@ export function analyzePoolScenarios(input: {
       mappedServices: input.mappedServices,
       config,
       preferredLocation: input.preferences.preferredLocation,
+      frontageDirection: input.preferences.frontageDirection,
     });
     return {
       ...analysis,

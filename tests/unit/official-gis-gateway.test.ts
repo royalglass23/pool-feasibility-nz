@@ -1,9 +1,18 @@
 import { describe, expect, it, vi } from "vitest";
-import { OfficialGisGateway } from "@/modules/providers/official-gis-gateway";
+import {
+  assertAllowedProviderUrl,
+  OfficialGisGateway,
+} from "@/modules/providers/official-gis-gateway";
 import addressesFixture from "../fixtures/linz/42-bahari-addresses.json";
 import parcelsFixture from "../fixtures/linz/42-bahari-parcels.json";
 
 describe("OfficialGisGateway", () => {
+  it("rejects provider requests outside the explicit origin allow-list", () => {
+    expect(() =>
+      assertAllowedProviderUrl(new URL("https://example.com/private")),
+    ).toThrow("PROVIDER_URL_NOT_ALLOWED");
+  });
+
   it("returns validated WGS84 geometry for an official structure layer", async () => {
     const fetchStub = vi.fn<typeof fetch>(async () =>
       Response.json({

@@ -218,7 +218,11 @@ function comparison(
   };
   return {
     version: "pool-scenario-comparison-v1",
-    preferences: { preferredLocation: "any", preferredSize: null },
+    preferences: {
+      frontageDirection: null,
+      preferredLocation: "any",
+      preferredSize: null,
+    },
     scenarios: [
       {
         scenario: {

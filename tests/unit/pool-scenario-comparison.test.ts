@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { distance, point } from "@turf/turf";
-import { poolScenarioCatalogue } from "@/config/pool-scenarios";
+import {
+  poolLocationOptions,
+  poolScenarioCatalogue,
+} from "@/config/pool-scenarios";
 import {
   analyzePoolScenarios,
   type SpatialEvidenceInput,
@@ -132,55 +134,57 @@ describe("pool scenario comparison", () => {
     }
   });
 
-  it("uses preferred size and geographic location only as ranking inputs", () => {
+  it("uses preferred size and front, rear, or side-yard location only as ranking inputs", () => {
     const parcel = rectangleParcel(0.00022, 0.00016);
-    const north = analyze({
+    const front = analyze({
       parcel,
       preferences: {
-        preferredLocation: "north",
+        frontageDirection: "south",
+        preferredLocation: "front",
         preferredSize: "standard",
       },
     });
-    const south = analyze({
+    const rear = analyze({
       parcel,
       preferences: {
-        preferredLocation: "south",
+        frontageDirection: "south",
+        preferredLocation: "rear",
         preferredSize: "standard",
       },
     });
-    const centred = analyze({
+    const sideYard = analyze({
       parcel,
       preferences: {
-        preferredLocation: "centre",
+        frontageDirection: "south",
+        preferredLocation: "side_yard",
         preferredSize: "standard",
       },
     });
 
-    expect(north.rankedScenarioIds[0]).toBe("standard");
-    expect(south.rankedScenarioIds[0]).toBe("standard");
-    expect(north.scenarios[0].candidates[0].centre[1]).toBeGreaterThan(
-      south.scenarios[0].candidates[0].centre[1],
+    expect(poolLocationOptions.map(({ id }) => id)).toEqual([
+      "any",
+      "front",
+      "rear",
+      "side_yard",
+    ]);
+    expect(front.rankedScenarioIds[0]).toBe("standard");
+    expect(rear.rankedScenarioIds[0]).toBe("standard");
+    expect(front.scenarios[0].candidates[0].centre[1]).toBeLessThan(
+      rear.scenarios[0].candidates[0].centre[1],
     );
-    const centredCandidates = centred.scenarios[0].candidates;
-    const closestDistance = distance(
-      point(centredCandidates[0].centre),
-      point([...centre]),
-      { units: "meters" },
-    );
+    const sideCandidates = sideYard.scenarios[0].candidates;
+    const firstSideOffset = Math.abs(sideCandidates[0].centre[0] - centre[0]);
     expect(
-      centredCandidates.every(
+      sideCandidates.every(
         (candidate) =>
-          closestDistance <=
-          distance(point(candidate.centre), point([...centre]), {
-            units: "meters",
-          }),
+          firstSideOffset >= Math.abs(candidate.centre[0] - centre[0]),
       ),
     ).toBe(true);
-    expect(north.shellRange).toMatchObject({
+    expect(front.shellRange).toMatchObject({
       minimum: { lengthMetres: 5, widthMetres: 3 },
       maximum: { lengthMetres: 9, widthMetres: 4 },
     });
-    expect(south.shellRange).toMatchObject({
+    expect(rear.shellRange).toMatchObject({
       minimum: { lengthMetres: 5, widthMetres: 3 },
       maximum: { lengthMetres: 9, widthMetres: 4 },
     });
@@ -192,7 +196,8 @@ describe("pool scenario comparison", () => {
       parcel,
       constraints: [evidence("known_constraint", collection([parcel]))],
       preferences: {
-        preferredLocation: "north",
+        frontageDirection: "south",
+        preferredLocation: "front",
         preferredSize: "large",
       },
     });
@@ -303,7 +308,8 @@ function analyze(input: {
   mappedServices?: SpatialEvidenceInput[];
   singleScenario?: boolean;
   preferences?: {
-    preferredLocation: "any" | "north" | "centre" | "south";
+    frontageDirection: "north" | "east" | "south" | "west" | null;
+    preferredLocation: "any" | "front" | "rear" | "side_yard";
     preferredSize:
       | "compact"
       | "compact-plus"
@@ -328,6 +334,7 @@ function analyze(input: {
         }
       : poolScenarioCatalogue,
     preferences: input.preferences ?? {
+      frontageDirection: null,
       preferredLocation: "any",
       preferredSize: null,
     },

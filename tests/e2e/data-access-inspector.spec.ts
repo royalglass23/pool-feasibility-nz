@@ -1,9 +1,187 @@
 import { expect, test } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 import providerFixtures from "../fixtures/providers/official-property-layers.json";
 import { assessFeasibility } from "@/modules/scoring/assess-feasibility";
 import type { PoolScenarioComparison } from "@/modules/spatial/analyze-pool-scenarios";
 
 const address = "42A Bahari Drive, Ranui, Auckland";
+const secondAddress = "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland";
+
+test("shows the controlled AI-enabled explanation without changing deterministic findings", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          ...dataAccessResult,
+          assessmentExplanation: {
+            source: "ai",
+            heading: "Constrained AI explanation",
+            paragraphs: [
+              "Deterministic confidence is high at 85 out of 100.",
+              "The screened pool shell range runs from 5 m by 3 m to 9 m by 4 m.",
+            ],
+          },
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Constrained AI explanation" }),
+  ).toBeVisible();
+  await expect(page.getByText("Constrained AI narrative")).toBeVisible();
+  await expect(
+    page.getByText(
+      "AI does not calculate or change the deterministic score, confidence, critical flags, geometry, rankings, or size range.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Feasibility assessment" }),
+  ).toBeVisible();
+  await expect(page.getByText("82 / 100")).toBeVisible();
+});
+
+test("shows deterministic fallback when the narrative provider is unavailable", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          ...dataAccessResult,
+          assessmentExplanation: {
+            source: "deterministic_fallback",
+            heading: "Deterministic assessment explanation",
+            paragraphs: [
+              dataAccessResult.feasibilityAssessment.finalRecommendation,
+              "Deterministic confidence is high at 85 out of 100.",
+            ],
+          },
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+
+  await expect(page.getByText("Deterministic fallback")).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Deterministic assessment explanation",
+    }),
+  ).toBeVisible();
+  await expect(page.getByText("Constrained AI narrative")).not.toBeVisible();
+  await expect(
+    page
+      .getByText(dataAccessResult.feasibilityAssessment.finalRecommendation)
+      .first(),
+  ).toBeVisible();
+});
+
+test("shows, downloads, and then clears the sourced session assessment", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: dataAccessResult }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Session assessment" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Based on available mapped information, the property appears to have potential for a residential swimming pool, subject to onsite investigation, detailed design, utility locating, title review, and applicable approvals.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Legal interests and site conditions remain unverified",
+    }),
+  ).toBeVisible();
+  for (const phase of [
+    "Before concept design",
+    "Before quotations",
+    "Before consent or construction",
+  ]) {
+    await expect(page.getByRole("heading", { name: phase })).toBeVisible();
+  }
+  await expect(page.getByText("Flood plains — Error")).toBeVisible();
+  await expect(
+    page.getByText(
+      "This result exists only in the current browser session and disappears after refresh or restart. No database or durable report history exists.",
+    ),
+  ).toBeVisible();
+
+  const downloadPromise = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Download session assessment" })
+    .click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("session-assessment-2359811.json");
+  const downloadPath = await download.path();
+  expect(downloadPath).not.toBeNull();
+  const artifactText = await readFile(downloadPath!, "utf8");
+  const artifact = JSON.parse(artifactText);
+  expect(artifact).toMatchObject({
+    recommendation: dataAccessResult.feasibilityAssessment.finalRecommendation,
+    feasibilityAssessment: dataAccessResult.feasibilityAssessment,
+    scenarioComparison: {
+      version: dataAccessResult.scenarioComparison.version,
+      preferences: dataAccessResult.scenarioComparison.preferences,
+      rankedScenarioIds: dataAccessResult.scenarioComparison.rankedScenarioIds,
+      successfulShells: dataAccessResult.scenarioComparison.successfulShells,
+      shellRange: dataAccessResult.scenarioComparison.shellRange,
+    },
+    assessmentExplanation: null,
+    session: { persistence: "none" },
+  });
+  expect(artifact.scenarioComparison.scenarios).toHaveLength(
+    dataAccessResult.scenarioComparison.scenarios.length,
+  );
+  expect(artifact.risks[0]).toMatchObject({
+    category: "Legal and site due diligence",
+    specialistReviewRequired: true,
+  });
+  expect(artifact.provenance.datasets).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: "flood_plains",
+        status: "error",
+      }),
+    ]),
+  );
+  expect(artifactText).not.toMatch(
+    /"(?:coordinates|geometry|attributesUsed|durationMs|apiKey)"\s*:/i,
+  );
+
+  await page.reload();
+  await expect(
+    page.getByRole("heading", { name: "Session assessment" }),
+  ).not.toBeVisible();
+});
 
 test("selects the exact address, prevents duplicate work, maps the parcel, and downloads the result", async ({
   page,
@@ -61,9 +239,13 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   await expect(page.getByText("1. Resolving address")).toBeVisible();
   await expect(page.getByText("3. Loading aerial imagery")).toBeVisible();
 
-  await expect(page.getByRole("heading", { name: address })).toBeVisible();
+  const resultHeading = page.getByRole("heading", { name: address });
+  await expect(resultHeading).toBeVisible();
+  await expect(resultHeading).toBeFocused();
   await expect(page.getByText("Parcel 8545868", { exact: true })).toBeVisible();
-  await expect(page.getByText("NZ Addresses")).toBeVisible();
+  await expect(
+    page.getByRole("table").getByText("NZ Addresses", { exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByRole("region", { name: `Aerial map for ${address}` }),
   ).toBeVisible();
@@ -134,9 +316,55 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   ]);
 
   const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download JSON" }).click();
+  await page
+    .getByRole("button", { name: "Download session assessment" })
+    .click();
   const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("property-data-2359811.json");
+  expect(download.suggestedFilename()).toBe("session-assessment-2359811.json");
+});
+
+test("completes the controlled journey for a second Auckland address", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: secondAddressDataAccessResult }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(secondAddress);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+
+  const resultHeading = page.getByRole("heading", { name: secondAddress });
+  await expect(resultHeading).toBeFocused();
+  await expect(page.getByText("Parcel 4789010", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: `Aerial map for ${secondAddress}` }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: /CC BY 4\.0 LINZ/ }).first(),
+  ).toBeVisible();
+  await expect(page.getByText("Compact candidate 1")).toBeVisible();
+  await expect(page.getByText("5m x 3m to 9m x 4m")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Feasibility assessment" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("heading", {
+      name: "Deterministic assessment explanation",
+    }),
+  ).toBeVisible();
+
+  const downloadPromise = page.waitForEvent("download");
+  await page
+    .getByRole("button", { name: "Download session assessment" })
+    .click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("session-assessment-2453674.json");
 });
 
 test("compares configured scenarios with staff size and location preferences", async ({
@@ -154,7 +382,8 @@ test("compares configured scenarios with staff size and location preferences", a
           scenarioComparison: {
             ...dataAccessResult.scenarioComparison,
             preferences: {
-              preferredLocation: "north",
+              frontageDirection: "south",
+              preferredLocation: "front",
               preferredSize: "standard",
             },
             rankedScenarioIds: [
@@ -172,7 +401,8 @@ test("compares configured scenarios with staff size and location preferences", a
 
   await page.goto("/");
   await page.getByLabel("Preferred pool size").selectOption("standard");
-  await page.getByLabel("Preferred pool location").selectOption("north");
+  await page.getByLabel("Preferred pool location").selectOption("front");
+  await page.getByLabel("Front boundary direction").selectOption("south");
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("button", { name: "Fetch property data" }).click();
 
@@ -185,7 +415,8 @@ test("compares configured scenarios with staff size and location preferences", a
   await expect(
     comparison.getByText("Standard", { exact: true }).first(),
   ).toBeVisible();
-  await expect(comparison.getByText("North", { exact: true })).toBeVisible();
+  await expect(comparison.getByText("Front", { exact: true })).toBeVisible();
+  await expect(comparison.getByText("South", { exact: true })).toBeVisible();
   await expect(
     comparison.getByText("Configured intermediate").first(),
   ).toBeVisible();
@@ -195,7 +426,8 @@ test("compares configured scenarios with staff size and location preferences", a
   await expect(comparison.getByRole("heading").nth(1)).toHaveText("Standard");
   expect(submittedBody).toEqual({
     address,
-    preferredLocation: "north",
+    frontageDirection: "south",
+    preferredLocation: "front",
     preferredSize: "standard",
   });
 });
@@ -574,6 +806,54 @@ const dataAccessResult = {
   ],
 };
 
+const secondAddressDataAccessResult = {
+  ...dataAccessResult,
+  requestedAddress: secondAddress,
+  resolvedAddress: {
+    addressId: "2453674",
+    fullAddress: secondAddress,
+    fullAddressNumber: "2/49",
+    unit: "2",
+    coordinates: [174.899769829008, -36.8868090715903],
+  },
+  parcel: {
+    parcelId: "4789010",
+    appellation: "Lot 87 DP 67795",
+    parcelIntent: "DCDB",
+    landDistrict: "North Auckland",
+    titles: ["NA33D/17", "NA33D/18", "NA33D/19"],
+    surveyAreaSquareMetres: 675,
+    calculatedAreaSquareMetres: 676,
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [174.899623566708, -36.8868922823903],
+          [174.899672000008, -36.8867208490903],
+          [174.900030100008, -36.8867861157903],
+          [174.900051033308, -36.8867899157903],
+          [174.900046283307, -36.8868066990903],
+          [174.900002600007, -36.8869613657903],
+          [174.899623566708, -36.8868922823903],
+        ],
+      ],
+    },
+  },
+  identityCheck: {
+    exactAddressMatched: true,
+    distinctFromAlternatives: true,
+    duplicateParcelRowsRemoved: 0,
+  },
+  assessmentExplanation: {
+    source: "deterministic_fallback",
+    heading: "Deterministic assessment explanation",
+    paragraphs: [
+      dataAccessResult.feasibilityAssessment.finalRecommendation,
+      "Deterministic confidence is high at 85 out of 100.",
+    ],
+  },
+};
+
 function assessmentFixture() {
   const provider = (id: string) => ({
     id,
@@ -679,7 +959,11 @@ function comparisonFixture() {
   }));
   return {
     version: "pool-scenario-comparison-v1",
-    preferences: { preferredLocation: "any", preferredSize: null },
+    preferences: {
+      frontageDirection: null,
+      preferredLocation: "any",
+      preferredSize: null,
+    },
     scenarios,
     rankedScenarioIds: definitions.map(([id]) => id),
     successfulShells,

@@ -395,5 +395,10 @@ valid empty provider results. Culverts remain explicitly unavailable.
   only; later confidence and actions must still require Watercare review,
   BeforeUdig plans and onsite utility locating.
 - **Address/parcel/map prototype:** unblocked using report-eligible LINZ evidence.
-- **Full constraint/report implementation:** stop pending review of Council reuse
-  and explicit approval for any Watercare use beyond internal reference.
+- **Internal session-only POC:** eligible to proceed only when the release gates
+  in `docs/release-readiness.md` pass. Council evidence must remain labelled
+  `spike_only`, Watercare must remain `internal_reference`, and neither can be
+  promoted to report-eligible evidence.
+- **External/customer report or deployment:** no-go. Council generated-report
+  reuse, Watercare restrictions, access control, rate limiting, retention,
+  storage, and deployment operations require separate approval and evidence.

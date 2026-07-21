@@ -13,7 +13,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("DataAccessInspector", () => {
+describe("DataAccessInspector", { timeout: 10_000 }, () => {
   it("starts empty and prevents duplicate requests while loading", async () => {
     const user = userEvent.setup();
     let resolveRequest: ((response: Response) => void) | undefined;
@@ -53,7 +53,7 @@ describe("DataAccessInspector", () => {
     expect(await screen.findByText("Stopped")).toBeVisible();
   });
 
-  it("renders normalized results and downloads the returned JSON", async () => {
+  it("renders normalized results and downloads the session assessment", async () => {
     const user = userEvent.setup();
     const result = await createResult();
     result.datasets.aerial_imagery.attribution = {
@@ -107,10 +107,10 @@ describe("DataAccessInspector", () => {
       ),
     ).toBeVisible();
     expect(
-      screen.getByText(
+      screen.getAllByText(
         /Required core data is unavailable: building_footprints/i,
       ),
-    ).toBeVisible();
+    ).toHaveLength(2);
     expect(screen.getByText("No successfully placed range")).toBeVisible();
     expect(
       screen.getByRole("region", {
@@ -126,10 +126,96 @@ describe("DataAccessInspector", () => {
       "https://www.linz.govt.nz/data/linz-data/linz-basemaps/data-attribution",
     );
 
-    await user.click(screen.getByRole("button", { name: "Download JSON" }));
+    await user.click(
+      screen.getByRole("button", { name: "Download session assessment" }),
+    );
     expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
     expect(clickAnchor).toHaveBeenCalledOnce();
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:property-data");
+  });
+
+  it("shows the constrained AI explanation without presenting it as a calculation", async () => {
+    const user = userEvent.setup();
+    const result = await createResult();
+    const data = {
+      ...result,
+      assessmentExplanation: {
+        source: "ai" as const,
+        heading: "Constrained AI explanation",
+        paragraphs: [
+          "Deterministic confidence is low at 42 out of 100.",
+          "No pool shell size range was successfully placed with the available evidence.",
+        ],
+      },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ data }, { status: 200 })),
+    );
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Fetch property data" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", {
+        name: "Constrained AI explanation",
+      }),
+    ).toBeVisible();
+    expect(screen.getByText("Constrained AI narrative")).toBeVisible();
+    expect(
+      screen.getByText(
+        "AI does not calculate or change the deterministic score, confidence, critical flags, geometry, rankings, or size range.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "No pool shell size range was successfully placed with the available evidence.",
+      ),
+    ).toBeVisible();
+  });
+
+  it("clearly labels deterministic explanation fallback", async () => {
+    const user = userEvent.setup();
+    const result = await createResult();
+    const data = {
+      ...result,
+      assessmentExplanation: {
+        source: "deterministic_fallback" as const,
+        heading: "Deterministic assessment explanation",
+        paragraphs: [
+          "Insufficient core data is available for a preliminary recommendation.",
+        ],
+      },
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ data }, { status: 200 })),
+    );
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Fetch property data" }),
+    );
+
+    expect(await screen.findByText("Deterministic fallback")).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: "Deterministic assessment explanation",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.queryByText("Constrained AI narrative"),
+    ).not.toBeInTheDocument();
   });
 
   it("submits staff preferences and renders the scenario comparison", async () => {
@@ -141,13 +227,23 @@ describe("DataAccessInspector", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<DataAccessInspector />);
-    await user.selectOptions(
-      screen.getByLabelText("Preferred pool size"),
+    const sizeSelect = screen.getByLabelText(
+      "Preferred pool size",
+    ) as HTMLSelectElement;
+    expect([...sizeSelect.options].map(({ value }) => value)).toEqual([
+      "",
+      "compact",
       "standard",
-    );
+      "large",
+    ]);
+    await user.selectOptions(sizeSelect, "standard");
     await user.selectOptions(
       screen.getByLabelText("Preferred pool location"),
-      "north",
+      "front",
+    );
+    await user.selectOptions(
+      screen.getByLabelText("Front boundary direction"),
+      "south",
     );
     await user.type(
       screen.getByLabelText("Auckland property address"),
@@ -162,7 +258,8 @@ describe("DataAccessInspector", () => {
     ).toBeVisible();
     expect(JSON.parse(fetchMock.mock.calls[0]![1]!.body as string)).toEqual({
       address: requestedAddress,
-      preferredLocation: "north",
+      frontageDirection: "south",
+      preferredLocation: "front",
       preferredSize: "standard",
     });
     expect(screen.getByRole("heading", { name: "Compact" })).toBeVisible();

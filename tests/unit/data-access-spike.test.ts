@@ -223,6 +223,48 @@ describe("runDataAccessSpike", () => {
     });
   });
 
+  it("raises the terrain critical flag from validated contour elevations", async () => {
+    const result = await runDataAccessSpike({
+      requestedAddress,
+      gateway: createGateway({
+        queryFeatures: async (dataset) => ({
+          type: "FeatureCollection",
+          features:
+            dataset === "contours"
+              ? [
+                  {
+                    type: "Feature",
+                    geometry: {
+                      type: "LineString",
+                      coordinates: [
+                        [174.6078, -36.8602],
+                        [174.608, -36.8602],
+                      ],
+                    },
+                    properties: { elevation: 40 },
+                  },
+                  {
+                    type: "Feature",
+                    geometry: {
+                      type: "LineString",
+                      coordinates: [
+                        [174.6078, -36.86019],
+                        [174.608, -36.86019],
+                      ],
+                    },
+                    properties: { elevation: 41 },
+                  },
+                ]
+              : [],
+        }),
+      }),
+    });
+
+    expect(result.feasibilityAssessment.criticalFlags).toContainEqual(
+      expect.objectContaining({ id: "severe_mapped_terrain" }),
+    );
+  });
+
   it("returns complete normalized provenance without calling style access verified imagery", async () => {
     const result = await runDataAccessSpike({
       requestedAddress,

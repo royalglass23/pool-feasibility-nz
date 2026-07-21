@@ -79,4 +79,27 @@ describe("POST /api/internal/data-access authorization", () => {
       error: { code: "INVALID_ADDRESS" },
     });
   });
+
+  it("rejects an oversized request without echoing submitted content", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+
+    const submittedContent = "sensitive-address-data".repeat(120);
+    const response = await POST(
+      new Request("http://127.0.0.1:3000/api/internal/data-access", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: submittedContent }),
+      }),
+    );
+
+    expect(response.status).toBe(413);
+    const responseText = await response.text();
+    expect(responseText).not.toContain(submittedContent);
+    expect(JSON.parse(responseText)).toMatchObject({
+      error: {
+        code: "REQUEST_TOO_LARGE",
+        message: "The submitted request is too large.",
+      },
+    });
+  });
 });

@@ -251,7 +251,7 @@ function scoreAvailableSpace(
           0,
           "space.no_clear_candidate",
           ["scenario_comparison"],
-          "No clear candidate area was identified in the tested scenarios.",
+          "No clear candidate area was identified using the tested screening scenarios.",
         );
   }
   return scoredCategory(

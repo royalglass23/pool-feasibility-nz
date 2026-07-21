@@ -243,6 +243,27 @@ describe("deterministic feasibility assessment", () => {
     });
   });
 
+  it("uses the approved no-clear-candidate wording in the score explanation", () => {
+    const comparison = scenarioComparison();
+    comparison.scenarios = comparison.scenarios.map((scenario) => ({
+      ...scenario,
+      status: "no_clear_candidate" as const,
+      candidates: [],
+    }));
+    comparison.successfulShells = [];
+    comparison.shellRange = null;
+
+    const result = assessFeasibility(
+      assessmentInput({ scenarioComparison: comparison }),
+    );
+
+    expect(
+      result.categories.find(({ id }) => id === "available_space")?.rationale,
+    ).toBe(
+      "No clear candidate area was identified using the tested screening scenarios.",
+    );
+  });
+
   it("leaves physical feasibility indeterminate when every category is unknown", () => {
     const unknownComparison = scenarioComparison();
     unknownComparison.scenarios = unknownComparison.scenarios.map(
@@ -492,7 +513,11 @@ function scenarioComparison(): PoolScenarioComparison {
   };
   return {
     version: "pool-scenario-comparison-v1",
-    preferences: { preferredLocation: "any", preferredSize: null },
+    preferences: {
+      frontageDirection: null,
+      preferredLocation: "any",
+      preferredSize: null,
+    },
     scenarios: [
       {
         scenario: {

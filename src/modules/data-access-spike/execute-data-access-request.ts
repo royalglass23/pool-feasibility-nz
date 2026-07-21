@@ -1,5 +1,9 @@
 import { z } from "zod";
-import { poolLocationIds, poolScenarioIds } from "@/config/pool-scenarios";
+import {
+  frontageDirectionIds,
+  poolLocationIds,
+  poolScenarioIds,
+} from "@/config/pool-scenarios";
 import {
   DataAccessSpikeError,
   runDataAccessSpike,
@@ -13,10 +17,24 @@ const requestSchema = z
   .object({
     address: z.string().trim().min(8).max(200),
     selectedAddressId: z.string().trim().min(1).max(100).optional(),
+    frontageDirection: z.enum(frontageDirectionIds).optional(),
     preferredLocation: z.enum(poolLocationIds).optional(),
     preferredSize: z.enum(poolScenarioIds).nullable().optional(),
   })
-  .strict();
+  .strict()
+  .superRefine((request, context) => {
+    if (
+      request.preferredLocation &&
+      request.preferredLocation !== "any" &&
+      !request.frontageDirection
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["frontageDirection"],
+        message: "A known front boundary direction is required.",
+      });
+    }
+  });
 
 export type DataAccessRequestErrorCode =
   | "INVALID_ADDRESS"
@@ -66,6 +84,7 @@ export async function executeDataAccessRequest(input: {
       requestedAddress: request.data.address,
       selectedAddressId: request.data.selectedAddressId,
       preferences: {
+        frontageDirection: request.data.frontageDirection ?? null,
         preferredLocation: request.data.preferredLocation ?? "any",
         preferredSize: request.data.preferredSize ?? null,
       },

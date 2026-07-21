@@ -1,12 +1,11 @@
 import "server-only";
-import { executeDataAccessRequest } from "@/modules/data-access-spike/execute-data-access-request";
-import { OfficialGisGateway } from "@/modules/providers/official-gis-gateway";
+import { executeConfiguredAssessmentRequest } from "@/modules/assessment/execute-configured-assessment-request";
 import {
   authorizeInternalRequest,
   internalAccessDeniedResponse,
 } from "@/modules/internal-access/authorize-internal-request";
 import {
-  providerTimeoutMs,
+  BodyLimitError,
   readRequestBytesWithinLimit,
 } from "@/shared/http/provider-runtime";
 import {
@@ -28,6 +27,18 @@ export async function POST(request: Request): Promise<Response> {
 
   const body = await readJsonRequest(request);
   if (!body.ok) {
+    if (body.reason === "too_large") {
+      return apiErrorResponse(
+        {
+          code: "REQUEST_TOO_LARGE",
+          message: "The submitted request is too large.",
+        },
+        413,
+        correlationId,
+        { "Cache-Control": "no-store" },
+      );
+    }
+
     return apiErrorResponse(
       {
         code: "INVALID_REQUEST",
@@ -39,34 +50,43 @@ export async function POST(request: Request): Promise<Response> {
     );
   }
 
-  const response = await executeDataAccessRequest({
-    body: body.value,
-    gateway: new OfficialGisGateway({ timeoutMs: providerTimeoutMs() }),
-    basemapApiKey: process.env.LINZ_BASEMAPS_API_KEY || undefined,
-  });
+  const response = await executeConfiguredAssessmentRequest(body.value);
 
-  return response.ok
-    ? apiJsonResponse({ data: response.data }, response.status, correlationId, {
-        "Cache-Control": "no-store",
-      })
-    : apiErrorResponse(response.error, response.status, correlationId, {
-        "Cache-Control": "no-store",
-      });
+  if (response.ok) {
+    return apiJsonResponse(
+      { data: response.data },
+      response.status,
+      correlationId,
+      { "Cache-Control": "no-store" },
+    );
+  }
+
+  return apiErrorResponse(response.error, response.status, correlationId, {
+    "Cache-Control": "no-store",
+  });
 }
 
 async function readJsonRequest(
   request: Request,
-): Promise<{ ok: true; value: unknown } | { ok: false }> {
+): Promise<
+  { ok: true; value: unknown } | { ok: false; reason: "invalid" | "too_large" }
+> {
   let bytes: Uint8Array;
   try {
     bytes = await readRequestBytesWithinLimit(request, MAX_REQUEST_BYTES);
-  } catch {
-    return { ok: false };
+  } catch (error) {
+    return {
+      ok: false,
+      reason:
+        error instanceof BodyLimitError && error.code === "BODY_TOO_LARGE"
+          ? "too_large"
+          : "invalid",
+    };
   }
 
   try {
     return { ok: true, value: JSON.parse(new TextDecoder().decode(bytes)) };
   } catch {
-    return { ok: false };
+    return { ok: false, reason: "invalid" };
   }
 }

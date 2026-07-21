@@ -58,7 +58,8 @@ describe("executeDataAccessRequest", () => {
     const response = await executeDataAccessRequest({
       body: {
         address: "42A Bahari Drive, Ranui, Auckland",
-        preferredLocation: "north",
+        frontageDirection: "south",
+        preferredLocation: "front",
         preferredSize: "standard",
       },
       gateway: createGateway(),
@@ -69,12 +70,29 @@ describe("executeDataAccessRequest", () => {
     if (!response.ok) return;
 
     expect(response.data.scenarioComparison.preferences).toEqual({
-      preferredLocation: "north",
+      frontageDirection: "south",
+      preferredLocation: "front",
       preferredSize: "standard",
     });
     expect(response.data.scenarioComparison.rankedScenarioIds[0]).toBe(
       "standard",
     );
+  });
+
+  it("rejects a relative location preference without a known front boundary", async () => {
+    const response = await executeDataAccessRequest({
+      body: {
+        address: "42A Bahari Drive, Ranui, Auckland",
+        preferredLocation: "rear",
+      },
+      gateway: createGateway(),
+    });
+
+    expect(response).toMatchObject({
+      ok: false,
+      status: 400,
+      error: { code: "INVALID_ADDRESS" },
+    });
   });
 
   it("maps a known address failure to a useful safe response", async () => {
