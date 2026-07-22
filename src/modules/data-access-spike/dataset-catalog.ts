@@ -15,6 +15,8 @@ export const queryableDatasetKeys = [
   "wastewater_manholes",
   "water_fittings",
   "wastewater_fittings",
+  "electricity_feeder_lines",
+  "gas_distribution_lines",
 ] as const;
 
 export type QueryableDatasetKey = (typeof queryableDatasetKeys)[number];

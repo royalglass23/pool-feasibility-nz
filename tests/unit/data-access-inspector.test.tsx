@@ -103,7 +103,9 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     await user.click(screen.getByText("Pool scenarios"));
     await user.click(screen.getByText("Assessment and scoring"));
     expect(
-      screen.getByRole("heading", { name: "Pool scenario comparison" }),
+      screen.getByRole("heading", {
+        name: "Pool feasibility and size recommendation",
+      }),
     ).toBeVisible();
     expect(
       screen.getByRole("heading", { name: "Feasibility assessment" }),
@@ -121,7 +123,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         /Required core data is unavailable: building_footprints/i,
       ),
     ).toHaveLength(2);
-    expect(screen.getByText("No successfully placed range")).toBeVisible();
+    expect(screen.getByText("No supported size recommendation")).toBeVisible();
     expect(
       screen.getByRole("region", {
         name: `Aerial map for ${requestedAddress}`,
@@ -242,7 +244,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     ).not.toBeInTheDocument();
   });
 
-  it("submits staff preferences and renders the scenario comparison", async () => {
+  it("requests only an address and renders a deterministic size recommendation", async () => {
     const user = userEvent.setup();
     const result = await createResult();
     const fetchMock = vi.fn<typeof fetch>(async () =>
@@ -251,24 +253,15 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<DataAccessInspector />);
-    const sizeSelect = screen.getByLabelText(
-      "Preferred pool size",
-    ) as HTMLSelectElement;
-    expect([...sizeSelect.options].map(({ value }) => value)).toEqual([
-      "",
-      "compact",
-      "standard",
-      "large",
-    ]);
-    await user.selectOptions(sizeSelect, "standard");
-    await user.selectOptions(
-      screen.getByLabelText("Preferred pool location"),
-      "front",
-    );
-    await user.selectOptions(
-      screen.getByLabelText("Front boundary direction"),
-      "south",
-    );
+    expect(
+      screen.queryByLabelText("Preferred pool size"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Preferred pool location"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByLabelText("Front boundary direction"),
+    ).not.toBeInTheDocument();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -280,17 +273,46 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     await screen.findByRole("heading", { name: requestedAddress });
     await user.click(screen.getByText("Pool scenarios"));
     expect(
-      screen.getByRole("heading", { name: "Pool scenario comparison" }),
+      screen.getByRole("heading", {
+        name: "Pool feasibility and size recommendation",
+      }),
     ).toBeVisible();
     expect(JSON.parse(fetchMock.mock.calls[0]![1]!.body as string)).toEqual({
       address: requestedAddress,
-      frontageDirection: "south",
-      preferredLocation: "front",
-      preferredSize: "standard",
     });
     expect(screen.getByRole("heading", { name: "Compact" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Standard" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Large" })).toBeVisible();
+  });
+
+  it("summarises successful pool shells by count", async () => {
+    const user = userEvent.setup();
+    const result = await createResult();
+    result.scenarioComparison.successfulShells =
+      result.scenarioComparison.scenarios.map(({ scenario }, index) => ({
+        scenarioId: scenario.id,
+        label: scenario.label,
+        lengthMetres: scenario.shellLengthMetres,
+        widthMetres: scenario.shellWidthMetres,
+        candidateId: `candidate-${index + 1}`,
+      }));
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ data: result }, { status: 200 })),
+    );
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Fetch property data" }),
+    );
+
+    await screen.findByRole("heading", { name: requestedAddress });
+    expect(screen.getByText("5 successful shell options")).toBeVisible();
+    expect(document.body).not.toHaveTextContent("[object Object]");
   });
 
   it("shows mapped official layers with controls, provenance, and honest unavailable states", async () => {

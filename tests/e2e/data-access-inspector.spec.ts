@@ -1,6 +1,9 @@
 import { expect, test } from "@playwright/test";
 import { readFile } from "node:fs/promises";
 import providerFixtures from "../fixtures/providers/official-property-layers.json";
+import { buildSessionAssessment } from "@/modules/assessment/build-session-assessment";
+import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
+import { issueSessionReportToken } from "@/modules/reporting/report-token";
 import { assessFeasibility } from "@/modules/scoring/assess-feasibility";
 import type { PoolScenarioComparison } from "@/modules/spatial/analyze-pool-scenarios";
 
@@ -187,6 +190,37 @@ test("shows, downloads, and then clears the sourced session assessment", async (
   ).not.toBeVisible();
 });
 
+test("keeps pool scenario status badges on one line", async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: dataAccessResult,
+        reportToken: "controlled-report-token",
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
+
+  const badges = page.getByText("Possible With Constraints", { exact: true });
+  await expect(badges.first()).toBeVisible();
+  for (const badge of await badges.all()) {
+    const lineCount = await badge.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return range.getClientRects().length;
+    });
+    expect(lineCount).toBe(1);
+  }
+});
+
 test("previews all three report pages and downloads the generated PDF", async ({
   page,
 }) => {
@@ -236,6 +270,42 @@ test("previews all three report pages and downloads the generated PDF", async ({
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download PDF" }).click();
+  const download = await downloadPromise;
+  expect(download.suggestedFilename()).toBe("pool-feasibility-2359811.pdf");
+});
+
+test("downloads the PDF with an API-issued token and browser-captured map", async ({
+  page,
+}) => {
+  test.setTimeout(60_000);
+  const reportToken = issueSessionReportToken(
+    buildSessionAssessment(
+      dataAccessResult as unknown as DataAccessSpikeResult,
+    ),
+  );
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: dataAccessResult, reportToken }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await expect(page.getByText("Imagery verified")).toBeVisible({
+    timeout: 15_000,
+  });
+  await page.getByRole("button", { name: "Preview PDF report" }).click();
+
+  const responsePromise = page.waitForResponse("**/api/internal/report/pdf");
+  const downloadPromise = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Download PDF" }).click();
+  const response = await responsePromise;
+  expect(response.status()).toBe(200);
+  expect(response.headers()["content-type"]).toBe("application/pdf");
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("pool-feasibility-2359811.pdf");
 });
@@ -343,7 +413,9 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   ).toBeVisible();
   await expect(page.getByText("Official map layers")).toBeVisible();
   await expect(
-    page.getByRole("heading", { name: "Pool scenario comparison" }),
+    page.getByRole("heading", {
+      name: "Pool feasibility and size recommendation",
+    }),
   ).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Feasibility assessment" }),
@@ -360,7 +432,7 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
       name: "Likely feasible with normal onsite and specialist investigations.",
     }),
   ).toBeVisible();
-  await expect(page.getByText("5m x 3m to 9m x 4m")).toBeVisible();
+  await expect(page.getByText("Large · 9m x 4m")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Compact", exact: true }),
   ).toBeVisible();
@@ -458,7 +530,7 @@ test("completes the controlled journey for a second Auckland address", async ({
   expect(download.suggestedFilename()).toBe("session-assessment-2453674.json");
 });
 
-test("compares configured scenarios with staff size and location preferences", async ({
+test("recommends a screened size without collecting size or location preferences", async ({
   page,
 }) => {
   let submittedBody: Record<string, unknown> | undefined;
@@ -468,59 +540,32 @@ test("compares configured scenarios with staff size and location preferences", a
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        data: {
-          ...dataAccessResult,
-          scenarioComparison: {
-            ...dataAccessResult.scenarioComparison,
-            preferences: {
-              frontageDirection: "south",
-              preferredLocation: "front",
-              preferredSize: "standard",
-            },
-            rankedScenarioIds: [
-              "standard",
-              "compact-plus",
-              "standard-plus",
-              "compact",
-              "large",
-            ],
-          },
-        },
+        data: dataAccessResult,
       }),
     });
   });
 
   await page.goto("/");
-  await page.getByLabel("Preferred pool size").selectOption("standard");
-  await page.getByLabel("Preferred pool location").selectOption("front");
-  await page.getByLabel("Front boundary direction").selectOption("south");
+  await expect(page.getByLabel("Preferred pool size")).toHaveCount(0);
+  await expect(page.getByLabel("Preferred pool location")).toHaveCount(0);
+  await expect(page.getByLabel("Front boundary direction")).toHaveCount(0);
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("button", { name: "Fetch property data" }).click();
   await page.getByRole("button", { name: "Expand all" }).click();
 
   const comparison = page.getByRole("region", {
-    name: "Pool scenario comparison",
+    name: "Pool feasibility and size recommendation",
   });
   await expect(comparison).toBeVisible();
-  await expect(comparison.getByText("5m x 3m to 9m x 4m")).toBeVisible();
-  await expect(comparison.getByText("Preferred Size")).toBeVisible();
-  await expect(
-    comparison.getByText("Standard", { exact: true }).first(),
-  ).toBeVisible();
-  await expect(comparison.getByText("Front", { exact: true })).toBeVisible();
-  await expect(comparison.getByText("South", { exact: true })).toBeVisible();
+  await expect(comparison.getByText("Large · 9m x 4m")).toBeVisible();
   await expect(
     comparison.getByText("Configured intermediate").first(),
   ).toBeVisible();
   await expect(
     comparison.getByText("Specialist Review Required"),
   ).toBeVisible();
-  await expect(comparison.getByRole("heading").nth(1)).toHaveText("Standard");
   expect(submittedBody).toEqual({
     address,
-    frontageDirection: "south",
-    preferredLocation: "front",
-    preferredSize: "standard",
   });
 });
 
@@ -1062,6 +1107,16 @@ function comparisonFixture() {
     scenarios,
     rankedScenarioIds: definitions.map(([id]) => id),
     successfulShells,
+    recommendedShell: {
+      scenarioId: "large",
+      label: "Large",
+      lengthMetres: 9,
+      widthMetres: 4,
+      candidateId: "large-1",
+      status: "possible_with_constraints",
+      rationale:
+        "Largest successfully placed shell within the best-supported feasibility status.",
+    },
     shellRange: {
       minimum: {
         scenarioId: "compact",

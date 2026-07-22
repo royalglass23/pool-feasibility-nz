@@ -27,6 +27,8 @@ const infrastructureDatasetKeys = [
   "wastewater_manholes",
   "water_fittings",
   "wastewater_fittings",
+  "electricity_feeder_lines",
+  "gas_distribution_lines",
 ] as const;
 const floodDatasetKeys = [
   "flood_plains",

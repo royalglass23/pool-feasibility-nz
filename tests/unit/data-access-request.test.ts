@@ -54,7 +54,21 @@ describe("executeDataAccessRequest", () => {
     expect(response.data.identityCheck.exactAddressMatched).toBe(true);
   });
 
-  it("validates and applies pool comparison preferences", async () => {
+  it("uses neutral scenario inputs and rejects caller-supplied preferences", async () => {
+    const neutral = await executeDataAccessRequest({
+      body: { address: "42A Bahari Drive, Ranui, Auckland" },
+      gateway: createGateway(),
+      now: () => new Date("2026-07-20T00:00:00.000Z"),
+    });
+
+    expect(neutral.ok).toBe(true);
+    if (!neutral.ok) return;
+    expect(neutral.data.scenarioComparison.preferences).toEqual({
+      frontageDirection: null,
+      preferredLocation: "any",
+      preferredSize: null,
+    });
+
     const response = await executeDataAccessRequest({
       body: {
         address: "42A Bahari Drive, Ranui, Auckland",
@@ -66,20 +80,14 @@ describe("executeDataAccessRequest", () => {
       now: () => new Date("2026-07-20T00:00:00.000Z"),
     });
 
-    expect(response.ok).toBe(true);
-    if (!response.ok) return;
-
-    expect(response.data.scenarioComparison.preferences).toEqual({
-      frontageDirection: "south",
-      preferredLocation: "front",
-      preferredSize: "standard",
+    expect(response).toMatchObject({
+      ok: false,
+      status: 400,
+      error: { code: "INVALID_ADDRESS" },
     });
-    expect(response.data.scenarioComparison.rankedScenarioIds[0]).toBe(
-      "standard",
-    );
   });
 
-  it("rejects a relative location preference without a known front boundary", async () => {
+  it("rejects removed location preference fields", async () => {
     const response = await executeDataAccessRequest({
       body: {
         address: "42A Bahari Drive, Ranui, Auckland",

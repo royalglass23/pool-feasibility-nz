@@ -13,10 +13,19 @@ const tokenGlobal = globalThis as typeof globalThis & {
   __poolFeasibilityReportSigningKey?: string;
 };
 const defaultTokenService = createSessionReportTokenService(
-  process.env.INTERNAL_REPORT_SIGNING_SECRET ||
-    (tokenGlobal.__poolFeasibilityReportSigningKey ??=
-      randomBytes(32).toString("base64url")),
+  resolveDefaultSigningKey(),
 );
+
+function resolveDefaultSigningKey(): string {
+  if (process.env.INTERNAL_REPORT_SIGNING_SECRET) {
+    return process.env.INTERNAL_REPORT_SIGNING_SECRET;
+  }
+  if (process.env.NODE_ENV === "test") {
+    return (tokenGlobal.__poolFeasibilityReportSigningKey ??=
+      randomBytes(32).toString("base64url"));
+  }
+  throw new Error("INTERNAL_REPORT_SIGNING_SECRET_REQUIRED");
+}
 
 export function issueSessionReportToken(assessment: SessionAssessment): string {
   return defaultTokenService.issue(assessment);

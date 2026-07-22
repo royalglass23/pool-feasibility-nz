@@ -363,6 +363,45 @@ treated as a licence.
 - **Additional permission:** yes/unclear
 - **Live proof:** raw parcel-envelope count `0`
 
+### 18. Electricity distribution feeder lines
+
+- **Provider:** Vector Limited Open Data
+- **Metadata / endpoint:** `distribution_feeder_network_and_zone_substations/FeatureServer/2`
+- **Licence / attribution:** CC BY 4.0; attribute Vector Limited and the licence
+- **Geometry / CRS:** polyline; NZTM2000 / EPSG:2193, queried as EPSG:4326 GeoJSON
+- **Relevant attributes:** provider feeder properties, including overhead or
+  underground classification where supplied
+- **Update status:** public service inspected 2026-07-22
+- **Usable:** yes, as preliminary report evidence with attribution
+- **Limitations:** Vector says open data may be incorrect, duplicated,
+  incomplete, or misleading and must not be represented as reliable without
+  validation; it is not an excavation plan
+- **Commercial use:** allowed under CC BY 4.0
+- **Additional permission:** no, subject to attribution and Vector open-data terms
+- **Live proof:** parcel-envelope count `2` at 42A Bahari Drive
+
+### 19. Gas distribution lines
+
+- **Provider:** Vector Limited Open Data
+- **Metadata / endpoint:** `gas_distribution_network1/FeatureServer/1`
+- **Licence / attribution:** Vector Open Data portal-wide CC BY 4.0 terms;
+  attribute Vector Limited and the licence
+- **Geometry / CRS:** polyline; NZTM2000 / EPSG:2193, queried as EPSG:4326 GeoJSON
+- **Relevant attributes:** pressure level, function, material, and diameter where
+  supplied
+- **Update status:** public service metadata dated 2026-03-30 and inspected
+  2026-07-22
+- **Usable:** yes, as preliminary report evidence with attribution
+- **Limitations:** zero returned features means no mapped feature in the query
+  envelope, not proof that private or public gas services are absent; not an
+  excavation plan
+- **Commercial use:** allowed under Vector Open Data portal-wide CC BY 4.0 terms
+- **Additional permission:** no, subject to attribution and Vector open-data terms
+- **Live proof:** parcel-envelope count `0` at 42A Bahari Drive
+
+Both Vector layers require BeforeUdig plans, provider confirmation where
+necessary, and onsite locating before design reliance or excavation.
+
 ## Live spike output summary
 
 | Item                          | Verified value                           |

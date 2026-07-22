@@ -2,7 +2,8 @@ export const DEFAULT_PROVIDER_TIMEOUT_MS = 10_000;
 export const DEFAULT_PROVIDER_RETRY_COUNT = 2;
 export const DEFAULT_PROVIDER_CONCURRENCY_LIMIT = 4;
 
-export type ProviderKey = "linz" | "auckland_council" | "watercare" | "openai";
+export type ProviderKey =
+  "linz" | "auckland_council" | "watercare" | "vector" | "openai";
 
 const providerGates = new Map<ProviderKey, ProviderConcurrencyGate>();
 

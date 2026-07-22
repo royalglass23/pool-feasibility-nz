@@ -58,4 +58,36 @@ describe("officialDatasetEvidence", () => {
       });
     },
   );
+
+  it.each([
+    [
+      "electricity_feeder_lines",
+      "Electricity Distribution Feeder Network",
+      "distribution_feeder_network_and_zone_substations/FeatureServer/2/query",
+    ],
+    [
+      "gas_distribution_lines",
+      "Gas Distribution Network",
+      "gas_distribution_network1/FeatureServer/1/query",
+    ],
+  ])(
+    "catalogues %s as Vector CC BY 4.0 report evidence",
+    (key, dataset, path) => {
+      expect(
+        officialDatasetEvidence(key as never, "2026-07-22T00:00:00.000Z"),
+      ).toMatchObject({
+        provider: "Vector",
+        dataset,
+        datasetIdentifier: expect.stringContaining(path),
+        licenceStatus: "permitted",
+        evidenceUse: "report_allowed",
+        licence: "Creative Commons Attribution 4.0 International",
+        attribution: {
+          text: "Vector Limited, CC BY 4.0",
+        },
+        geometryUsed: "mapped_provider_geometry",
+        evidenceType: "official_open_reference_geometry",
+      });
+    },
+  );
 });

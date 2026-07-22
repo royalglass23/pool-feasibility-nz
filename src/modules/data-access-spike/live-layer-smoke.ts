@@ -1,7 +1,12 @@
 import type { DataAccessSpikeResult } from "./run-data-access-spike";
 import { queryableDatasetKeys } from "./dataset-catalog";
 
-const providerNames = ["LINZ", "Auckland Council", "Watercare"] as const;
+const providerNames = [
+  "LINZ",
+  "Auckland Council",
+  "Watercare",
+  "Vector",
+] as const;
 const requiredMappedDatasetKeys = new Set<string>(queryableDatasetKeys);
 
 export function summarizeLiveLayerSmoke(result: DataAccessSpikeResult) {

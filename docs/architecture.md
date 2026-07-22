@@ -118,19 +118,20 @@ Application failures use stable codes: `INVALID_ADDRESS`, `ADDRESS_FORMAT_UNSUPP
 
 Required when the corresponding adapter is enabled:
 
-| Variable                                        | Exposure               | Purpose                                             |
-| ----------------------------------------------- | ---------------------- | --------------------------------------------------- |
-| `DATABASE_URL`                                  | Server only            | PostgreSQL/Neon connection                          |
-| `APP_BASE_URL`                                  | Server only            | Absolute report/PDF URL generation                  |
-| `LINZ_DATA_SERVICE_API_KEY`                     | Server only            | LINZ data queries if Stage 2 confirms the endpoint  |
-| `LINZ_BASEMAPS_API_KEY`                         | Server only by default | Aerial configuration; public delivery is unresolved |
-| `AUCKLAND_COUNCIL_API_KEY`                      | Server only            | Only if an approved service requires it             |
-| `UPSTASH_REDIS_REST_URL/TOKEN`                  | Server only            | Distributed rate limit/cache if selected            |
-| `BLOB_READ_WRITE_TOKEN`                         | Server only            | Durable generated-PDF storage if selected           |
-| `AI_PROVIDER`, `OPENAI_API_KEY`, `OPENAI_MODEL` | Server only, optional  | Constrained narrative enhancement                   |
-| `PROVIDER_TIMEOUT_MS`, `PROVIDER_RETRY_COUNT`   | Server only            | Bounded provider behavior                           |
-| `INTERNAL_ACCESS_USERNAME/PASSWORD`             | Server only            | Required paired credentials for deployed staff UI   |
-| `ANALYSIS_VERSION`, `LOG_LEVEL`                 | Server only            | Reproducibility and observability                   |
+| Variable                                        | Exposure               | Purpose                                               |
+| ----------------------------------------------- | ---------------------- | ----------------------------------------------------- |
+| `DATABASE_URL`                                  | Server only            | PostgreSQL/Neon connection                            |
+| `APP_BASE_URL`                                  | Server only            | Absolute report/PDF URL generation                    |
+| `LINZ_DATA_SERVICE_API_KEY`                     | Server only            | LINZ data queries if Stage 2 confirms the endpoint    |
+| `LINZ_BASEMAPS_API_KEY`                         | Server only by default | Aerial configuration; public delivery is unresolved   |
+| `AUCKLAND_COUNCIL_API_KEY`                      | Server only            | Only if an approved service requires it               |
+| `UPSTASH_REDIS_REST_URL/TOKEN`                  | Server only            | Distributed rate limit/cache if selected              |
+| `BLOB_READ_WRITE_TOKEN`                         | Server only            | Durable generated-PDF storage if selected             |
+| `AI_PROVIDER`, `OPENAI_API_KEY`, `OPENAI_MODEL` | Server only, optional  | Constrained narrative enhancement                     |
+| `PROVIDER_TIMEOUT_MS`, `PROVIDER_RETRY_COUNT`   | Server only            | Bounded provider behavior                             |
+| `INTERNAL_ACCESS_USERNAME/PASSWORD`             | Server only            | Required paired credentials for deployed staff UI     |
+| `INTERNAL_REPORT_SIGNING_SECRET`                | Server only            | Shared 32+ byte key for short-lived PDF report tokens |
+| `ANALYSIS_VERSION`, `LOG_LEVEL`                 | Server only            | Reproducibility and observability                     |
 
 No credential receives a `NEXT_PUBLIC_` name in Stage 1.
 

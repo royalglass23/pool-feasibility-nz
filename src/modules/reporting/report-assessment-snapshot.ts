@@ -59,6 +59,21 @@ const reportAssessmentSnapshotSchema = z
       .strict(),
     scenarioComparison: z
       .object({
+        recommendedShell: z
+          .object({
+            label: shortText,
+            lengthMetres: z.number().finite().positive().max(30),
+            widthMetres: z.number().finite().positive().max(20),
+            status: z.enum([
+              "likely",
+              "possible_with_constraints",
+              "specialist_review_required",
+              "no_clear_candidate",
+              "insufficient_data",
+            ]),
+          })
+          .strict()
+          .nullable(),
         scenarios: z
           .array(
             z
@@ -179,6 +194,16 @@ export function buildReportAssessmentSnapshot(
       ),
     },
     scenarioComparison: {
+      recommendedShell: assessment.scenarioComparison.recommendedShell
+        ? {
+            label: assessment.scenarioComparison.recommendedShell.label,
+            lengthMetres:
+              assessment.scenarioComparison.recommendedShell.lengthMetres,
+            widthMetres:
+              assessment.scenarioComparison.recommendedShell.widthMetres,
+            status: assessment.scenarioComparison.recommendedShell.status,
+          }
+        : null,
       scenarios: assessment.scenarioComparison.scenarios
         .slice(0, 3)
         .map(({ scenario, status, usableAreaSquareMetres }) => ({

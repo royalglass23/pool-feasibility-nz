@@ -122,6 +122,16 @@ describe("pool scenario comparison", () => {
         candidateId: expect.any(String),
       },
     });
+    expect(result.recommendedShell).toEqual({
+      scenarioId: "large",
+      label: "Large",
+      lengthMetres: 9,
+      widthMetres: 4,
+      candidateId: expect.any(String),
+      status: "likely",
+      rationale:
+        "Largest successfully placed shell within the best-supported feasibility status.",
+    });
     for (const shell of result.successfulShells) {
       const scenario = result.scenarios.find(
         (item) => item.scenario.id === shell.scenarioId,
@@ -296,6 +306,11 @@ describe("pool scenario comparison", () => {
     expect(
       result.successfulShells.map((shell) => shell.scenarioId),
     ).not.toContain("large");
+    expect(result.recommendedShell).toMatchObject({
+      scenarioId: "standard-plus",
+      lengthMetres: 8,
+      widthMetres: 3.75,
+    });
   });
 });
 
