@@ -74,7 +74,7 @@ const missingInformation: SessionAssessment["missingInformation"] = [
   missing("private_services", "Private stormwater and wastewater services"),
   missing(
     "public_and_private_pipe_position_and_depth",
-    "Exact public- and private-pipe position and depth",
+    "Exact public/private water, drainage, gas, and electricity service position and depth",
   ),
   missing("consent_notices", "Consent notices affecting the property"),
   missing("geotechnical_conditions", "Geotechnical conditions"),
@@ -136,7 +136,7 @@ export function buildSessionAssessment(
         phase: "before_concept_design",
         items: [
           "Review the current title, easements, covenants, and consent notices.",
-          "Locate private and public services onsite.",
+          "Obtain BeforeUdig plans and locate all private and public services onsite.",
         ],
       },
       {
@@ -155,6 +155,7 @@ export function buildSessionAssessment(
     missingInformation: missingInformation.map((item) => ({ ...item })),
     limitations: [
       "This assessment does not provide approval, consent advice, engineering design, construction safety assurance, a survey, title advice, utility location, or an approved pool position.",
+      "Vector open electricity and gas geometry is preliminary reference evidence only and may be incomplete or inaccurate; obtain BeforeUdig plans and onsite locating before excavation or design reliance.",
     ],
     provenance: {
       datasets: Object.entries(result.datasets).map(([id, evidence]) => ({
@@ -195,6 +196,7 @@ function downloadableScenarioComparison(
     preferences: comparison.preferences,
     rankedScenarioIds: comparison.rankedScenarioIds,
     successfulShells: comparison.successfulShells,
+    recommendedShell: comparison.recommendedShell,
     shellRange: comparison.shellRange,
     scenarios: comparison.scenarios.map((analysis) => ({
       scenario: analysis.scenario,
@@ -269,11 +271,15 @@ function criticalFlagRisk(
           "public_stormwater_assets",
           "wastewater_assets",
           "public_water_assets",
+          "electricity_feeder_lines",
+          "gas_distribution_lines",
         ]),
         confidence: datasetConfidence(result, [
           "public_stormwater_assets",
           "wastewater_assets",
           "public_water_assets",
+          "electricity_feeder_lines",
+          "gas_distribution_lines",
         ]),
         impact:
           "Mapped services may constrain pool position, excavation, protection requirements, cost, or Works Over approvals.",

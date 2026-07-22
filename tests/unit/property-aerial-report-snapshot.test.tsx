@@ -116,6 +116,16 @@ it("returns report-allowed evidence with derived candidate geometry", async () =
       rankingEvidence: ["Controlled report candidate fixture"],
     },
   ];
+  result.scenarioComparison.recommendedShell = {
+    scenarioId: "compact",
+    label: "Compact",
+    lengthMetres: 5,
+    widthMetres: 3,
+    candidateId: "compact-1",
+    status: "likely",
+    rationale:
+      "Largest successfully placed shell within the best-supported feasibility status.",
+  };
   const onSnapshotReady = vi.fn();
 
   render(
@@ -134,10 +144,10 @@ it("returns report-allowed evidence with derived candidate geometry", async () =
 
   expect(layerIds).toEqual([
     "official-building_footprints",
-    "compact-envelope-fill",
-    "compact-envelope-outline",
-    "compact-shell-fill",
-    "compact-shell-outline",
+    "recommended-envelope-fill",
+    "recommended-envelope-outline",
+    "recommended-shell-fill",
+    "recommended-shell-outline",
     "parcel-fill",
     "parcel-outline",
     "address-point",

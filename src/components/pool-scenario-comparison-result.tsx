@@ -28,51 +28,36 @@ export function PoolScenarioComparisonResult({
             id="pool-scenario-comparison-heading"
             className="mt-2 text-xl font-semibold text-slate-950"
           >
-            Pool scenario comparison
+            Pool feasibility and size recommendation
           </h3>
           <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Each configured shell reports whether deterministic geometry testing
-            completed. Only successfully placed candidates contribute to the
-            calculated range. Preferences change ranking only; they never relax
-            geometry checks.
+            Configured shell sizes are tested against the available mapped
+            evidence. The recommendation is the largest successfully placed
+            shell within the best-supported feasibility status; geometry and
+            safety checks are never relaxed.
           </p>
         </div>
         <div className="rounded-2xl bg-teal-50 px-4 py-3 text-sm ring-1 ring-teal-600/15">
-          <p className="font-semibold text-teal-950">Calculated shell range</p>
+          <p className="font-semibold text-teal-950">
+            Recommended screened size
+          </p>
           <p className="mt-1 text-lg font-bold text-teal-800">
-            {comparison.shellRange
-              ? `${formatShell(comparison.shellRange.minimum)} to ${formatShell(comparison.shellRange.maximum)}`
-              : "No successfully placed range"}
+            {comparison.recommendedShell
+              ? `${comparison.recommendedShell.label} · ${formatShell(comparison.recommendedShell)}`
+              : "No supported size recommendation"}
           </p>
           <p className="mt-1 text-xs text-teal-800">
-            {comparison.successfulShells.length} tested shell size
-            {comparison.successfulShells.length === 1 ? "" : "s"} placed
+            {comparison.recommendedShell?.rationale ??
+              "Mapped evidence is insufficient for a size recommendation."}
           </p>
         </div>
       </div>
 
-      <dl className="mt-5 grid gap-3 text-sm sm:grid-cols-3">
-        <Preference
-          label="Preferred size"
-          value={
-            comparison.preferences.preferredSize
-              ? humanize(comparison.preferences.preferredSize)
-              : "No preference"
-          }
-        />
-        <Preference
-          label="Preferred location"
-          value={humanize(comparison.preferences.preferredLocation)}
-        />
-        <Preference
-          label="Staff-supplied front boundary"
-          value={
-            comparison.preferences.frontageDirection
-              ? humanize(comparison.preferences.frontageDirection)
-              : "Not supplied"
-          }
-        />
-      </dl>
+      <p className="mt-5 text-sm text-slate-600">
+        {comparison.successfulShells.length} of {comparison.scenarios.length}{" "}
+        tested shell sizes produced candidate geometry. A candidate is not an
+        approved pool position.
+      </p>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
         {rankedScenarios.map((analysis) => {
@@ -128,15 +113,6 @@ export function PoolScenarioComparisonResult({
   );
 }
 
-function Preference({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="rounded-2xl bg-slate-50 px-4 py-3">
-      <dt className="text-slate-500">{label}</dt>
-      <dd className="mt-1 font-semibold text-slate-900">{value}</dd>
-    </div>
-  );
-}
-
 function formatShell(shell: { lengthMetres: number; widthMetres: number }) {
   return `${shell.lengthMetres}m x ${shell.widthMetres}m`;
 }
@@ -152,5 +128,5 @@ function statusClass(status: PoolScenarioStatus) {
           : status === "no_clear_candidate"
             ? "bg-amber-50 text-amber-800 ring-amber-600/20"
             : "bg-slate-100 text-slate-700 ring-slate-500/20";
-  return `inline-flex max-w-44 rounded-full px-2.5 py-1 text-right text-xs font-semibold ring-1 ring-inset ${tone}`;
+  return `inline-flex shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${tone}`;
 }

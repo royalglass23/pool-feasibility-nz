@@ -1,5 +1,8 @@
 import { defineConfig, devices } from "@playwright/test";
 
+process.env.INTERNAL_REPORT_SIGNING_SECRET ??=
+  "playwright-report-signing-secret-2026-07-22-at-least-32-bytes";
+
 export default defineConfig({
   testDir: "./tests/e2e",
   fullyParallel: true,

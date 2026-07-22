@@ -31,6 +31,7 @@ export function renderSessionReportHtml({
       "indeterminate",
   );
   const flags = assessment.feasibilityAssessment.criticalFlags.slice(0, 3);
+  const recommendedShell = assessment.scenarioComparison.recommendedShell;
   const categories = assessment.feasibilityAssessment.categories;
   const datasets = assessment.provenance.datasets
     .filter((dataset) => dataset.evidenceUse === "report_allowed")
@@ -71,6 +72,7 @@ export function renderSessionReportHtml({
   </style></head><body>
   <section class="page">${header("Executive summary", 1)}<h1>${esc(assessment.property.address)}</h1><p>${esc(assessment.property.appellation)} · Parcel ${esc(assessment.property.parcelId)}</p>
     <div class="decision"><div class="score">${esc(score)}</div><div><div class="recommendation">${esc(assessment.recommendation)}</div><p style="margin-top:2mm">${classification} · ${esc(assessment.feasibilityAssessment.confidence.level)} confidence</p>${flags.map((f) => `<span class="pill">${esc(f.id.replaceAll("_", " "))}</span>`).join("")}</div></div>
+    <h2>Recommended screened size</h2><p>${recommendedShell ? `${esc(recommendedShell.label)} · ${esc(recommendedShell.lengthMetres)}m × ${esc(recommendedShell.widthMetres)}m` : "No supported size recommendation from the available mapped evidence."}</p>
     <div class="grid">${assessment.scenarioComparison.scenarios
       .slice(0, 3)
       .map(

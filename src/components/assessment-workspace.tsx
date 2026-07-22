@@ -309,7 +309,7 @@ export function AssessmentWorkspace({
       <Disclosure
         id="scenarios"
         title="Pool scenarios"
-        summary={`${result.scenarioComparison.successfulShells} successful shell options`}
+        summary={`${result.scenarioComparison.successfulShells.length} successful shell options`}
         open={openSections.has("scenarios")}
         onToggle={toggle}
       >
@@ -605,6 +605,12 @@ function PreviewPage({
               <b className="text-[1.2em] text-slate-950">
                 {assessment.recommendation}
               </b>
+              <p className="mt-1 font-semibold text-teal-900">
+                Recommended screened size:{" "}
+                {assessment.scenarioComparison.recommendedShell
+                  ? `${assessment.scenarioComparison.recommendedShell.label} · ${assessment.scenarioComparison.recommendedShell.lengthMetres}m × ${assessment.scenarioComparison.recommendedShell.widthMetres}m`
+                  : "No supported size recommendation"}
+              </p>
               <p className="mt-1">
                 {assessment.feasibilityAssessment.band
                   ? humanize(assessment.feasibilityAssessment.band)

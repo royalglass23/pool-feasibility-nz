@@ -28,9 +28,17 @@ export const watercareAttribution = {
   text: "Watercare Services Limited, CC BY-NC-ND 3.0 NZ",
   url: watercareGisSourceUrl,
 } as const;
+export const vectorOpenDataSourceUrl =
+  "https://www.arcgis.com/home/item.html?id=45a165ecd0aa432484bedf1e9de9cf9d";
+export const vectorOpenDataLicence =
+  "Creative Commons Attribution 4.0 International";
+export const vectorOpenDataAttribution = {
+  text: "Vector Limited, CC BY 4.0",
+  url: vectorOpenDataSourceUrl,
+} as const;
 
 type DatasetCatalogEntry = {
-  provider: "LINZ" | "Auckland Council" | "Watercare";
+  provider: "LINZ" | "Auckland Council" | "Watercare" | "Vector";
   dataset: string;
   licenceStatus: "permitted" | "conditional";
   queryUrl: string;
@@ -64,6 +72,16 @@ const watercareDatasetDefaults = {
   evidenceUse: "internal_reference",
   geometryUsed: "mapped_provider_geometry",
   evidenceType: "official_reference_geometry",
+} as const;
+const vectorDatasetDefaults = {
+  provider: "Vector",
+  licenceStatus: "permitted",
+  licence: vectorOpenDataLicence,
+  attribution: vectorOpenDataAttribution,
+  evidenceUse: "report_allowed",
+  geometryUsed: "mapped_provider_geometry",
+  attributesUsed: ["provider_properties"] as string[],
+  evidenceType: "official_open_reference_geometry",
 } as const;
 
 export const datasetCatalog: Record<QueryableDatasetKey, DatasetCatalogEntry> =
@@ -180,6 +198,20 @@ export const datasetCatalog: Record<QueryableDatasetKey, DatasetCatalogEntry> =
       datasetDate: null,
       queryUrl:
         "https://services5.arcgis.com/PnnKqtqi3qfxnaPc/arcgis/rest/services/Wastewater_Network/FeatureServer/1/query",
+    },
+    electricity_feeder_lines: {
+      ...vectorDatasetDefaults,
+      dataset: "Electricity Distribution Feeder Network",
+      datasetDate: null,
+      queryUrl:
+        "https://services6.arcgis.com/8RWEO35G1ALMME0I/arcgis/rest/services/distribution_feeder_network_and_zone_substations/FeatureServer/2/query",
+    },
+    gas_distribution_lines: {
+      ...vectorDatasetDefaults,
+      dataset: "Gas Distribution Network",
+      datasetDate: null,
+      queryUrl:
+        "https://services6.arcgis.com/8RWEO35G1ALMME0I/arcgis/rest/services/gas_distribution_network1/FeatureServer/1/query",
     },
   };
 

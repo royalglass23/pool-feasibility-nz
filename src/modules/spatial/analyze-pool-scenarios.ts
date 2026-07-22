@@ -48,6 +48,12 @@ export interface PoolScenarioComparison {
   scenarios: PoolScenarioAnalysis[];
   rankedScenarioIds: PoolScenarioId[];
   successfulShells: SuccessfulPoolShell[];
+  recommendedShell:
+    | (SuccessfulPoolShell & {
+        status: PoolScenarioStatus;
+        rationale: string;
+      })
+    | null;
   shellRange: {
     minimum: Omit<SuccessfulPoolShell, "label">;
     maximum: Omit<SuccessfulPoolShell, "label">;
@@ -107,6 +113,7 @@ export function analyzePoolScenarios(input: {
       left.lengthMetres - right.lengthMetres ||
       left.widthMetres - right.widthMetres,
   );
+  const recommendedShell = recommendShell(scenarios);
 
   return {
     version: input.catalogue.version,
@@ -118,6 +125,7 @@ export function analyzePoolScenarios(input: {
       input.preferences.preferredSize,
     ),
     successfulShells,
+    recommendedShell,
     shellRange:
       sortedShells.length === 0
         ? null
@@ -128,18 +136,51 @@ export function analyzePoolScenarios(input: {
   };
 }
 
+function recommendShell(
+  scenarios: PoolScenarioAnalysis[],
+): PoolScenarioComparison["recommendedShell"] {
+  const supported = scenarios.filter(
+    (analysis) => analysis.candidates.length > 0,
+  );
+  if (supported.length === 0) return null;
+
+  const bestStatus = [...supported].sort(
+    (left, right) => statusOrder[left.status] - statusOrder[right.status],
+  )[0].status;
+  const recommended = supported
+    .filter((analysis) => analysis.status === bestStatus)
+    .sort(
+      (left, right) =>
+        right.scenario.shellLengthMetres * right.scenario.shellWidthMetres -
+        left.scenario.shellLengthMetres * left.scenario.shellWidthMetres,
+    )[0];
+  const candidate = recommended.candidates[0];
+
+  return {
+    scenarioId: recommended.scenario.id,
+    label: recommended.scenario.label,
+    lengthMetres: recommended.scenario.shellLengthMetres,
+    widthMetres: recommended.scenario.shellWidthMetres,
+    candidateId: candidate.id,
+    status: recommended.status,
+    rationale:
+      "Largest successfully placed shell within the best-supported feasibility status.",
+  };
+}
+
+const statusOrder: Record<PoolScenarioStatus, number> = {
+  likely: 0,
+  possible_with_constraints: 1,
+  specialist_review_required: 2,
+  no_clear_candidate: 3,
+  insufficient_data: 4,
+};
+
 function rankScenarios(
   scenarios: PoolScenarioAnalysis[],
   configs: readonly PoolScenarioConfig[],
   preferredSize: PoolScenarioId | null,
 ): PoolScenarioId[] {
-  const statusOrder: Record<PoolScenarioStatus, number> = {
-    likely: 0,
-    possible_with_constraints: 1,
-    specialist_review_required: 2,
-    no_clear_candidate: 3,
-    insufficient_data: 4,
-  };
   const preferredIndex = configs.findIndex(
     (config) => config.id === preferredSize,
   );

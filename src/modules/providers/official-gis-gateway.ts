@@ -161,6 +161,7 @@ const allowedOrigins = new Set([
   "https://services.arcgis.com",
   "https://services1.arcgis.com",
   "https://services5.arcgis.com",
+  "https://services6.arcgis.com",
   "https://mapspublic.aucklandcouncil.govt.nz",
   "https://basemaps.linz.govt.nz",
 ]);
@@ -447,12 +448,20 @@ function escapeArcGisText(value: string): string {
   return value.replaceAll("'", "''");
 }
 
-function providerKey(url: URL): "linz" | "auckland_council" | "watercare" {
+function providerKey(
+  url: URL,
+): "linz" | "auckland_council" | "watercare" | "vector" {
   if (
     url.hostname === "services5.arcgis.com" &&
     url.pathname.includes("/PnnKqtqi3qfxnaPc/")
   ) {
     return "watercare";
+  }
+  if (
+    url.hostname === "services6.arcgis.com" &&
+    url.pathname.includes("/8RWEO35G1ALMME0I/")
+  ) {
+    return "vector";
   }
   return url.hostname.endsWith("aucklandcouncil.govt.nz") ||
     url.hostname === "services1.arcgis.com"

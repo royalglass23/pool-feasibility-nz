@@ -30,6 +30,8 @@ const mapLayerDefinitions: MapLayerDefinition[] = [
   { key: "wastewater_assets", color: "#7c3aed", kind: "line" },
   { key: "wastewater_manholes", color: "#6d28d9", kind: "circle" },
   { key: "wastewater_fittings", color: "#8b5cf6", kind: "circle" },
+  { key: "electricity_feeder_lines", color: "#eab308", kind: "line" },
+  { key: "gas_distribution_lines", color: "#dc2626", kind: "line" },
 ];
 
 export function PropertyAerialMap({
@@ -47,8 +49,10 @@ export function PropertyAerialMap({
   const [layerVisibility, setLayerVisibility] = useState<
     Record<string, boolean>
   >({});
-  const compactAnalysis = result.scenarioComparison.scenarios.find(
-    (analysis) => analysis.scenario.id === "compact",
+  const recommendedAnalysis = result.scenarioComparison.scenarios.find(
+    (analysis) =>
+      analysis.scenario.id ===
+      result.scenarioComparison.recommendedShell?.scenarioId,
   );
   const aerialConfigured =
     result.datasets.aerial_imagery.status === "available";
@@ -174,22 +178,22 @@ export function PropertyAerialMap({
           });
         }
       }
-      if (compactAnalysis && compactAnalysis.candidates.length > 0) {
-        sources["compact-envelopes"] = {
+      if (recommendedAnalysis && recommendedAnalysis.candidates.length > 0) {
+        sources["recommended-envelopes"] = {
           type: "geojson",
           data: {
             type: "FeatureCollection",
-            features: compactAnalysis.candidates.map((candidate) => ({
+            features: recommendedAnalysis.candidates.map((candidate) => ({
               ...candidate.envelope,
               properties: { candidateRank: candidate.rank },
             })),
           },
         };
-        sources["compact-shells"] = {
+        sources["recommended-shells"] = {
           type: "geojson",
           data: {
             type: "FeatureCollection",
-            features: compactAnalysis.candidates.map((candidate) => ({
+            features: recommendedAnalysis.candidates.map((candidate) => ({
               ...candidate.shell,
               properties: { candidateRank: candidate.rank },
             })),
@@ -197,15 +201,15 @@ export function PropertyAerialMap({
         };
         layers.push(
           {
-            id: "compact-envelope-fill",
+            id: "recommended-envelope-fill",
             type: "fill",
-            source: "compact-envelopes",
+            source: "recommended-envelopes",
             paint: { "fill-color": "#facc15", "fill-opacity": 0.16 },
           },
           {
-            id: "compact-envelope-outline",
+            id: "recommended-envelope-outline",
             type: "line",
-            source: "compact-envelopes",
+            source: "recommended-envelopes",
             paint: {
               "line-color": "#ca8a04",
               "line-width": 2,
@@ -213,15 +217,15 @@ export function PropertyAerialMap({
             },
           },
           {
-            id: "compact-shell-fill",
+            id: "recommended-shell-fill",
             type: "fill",
-            source: "compact-shells",
+            source: "recommended-shells",
             paint: { "fill-color": "#14b8a6", "fill-opacity": 0.5 },
           },
           {
-            id: "compact-shell-outline",
+            id: "recommended-shell-outline",
             type: "line",
-            source: "compact-shells",
+            source: "recommended-shells",
             paint: { "line-color": "#0f766e", "line-width": 3 },
           },
         );
@@ -328,7 +332,7 @@ export function PropertyAerialMap({
   }, [
     aerialAttribution,
     aerialConfigured,
-    compactAnalysis,
+    recommendedAnalysis,
     result,
     visibleMappedLayers,
     onSnapshotReady,
@@ -428,13 +432,13 @@ export function PropertyAerialMap({
         <div>
           <h4 className="font-semibold text-slate-950">Legend</h4>
           <ul className="mt-3 space-y-2 text-sm text-slate-600">
-            {compactAnalysis?.candidates.map((candidate) => (
+            {recommendedAnalysis?.candidates.map((candidate) => (
               <li key={candidate.id} className="flex items-center gap-2">
                 <span
                   aria-hidden="true"
                   className="size-3 rounded-sm bg-teal-500 ring-2 ring-yellow-400"
                 />
-                Compact candidate {candidate.rank}
+                Recommended-size candidate {candidate.rank}
               </li>
             ))}
             {visibleMappedLayers.map(({ definition, evidence }) => (

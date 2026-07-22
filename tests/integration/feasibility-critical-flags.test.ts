@@ -263,6 +263,16 @@ function comparison(
         candidateId: "large-1",
       },
     ],
+    recommendedShell: {
+      scenarioId: "large",
+      label: "Large",
+      lengthMetres: 9,
+      widthMetres: 4,
+      candidateId: "large-1",
+      status: "likely",
+      rationale:
+        "Largest successfully placed shell within the best-supported feasibility status.",
+    },
     shellRange: {
       minimum: {
         scenarioId: "large",

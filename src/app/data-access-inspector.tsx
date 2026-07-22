@@ -23,14 +23,6 @@ import { FeasibilityAssessmentResult } from "@/components/feasibility-assessment
 import { SessionAssessmentResult } from "@/components/session-assessment-result";
 import { AssessmentExplanationResult } from "@/components/assessment-explanation-result";
 import { AssessmentWorkspace } from "@/components/assessment-workspace";
-import {
-  frontageDirectionOptions,
-  poolLocationOptions,
-  poolScenarioCatalogue,
-  type PoolFrontageDirection,
-  type PreferredPoolLocation,
-  type PoolScenarioId,
-} from "@/config/pool-scenarios";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
 import { buildSessionAssessment } from "@/modules/assessment/build-session-assessment";
 import type { AssessmentExplanation } from "@/modules/recommendations/generate-assessment-explanation";
@@ -57,12 +49,6 @@ type ApiResponse =
 
 export function DataAccessInspector() {
   const [address, setAddress] = useState("");
-  const [preferredSize, setPreferredSize] = useState<PoolScenarioId | "">("");
-  const [preferredLocation, setPreferredLocation] =
-    useState<PreferredPoolLocation>("any");
-  const [frontageDirection, setFrontageDirection] = useState<
-    PoolFrontageDirection | ""
-  >("");
   const [result, setResult] = useState<DataAccessApiResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [addressOptions, setAddressOptions] = useState<
@@ -101,9 +87,6 @@ export function DataAccessInspector() {
         body: JSON.stringify({
           address: requestedAddress,
           ...(selectedAddressId ? { selectedAddressId } : {}),
-          ...(preferredLocation === "any" ? {} : { preferredLocation }),
-          ...(frontageDirection ? { frontageDirection } : {}),
-          ...(preferredSize ? { preferredSize } : {}),
         }),
       });
       const body = (await response.json()) as ApiResponse;
@@ -176,73 +159,6 @@ export function DataAccessInspector() {
               Auckland addresses only for this proof of concept.
             </p>
           </div>
-        </div>
-
-        <div className="mb-4 grid gap-3 sm:grid-cols-2">
-          <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
-            Preferred pool size
-            <select
-              value={preferredSize}
-              onChange={(event) => {
-                const scenario = poolScenarioCatalogue.scenarios.find(
-                  (item) => item.id === event.target.value,
-                );
-                setPreferredSize(scenario?.id ?? "");
-              }}
-              className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 font-normal text-slate-950 outline-none focus:border-teal-600 focus:bg-white focus:ring-4 focus:ring-teal-600/10"
-            >
-              <option value="">No preference</option>
-              {poolScenarioCatalogue.scenarios
-                .filter((scenario) => scenario.kind === "anchor")
-                .map((scenario) => (
-                  <option key={scenario.id} value={scenario.id}>
-                    {scenario.label} - {scenario.shell.lengthMetres}m x{" "}
-                    {scenario.shell.widthMetres}m
-                  </option>
-                ))}
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
-            Preferred pool location
-            <select
-              value={preferredLocation}
-              onChange={(event) => {
-                const location = poolLocationOptions.find(
-                  (item) => item.id === event.target.value,
-                );
-                setPreferredLocation(location?.id ?? "any");
-              }}
-              className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 font-normal text-slate-950 outline-none focus:border-teal-600 focus:bg-white focus:ring-4 focus:ring-teal-600/10"
-            >
-              {poolLocationOptions.map((location) => (
-                <option key={location.id} value={location.id}>
-                  {location.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1.5 text-sm font-semibold text-slate-700">
-            Front boundary direction
-            <select
-              value={frontageDirection}
-              required={preferredLocation !== "any"}
-              disabled={preferredLocation === "any"}
-              onChange={(event) => {
-                const direction = frontageDirectionOptions.find(
-                  ({ id }) => id === event.target.value,
-                );
-                setFrontageDirection(direction?.id ?? "");
-              }}
-              className="min-h-11 rounded-xl border border-slate-200 bg-slate-50 px-3 font-normal text-slate-950 outline-none focus:border-teal-600 focus:bg-white focus:ring-4 focus:ring-teal-600/10 disabled:text-slate-400"
-            >
-              <option value="">Select known front boundary</option>
-              {frontageDirectionOptions.map(({ id, label }) => (
-                <option key={id} value={id}>
-                  {label}
-                </option>
-              ))}
-            </select>
-          </label>
         </div>
 
         <label htmlFor="property-address" className="sr-only">
