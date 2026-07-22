@@ -1,4 +1,5 @@
 import "server-only";
+import { buildSessionAssessment } from "@/modules/assessment/build-session-assessment";
 import { executeConfiguredAssessmentRequest } from "@/modules/assessment/execute-configured-assessment-request";
 import {
   authorizeInternalRequest,
@@ -13,6 +14,7 @@ import {
   apiJsonResponse,
   requestCorrelationId,
 } from "@/shared/http/api-response";
+import { issueSessionReportToken } from "@/modules/reporting/report-token";
 
 export const runtime = "nodejs";
 
@@ -53,8 +55,15 @@ export async function POST(request: Request): Promise<Response> {
   const response = await executeConfiguredAssessmentRequest(body.value);
 
   if (response.ok) {
+    const assessment = buildSessionAssessment(
+      response.data,
+      response.data.assessmentExplanation,
+    );
     return apiJsonResponse(
-      { data: response.data },
+      {
+        data: response.data,
+        reportToken: issueSessionReportToken(assessment),
+      },
       response.status,
       correlationId,
       { "Cache-Control": "no-store" },

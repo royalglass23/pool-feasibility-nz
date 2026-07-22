@@ -1,0 +1,6 @@
+{
+  "stack": "node",
+  "detectedAt": "2026-07-22T09:36:13.1761781+12:00",
+  "detectedBy": "marker:package.json",
+  "compliance": ["nz-privacy"]
+}

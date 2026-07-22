@@ -102,7 +102,10 @@ test("shows, downloads, and then clears the sourced session assessment", async (
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ data: dataAccessResult }),
+      body: JSON.stringify({
+        data: dataAccessResult,
+        reportToken: "controlled-report-token",
+      }),
     });
   });
 
@@ -192,15 +195,18 @@ test("previews all three report pages and downloads the generated PDF", async ({
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ data: dataAccessResult }),
+      body: JSON.stringify({
+        data: dataAccessResult,
+        reportToken: "controlled-report-token",
+      }),
     });
   });
   await page.route("**/api/internal/report/pdf", async (route) => {
     const request = route.request().postDataJSON() as {
-      assessment: { property: { addressId: string } };
+      reportToken: string;
       mapImageDataUrl: string;
     };
-    expect(request.assessment.property.addressId).toBe("2359811");
+    expect(request.reportToken).toBe("controlled-report-token");
     expect(request.mapImageDataUrl).toMatch(/^data:image\/png;base64,/);
     await route.fulfill({
       status: 200,
