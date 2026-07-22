@@ -1,6 +1,5 @@
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
 import type { PoolScenarioStatus } from "@/modules/spatial/analyze-pool-scenarios";
-import { humanizeIdentifierTitleCase as humanize } from "@/shared/text/humanize-identifier";
 
 export function PoolScenarioComparisonResult({
   comparison,
@@ -13,100 +12,127 @@ export function PoolScenarioComparisonResult({
     );
     return scenario ? [scenario] : [];
   });
+  const sharedStatus =
+    rankedScenarios.length > 0 &&
+    rankedScenarios.every(
+      (analysis) => analysis.status === rankedScenarios[0]?.status,
+    )
+      ? rankedScenarios[0]!.status
+      : null;
+  const successfulCount = comparison.successfulShells.length;
+  const recommendedShell = comparison.recommendedShell
+    ? comparison.successfulShells.some(
+        (shell) => shell.scenarioId === comparison.recommendedShell?.scenarioId,
+      )
+      ? comparison.recommendedShell
+      : null
+    : null;
+  const statusGroups = rankedScenarios.reduce<
+    Array<{ status: PoolScenarioStatus; labels: string[] }>
+  >((groups, analysis) => {
+    const group = groups.find(({ status }) => status === analysis.status);
+    if (group) {
+      group.labels.push(analysis.scenario.label);
+    } else {
+      groups.push({
+        status: analysis.status,
+        labels: [analysis.scenario.label],
+      });
+    }
+    return groups;
+  }, []);
 
   return (
-    <section
-      aria-labelledby="pool-scenario-comparison-heading"
-      className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6"
-    >
+    <section aria-labelledby="pool-scenario-comparison-heading">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <p className="text-xs font-bold tracking-[0.18em] text-teal-700 uppercase">
-            Deterministic spatial screening
-          </p>
           <h3
             id="pool-scenario-comparison-heading"
-            className="mt-2 text-xl font-semibold text-slate-950"
+            className="text-xl font-semibold text-balance text-slate-950"
           >
-            Pool feasibility and size recommendation
+            Pool size screening
           </h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
-            Configured shell sizes are tested against the available mapped
-            evidence. The recommendation is the largest successfully placed
-            shell within the best-supported feasibility status; geometry and
-            safety checks are never relaxed.
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-pretty text-slate-700">
+            We checked {rankedScenarios.length} common pool sizes against the
+            available property information. The largest size with a possible
+            position is shown here. A site visit and specialist checks are still
+            required before design or construction.
           </p>
         </div>
-        <div className="rounded-2xl bg-teal-50 px-4 py-3 text-sm ring-1 ring-teal-600/15">
-          <p className="font-semibold text-teal-950">
-            Recommended screened size
-          </p>
+        <div className="rounded-2xl bg-teal-50 px-4 py-3 text-sm ring-1 ring-teal-600/15 lg:min-w-80">
+          <p className="font-semibold text-teal-950">Largest potential fit</p>
           <p className="mt-1 text-lg font-bold text-teal-800">
-            {comparison.recommendedShell
-              ? `${comparison.recommendedShell.label} · ${formatShell(comparison.recommendedShell)}`
-              : "No supported size recommendation"}
+            {recommendedShell
+              ? `${recommendedShell.label} · ${formatShell(recommendedShell)}`
+              : "No pool size can be recommended yet"}
           </p>
-          <p className="mt-1 text-xs text-teal-800">
-            {comparison.recommendedShell?.rationale ??
-              "Mapped evidence is insufficient for a size recommendation."}
+          <p className="mt-1 text-sm leading-5 text-teal-900">
+            {recommendedShell
+              ? "A possible position was found using the available property information."
+              : "The available property information does not support a size recommendation."}
           </p>
         </div>
       </div>
 
-      <p className="mt-5 text-sm text-slate-600">
-        {comparison.successfulShells.length} of {comparison.scenarios.length}{" "}
-        tested shell sizes produced candidate geometry. A candidate is not an
-        approved pool position.
+      <p className="mt-5 text-sm font-medium text-slate-800">
+        {successfulCount > 0
+          ? `Possible positions found for ${successfulCount} of ${rankedScenarios.length} sizes.`
+          : `No possible positions found for the ${rankedScenarios.length} sizes checked.`}
       </p>
 
-      <div className="mt-6 grid gap-4 lg:grid-cols-2 xl:grid-cols-3">
-        {rankedScenarios.map((analysis) => {
-          const candidate = analysis.candidates[0];
-          return (
-            <article
+      {sharedStatus && (
+        <div className={sharedStatusClass(sharedStatus)}>
+          <p className="text-sm font-semibold">
+            {sharedResultTitle(sharedStatus)}
+          </p>
+          <p className="mt-1 text-sm leading-6">
+            {statusExplanation(sharedStatus)}
+          </p>
+        </div>
+      )}
+
+      {!sharedStatus && (
+        <ul className="mt-4 space-y-2" aria-label="Results by pool size">
+          {statusGroups.map(({ status, labels }) => (
+            <li key={status} className="text-sm leading-6 text-slate-700">
+              <span className="font-semibold text-slate-950">
+                {formatList(labels)}:
+              </span>{" "}
+              <span className={statusTextClass(status)}>
+                {statusLabel(status)}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="grid grid-cols-[1fr_auto] gap-4 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 sm:grid-cols-[1fr_10rem]">
+          <span>Pool size</span>
+          <span>Dimensions</span>
+        </div>
+        <ul className="divide-y divide-slate-200">
+          {rankedScenarios.map((analysis) => (
+            <li
               key={analysis.scenario.id}
-              className="rounded-2xl border border-slate-200 bg-slate-50/70 p-4"
+              className="grid grid-cols-[1fr_auto] items-center gap-4 px-4 py-3 sm:grid-cols-[1fr_10rem]"
             >
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
-                    {analysis.scenario.kind === "anchor"
-                      ? "Named anchor"
-                      : "Configured intermediate"}
-                  </p>
-                  <h4 className="mt-1 font-semibold text-slate-950">
-                    {analysis.scenario.label}
-                  </h4>
-                </div>
-                <span className={statusClass(analysis.status)}>
-                  {humanize(analysis.status)}
-                </span>
-              </div>
-              <p className="mt-4 text-lg font-bold text-slate-900">
-                {analysis.scenario.shellLengthMetres}m x{" "}
-                {analysis.scenario.shellWidthMetres}m
+              <h4 className="font-semibold text-slate-950">
+                {analysis.scenario.label}
+              </h4>
+              <p className="text-sm font-medium whitespace-nowrap text-slate-800">
+                {formatShell({
+                  lengthMetres: analysis.scenario.shellLengthMetres,
+                  widthMetres: analysis.scenario.shellWidthMetres,
+                })}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
-                Rule {analysis.scenario.version}
-              </p>
-              {candidate ? (
-                <p className="mt-4 text-sm leading-6 text-slate-700">
-                  Suggested dimension linked to candidate {candidate.rank} at{" "}
-                  {candidate.rotationDegrees} degrees.{" "}
-                  {analysis.testedPlacementCount} placements were tested.
-                </p>
-              ) : (
-                <p className="mt-4 text-sm leading-6 text-slate-700">
-                  No successful candidate geometry supports this shell size.
-                </p>
-              )}
-            </article>
-          );
-        })}
+            </li>
+          ))}
+        </ul>
       </div>
 
-      <p className="mt-5 text-xs leading-5 font-medium text-amber-800">
-        Screening evidence only - no candidate is an approved design or pool
+      <p className="mt-4 text-sm leading-5 font-medium text-amber-900">
+        This is an early screening result, not an approved pool design or
         position.
       </p>
     </section>
@@ -114,19 +140,82 @@ export function PoolScenarioComparisonResult({
 }
 
 function formatShell(shell: { lengthMetres: number; widthMetres: number }) {
-  return `${shell.lengthMetres}m x ${shell.widthMetres}m`;
+  return `${shell.lengthMetres}m × ${shell.widthMetres}m`;
 }
 
-function statusClass(status: PoolScenarioStatus) {
+function formatList(items: string[]) {
+  if (items.length < 2) return items[0];
+  if (items.length === 2) return items.join(" and ");
+  return `${items.slice(0, -1).join(", ")}, and ${items.at(-1)}`;
+}
+
+function statusLabel(status: PoolScenarioStatus) {
+  switch (status) {
+    case "likely":
+      return "Potential fit";
+    case "possible_with_constraints":
+      return "Possible fit — site checks needed";
+    case "specialist_review_required":
+      return "Possible fit — specialist review needed";
+    case "no_clear_candidate":
+      return "No clear fit found";
+    case "insufficient_data":
+      return "Cannot assess yet";
+  }
+}
+
+function sharedResultTitle(status: PoolScenarioStatus) {
+  switch (status) {
+    case "likely":
+      return "All sizes show a potential fit";
+    case "possible_with_constraints":
+      return "All sizes may fit, with site checks";
+    case "specialist_review_required":
+      return "All sizes need specialist review";
+    case "no_clear_candidate":
+      return "No clear fit for any size";
+    case "insufficient_data":
+      return "Not enough information to assess the sizes";
+  }
+}
+
+function statusExplanation(status: PoolScenarioStatus) {
+  switch (status) {
+    case "likely":
+      return "The available property information supports a possible pool position.";
+    case "possible_with_constraints":
+      return "Possible positions were found, but mapped property features may affect the final position.";
+    case "specialist_review_required":
+      return "Possible positions were found, but important details cannot be confirmed from the available maps.";
+    case "no_clear_candidate":
+      return "No clear pool position was found using the available property information.";
+    case "insufficient_data":
+      return "There is not enough mapped property information to assess these pool sizes.";
+  }
+}
+
+function sharedStatusClass(status: PoolScenarioStatus) {
   const tone =
     status === "likely"
-      ? "bg-teal-50 text-teal-800 ring-teal-600/20"
+      ? "bg-teal-50 text-teal-950 ring-teal-600/20"
       : status === "possible_with_constraints"
-        ? "bg-blue-50 text-blue-800 ring-blue-600/20"
+        ? "bg-blue-50 text-blue-950 ring-blue-600/20"
         : status === "specialist_review_required"
-          ? "bg-orange-50 text-orange-800 ring-orange-600/20"
+          ? "bg-orange-50 text-orange-950 ring-orange-600/20"
           : status === "no_clear_candidate"
-            ? "bg-amber-50 text-amber-800 ring-amber-600/20"
-            : "bg-slate-100 text-slate-700 ring-slate-500/20";
-  return `inline-flex shrink-0 whitespace-nowrap rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${tone}`;
+            ? "bg-amber-50 text-amber-950 ring-amber-600/20"
+            : "bg-slate-100 text-slate-900 ring-slate-500/20";
+  return `mt-4 rounded-xl px-4 py-3 ring-1 ${tone}`;
+}
+
+function statusTextClass(status: PoolScenarioStatus) {
+  return status === "likely"
+    ? "font-semibold text-teal-800"
+    : status === "possible_with_constraints"
+      ? "font-semibold text-blue-800"
+      : status === "specialist_review_required"
+        ? "font-semibold text-orange-800"
+        : status === "no_clear_candidate"
+          ? "font-semibold text-amber-800"
+          : "font-semibold text-slate-700";
 }

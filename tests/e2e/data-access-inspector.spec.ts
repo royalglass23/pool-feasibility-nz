@@ -477,7 +477,7 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   await expect(page.getByText("Official map layers")).toBeVisible();
   await expect(
     page.getByRole("heading", {
-      name: "Pool feasibility and size recommendation",
+      name: "Pool size screening",
     }),
   ).toBeVisible();
   await expect(
@@ -495,7 +495,7 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
       name: "Likely feasible with normal onsite and specialist investigations.",
     }),
   ).toBeVisible();
-  await expect(page.getByText("Large · 9m x 4m")).toBeVisible();
+  await expect(page.getByText("Large · 9m × 4m")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Compact", exact: true }),
   ).toBeVisible();
@@ -575,7 +575,7 @@ test("completes the controlled journey for a second Auckland address", async ({
   await expect(
     page.getByRole("link", { name: /CC BY 4\.0 LINZ/ }).first(),
   ).toBeVisible();
-  await expect(page.getByText("Large · 9m x 4m")).toBeVisible();
+  await expect(page.getByText("Large · 9m × 4m")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Feasibility assessment" }),
   ).toBeVisible();
@@ -615,16 +615,18 @@ test("recommends a screened size without collecting size or location preferences
   await page.getByRole("button", { name: "Expand all" }).click();
 
   const comparison = page.getByRole("region", {
-    name: "Pool feasibility and size recommendation",
+    name: "Pool size screening",
   });
   await expect(comparison).toBeVisible();
-  await expect(comparison.getByText("Large · 9m x 4m")).toBeVisible();
+  await expect(comparison.getByText("Large · 9m × 4m")).toBeVisible();
   await expect(
-    comparison.getByText("Configured intermediate").first(),
-  ).toBeVisible();
+    comparison.getByText("Possible fit — site checks needed"),
+  ).toHaveCount(1);
   await expect(
-    comparison.getByText("Specialist Review Required"),
-  ).toBeVisible();
+    comparison.getByText("Possible fit — specialist review needed"),
+  ).toHaveCount(1);
+  await expect(comparison.getByText("Named anchor")).toHaveCount(0);
+  await expect(comparison.getByText("Configured intermediate")).toHaveCount(0);
   expect(submittedBody).toEqual({
     address,
   });
@@ -695,13 +697,11 @@ test("shows the honest no-clear-candidate wording for a controlled screening res
   await page.getByRole("button", { name: "Fetch property data" }).click();
   await page.getByRole("button", { name: "Expand all" }).click();
 
+  await expect(page.getByText("No clear fit for any size")).toBeVisible();
   await expect(
-    page
-      .getByText("No successful candidate geometry supports this shell size.")
-      .first(),
-  ).toBeVisible();
-  await expect(
-    page.getByText("No Clear Candidate", { exact: true }).first(),
+    page.getByText(
+      "No clear pool position was found using the available property information.",
+    ),
   ).toBeVisible();
   await expect(page.getByText(/pool impossible/i)).toHaveCount(0);
 });

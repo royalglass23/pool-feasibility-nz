@@ -310,8 +310,8 @@ export function AssessmentWorkspace({
       </Disclosure>
       <Disclosure
         id="scenarios"
-        title="Pool scenarios"
-        summary={`${result.scenarioComparison.successfulShells.length} successful shell options`}
+        title="Pool size options"
+        summary={`${result.scenarioComparison.successfulShells.length} sizes with a possible fit`}
         open={openSections.has("scenarios")}
         onToggle={toggle}
       >
