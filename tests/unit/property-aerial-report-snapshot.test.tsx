@@ -78,7 +78,7 @@ it("returns report-allowed evidence with derived candidate geometry", async () =
   result.datasets.aerial_imagery = {
     ...result.datasets.aerial_imagery,
     status: "available",
-    evidenceUse: "spike_only",
+    evidenceUse: "report_allowed",
   };
   result.datasets.building_footprints = {
     ...result.datasets.building_footprints,
@@ -143,6 +143,7 @@ it("returns report-allowed evidence with derived candidate geometry", async () =
     .split(",");
 
   expect(layerIds).toEqual([
+    "aerial",
     "official-building_footprints",
     "recommended-envelope-fill",
     "recommended-envelope-outline",

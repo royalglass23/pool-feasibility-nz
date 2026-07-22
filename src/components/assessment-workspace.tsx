@@ -14,6 +14,7 @@ import {
   Download,
   FileText,
   LoaderCircle,
+  Printer,
 } from "lucide-react";
 import Image from "next/image";
 import { AssessmentExplanationResult } from "@/components/assessment-explanation-result";
@@ -121,11 +122,11 @@ export function AssessmentWorkspace({
       anchor.remove();
       URL.revokeObjectURL(url);
     } catch (error) {
-      setPdfError(
+      const message =
         error instanceof Error
           ? error.message
-          : "The PDF could not be generated. Your assessment remains available.",
-      );
+          : "The PDF could not be generated. Your assessment remains available.";
+      setPdfError(`${message} Use Print / save PDF instead.`);
     } finally {
       setGenerating(false);
     }
@@ -140,6 +141,7 @@ export function AssessmentWorkspace({
         onPage={setPage}
         onBack={() => setPreview(false)}
         onDownload={() => void downloadPdf()}
+        onPrint={() => window.print()}
         generating={generating}
         error={pdfError}
       />
@@ -467,6 +469,7 @@ function ReportPreview({
   onPage,
   onBack,
   onDownload,
+  onPrint,
   generating,
   error,
 }: {
@@ -476,6 +479,7 @@ function ReportPreview({
   onPage: (page: number) => void;
   onBack: () => void;
   onDownload: () => void;
+  onPrint: () => void;
   generating: boolean;
   error: string | null;
 }) {
@@ -499,19 +503,33 @@ function ReportPreview({
           </h2>
           <p className="text-sm text-slate-600">Page {page} of 3 · A4</p>
         </div>
-        <button
-          type="button"
-          disabled={!mapImage || generating}
-          onClick={onDownload}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
-        >
-          {generating ? (
-            <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
-          ) : (
-            <Download className="size-4" aria-hidden="true" />
-          )}
-          {generating ? "Generating…" : "Download PDF"}
-        </button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <button
+            type="button"
+            disabled={!mapImage}
+            onClick={onPrint}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 font-semibold text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+          >
+            <Printer className="size-4" aria-hidden="true" />
+            Print / save PDF
+          </button>
+          <button
+            type="button"
+            disabled={!mapImage || generating}
+            onClick={onDownload}
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
+          >
+            {generating ? (
+              <LoaderCircle
+                className="size-4 animate-spin"
+                aria-hidden="true"
+              />
+            ) : (
+              <Download className="size-4" aria-hidden="true" />
+            )}
+            {generating ? "Generating…" : "Download PDF"}
+          </button>
+        </div>
       </div>
       {!mapImage && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
@@ -549,6 +567,21 @@ function ReportPreview({
           </button>
         ))}
       </nav>
+      <div
+        id="browser-print-report"
+        className="browser-print-report"
+        aria-hidden="true"
+      >
+        {[1, 2, 3].map((number) => (
+          <div className="browser-print-page" key={number}>
+            <PreviewPage
+              assessment={assessment}
+              mapImage={mapImage}
+              page={number}
+            />
+          </div>
+        ))}
+      </div>
     </section>
   );
 }

@@ -264,14 +264,75 @@ test("previews all three report pages and downloads the generated PDF", async ({
   ).toBeVisible();
   await expect(page.getByText("Page 1 of 3 · A4")).toBeVisible();
   await page.getByRole("button", { name: "2" }).click();
-  await expect(page.getByText("Mapped property evidence")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Mapped property evidence" }),
+  ).toBeVisible();
   await page.getByRole("button", { name: "3" }).click();
-  await expect(page.getByText("What needs attention next")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "What needs attention next" }),
+  ).toBeVisible();
 
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download PDF" }).click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe("pool-feasibility-2359811.pdf");
+});
+
+test("prints all three preview pages when server PDF generation is unavailable", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: dataAccessResult,
+        reportToken: "controlled-report-token",
+      }),
+    });
+  });
+  await page.route("**/api/internal/report/pdf", async (route) => {
+    await route.fulfill({
+      status: 502,
+      contentType: "application/json",
+      body: JSON.stringify({
+        error: {
+          code: "REPORT_GENERATION_FAILED",
+          message: "The PDF could not be generated.",
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await expect(page.getByText("Imagery verified")).toBeVisible();
+  await page.getByRole("button", { name: "Preview PDF report" }).click();
+  await page.getByRole("button", { name: "Download PDF" }).click();
+  await expect(page.locator('p[role="alert"]')).toContainText(
+    "Use Print / save PDF instead.",
+  );
+
+  expect(await page.locator("#browser-print-report article").count()).toBe(3);
+  await page.emulateMedia({ media: "print" });
+  const browserPdf = await page.pdf({ format: "A4", printBackground: true });
+  expect(
+    browserPdf.toString("latin1").match(/\/Type\s*\/Page\b/g),
+  ).toHaveLength(3);
+  await page.emulateMedia({ media: "screen" });
+  await page.evaluate(() => {
+    Object.defineProperty(window, "print", {
+      configurable: true,
+      value: () => document.body.setAttribute("data-print-called", "true"),
+    });
+  });
+  await page.getByRole("button", { name: "Print / save PDF" }).click();
+  await expect(page.locator("body")).toHaveAttribute(
+    "data-print-called",
+    "true",
+  );
 });
 
 test("downloads the PDF with an API-issued token and browser-captured map", async ({
@@ -336,7 +397,9 @@ test("keeps the expandable assessment and A4 preview usable on mobile", async ({
   ).toBeVisible();
   await page.getByRole("button", { name: "Preview PDF report" }).click();
   await page.getByRole("button", { name: "3" }).click();
-  await expect(page.getByText("What needs attention next")).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "What needs attention next" }),
+  ).toBeVisible();
   expect(
     await page.evaluate(
       () => document.documentElement.scrollWidth <= window.innerWidth,

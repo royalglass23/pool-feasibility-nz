@@ -146,8 +146,13 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     ).toBeVisible();
     expect(screen.getByText("Page 1 of 3 · A4")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "2" }));
-    expect(screen.getByText("Mapped property evidence")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Mapped property evidence" }),
+    ).toBeVisible();
     expect(screen.getByRole("button", { name: "Download PDF" })).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Print / save PDF" }),
+    ).toBeDisabled();
     await user.click(
       screen.getByRole("button", { name: "Back to assessment" }),
     );
