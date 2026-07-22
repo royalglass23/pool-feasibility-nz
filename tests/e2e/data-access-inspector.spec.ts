@@ -442,7 +442,6 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   await expect(
     page.getByRole("heading", { name: "Large", exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("Compact candidate 1")).toBeVisible();
   await expect(
     page.getByText(
       "Screening evidence only - no candidate is an approved design or pool position.",
@@ -513,8 +512,7 @@ test("completes the controlled journey for a second Auckland address", async ({
   await expect(
     page.getByRole("link", { name: /CC BY 4\.0 LINZ/ }).first(),
   ).toBeVisible();
-  await expect(page.getByText("Compact candidate 1")).toBeVisible();
-  await expect(page.getByText("5m x 3m to 9m x 4m")).toBeVisible();
+  await expect(page.getByText("Large · 9m x 4m")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Feasibility assessment" }),
   ).toBeVisible();

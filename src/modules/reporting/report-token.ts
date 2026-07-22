@@ -12,9 +12,14 @@ const SESSION_REPORT_TTL_MS = 15 * 60 * 1_000;
 const tokenGlobal = globalThis as typeof globalThis & {
   __poolFeasibilityReportSigningKey?: string;
 };
-const defaultTokenService = createSessionReportTokenService(
-  resolveDefaultSigningKey(),
-);
+let defaultTokenService:
+  ReturnType<typeof createSessionReportTokenService> | undefined;
+
+function configuredTokenService() {
+  return (defaultTokenService ??= createSessionReportTokenService(
+    resolveDefaultSigningKey(),
+  ));
+}
 
 function resolveDefaultSigningKey(): string {
   if (process.env.INTERNAL_REPORT_SIGNING_SECRET) {
@@ -28,13 +33,13 @@ function resolveDefaultSigningKey(): string {
 }
 
 export function issueSessionReportToken(assessment: SessionAssessment): string {
-  return defaultTokenService.issue(assessment);
+  return configuredTokenService().issue(assessment);
 }
 
 export function verifySessionReportToken(
   token: string,
 ): ReportAssessmentSnapshot {
-  return defaultTokenService.verify(token);
+  return configuredTokenService().verify(token);
 }
 
 export function createSessionReportTokenService(
