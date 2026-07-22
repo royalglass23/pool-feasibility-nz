@@ -304,12 +304,12 @@ describe("runDataAccessSpike", () => {
     });
     expect(result.datasets.aerial_imagery).toMatchObject({
       status: "available",
-      evidenceUse: "spike_only",
+      evidenceUse: "report_allowed",
       evidenceType: "aerial_style_metadata",
       geometryUsed: null,
       confidence: "limited",
     });
-    expect(result.reportEligibleDatasets).not.toContain("aerial_imagery");
+    expect(result.reportEligibleDatasets).toContain("aerial_imagery");
   });
 
   it("keeps official dataset probes within the conservative concurrency limit", async () => {

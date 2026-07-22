@@ -206,7 +206,8 @@ export async function runDataAccessSpike(input: {
   );
   const reportEligibleDatasets = datasetKeys.filter(
     (key) =>
-      datasets[key].status === "success" &&
+      (datasets[key].status === "success" ||
+        datasets[key].status === "available") &&
       datasets[key].evidenceUse === "report_allowed",
   );
   const spikeOnlyDatasets = datasetKeys.filter(
@@ -527,7 +528,7 @@ async function observeAerial(
     return {
       ...commonEvidence,
       status: "available",
-      evidenceUse: "spike_only",
+      evidenceUse: "report_allowed",
       confidence: "limited",
       durationMs: result.durationMs,
       attribution: result.attribution,
