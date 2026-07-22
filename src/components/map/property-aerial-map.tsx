@@ -226,6 +226,14 @@ export function PropertyAerialMap({
           },
         );
       }
+      const reportHiddenLayerIds = [
+        ...(result.datasets.aerial_imagery.evidenceUse !== "report_allowed"
+          ? ["aerial"]
+          : []),
+        ...visibleMappedLayers
+          .filter(({ evidence }) => evidence.evidenceUse !== "report_allowed")
+          .map(({ definition }) => `official-${definition.key}`),
+      ];
       layers.push(
         {
           id: "parcel-fill",
@@ -278,10 +286,35 @@ export function PropertyAerialMap({
       map.once("idle", () => {
         if (!cancelled) {
           setTilesLoaded(true);
+          const restoreInteractiveLayers = () => {
+            for (const layerId of reportHiddenLayerIds) {
+              map?.setLayoutProperty(layerId, "visibility", "visible");
+            }
+          };
+          const captureReportSnapshot = () => {
+            if (cancelled) return;
+            try {
+              onSnapshotReady?.(
+                map?.getCanvas().toDataURL("image/png") ?? null,
+              );
+            } catch {
+              onSnapshotReady?.(null);
+            } finally {
+              restoreInteractiveLayers();
+            }
+          };
           try {
-            onSnapshotReady?.(map?.getCanvas().toDataURL("image/png") ?? null);
+            for (const layerId of reportHiddenLayerIds) {
+              map?.setLayoutProperty(layerId, "visibility", "none");
+            }
+            if (reportHiddenLayerIds.length > 0) {
+              map?.once("idle", captureReportSnapshot);
+            } else {
+              captureReportSnapshot();
+            }
           } catch {
             onSnapshotReady?.(null);
+            restoreInteractiveLayers();
           }
         }
       });

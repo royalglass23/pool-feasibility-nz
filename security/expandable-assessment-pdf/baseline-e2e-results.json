@@ -1,0 +1,39 @@
+{
+  "evidenceStatus": "historical-baseline",
+  "schemaVersion": 1,
+  "feature": "expandable-assessment-pdf",
+  "commit": "e47f4e6fd28a6ca4249f5d1a189c32ba6ad06933",
+  "command": "npx.cmd playwright test --config security/expandable-assessment-pdf/playwright.security.config.ts",
+  "retries": 0,
+  "environment": {
+    "name": "isolated-local-production-build",
+    "baseUrl": "http://127.0.0.1:3100",
+    "production": false,
+    "fingerprint": "sha256:fb1788a48dd5f22753faa10de132b832ab584d251429a913751529030a71a0e3"
+  },
+  "configHash": "sha256:0a985dee0bef06c5cfd67ff2de45644ebdf7033792a4571af3d6c525fc49ab6d",
+  "fixtureVersion": "normalized-data-access-v1@sha256:e23cc3d7d4c9fd1c59a06ea0bc3425b2f407b03d3750c0d0f9da124718af6996",
+  "matrixHash": "sha256:77dc982726770eae559ea0ccea4e7793c43e9d9c96b05fcdc5dcc1890784f61c",
+  "projects": ["chromium"],
+  "coverage": {
+    "required": 12,
+    "covered": 12
+  },
+  "counts": {
+    "total": 9,
+    "passed": 5,
+    "failed": 4,
+    "skipped": 0,
+    "flaky": 0
+  },
+  "artifacts": {
+    "report": "test-results/security-expandable-assessment-pdf/report/index.html",
+    "traces": [
+      "test-results/security-expandable-assessment-pdf/artifacts/report-security-rejects-no-277a7-injection-shaped-map-inputs-chromium/trace.zip",
+      "test-results/security-expandable-assessment-pdf/artifacts/report-security-rejects-ta-4d89c--of-minting-a-forged-report-chromium/trace.zip",
+      "test-results/security-expandable-assessment-pdf/artifacts/report-security-rejects-un-e9ab0-ort-content-before-Chromium-chromium/trace.zip",
+      "test-results/security-expandable-assessment-pdf/artifacts/report-security-bounds-con-aca04-h-an-explicit-busy-response-chromium/trace.zip"
+    ]
+  },
+  "verdict": "FAIL"
+}

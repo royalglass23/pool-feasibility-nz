@@ -39,10 +39,14 @@ import { humanizeIdentifierTitleCase as humanize } from "@/shared/text/humanize-
 
 type DataAccessApiResult = DataAccessSpikeResult & {
   assessmentExplanation?: AssessmentExplanation;
+  reportToken: string;
 };
 
 type ApiResponse =
-  | { data: DataAccessApiResult }
+  | {
+      data: Omit<DataAccessApiResult, "reportToken">;
+      reportToken: string;
+    }
   | {
       error: {
         code: string;
@@ -124,7 +128,7 @@ export function DataAccessInspector() {
         return;
       }
 
-      setResult(body.data);
+      setResult({ ...body.data, reportToken: body.reportToken });
       setCanRetry(false);
     } catch {
       setError(

@@ -31,6 +31,7 @@ import { humanizeIdentifierTitleCase as humanize } from "@/shared/text/humanize-
 
 export type AssessmentWorkspaceResult = DataAccessSpikeResult & {
   assessmentExplanation?: AssessmentExplanation;
+  reportToken: string;
 };
 
 const sectionIds = [
@@ -98,7 +99,10 @@ export function AssessmentWorkspace({
       const response = await fetch("/api/internal/report/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ assessment, mapImageDataUrl: mapImage }),
+        body: JSON.stringify({
+          reportToken: result.reportToken,
+          mapImageDataUrl: mapImage,
+        }),
       });
       if (!response.ok) {
         const body = (await response.json().catch(() => null)) as {
