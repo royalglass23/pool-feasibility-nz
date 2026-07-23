@@ -592,7 +592,7 @@ function PreviewPage({
       width={1200}
       height={700}
       unoptimized
-      className="mt-4 h-[42%] w-full rounded-lg object-cover"
+      className="mt-4 h-auto max-h-[42%] w-full rounded-lg object-contain"
     />
   ) : (
     <div className="mt-4 grid h-[42%] place-items-center rounded-lg bg-slate-200 text-sm text-slate-600">

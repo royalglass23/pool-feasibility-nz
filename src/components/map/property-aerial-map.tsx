@@ -146,51 +146,20 @@ export function PropertyAerialMap({
     placementPreset === "custom" && !placementAssessment
       ? "Enter length and width between 0.1 m and 30 m before assessing the placement."
       : null;
-  const reportHiddenLayerIds = useMemo(
-    () => [
-      ...(result.datasets.aerial_imagery.evidenceUse !== "report_allowed"
-        ? ["aerial"]
-        : []),
-      ...visibleMappedLayers
-        .filter(({ evidence }) => evidence.evidenceUse !== "report_allowed")
-        .map(({ definition }) => `official-${definition.key}`),
-    ],
-    [result.datasets.aerial_imagery.evidenceUse, visibleMappedLayers],
-  );
-  const captureReportSnapshot = useCallback(() => {
+  const captureReportSnapshot = useCallback((waitForIdle = false) => {
     const map = mapRef.current;
     if (!map) return;
-    const restoreInteractiveLayers = () => {
-      if (mapRef.current !== map) return;
-      for (const layerId of reportHiddenLayerIds) {
-        if (map.getLayer(layerId)) {
-          map.setLayoutProperty(layerId, "visibility", "visible");
-        }
-      }
-    };
     const capture = () => {
       if (mapRef.current !== map) return;
       try {
         onSnapshotReady?.(map.getCanvas().toDataURL("image/png"));
       } catch {
         onSnapshotReady?.(null);
-      } finally {
-        restoreInteractiveLayers();
       }
     };
-    try {
-      for (const layerId of reportHiddenLayerIds) {
-        if (map.getLayer(layerId)) {
-          map.setLayoutProperty(layerId, "visibility", "none");
-        }
-      }
-      if (reportHiddenLayerIds.length > 0) map.once("idle", capture);
-      else capture();
-    } catch {
-      onSnapshotReady?.(null);
-      restoreInteractiveLayers();
-    }
-  }, [onSnapshotReady, reportHiddenLayerIds]);
+    if (waitForIdle) map.once("idle", capture);
+    else capture();
+  }, [onSnapshotReady]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -204,6 +173,7 @@ export function PropertyAerialMap({
 
     let cancelled = false;
     let map: import("maplibre-gl").Map | undefined;
+    let captureAfterMove: (() => void) | undefined;
 
     async function loadMap() {
       setMapError(false);
@@ -422,7 +392,8 @@ export function PropertyAerialMap({
       }
       map.fitBounds(bounds, { padding: 48, maxZoom: 20, duration: 0 });
       map.on("error", () => setMapError(true));
-      map.on("moveend", captureReportSnapshot);
+      captureAfterMove = () => captureReportSnapshot(true);
+      map.on("moveend", captureAfterMove);
       map.once("idle", () => {
         if (!cancelled) {
           setTilesLoaded(true);
@@ -434,7 +405,7 @@ export function PropertyAerialMap({
     void loadMap().catch(() => setMapError(true));
     return () => {
       cancelled = true;
-      map?.off("moveend", captureReportSnapshot);
+      if (captureAfterMove) map?.off("moveend", captureAfterMove);
       map?.remove();
       mapRef.current = null;
     };
@@ -485,7 +456,7 @@ export function PropertyAerialMap({
           : "#0f766e",
     );
 
-    captureReportSnapshot();
+    captureReportSnapshot(true);
   }, [
     captureReportSnapshot,
     placementAssessment,
