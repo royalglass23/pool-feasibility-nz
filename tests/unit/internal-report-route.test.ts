@@ -9,6 +9,18 @@ const threePagePdf = Buffer.from(
 
 vi.mock("server-only", () => ({}));
 vi.mock("pino", () => ({ default: () => ({ info: logInfo }) }));
+vi.mock("puppeteer-core", () => ({
+  default: {
+    defaultArgs: vi.fn(({ args }: { args: string[] }) => args),
+    launch: launchBrowser,
+  },
+}));
+vi.mock("@sparticuz/chromium", () => ({
+  default: {
+    args: ["--disable-dev-shm-usage"],
+    executablePath: vi.fn(async () => "/opt/chromium"),
+  },
+}));
 
 import { POST } from "@/app/api/internal/report/pdf/route";
 import { buildSessionAssessment } from "@/modules/assessment/build-session-assessment";
@@ -24,6 +36,7 @@ afterEach(() => {
 describe("POST /api/internal/report/pdf security outcomes", () => {
   it("returns a three-page PDF without a Playwright browser cache", async () => {
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("VERCEL", "1");
     vi.stubEnv("PLAYWRIGHT_BROWSERS_PATH", "missing-playwright-browser-cache");
     vi.stubEnv(
       "INTERNAL_REPORT_SIGNING_SECRET",
@@ -51,9 +64,7 @@ describe("POST /api/internal/report/pdf security outcomes", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          reportToken: issueSessionReportToken(
-            buildSessionAssessment(result),
-          ),
+          reportToken: issueSessionReportToken(buildSessionAssessment(result)),
           mapImageDataUrl:
             "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGL5//8/AAAA//+rxzhLAAAABklEQVQDAAYOAwJctCtXAAAAAElFTkSuQmCC",
         }),
