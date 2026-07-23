@@ -20,7 +20,6 @@ import Image from "next/image";
 import { AssessmentExplanationResult } from "@/components/assessment-explanation-result";
 import { FeasibilityAssessmentResult } from "@/components/feasibility-assessment-result";
 import { PropertyAerialMap } from "@/components/map/property-aerial-map";
-import { PoolScenarioComparisonResult } from "@/components/pool-scenario-comparison-result";
 import { SessionAssessmentResult } from "@/components/session-assessment-result";
 import {
   buildSessionAssessment,
@@ -37,7 +36,6 @@ export type AssessmentWorkspaceResult = DataAccessSpikeResult & {
 
 const sectionIds = [
   "property",
-  "scenarios",
   "scoring",
   "risks",
   "sources",
@@ -231,8 +229,9 @@ export function AssessmentWorkspace({
         <div className="flex flex-wrap gap-2">
           <button
             type="button"
+            disabled={!mapImage}
             onClick={() => setPreview(true)}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 font-semibold text-white hover:bg-teal-800"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             <FileText className="size-4" aria-hidden="true" />
             Preview PDF report
@@ -307,15 +306,6 @@ export function AssessmentWorkspace({
             ]}
           />
         </div>
-      </Disclosure>
-      <Disclosure
-        id="scenarios"
-        title="Pool size options"
-        summary={`${result.scenarioComparison.successfulShells.length} sizes with a possible fit`}
-        open={openSections.has("scenarios")}
-        onToggle={toggle}
-      >
-        <PoolScenarioComparisonResult comparison={result.scenarioComparison} />
       </Disclosure>
       <Disclosure
         id="scoring"

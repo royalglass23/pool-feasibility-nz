@@ -12,10 +12,7 @@ import {
 import {
   legalParcelEvidenceForMap,
   spatialEvidenceForMap,
-  useAssistedPlacementSearch,
-} from "./assisted-placement-search";
-import { AssistedPlacementResults } from "./assisted-placement-results";
-import type { AssistedPlacementCandidate } from "@/modules/spatial/find-assisted-pool-placements";
+} from "./map-evidence";
 
 type DatasetKey = keyof DataAccessSpikeResult["datasets"];
 type MapLayerDefinition = {
@@ -154,22 +151,6 @@ export function PropertyAerialMap({
     placementPreset === "custom" && !placementAssessment
       ? "Enter length and width between 0.1 m and 30 m before assessing the placement."
       : null;
-  const {
-    assistedSearch,
-    assistedSearchLoading,
-    runAssistedSearch,
-  } = useAssistedPlacementSearch({
-    result,
-    dimensions: placementDimensions,
-    mapRef,
-    aerialVerified,
-  });
-
-  function selectAssistedCandidate(candidate: AssistedPlacementCandidate) {
-    setPosition(candidate.position);
-    setRotationDegrees(candidate.rotationDegrees);
-  }
-
   useEffect(() => {
     const container = containerRef.current;
     if (
@@ -517,6 +498,14 @@ export function PropertyAerialMap({
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
+    const reportHiddenLayerIds = [
+      ...(result.datasets.aerial_imagery.evidenceUse !== "report_allowed"
+        ? ["aerial"]
+        : []),
+      ...visibleMappedLayers
+        .filter(({ evidence }) => evidence.evidenceUse !== "report_allowed")
+        .map(({ definition }) => `official-${definition.key}`),
+    ];
     const emptyGeometry = {
       type: "FeatureCollection" as const,
       features: [],
@@ -550,13 +539,48 @@ export function PropertyAerialMap({
           ? "#d97706"
           : "#0f766e",
     );
+
+    const restoreInteractiveLayers = () => {
+      for (const layerId of reportHiddenLayerIds) {
+        if (mapRef.current === map && map.getLayer(layerId)) {
+          map.setLayoutProperty(layerId, "visibility", "visible");
+        }
+      }
+    };
+    const captureUpdatedReportSnapshot = () => {
+      if (mapRef.current !== map) return;
+      try {
+        for (const layerId of reportHiddenLayerIds) {
+          if (map.getLayer(layerId)) {
+            map.setLayoutProperty(layerId, "visibility", "none");
+          }
+        }
+        map.once("idle", () => {
+          if (mapRef.current !== map) return;
+          try {
+            onSnapshotReady?.(map.getCanvas().toDataURL("image/png"));
+          } catch {
+            onSnapshotReady?.(null);
+          } finally {
+            restoreInteractiveLayers();
+          }
+        });
+      } catch {
+        onSnapshotReady?.(null);
+        restoreInteractiveLayers();
+      }
+    };
+    map.once("idle", captureUpdatedReportSnapshot);
   }, [
+    onSnapshotReady,
     placementAssessment,
     placementAssessment?.classification,
     placementAssessment?.envelopes.access,
     placementAssessment?.envelopes.barrier,
     placementAssessment?.envelopes.constructionAllowance,
     placementAssessment?.shell,
+    result.datasets.aerial_imagery.evidenceUse,
+    visibleMappedLayers,
   ]);
 
   return (
@@ -702,24 +726,12 @@ export function PropertyAerialMap({
           onRotate={() => setRotationDegrees((value) => (value + 15) % 360)}
           placementPreset={placementPreset}
           validationMessage={placementValidationMessage}
-          onFindBest={runAssistedSearch}
-          searchDisabled={
-            assistedSearchLoading ||
-            !placementDimensions ||
-            Boolean(placementValidationMessage)
-          }
         />
       ) : (
         <div className="border-t border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
           Placement controls are unavailable until the legal parcel is
           confirmed. No placement recommendation is exposed.
         </div>
-      )}
-      {result.parcelMatch.status === "mapped_primary_parcel" && (
-        <AssistedPlacementResults
-          result={assistedSearch}
-          onSelectCandidate={selectAssistedCandidate}
-        />
       )}
       <div className="flex flex-col gap-2 bg-white px-5 py-3 text-xs leading-5 text-slate-600 sm:flex-row sm:items-center sm:justify-between">
         <p>
@@ -752,8 +764,6 @@ function PlacementControls({
   onRotate,
   placementPreset,
   validationMessage,
-  onFindBest,
-  searchDisabled,
 }: {
   assessment: CustomPoolPlacementAssessment | null;
   customLength: string;
@@ -765,8 +775,6 @@ function PlacementControls({
   onRotate: () => void;
   placementPreset: string;
   validationMessage: string | null;
-  onFindBest: () => void;
-  searchDisabled: boolean;
 }) {
   return (
     <div
@@ -856,14 +864,6 @@ function PlacementControls({
           m. Rotation: {assessment?.rotationDegrees ?? 0}°.
         </p>
       )}
-      <button
-        type="button"
-        onClick={onFindBest}
-        disabled={searchDisabled}
-        className="mt-4 min-h-11 rounded-xl bg-teal-800 px-4 text-sm font-semibold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:bg-slate-300"
-      >
-        Find best available position
-      </button>
       {assessment && <PlacementStatus assessment={assessment} />}
       <div
         className="mt-4 grid gap-2 text-xs text-slate-700 sm:grid-cols-4"
