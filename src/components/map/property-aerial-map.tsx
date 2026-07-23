@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Feature, FeatureCollection, Point } from "geojson";
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
@@ -64,11 +64,6 @@ export function PropertyAerialMap({
   const [rotationDegrees, setRotationDegrees] = useState(0);
   const [position, setPosition] = useState<readonly [number, number]>(
     result.resolvedAddress.coordinates,
-  );
-  const recommendedAnalysis = result.scenarioComparison.scenarios.find(
-    (analysis) =>
-      analysis.scenario.id ===
-      result.scenarioComparison.recommendedShell?.scenarioId,
   );
   const aerialConfigured =
     result.datasets.aerial_imagery.status === "available";
@@ -151,6 +146,52 @@ export function PropertyAerialMap({
     placementPreset === "custom" && !placementAssessment
       ? "Enter length and width between 0.1 m and 30 m before assessing the placement."
       : null;
+  const reportHiddenLayerIds = useMemo(
+    () => [
+      ...(result.datasets.aerial_imagery.evidenceUse !== "report_allowed"
+        ? ["aerial"]
+        : []),
+      ...visibleMappedLayers
+        .filter(({ evidence }) => evidence.evidenceUse !== "report_allowed")
+        .map(({ definition }) => `official-${definition.key}`),
+    ],
+    [result.datasets.aerial_imagery.evidenceUse, visibleMappedLayers],
+  );
+  const captureReportSnapshot = useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const restoreInteractiveLayers = () => {
+      if (mapRef.current !== map) return;
+      for (const layerId of reportHiddenLayerIds) {
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(layerId, "visibility", "visible");
+        }
+      }
+    };
+    const capture = () => {
+      if (mapRef.current !== map) return;
+      try {
+        onSnapshotReady?.(map.getCanvas().toDataURL("image/png"));
+      } catch {
+        onSnapshotReady?.(null);
+      } finally {
+        restoreInteractiveLayers();
+      }
+    };
+    try {
+      for (const layerId of reportHiddenLayerIds) {
+        if (map.getLayer(layerId)) {
+          map.setLayoutProperty(layerId, "visibility", "none");
+        }
+      }
+      if (reportHiddenLayerIds.length > 0) map.once("idle", capture);
+      else capture();
+    } catch {
+      onSnapshotReady?.(null);
+      restoreInteractiveLayers();
+    }
+  }, [onSnapshotReady, reportHiddenLayerIds]);
+
   useEffect(() => {
     const container = containerRef.current;
     if (
@@ -260,66 +301,6 @@ export function PropertyAerialMap({
           });
         }
       }
-      if (recommendedAnalysis && recommendedAnalysis.candidates.length > 0) {
-        sources["recommended-envelopes"] = {
-          type: "geojson",
-          data: {
-            type: "FeatureCollection",
-            features: recommendedAnalysis.candidates.map((candidate) => ({
-              ...candidate.envelope,
-              properties: { candidateRank: candidate.rank },
-            })),
-          },
-        };
-        sources["recommended-shells"] = {
-          type: "geojson",
-          data: {
-            type: "FeatureCollection",
-            features: recommendedAnalysis.candidates.map((candidate) => ({
-              ...candidate.shell,
-              properties: { candidateRank: candidate.rank },
-            })),
-          },
-        };
-        layers.push(
-          {
-            id: "recommended-envelope-fill",
-            type: "fill",
-            source: "recommended-envelopes",
-            paint: { "fill-color": "#facc15", "fill-opacity": 0.16 },
-          },
-          {
-            id: "recommended-envelope-outline",
-            type: "line",
-            source: "recommended-envelopes",
-            paint: {
-              "line-color": "#ca8a04",
-              "line-width": 2,
-              "line-dasharray": [2, 2],
-            },
-          },
-          {
-            id: "recommended-shell-fill",
-            type: "fill",
-            source: "recommended-shells",
-            paint: { "fill-color": "#14b8a6", "fill-opacity": 0.5 },
-          },
-          {
-            id: "recommended-shell-outline",
-            type: "line",
-            source: "recommended-shells",
-            paint: { "line-color": "#0f766e", "line-width": 3 },
-          },
-        );
-      }
-      const reportHiddenLayerIds = [
-        ...(result.datasets.aerial_imagery.evidenceUse !== "report_allowed"
-          ? ["aerial"]
-          : []),
-        ...visibleMappedLayers
-          .filter(({ evidence }) => evidence.evidenceUse !== "report_allowed")
-          .map(({ definition }) => `official-${definition.key}`),
-      ];
       if (placementAssessment) {
         layers.push(
           {
@@ -441,39 +422,11 @@ export function PropertyAerialMap({
       }
       map.fitBounds(bounds, { padding: 48, maxZoom: 20, duration: 0 });
       map.on("error", () => setMapError(true));
+      map.on("moveend", captureReportSnapshot);
       map.once("idle", () => {
         if (!cancelled) {
           setTilesLoaded(true);
-          const restoreInteractiveLayers = () => {
-            for (const layerId of reportHiddenLayerIds) {
-              map?.setLayoutProperty(layerId, "visibility", "visible");
-            }
-          };
-          const captureReportSnapshot = () => {
-            if (cancelled) return;
-            try {
-              onSnapshotReady?.(
-                map?.getCanvas().toDataURL("image/png") ?? null,
-              );
-            } catch {
-              onSnapshotReady?.(null);
-            } finally {
-              restoreInteractiveLayers();
-            }
-          };
-          try {
-            for (const layerId of reportHiddenLayerIds) {
-              map?.setLayoutProperty(layerId, "visibility", "none");
-            }
-            if (reportHiddenLayerIds.length > 0) {
-              map?.once("idle", captureReportSnapshot);
-            } else {
-              captureReportSnapshot();
-            }
-          } catch {
-            onSnapshotReady?.(null);
-            restoreInteractiveLayers();
-          }
+          captureReportSnapshot();
         }
       });
     }
@@ -481,6 +434,7 @@ export function PropertyAerialMap({
     void loadMap().catch(() => setMapError(true));
     return () => {
       cancelled = true;
+      map?.off("moveend", captureReportSnapshot);
       map?.remove();
       mapRef.current = null;
     };
@@ -489,23 +443,14 @@ export function PropertyAerialMap({
   }, [
     aerialAttribution,
     aerialConfigured,
-    recommendedAnalysis,
     result,
     visibleMappedLayers,
-    onSnapshotReady,
+    captureReportSnapshot,
   ]);
 
   useEffect(() => {
     const map = mapRef.current;
     if (!map) return;
-    const reportHiddenLayerIds = [
-      ...(result.datasets.aerial_imagery.evidenceUse !== "report_allowed"
-        ? ["aerial"]
-        : []),
-      ...visibleMappedLayers
-        .filter(({ evidence }) => evidence.evidenceUse !== "report_allowed")
-        .map(({ definition }) => `official-${definition.key}`),
-    ];
     const emptyGeometry = {
       type: "FeatureCollection" as const,
       features: [],
@@ -540,47 +485,15 @@ export function PropertyAerialMap({
           : "#0f766e",
     );
 
-    const restoreInteractiveLayers = () => {
-      for (const layerId of reportHiddenLayerIds) {
-        if (mapRef.current === map && map.getLayer(layerId)) {
-          map.setLayoutProperty(layerId, "visibility", "visible");
-        }
-      }
-    };
-    const captureUpdatedReportSnapshot = () => {
-      if (mapRef.current !== map) return;
-      try {
-        for (const layerId of reportHiddenLayerIds) {
-          if (map.getLayer(layerId)) {
-            map.setLayoutProperty(layerId, "visibility", "none");
-          }
-        }
-        map.once("idle", () => {
-          if (mapRef.current !== map) return;
-          try {
-            onSnapshotReady?.(map.getCanvas().toDataURL("image/png"));
-          } catch {
-            onSnapshotReady?.(null);
-          } finally {
-            restoreInteractiveLayers();
-          }
-        });
-      } catch {
-        onSnapshotReady?.(null);
-        restoreInteractiveLayers();
-      }
-    };
-    map.once("idle", captureUpdatedReportSnapshot);
+    captureReportSnapshot();
   }, [
-    onSnapshotReady,
+    captureReportSnapshot,
     placementAssessment,
     placementAssessment?.classification,
     placementAssessment?.envelopes.access,
     placementAssessment?.envelopes.barrier,
     placementAssessment?.envelopes.constructionAllowance,
     placementAssessment?.shell,
-    result.datasets.aerial_imagery.evidenceUse,
-    visibleMappedLayers,
   ]);
 
   return (
@@ -677,15 +590,6 @@ export function PropertyAerialMap({
         <div>
           <h4 className="font-semibold text-slate-950">Legend</h4>
           <ul className="mt-3 space-y-2 text-sm text-slate-600">
-            {recommendedAnalysis?.candidates.map((candidate) => (
-              <li key={candidate.id} className="flex items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className="size-3 rounded-sm bg-teal-500 ring-2 ring-yellow-400"
-                />
-                Recommended-size candidate {candidate.rank}
-              </li>
-            ))}
             {visibleMappedLayers.map(({ definition, evidence }) => (
               <li key={definition.key} className="flex items-center gap-2">
                 <span
