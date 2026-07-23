@@ -10,6 +10,270 @@ import type { PoolScenarioComparison } from "@/modules/spatial/analyze-pool-scen
 const address = "42A Bahari Drive, Ranui, Auckland";
 const secondAddress = "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland";
 
+test("supports manual placement controls, validation, rotation, and conflict states", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: dataAccessResult }),
+    });
+  });
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Manual pool placement" }),
+  ).toBeVisible();
+  await expect(page.getByText("Pool shell", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Advisory aerial imagery conflict review"),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Custom size" }).click();
+  await page.getByLabel("Length (m)").fill("31");
+  await page.getByLabel("Width (m)").fill("4");
+  await expect(
+    page.getByText("Enter length and width between 0.1 m and 30 m", {
+      exact: false,
+    }),
+  ).toBeVisible();
+
+  await page.getByLabel("Length (m)").fill("8");
+  await expect(page.getByText("Selected shell: 8 m × 4 m.")).toBeVisible();
+  await page.getByRole("button", { name: "Rotate 15°" }).click();
+  await expect(page.getByText(/Rotation: 15°/)).toBeVisible();
+});
+
+test("shows three ranked assisted placement options for a custom size", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    const empty = { type: "FeatureCollection", features: [] };
+    const available = [
+      "building_footprints",
+      "planning_zone",
+      "planning_overlays",
+      "flood_prone_areas",
+      "flood_plains",
+      "overland_flow_paths",
+      "wastewater_assets",
+      "public_water_assets",
+      "public_stormwater_assets",
+    ];
+    const datasets = { ...dataAccessResult.datasets } as Record<
+      string,
+      Record<string, unknown>
+    >;
+    for (const key of available) {
+      datasets[key as keyof typeof datasets] = {
+        ...datasets[key as keyof typeof datasets],
+        status: "success",
+        geometry: empty,
+      };
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: { ...dataAccessResult, datasets } }),
+    });
+  });
+  await page.route("**/api/internal/aerial-conflicts", async (route) => {
+    const request = route.request().postDataJSON() as {
+      candidate: { id: string };
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        source: "provider",
+        candidateId: request.candidate.id,
+        findings: [
+          {
+            type: "vegetation_obstruction",
+            confidence: "low",
+            explanation: "Visible vegetation requires onsite inspection.",
+            evidenceStatus: "possible",
+            inspectionRequirement: "required",
+          },
+        ],
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
+  await page.getByRole("button", { name: "Custom size" }).click();
+  await page.getByLabel("Length (m)").fill("6");
+  await page.getByLabel("Width (m)").fill("3");
+  await page
+    .getByRole("button", { name: "Find best available position" })
+    .click();
+
+  await expect(
+    page.getByRole("heading", { name: "Assisted placement options" }),
+  ).toBeVisible();
+  await expect(page.getByText("Option 1", { exact: true })).toBeVisible();
+  await expect(page.getByText("Option 2", { exact: true })).toBeVisible();
+  await expect(page.getByText("Option 3", { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Show this option on map" }),
+  ).toHaveCount(3);
+  await expect(
+    page.getByText("Advisory imagery finding: onsite inspection required.", {
+      exact: true,
+    }),
+  ).toHaveCount(3);
+});
+
+test("keeps assisted search inspection-required for an unconfirmed parcel", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          ...dataAccessResult,
+          parcelMatch: {
+            status: "containing_parcel_requires_confirmation",
+            reasons: [
+              "The containing parcel has not been confirmed for this address.",
+            ],
+          },
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
+
+  await expect(
+    page.getByText(
+      "Placement controls are unavailable until the legal parcel is confirmed.",
+      { exact: false },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Find best available position" }),
+  ).toHaveCount(0);
+});
+
+test("shows no-clear assisted placement when every tested shell overlaps a building", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    const datasets = { ...dataAccessResult.datasets } as Record<
+      string,
+      Record<string, unknown>
+    >;
+    datasets.building_footprints = {
+      ...datasets.building_footprints,
+      status: "success",
+      geometry: {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: {},
+            geometry: dataAccessResult.parcel.geometry,
+          },
+        ],
+      },
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: { ...dataAccessResult, datasets } }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
+  await page.getByRole("button", { name: "Custom size" }).click();
+  await page.getByLabel("Length (m)").fill("6");
+  await page.getByLabel("Width (m)").fill("3");
+  await page
+    .getByRole("button", { name: "Find best available position" })
+    .click();
+
+  await expect(
+    page.getByText(
+      "No clear candidate is available for this size and evidence set.",
+      {
+        exact: true,
+      },
+    ),
+  ).toBeVisible();
+});
+
+test("shows explicit provider failure after deterministic candidates are found", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    const empty = { type: "FeatureCollection", features: [] };
+    const datasets = { ...dataAccessResult.datasets } as Record<
+      string,
+      Record<string, unknown>
+    >;
+    for (const key of [
+      "building_footprints",
+      "planning_zone",
+      "planning_overlays",
+      "flood_prone_areas",
+      "flood_plains",
+      "overland_flow_paths",
+      "wastewater_assets",
+      "public_water_assets",
+      "public_stormwater_assets",
+    ]) {
+      datasets[key] = { ...datasets[key], status: "success", geometry: empty };
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: { ...dataAccessResult, datasets } }),
+    });
+  });
+  await page.route("**/api/internal/aerial-conflicts", (route) =>
+    route.abort("failed"),
+  );
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
+  await page.getByRole("button", { name: "Custom size" }).click();
+  await page.getByLabel("Length (m)").fill("6");
+  await page.getByLabel("Width (m)").fill("3");
+  await page
+    .getByRole("button", { name: "Find best available position" })
+    .click();
+
+  await expect(
+    page.getByText(
+      "Clear GIS candidates were found, but the advisory imagery provider failed; onsite inspection is required.",
+      { exact: true },
+    ),
+  ).toBeVisible();
+});
+
 test("shows the controlled AI-enabled explanation without changing deterministic findings", async ({
   page,
 }) => {
@@ -209,7 +473,9 @@ test("keeps pool scenario status badges on one line", async ({ page }) => {
   await page.getByRole("button", { name: "Fetch property data" }).click();
   await page.getByRole("button", { name: "Expand all" }).click();
 
-  const badges = page.getByText("Possible With Constraints", { exact: true });
+  const badges = page.getByText("Possible fit — site checks needed", {
+    exact: true,
+  });
   await expect(badges.first()).toBeVisible();
   for (const badge of await badges.all()) {
     const lineCount = await badge.evaluate((element) => {

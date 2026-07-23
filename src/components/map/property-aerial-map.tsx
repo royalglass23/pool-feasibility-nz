@@ -5,6 +5,17 @@ import type { Feature, FeatureCollection, Point } from "geojson";
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
 import { escapeHtml } from "@/shared/html/escape-html";
+import {
+  assessCustomPoolPlacement,
+  type CustomPoolPlacementAssessment,
+} from "@/modules/spatial/assess-custom-pool-placement";
+import {
+  legalParcelEvidenceForMap,
+  spatialEvidenceForMap,
+  useAssistedPlacementSearch,
+} from "./assisted-placement-search";
+import { AssistedPlacementResults } from "./assisted-placement-results";
+import type { AssistedPlacementCandidate } from "@/modules/spatial/find-assisted-pool-placements";
 
 type DatasetKey = keyof DataAccessSpikeResult["datasets"];
 type MapLayerDefinition = {
@@ -44,11 +55,19 @@ export function PropertyAerialMap({
   onSnapshotReady?: (dataUrl: string | null) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const mapRef = useRef<import("maplibre-gl").Map | null>(null);
   const [mapError, setMapError] = useState(false);
   const [tilesLoaded, setTilesLoaded] = useState(false);
   const [layerVisibility, setLayerVisibility] = useState<
     Record<string, boolean>
   >({});
+  const [placementPreset, setPlacementPreset] = useState("compact");
+  const [customLength, setCustomLength] = useState("6");
+  const [customWidth, setCustomWidth] = useState("3");
+  const [rotationDegrees, setRotationDegrees] = useState(0);
+  const [position, setPosition] = useState<readonly [number, number]>(
+    result.resolvedAddress.coordinates,
+  );
   const recommendedAnalysis = result.scenarioComparison.scenarios.find(
     (analysis) =>
       analysis.scenario.id ===
@@ -78,6 +97,78 @@ export function PropertyAerialMap({
       ),
     [layerVisibility, mappedLayers],
   );
+  const placementScenarios = useMemo(
+    () => result.scenarioComparison.scenarios,
+    [result.scenarioComparison.scenarios],
+  );
+  const selectedPresetDimensions = useMemo(() => {
+    const scenario = placementScenarios.find(
+      (item) => item.scenario.id === placementPreset,
+    );
+    return scenario
+      ? {
+          lengthMetres: scenario.scenario.shellLengthMetres,
+          widthMetres: scenario.scenario.shellWidthMetres,
+        }
+      : null;
+  }, [placementPreset, placementScenarios]);
+  const placementDimensions = useMemo(
+    () =>
+      placementPreset === "custom"
+        ? {
+            lengthMetres: Number(customLength),
+            widthMetres: Number(customWidth),
+          }
+        : selectedPresetDimensions,
+    [customLength, customWidth, placementPreset, selectedPresetDimensions],
+  );
+  const placementAssessment =
+    useMemo<CustomPoolPlacementAssessment | null>(() => {
+      if (!placementDimensions) return null;
+      try {
+        return assessCustomPoolPlacement({
+          parcel: result.parcel.geometry,
+          parcelStatus:
+            result.parcelMatch.status === "mapped_primary_parcel"
+              ? "confirmed"
+              : "unconfirmed",
+          position,
+          rotationDegrees,
+          lengthMetres: placementDimensions.lengthMetres,
+          widthMetres: placementDimensions.widthMetres,
+          parcelEvidence: legalParcelEvidenceForMap(result),
+          buildings: spatialEvidenceForMap("building_footprints", result),
+          constraints: [
+            "planning_zone",
+            "planning_overlays",
+            "flood_plains",
+            "flood_prone_areas",
+            "overland_flow_paths",
+          ].map((key) => spatialEvidenceForMap(key, result)),
+        });
+      } catch {
+        return null;
+      }
+    }, [placementDimensions, position, result, rotationDegrees]);
+  const placementValidationMessage =
+    placementPreset === "custom" && !placementAssessment
+      ? "Enter length and width between 0.1 m and 30 m before assessing the placement."
+      : null;
+  const {
+    assistedSearch,
+    assistedSearchLoading,
+    runAssistedSearch,
+  } = useAssistedPlacementSearch({
+    result,
+    dimensions: placementDimensions,
+    mapRef,
+    aerialVerified,
+  });
+
+  function selectAssistedCandidate(candidate: AssistedPlacementCandidate) {
+    setPosition(candidate.position);
+    setRotationDegrees(candidate.rotationDegrees);
+  }
 
   useEffect(() => {
     const container = containerRef.current;
@@ -126,6 +217,16 @@ export function PropertyAerialMap({
             features: [addressFeature],
           } satisfies FeatureCollection,
         },
+        "placement-shell": geoJsonSource(placementAssessment?.shell),
+        "placement-construction": geoJsonSource(
+          placementAssessment?.envelopes.constructionAllowance,
+        ),
+        "placement-barrier": geoJsonSource(
+          placementAssessment?.envelopes.barrier,
+        ),
+        "placement-access": geoJsonSource(
+          placementAssessment?.envelopes.access,
+        ),
       };
       const layers: LayerSpecification[] = [];
       if (aerialConfigured) {
@@ -238,6 +339,60 @@ export function PropertyAerialMap({
           .filter(({ evidence }) => evidence.evidenceUse !== "report_allowed")
           .map(({ definition }) => `official-${definition.key}`),
       ];
+      if (placementAssessment) {
+        layers.push(
+          {
+            id: "placement-access-line",
+            type: "line",
+            source: "placement-access",
+            paint: {
+              "line-color": "#2563eb",
+              "line-width": 3,
+              "line-dasharray": [1, 2],
+            },
+          },
+          {
+            id: "placement-barrier-line",
+            type: "line",
+            source: "placement-barrier",
+            paint: {
+              "line-color": "#7c3aed",
+              "line-width": 3,
+              "line-dasharray": [2, 1],
+            },
+          },
+          {
+            id: "placement-construction-line",
+            type: "line",
+            source: "placement-construction",
+            paint: {
+              "line-color": "#d97706",
+              "line-width": 3,
+              "line-dasharray": [3, 2],
+            },
+          },
+          {
+            id: "placement-shell-fill",
+            type: "fill",
+            source: "placement-shell",
+            paint: {
+              "fill-color":
+                placementAssessment?.classification === "hard_conflict"
+                  ? "#dc2626"
+                  : placementAssessment?.classification === "unknown"
+                    ? "#d97706"
+                    : "#0f766e",
+              "fill-opacity": 0.72,
+            },
+          },
+          {
+            id: "placement-shell-outline",
+            type: "line",
+            source: "placement-shell",
+            paint: { "line-color": "#0f172a", "line-width": 3 },
+          },
+        );
+      }
       layers.push(
         {
           id: "parcel-fill",
@@ -277,7 +432,25 @@ export function PropertyAerialMap({
         zoom: 18,
         canvasContextAttributes: { preserveDrawingBuffer: true },
       });
-      map.addControl(new maplibregl.NavigationControl(), "top-right");
+      const activeMap = map;
+      mapRef.current = activeMap;
+      activeMap.addControl(new maplibregl.NavigationControl(), "top-right");
+
+      let dragging = false;
+      activeMap.on("mousedown", "placement-shell-fill", (event) => {
+        dragging = true;
+        activeMap.getCanvas().style.cursor = "grabbing";
+        activeMap.dragPan.disable();
+        setPosition(activeMap.unproject(event.point).toArray());
+      });
+      activeMap.on("mousemove", (event) => {
+        if (dragging) setPosition(activeMap.unproject(event.point).toArray());
+      });
+      activeMap.on("mouseup", () => {
+        dragging = false;
+        activeMap.getCanvas().style.cursor = "";
+        activeMap.dragPan.enable();
+      });
 
       const bounds = new maplibregl.LngLatBounds();
       for (const ring of result.parcel.geometry.coordinates) {
@@ -328,7 +501,10 @@ export function PropertyAerialMap({
     return () => {
       cancelled = true;
       map?.remove();
+      mapRef.current = null;
     };
+    // Placement geometry is updated through the source-sync effect below; rebuilding the map on every drag would interrupt pointer interaction.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     aerialAttribution,
     aerialConfigured,
@@ -336,6 +512,51 @@ export function PropertyAerialMap({
     result,
     visibleMappedLayers,
     onSnapshotReady,
+  ]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const emptyGeometry = {
+      type: "FeatureCollection" as const,
+      features: [],
+    };
+    for (const [sourceId, geometry] of [
+      ["placement-shell", placementAssessment?.shell ?? emptyGeometry],
+      [
+        "placement-construction",
+        placementAssessment?.envelopes.constructionAllowance ?? emptyGeometry,
+      ],
+      [
+        "placement-barrier",
+        placementAssessment?.envelopes.barrier ?? emptyGeometry,
+      ],
+      [
+        "placement-access",
+        placementAssessment?.envelopes.access ?? emptyGeometry,
+      ],
+    ] as const) {
+      const source = map.getSource(sourceId) as
+        import("maplibre-gl").GeoJSONSource | undefined;
+      source?.setData(geometry);
+    }
+    if (!placementAssessment) return;
+    map.setPaintProperty(
+      "placement-shell-fill",
+      "fill-color",
+      placementAssessment.classification === "hard_conflict"
+        ? "#dc2626"
+        : placementAssessment.classification === "unknown"
+          ? "#d97706"
+          : "#0f766e",
+    );
+  }, [
+    placementAssessment,
+    placementAssessment?.classification,
+    placementAssessment?.envelopes.access,
+    placementAssessment?.envelopes.barrier,
+    placementAssessment?.envelopes.constructionAllowance,
+    placementAssessment?.shell,
   ]);
 
   return (
@@ -466,6 +687,40 @@ export function PropertyAerialMap({
         </div>
       </div>
       <div ref={containerRef} className="h-96 w-full bg-slate-800" />
+      {result.parcelMatch.status === "mapped_primary_parcel" ? (
+        <PlacementControls
+          assessment={placementAssessment}
+          customLength={customLength}
+          customWidth={customWidth}
+          dimensions={placementDimensions}
+          onCustomLength={setCustomLength}
+          onCustomWidth={setCustomWidth}
+          onPreset={(value) => {
+            setPlacementPreset(value);
+            if (value !== "custom") setRotationDegrees(0);
+          }}
+          onRotate={() => setRotationDegrees((value) => (value + 15) % 360)}
+          placementPreset={placementPreset}
+          validationMessage={placementValidationMessage}
+          onFindBest={runAssistedSearch}
+          searchDisabled={
+            assistedSearchLoading ||
+            !placementDimensions ||
+            Boolean(placementValidationMessage)
+          }
+        />
+      ) : (
+        <div className="border-t border-amber-200 bg-amber-50 px-5 py-4 text-sm text-amber-950">
+          Placement controls are unavailable until the legal parcel is
+          confirmed. No placement recommendation is exposed.
+        </div>
+      )}
+      {result.parcelMatch.status === "mapped_primary_parcel" && (
+        <AssistedPlacementResults
+          result={assistedSearch}
+          onSelectCandidate={selectAssistedCandidate}
+        />
+      )}
       <div className="flex flex-col gap-2 bg-white px-5 py-3 text-xs leading-5 text-slate-600 sm:flex-row sm:items-center sm:justify-between">
         <p>
           {mapError
@@ -484,6 +739,215 @@ export function PropertyAerialMap({
       </div>
     </section>
   );
+}
+
+function PlacementControls({
+  assessment,
+  customLength,
+  customWidth,
+  dimensions,
+  onCustomLength,
+  onCustomWidth,
+  onPreset,
+  onRotate,
+  placementPreset,
+  validationMessage,
+  onFindBest,
+  searchDisabled,
+}: {
+  assessment: CustomPoolPlacementAssessment | null;
+  customLength: string;
+  customWidth: string;
+  dimensions: { lengthMetres: number; widthMetres: number } | null;
+  onCustomLength: (value: string) => void;
+  onCustomWidth: (value: string) => void;
+  onPreset: (value: string) => void;
+  onRotate: () => void;
+  placementPreset: string;
+  validationMessage: string | null;
+  onFindBest: () => void;
+  searchDisabled: boolean;
+}) {
+  return (
+    <div
+      className="border-t border-slate-200 bg-white px-5 py-5"
+      aria-label="Manual pool placement workspace"
+    >
+      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+        <div>
+          <h4 className="font-semibold text-slate-950">
+            Manual pool placement
+          </h4>
+          <p className="mt-1 text-sm text-slate-600">
+            Drag the selected pool on the map. Rotate it in 15° steps.
+          </p>
+        </div>
+        <div
+          className="flex flex-wrap gap-2"
+          role="group"
+          aria-label="Pool size controls"
+        >
+          {(["compact", "compact-plus", "standard"] as const).map((id) => (
+            <button
+              key={id}
+              type="button"
+              aria-pressed={placementPreset === id}
+              onClick={() => onPreset(id)}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold hover:border-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50"
+            >
+              {id.replaceAll("-", " ")}
+            </button>
+          ))}
+          <button
+            type="button"
+            aria-pressed={placementPreset === "custom"}
+            onClick={() => onPreset("custom")}
+            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold hover:border-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50"
+          >
+            Custom size
+          </button>
+          <button
+            type="button"
+            onClick={onRotate}
+            className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800"
+          >
+            Rotate 15°
+          </button>
+        </div>
+      </div>
+      {placementPreset === "custom" && (
+        <div className="mt-4 grid max-w-xl gap-3 sm:grid-cols-2">
+          <label className="text-sm font-medium text-slate-800">
+            Length (m)
+            <input
+              inputMode="decimal"
+              type="number"
+              min="0.1"
+              max="30"
+              step="0.1"
+              value={customLength}
+              onChange={(event) => onCustomLength(event.target.value)}
+              className="mt-1 block min-h-10 w-full rounded-lg border border-slate-300 px-3"
+            />
+          </label>
+          <label className="text-sm font-medium text-slate-800">
+            Width (m)
+            <input
+              inputMode="decimal"
+              type="number"
+              min="0.1"
+              max="30"
+              step="0.1"
+              value={customWidth}
+              onChange={(event) => onCustomWidth(event.target.value)}
+              className="mt-1 block min-h-10 w-full rounded-lg border border-slate-300 px-3"
+            />
+          </label>
+        </div>
+      )}
+      {validationMessage && (
+        <p role="alert" className="mt-3 text-sm font-semibold text-red-700">
+          {validationMessage}
+        </p>
+      )}
+      {dimensions && (
+        <p className="mt-3 text-sm text-slate-700">
+          Selected shell: {dimensions.lengthMetres} m × {dimensions.widthMetres}{" "}
+          m. Rotation: {assessment?.rotationDegrees ?? 0}°.
+        </p>
+      )}
+      <button
+        type="button"
+        onClick={onFindBest}
+        disabled={searchDisabled}
+        className="mt-4 min-h-11 rounded-xl bg-teal-800 px-4 text-sm font-semibold text-white hover:bg-teal-900 disabled:cursor-not-allowed disabled:bg-slate-300"
+      >
+        Find best available position
+      </button>
+      {assessment && <PlacementStatus assessment={assessment} />}
+      <div
+        className="mt-4 grid gap-2 text-xs text-slate-700 sm:grid-cols-4"
+        aria-label="Placement overlay legend"
+      >
+        <span>
+          <i
+            className="mr-2 inline-block size-3 rounded-sm bg-teal-700"
+            aria-hidden="true"
+          />
+          Pool shell
+        </span>
+        <span>
+          <i
+            className="mr-2 inline-block size-3 rounded-sm bg-amber-600"
+            aria-hidden="true"
+          />
+          Construction allowance
+        </span>
+        <span>
+          <i
+            className="mr-2 inline-block size-3 rounded-sm bg-violet-600"
+            aria-hidden="true"
+          />
+          Indicative barrier
+        </span>
+        <span>
+          <i
+            className="mr-2 inline-block size-3 rounded-sm bg-blue-600"
+            aria-hidden="true"
+          />
+          Access envelope
+        </span>
+      </div>
+    </div>
+  );
+}
+
+function PlacementStatus({
+  assessment,
+}: {
+  assessment: CustomPoolPlacementAssessment;
+}) {
+  return (
+    <div className="mt-4 grid gap-3 sm:grid-cols-2" aria-live="polite">
+      <div
+        className={
+          assessment.classification === "hard_conflict"
+            ? "rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-950"
+            : "rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950"
+        }
+      >
+        <strong>
+          {assessment.classification === "hard_conflict"
+            ? "Hard GIS conflict"
+            : assessment.classification === "unknown"
+              ? "Evidence incomplete"
+              : "No measured GIS conflict"}
+        </strong>
+        <ul className="mt-1 list-disc pl-5">
+          {assessment.hardConflicts.map((item) => (
+            <li key={`${item.type}-${item.evidenceId}`}>{item.message}</li>
+          ))}
+          {assessment.unknownEvidence.map((item) => (
+            <li key={item.evidenceId}>{item.message}</li>
+          ))}
+        </ul>
+      </div>
+      <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+        <strong>Advisory aerial imagery conflict review</strong>
+        <p className="mt-1">
+          Aerial imagery is visual guidance only. Continue exploring the
+          placement, then verify any apparent surface conflict on site.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function geoJsonSource(geometry: Feature | undefined) {
+  return {
+    type: "geojson" as const,
+    data: geometry ?? { type: "FeatureCollection" as const, features: [] },
+  };
 }
 
 function mapEvidenceSummary(
