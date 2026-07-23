@@ -16,7 +16,7 @@ const rendererGlobal = globalThis as typeof globalThis & {
 
 export async function generateSessionReportPdf(
   request: SessionReportRequest,
-  renderer: PdfRenderer = playwrightRenderer,
+  renderer: PdfRenderer = defaultPdfRenderer(),
 ): Promise<Buffer> {
   if (rendererGlobal.__poolFeasibilityReportRendererBusy) {
     throw new ReportRendererBusyError();
@@ -55,6 +55,48 @@ export async function generateSessionReportPdf(
     }
   }
 }
+
+function defaultPdfRenderer(): PdfRenderer {
+  return process.env.VERCEL ? serverlessChromiumRenderer : playwrightRenderer;
+}
+
+const serverlessChromiumRenderer: PdfRenderer = {
+  async render(html, signal) {
+    const [{ default: puppeteer }, { default: chromium }] = await Promise.all([
+      import("puppeteer-core"),
+      import("@sparticuz/chromium"),
+    ]);
+    const browser = await puppeteer.launch({
+      args: await puppeteer.defaultArgs({
+        args: chromium.args,
+        headless: "shell",
+      }),
+      executablePath: await chromium.executablePath(),
+      headless: "shell",
+    });
+    const closeOnAbort = () => void browser.close();
+    signal?.addEventListener("abort", closeOnAbort, { once: true });
+    try {
+      if (signal?.aborted) throw new Error("REPORT_RENDER_ABORTED");
+      const page = await browser.newPage();
+      await page.setRequestInterception(true);
+      page.on("request", (request) => void request.abort("blockedbyclient"));
+      await page.setContent(html, { waitUntil: "load" });
+      await page.emulateMediaType("print");
+      return Buffer.from(
+        await page.pdf({
+          format: "A4",
+          printBackground: true,
+          margin: { top: 0, right: 0, bottom: 0, left: 0 },
+          tagged: true,
+        }),
+      );
+    } finally {
+      signal?.removeEventListener("abort", closeOnAbort);
+      await browser.close();
+    }
+  },
+};
 
 const playwrightRenderer: PdfRenderer = {
   async render(html, signal) {

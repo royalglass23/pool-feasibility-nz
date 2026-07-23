@@ -95,16 +95,16 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(
       screen.getByText("Property map and official evidence"),
     ).toBeVisible();
-    expect(screen.getByText("Pool scenarios")).toBeVisible();
+    expect(screen.getByText("Pool size options")).toBeVisible();
     expect(screen.getByText("Assessment and scoring")).toBeVisible();
     expect(screen.getByText("Risks and actions")).toBeVisible();
     expect(screen.getByText("Sources and provenance")).toBeVisible();
     expect(screen.getByText("Limits and unknowns")).toBeVisible();
-    await user.click(screen.getByText("Pool scenarios"));
+    await user.click(screen.getByText("Pool size options"));
     await user.click(screen.getByText("Assessment and scoring"));
     expect(
       screen.getByRole("heading", {
-        name: "Pool feasibility and size recommendation",
+        name: "Pool size screening",
       }),
     ).toBeVisible();
     expect(
@@ -123,7 +123,9 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         /Required core data is unavailable: building_footprints/i,
       ),
     ).toHaveLength(2);
-    expect(screen.getByText("No supported size recommendation")).toBeVisible();
+    expect(
+      screen.getByText("No pool size can be recommended yet"),
+    ).toBeVisible();
     expect(
       screen.getByRole("region", {
         name: `Aerial map for ${requestedAddress}`,
@@ -276,10 +278,10 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
 
     await screen.findByRole("heading", { name: requestedAddress });
-    await user.click(screen.getByText("Pool scenarios"));
+    await user.click(screen.getByText("Pool size options"));
     expect(
       screen.getByRole("heading", {
-        name: "Pool feasibility and size recommendation",
+        name: "Pool size screening",
       }),
     ).toBeVisible();
     expect(JSON.parse(fetchMock.mock.calls[0]![1]!.body as string)).toEqual({
@@ -288,6 +290,17 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(screen.getByRole("heading", { name: "Compact" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Standard" })).toBeVisible();
     expect(screen.getByRole("heading", { name: "Large" })).toBeVisible();
+    expect(screen.getByText("Largest potential fit")).toBeVisible();
+    expect(screen.queryByText("Named anchor")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Configured intermediate"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/pool-scenario-comparison-v1/i),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/placements were tested/i),
+    ).not.toBeInTheDocument();
   });
 
   it("summarises successful pool shells by count", async () => {
@@ -316,7 +329,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
 
     await screen.findByRole("heading", { name: requestedAddress });
-    expect(screen.getByText("5 successful shell options")).toBeVisible();
+    expect(screen.getByText("5 sizes with a possible fit")).toBeVisible();
     expect(document.body).not.toHaveTextContent("[object Object]");
   });
 

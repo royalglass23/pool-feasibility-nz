@@ -10,6 +10,191 @@ import type { PoolScenarioComparison } from "@/modules/spatial/analyze-pool-scen
 const address = "42A Bahari Drive, Ranui, Auckland";
 const secondAddress = "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland";
 
+test("supports manual placement controls, validation, rotation, and conflict states", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: dataAccessResult }),
+    });
+  });
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Manual pool placement" }),
+  ).toBeVisible();
+  await expect(page.getByText("Pool shell", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("Advisory aerial imagery conflict review"),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Custom size" }).click();
+  await page.getByLabel("Length (m)").fill("31");
+  await page.getByLabel("Width (m)").fill("4");
+  await expect(
+    page.getByText("Enter length and width between 0.1 m and 30 m", {
+      exact: false,
+    }),
+  ).toBeVisible();
+
+  await page.getByLabel("Length (m)").fill("8");
+  await expect(page.getByText("Selected shell: 8 m × 4 m.")).toBeVisible();
+  await page.getByRole("button", { name: "Rotate 15°" }).click();
+  await expect(page.getByText(/Rotation: 15°/)).toBeVisible();
+});
+
+test("uses manual pool placement without assisted search", async ({ page }) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: dataAccessResult }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
+
+  await expect(
+    page.getByRole("button", { name: "Find best available position" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Custom size" })).toBeVisible();
+});
+
+test("keeps assisted search inspection-required for an unconfirmed parcel", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          ...dataAccessResult,
+          parcelMatch: {
+            status: "containing_parcel_requires_confirmation",
+            reasons: [
+              "The containing parcel has not been confirmed for this address.",
+            ],
+          },
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
+
+  await expect(
+    page.getByText(
+      "Placement controls are unavailable until the legal parcel is confirmed.",
+      { exact: false },
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Find best available position" }),
+  ).toHaveCount(0);
+});
+
+test("shows no-clear assisted placement when every tested shell overlaps a building", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    const datasets = { ...dataAccessResult.datasets } as Record<
+      string,
+      Record<string, unknown>
+    >;
+    datasets.building_footprints = {
+      ...datasets.building_footprints,
+      status: "success",
+      geometry: {
+        type: "FeatureCollection",
+        features: [
+          {
+            type: "Feature",
+            properties: {},
+            geometry: dataAccessResult.parcel.geometry,
+          },
+        ],
+      },
+    };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: { ...dataAccessResult, datasets } }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
+  await page.getByRole("button", { name: "Custom size" }).click();
+  await page.getByLabel("Length (m)").fill("6");
+  await page.getByLabel("Width (m)").fill("3");
+  await expect(
+    page.getByRole("button", { name: "Find best available position" }),
+  ).toHaveCount(0);
+});
+
+test("shows explicit provider failure after deterministic candidates are found", async ({
+  page,
+}) => {
+  await stubAerialTiles(page);
+  await page.route("**/api/internal/data-access", async (route) => {
+    const empty = { type: "FeatureCollection", features: [] };
+    const datasets = { ...dataAccessResult.datasets } as Record<
+      string,
+      Record<string, unknown>
+    >;
+    for (const key of [
+      "building_footprints",
+      "planning_zone",
+      "planning_overlays",
+      "flood_prone_areas",
+      "flood_plains",
+      "overland_flow_paths",
+      "wastewater_assets",
+      "public_water_assets",
+      "public_stormwater_assets",
+    ]) {
+      datasets[key] = { ...datasets[key], status: "success", geometry: empty };
+    }
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: { ...dataAccessResult, datasets } }),
+    });
+  });
+  await page.route("**/api/internal/aerial-conflicts", (route) =>
+    route.abort("failed"),
+  );
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.getByRole("button", { name: "Expand all" }).click();
+  await page.getByRole("button", { name: "Custom size" }).click();
+  await page.getByLabel("Length (m)").fill("6");
+  await page.getByLabel("Width (m)").fill("3");
+  await expect(
+    page.getByRole("button", { name: "Find best available position" }),
+  ).toHaveCount(0);
+});
+
 test("shows the controlled AI-enabled explanation without changing deterministic findings", async ({
   page,
 }) => {
@@ -190,8 +375,7 @@ test("shows, downloads, and then clears the sourced session assessment", async (
   ).not.toBeVisible();
 });
 
-test("keeps pool scenario status badges on one line", async ({ page }) => {
-  await page.setViewportSize({ width: 1280, height: 900 });
+test("removes the redundant pool-size screening section", async ({ page }) => {
   await stubAerialTiles(page);
   await page.route("**/api/internal/data-access", async (route) => {
     await route.fulfill({
@@ -209,16 +393,10 @@ test("keeps pool scenario status badges on one line", async ({ page }) => {
   await page.getByRole("button", { name: "Fetch property data" }).click();
   await page.getByRole("button", { name: "Expand all" }).click();
 
-  const badges = page.getByText("Possible With Constraints", { exact: true });
-  await expect(badges.first()).toBeVisible();
-  for (const badge of await badges.all()) {
-    const lineCount = await badge.evaluate((element) => {
-      const range = document.createRange();
-      range.selectNodeContents(element);
-      return range.getClientRects().length;
-    });
-    expect(lineCount).toBe(1);
-  }
+  await expect(
+    page.getByRole("region", { name: "Pool size screening" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Custom size" })).toBeVisible();
 });
 
 test("previews all three report pages and downloads the generated PDF", async ({
@@ -476,10 +654,8 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   ).toBeVisible();
   await expect(page.getByText("Official map layers")).toBeVisible();
   await expect(
-    page.getByRole("heading", {
-      name: "Pool feasibility and size recommendation",
-    }),
-  ).toBeVisible();
+    page.getByRole("heading", { name: "Pool size screening" }),
+  ).toHaveCount(0);
   await expect(
     page.getByRole("heading", { name: "Feasibility assessment" }),
   ).toBeVisible();
@@ -495,21 +671,7 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
       name: "Likely feasible with normal onsite and specialist investigations.",
     }),
   ).toBeVisible();
-  await expect(page.getByText("Large · 9m x 4m")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Compact", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Standard", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Large", exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByText(
-      "Screening evidence only - no candidate is an approved design or pool position.",
-    ),
-  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Custom size" })).toBeVisible();
   await expect(
     page.getByRole("checkbox", { name: "NZ Building Outlines" }),
   ).toBeChecked();
@@ -575,7 +737,6 @@ test("completes the controlled journey for a second Auckland address", async ({
   await expect(
     page.getByRole("link", { name: /CC BY 4\.0 LINZ/ }).first(),
   ).toBeVisible();
-  await expect(page.getByText("Large · 9m x 4m")).toBeVisible();
   await expect(
     page.getByRole("heading", { name: "Feasibility assessment" }),
   ).toBeVisible();
@@ -614,17 +775,10 @@ test("recommends a screened size without collecting size or location preferences
   await page.getByRole("button", { name: "Fetch property data" }).click();
   await page.getByRole("button", { name: "Expand all" }).click();
 
-  const comparison = page.getByRole("region", {
-    name: "Pool feasibility and size recommendation",
-  });
-  await expect(comparison).toBeVisible();
-  await expect(comparison.getByText("Large · 9m x 4m")).toBeVisible();
   await expect(
-    comparison.getByText("Configured intermediate").first(),
-  ).toBeVisible();
-  await expect(
-    comparison.getByText("Specialist Review Required"),
-  ).toBeVisible();
+    page.getByRole("region", { name: "Pool size screening" }),
+  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Custom size" })).toBeVisible();
   expect(submittedBody).toEqual({
     address,
   });
@@ -696,13 +850,8 @@ test("shows the honest no-clear-candidate wording for a controlled screening res
   await page.getByRole("button", { name: "Expand all" }).click();
 
   await expect(
-    page
-      .getByText("No successful candidate geometry supports this shell size.")
-      .first(),
-  ).toBeVisible();
-  await expect(
-    page.getByText("No Clear Candidate", { exact: true }).first(),
-  ).toBeVisible();
+    page.getByRole("region", { name: "Pool size screening" }),
+  ).toHaveCount(0);
   await expect(page.getByText(/pool impossible/i)).toHaveCount(0);
 });
 
