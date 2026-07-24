@@ -467,8 +467,9 @@ export function PropertyAerialMap({
           if (!currentAssessment) return;
           const cursor = activeMap.unproject(event.point).toArray();
           const nextRotation =
-            (bearing(point([...currentAssessment.position]), point(cursor)) +
-              180) %
+            (180 -
+              bearing(point([...currentAssessment.position]), point(cursor)) +
+              360) %
             360;
           updateRotationIfInsideParcel((nextRotation + 360) % 360);
         }
@@ -750,7 +751,9 @@ function PlacementControls({
             Manual pool placement
           </h4>
           <p className="mt-1 text-sm text-slate-600">
-            Drag the pool within the parcel. Drag the blue handle to rotate it.
+            <span className="font-semibold text-slate-800">How to use:</span>{" "}
+            drag the pool within the parcel, or drag the blue handle to rotate
+            it with the mouse.
           </p>
         </div>
         <div
@@ -766,7 +769,7 @@ function PlacementControls({
               onClick={() => onPreset(id)}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold hover:border-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50"
             >
-              {id.replaceAll("-", " ")}
+              {formatPlacementPresetLabel(id)}
             </button>
           ))}
           <button
@@ -934,6 +937,13 @@ function rotationHandleGeometry(
       },
     ],
   };
+}
+
+function formatPlacementPresetLabel(value: string): string {
+  return value
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 function mapEvidenceSummary(
