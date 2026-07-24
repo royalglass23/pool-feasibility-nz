@@ -235,6 +235,35 @@ export class OfficialGisGateway implements DataAccessSpikeGateway {
     return normalizeAddressResponse(await this.#getJson(url));
   }
 
+  async suggestAddresses(query: string): Promise<AddressMatch[]> {
+    const normalizedQuery = query.trim().replace(/\s+/g, " ");
+    if (normalizedQuery.length < 3) return [];
+
+    const url = new URL(linzAddressQueryUrl);
+    url.searchParams.set(
+      "where",
+      `territorial_authority='Auckland' AND address_lifecycle='Current' AND full_address LIKE '%${escapeArcGisText(normalizedQuery)}%'`,
+    );
+    url.searchParams.set(
+      "outFields",
+      [
+        "address_id",
+        "full_address",
+        "full_address_number",
+        "unit",
+        "territorial_authority",
+        "address_lifecycle",
+      ].join(","),
+    );
+    url.searchParams.set("returnGeometry", "true");
+    url.searchParams.set("outSR", "4326");
+    url.searchParams.set("resultRecordCount", "8");
+    url.searchParams.set("orderByFields", "full_address ASC");
+    url.searchParams.set("f", "geojson");
+
+    return normalizeAddressResponse(await this.#getJson(url));
+  }
+
   async findParcelsAt([
     longitude,
     latitude,

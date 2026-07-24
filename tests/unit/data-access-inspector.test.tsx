@@ -480,6 +480,47 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     });
   });
 
+  it("lets the user select a LINZ address autocomplete suggestion", async () => {
+    const user = userEvent.setup();
+    const result = await createResult();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          suggestions: [
+            {
+              addressId: "2359811",
+              fullAddress: requestedAddress,
+            },
+          ],
+        }),
+      )
+      .mockResolvedValueOnce(Response.json({ data: result }, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DataAccessInspector />);
+    const input = screen.getByLabelText("Auckland property address");
+    await user.type(input, "42A Bahari");
+
+    expect(
+      await screen.findByRole("option", { name: requestedAddress }),
+    ).toBeVisible();
+    await user.click(screen.getByRole("option", { name: requestedAddress }));
+    expect(input).toHaveValue(requestedAddress);
+
+    await user.click(
+      screen.getByRole("button", { name: "Fetch property data" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: requestedAddress }),
+    ).toBeVisible();
+    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toEqual({
+      address: requestedAddress,
+      selectedAddressId: "2359811",
+    });
+  });
+
   it("retries the same address after a provider failure", async () => {
     const user = userEvent.setup();
     const result = await createResult();

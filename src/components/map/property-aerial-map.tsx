@@ -222,9 +222,6 @@ export function PropertyAerialMap({
         "placement-construction": geoJsonSource(
           placementAssessment?.envelopes.constructionAllowance,
         ),
-        "placement-barrier": geoJsonSource(
-          placementAssessment?.envelopes.barrier,
-        ),
         "placement-access": geoJsonSource(
           placementAssessment?.envelopes.access,
         ),
@@ -291,19 +288,9 @@ export function PropertyAerialMap({
             type: "line",
             source: "placement-access",
             paint: {
-              "line-color": "#2563eb",
+              "line-color": "#0891b2",
               "line-width": 3,
               "line-dasharray": [1, 2],
-            },
-          },
-          {
-            id: "placement-barrier-line",
-            type: "line",
-            source: "placement-barrier",
-            paint: {
-              "line-color": "#7c3aed",
-              "line-width": 3,
-              "line-dasharray": [2, 1],
             },
           },
           {
@@ -529,10 +516,6 @@ export function PropertyAerialMap({
         placementAssessment?.envelopes.constructionAllowance ?? emptyGeometry,
       ],
       [
-        "placement-barrier",
-        placementAssessment?.envelopes.barrier ?? emptyGeometry,
-      ],
-      [
         "placement-access",
         placementAssessment?.envelopes.access ?? emptyGeometry,
       ],
@@ -554,7 +537,6 @@ export function PropertyAerialMap({
     placementAssessment,
     placementAssessment?.classification,
     placementAssessment?.envelopes.access,
-    placementAssessment?.envelopes.barrier,
     placementAssessment?.envelopes.constructionAllowance,
     placementAssessment?.shell,
   ]);
@@ -825,7 +807,7 @@ function PlacementControls({
       )}
       {assessment && <PlacementStatus assessment={assessment} />}
       <div
-        className="mt-4 grid gap-2 text-xs text-slate-700 sm:grid-cols-4"
+        className="mt-4 grid gap-2 text-xs text-slate-700 sm:grid-cols-3"
         aria-label="Placement overlay legend"
       >
         <span>
@@ -844,14 +826,7 @@ function PlacementControls({
         </span>
         <span>
           <i
-            className="mr-2 inline-block size-3 rounded-sm bg-violet-600"
-            aria-hidden="true"
-          />
-          Indicative barrier
-        </span>
-        <span>
-          <i
-            className="mr-2 inline-block size-3 rounded-sm bg-blue-600"
+            className="mr-2 inline-block size-3 rounded-sm bg-cyan-600"
             aria-hidden="true"
           />
           Access envelope
