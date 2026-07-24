@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { booleanWithin, feature } from "@turf/turf";
 import type { Feature, FeatureCollection, Point } from "geojson";
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
@@ -142,24 +143,31 @@ export function PropertyAerialMap({
         return null;
       }
     }, [placementDimensions, position, result, rotationDegrees]);
+  const placementAssessmentRef = useRef<CustomPoolPlacementAssessment | null>(
+    null,
+  );
+  placementAssessmentRef.current = placementAssessment;
   const placementValidationMessage =
     placementPreset === "custom" && !placementAssessment
       ? "Enter length and width between 0.1 m and 30 m before assessing the placement."
       : null;
-  const captureReportSnapshot = useCallback((waitForIdle = false) => {
-    const map = mapRef.current;
-    if (!map) return;
-    const capture = () => {
-      if (mapRef.current !== map) return;
-      try {
-        onSnapshotReady?.(map.getCanvas().toDataURL("image/png"));
-      } catch {
-        onSnapshotReady?.(null);
-      }
-    };
-    if (waitForIdle) map.once("idle", capture);
-    else capture();
-  }, [onSnapshotReady]);
+  const captureReportSnapshot = useCallback(
+    (waitForIdle = false) => {
+      const map = mapRef.current;
+      if (!map) return;
+      const capture = () => {
+        if (mapRef.current !== map) return;
+        try {
+          onSnapshotReady?.(map.getCanvas().toDataURL("image/png"));
+        } catch {
+          onSnapshotReady?.(null);
+        }
+      };
+      if (waitForIdle) map.once("idle", capture);
+      else capture();
+    },
+    [onSnapshotReady],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -307,15 +315,7 @@ export function PropertyAerialMap({
             id: "placement-shell-fill",
             type: "fill",
             source: "placement-shell",
-            paint: {
-              "fill-color":
-                placementAssessment?.classification === "hard_conflict"
-                  ? "#dc2626"
-                  : placementAssessment?.classification === "unknown"
-                    ? "#d97706"
-                    : "#0f766e",
-              "fill-opacity": 0.72,
-            },
+            paint: { "fill-color": "#2563eb", "fill-opacity": 0.72 },
           },
           {
             id: "placement-shell-outline",
@@ -369,14 +369,45 @@ export function PropertyAerialMap({
       activeMap.addControl(new maplibregl.NavigationControl(), "top-right");
 
       let dragging = false;
+      const updatePositionIfInsideParcel = (nextPosition: [number, number]) => {
+        const currentAssessment = placementAssessmentRef.current;
+        if (!currentAssessment) return;
+
+        const candidate = assessCustomPoolPlacement({
+          parcel: result.parcel.geometry,
+          parcelStatus: "confirmed",
+          position: nextPosition,
+          rotationDegrees: currentAssessment.rotationDegrees,
+          lengthMetres: currentAssessment.dimensions.lengthMetres,
+          widthMetres: currentAssessment.dimensions.widthMetres,
+          parcelEvidence: legalParcelEvidenceForMap(result),
+          buildings: spatialEvidenceForMap("building_footprints", result),
+          constraints: [],
+        });
+        if (
+          !booleanWithin(
+            candidate.envelopes.constructionAllowance,
+            feature(result.parcel.geometry),
+          )
+        ) {
+          return;
+        }
+        setPosition(nextPosition);
+      };
       activeMap.on("mousedown", "placement-shell-fill", (event) => {
         dragging = true;
         activeMap.getCanvas().style.cursor = "grabbing";
         activeMap.dragPan.disable();
-        setPosition(activeMap.unproject(event.point).toArray());
+        updatePositionIfInsideParcel(
+          activeMap.unproject(event.point).toArray(),
+        );
       });
       activeMap.on("mousemove", (event) => {
-        if (dragging) setPosition(activeMap.unproject(event.point).toArray());
+        if (dragging) {
+          updatePositionIfInsideParcel(
+            activeMap.unproject(event.point).toArray(),
+          );
+        }
       });
       activeMap.on("mouseup", () => {
         dragging = false;
@@ -446,15 +477,7 @@ export function PropertyAerialMap({
       source?.setData(geometry);
     }
     if (!placementAssessment) return;
-    map.setPaintProperty(
-      "placement-shell-fill",
-      "fill-color",
-      placementAssessment.classification === "hard_conflict"
-        ? "#dc2626"
-        : placementAssessment.classification === "unknown"
-          ? "#d97706"
-          : "#0f766e",
-    );
+    map.setPaintProperty("placement-shell-fill", "fill-color", "#2563eb");
 
     captureReportSnapshot(true);
   }, [
@@ -662,7 +685,7 @@ function PlacementControls({
             Manual pool placement
           </h4>
           <p className="mt-1 text-sm text-slate-600">
-            Drag the selected pool on the map. Rotate it in 15° steps.
+            Drag the selected pool within the parcel. Rotate it in 15° steps.
           </p>
         </div>
         <div
@@ -694,7 +717,7 @@ function PlacementControls({
             onClick={onRotate}
             className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800"
           >
-            Rotate 15°
+            Rotate pool 15°
           </button>
         </div>
       </div>
@@ -746,10 +769,10 @@ function PlacementControls({
       >
         <span>
           <i
-            className="mr-2 inline-block size-3 rounded-sm bg-teal-700"
+            className="mr-2 inline-block size-3 rounded-sm bg-blue-600"
             aria-hidden="true"
           />
-          Pool shell
+          Pool shell (blue)
         </span>
         <span>
           <i
