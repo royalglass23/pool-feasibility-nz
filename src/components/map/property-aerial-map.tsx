@@ -678,7 +678,7 @@ export function PropertyAerialMap({
           </div>
         </div>
       </div>
-      <div ref={containerRef} className="h-96 w-full bg-slate-800" />
+      <div ref={containerRef} className="h-[600px] w-full bg-slate-800" />
       {result.parcelMatch.status === "mapped_primary_parcel" ? (
         <PlacementControls
           assessment={placementAssessment}
@@ -821,7 +821,7 @@ function PlacementControls({
       {dimensions && (
         <p className="mt-3 text-sm text-slate-700">
           Selected shell: {dimensions.lengthMetres} m × {dimensions.widthMetres}{" "}
-          m. Rotation: {Math.round(assessment?.rotationDegrees ?? 0)}°.
+          m.
         </p>
       )}
       {assessment && <PlacementStatus assessment={assessment} />}
