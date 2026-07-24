@@ -132,7 +132,6 @@ export function PropertyAerialMap({
           parcelEvidence: legalParcelEvidenceForMap(result),
           buildings: spatialEvidenceForMap("building_footprints", result),
           constraints: [
-            "planning_zone",
             "planning_overlays",
             "flood_plains",
             "flood_prone_areas",

@@ -10,7 +10,6 @@ import {
 import type { AssistedPlacementCandidate } from "@/modules/spatial/find-assisted-pool-placements";
 
 const constraintKeys = [
-  "planning_zone",
   "planning_overlays",
   "flood_plains",
   "flood_prone_areas",
