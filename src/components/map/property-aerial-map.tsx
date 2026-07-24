@@ -422,12 +422,13 @@ export function PropertyAerialMap({
       const updateRotationIfInsideParcel = (nextRotation: number) => {
         const currentAssessment = placementAssessmentRef.current;
         if (!currentAssessment) return;
+        const wholeRotation = Math.round(nextRotation) % 360;
 
         const candidate = assessCustomPoolPlacement({
           parcel: result.parcel.geometry,
           parcelStatus: "confirmed",
           position: currentAssessment.position,
-          rotationDegrees: nextRotation,
+          rotationDegrees: wholeRotation,
           lengthMetres: currentAssessment.dimensions.lengthMetres,
           widthMetres: currentAssessment.dimensions.widthMetres,
           parcelEvidence: legalParcelEvidenceForMap(result),
@@ -440,7 +441,7 @@ export function PropertyAerialMap({
             feature(result.parcel.geometry),
           )
         ) {
-          setRotationDegrees(nextRotation);
+          setRotationDegrees(wholeRotation);
         }
       };
       activeMap.on("mousedown", "placement-rotation-handle", (event) => {
@@ -820,7 +821,7 @@ function PlacementControls({
       {dimensions && (
         <p className="mt-3 text-sm text-slate-700">
           Selected shell: {dimensions.lengthMetres} m × {dimensions.widthMetres}{" "}
-          m. Rotation: {assessment?.rotationDegrees ?? 0}°.
+          m. Rotation: {Math.round(assessment?.rotationDegrees ?? 0)}°.
         </p>
       )}
       {assessment && <PlacementStatus assessment={assessment} />}
