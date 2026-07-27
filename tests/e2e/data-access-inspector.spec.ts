@@ -687,7 +687,8 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
     .getByLabel("Auckland property address")
     .fill("Bahari Drive, Ranui, Auckland");
   await page.getByRole("button", { name: "Fetch property data" }).click();
-  await page.getByRole("button", { name: address }).click();
+  await page.getByRole("option", { name: address }).click();
+  await page.getByRole("button", { name: "Fetch property data" }).click();
 
   await expect(
     page.getByRole("button", { name: "Fetching official data…" }),
@@ -754,7 +755,7 @@ test("selects the exact address, prevents duplicate work, maps the parcel, and d
   expect(submittedBodies).toEqual([
     { address: "Bahari Drive, Ranui, Auckland" },
     {
-      address: "Bahari Drive, Ranui, Auckland",
+      address: "42A Bahari Drive, Ranui, Auckland",
       selectedAddressId: "2359811",
     },
   ]);

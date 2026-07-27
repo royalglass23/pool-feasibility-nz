@@ -520,7 +520,7 @@ export function PropertyAerialMap({
   return (
     <section
       aria-label={`Aerial map for ${result.resolvedAddress.fullAddress}`}
-      className="overflow-hidden rounded-3xl border border-slate-200 bg-slate-900 shadow-sm"
+      className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 shadow-[0_1px_2px_0_rgb(0_0_0/5%)]"
     >
       <div className="flex flex-col gap-2 border-b border-white/10 bg-slate-950 px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
         <div>
@@ -635,7 +635,11 @@ export function PropertyAerialMap({
           </div>
         </div>
       </div>
-      <div ref={containerRef} className="h-[600px] w-full bg-slate-800" />
+      <div
+        ref={containerRef}
+        className="h-[min(62vw,600px)] min-h-[420px] w-full bg-slate-800"
+        aria-label="Interactive property map showing the confirmed parcel, pool concept, and mapped evidence"
+      />
       {isConfirmedParcelForPlacement(result) ? (
         <PlacementControls
           assessment={placementAssessment}
@@ -750,18 +754,17 @@ function PlacementControls({
 }) {
   return (
     <div
-      className="border-t border-slate-200 bg-white px-5 py-5"
+      className="border-t border-slate-200 bg-white px-5 py-6"
       aria-label="Manual pool placement workspace"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h4 className="font-semibold text-slate-950">
+          <h4 className="text-lg font-semibold text-slate-950">
             Manual pool placement
           </h4>
           <p className="mt-1 text-sm text-slate-600">
-            <span className="font-semibold text-slate-800">How to use:</span>{" "}
-            drag the pool within the parcel, or drag the blue handle to rotate
-            it with the mouse.
+            Choose a pool size, then drag the blue pool within the parcel. Drag
+            the handle above it to rotate the layout.
           </p>
         </div>
         <div
@@ -775,7 +778,7 @@ function PlacementControls({
               type="button"
               aria-pressed={placementPreset === id}
               onClick={() => onPreset(id)}
-              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold hover:border-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50"
+              className="min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold transition-colors hover:border-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
             >
               {formatPlacementPresetLabel(id)}
             </button>
@@ -784,7 +787,7 @@ function PlacementControls({
             type="button"
             aria-pressed={placementPreset === "custom"}
             onClick={() => onPreset("custom")}
-            className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold hover:border-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50"
+            className="min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold transition-colors hover:border-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
           >
             Custom size
           </button>
@@ -802,7 +805,7 @@ function PlacementControls({
               step="0.1"
               value={customLength}
               onChange={(event) => onCustomLength(event.target.value)}
-              className="mt-1 block min-h-10 w-full rounded-lg border border-slate-300 px-3"
+              className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 focus:border-teal-700 focus:bg-white focus:outline-2 focus:outline-teal-700"
             />
           </label>
           <label className="text-sm font-medium text-slate-800">
@@ -815,7 +818,7 @@ function PlacementControls({
               step="0.1"
               value={customWidth}
               onChange={(event) => onCustomWidth(event.target.value)}
-              className="mt-1 block min-h-10 w-full rounded-lg border border-slate-300 px-3"
+              className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 focus:border-teal-700 focus:bg-white focus:outline-2 focus:outline-teal-700"
             />
           </label>
         </div>
@@ -868,7 +871,7 @@ function PlacementStatus({
   assessment: CustomPoolPlacementAssessment;
 }) {
   return (
-    <div className="mt-4 grid gap-3 sm:grid-cols-2" aria-live="polite">
+    <div className="mt-5 grid gap-3 sm:grid-cols-2" aria-live="polite">
       <div
         className={
           assessment.classification === "hard_conflict"
@@ -878,7 +881,7 @@ function PlacementStatus({
               : "rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950"
         }
       >
-        <strong>
+        <strong className="text-base">
           {assessment.classification === "hard_conflict"
             ? "Hard GIS conflict"
             : assessment.classification === "unknown"
@@ -897,9 +900,18 @@ function PlacementStatus({
             </li>
           ))}
         </ul>
+        {assessment.confidence < 80 && (
+          <p className="mt-3 font-semibold">
+            Preliminary result — review required
+          </p>
+        )}
       </div>
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900">
-        <strong>Measured distances</strong>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900">
+        <strong className="text-base">Measurements from mapped evidence</strong>
+        <p className="mt-1 text-xs leading-5 text-slate-600">
+          Distances are indicative and only available where a reliable layer was
+          returned.
+        </p>
         <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
           <Distance
             label="Parcel boundary"

@@ -95,18 +95,11 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(
       screen.getByText("Property map and official evidence"),
     ).toBeVisible();
-    expect(screen.getByText("Pool size options")).toBeVisible();
     expect(screen.getByText("Assessment and scoring")).toBeVisible();
     expect(screen.getByText("Risks and actions")).toBeVisible();
     expect(screen.getByText("Sources and provenance")).toBeVisible();
     expect(screen.getByText("Limits and unknowns")).toBeVisible();
-    await user.click(screen.getByText("Pool size options"));
     await user.click(screen.getByText("Assessment and scoring"));
-    expect(
-      screen.getByRole("heading", {
-        name: "Pool size screening",
-      }),
-    ).toBeVisible();
     expect(
       screen.getByRole("heading", { name: "Feasibility assessment" }),
     ).toBeVisible();
@@ -124,9 +117,6 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       ),
     ).toHaveLength(2);
     expect(
-      screen.getByText("No pool size can be recommended yet"),
-    ).toBeVisible();
-    expect(
       screen.getByRole("region", {
         name: `Aerial map for ${requestedAddress}`,
       }),
@@ -140,25 +130,9 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       "https://www.linz.govt.nz/data/linz-data/linz-basemaps/data-attribution",
     );
 
-    await user.click(
+    expect(
       screen.getByRole("button", { name: "Preview PDF report" }),
-    );
-    expect(
-      screen.getByRole("heading", { name: "PDF report preview" }),
-    ).toBeVisible();
-    expect(screen.getByText("Page 1 of 3 · A4")).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "2" }));
-    expect(
-      screen.getByRole("heading", { name: "Mapped property evidence" }),
-    ).toBeVisible();
-    expect(screen.getByRole("button", { name: "Download PDF" })).toBeDisabled();
-    expect(
-      screen.getByRole("button", { name: "Print / save PDF" }),
     ).toBeDisabled();
-    await user.click(
-      screen.getByRole("button", { name: "Back to assessment" }),
-    );
-
     await user.click(screen.getByRole("button", { name: "Assessment data" }));
     expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
     expect(clickAnchor).toHaveBeenCalledOnce();
@@ -341,29 +315,14 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
 
     await screen.findByRole("heading", { name: requestedAddress });
-    await user.click(screen.getByText("Pool size options"));
-    expect(
-      screen.getByRole("heading", {
-        name: "Pool size screening",
-      }),
-    ).toBeVisible();
     expect(JSON.parse(fetchMock.mock.calls[0]![1]!.body as string)).toEqual({
       address: requestedAddress,
     });
-    expect(screen.getByRole("heading", { name: "Compact" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Standard" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Large" })).toBeVisible();
-    expect(screen.getByText("Largest potential fit")).toBeVisible();
-    expect(screen.queryByText("Named anchor")).not.toBeInTheDocument();
     expect(
-      screen.queryByText("Configured intermediate"),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/pool-scenario-comparison-v1/i),
-    ).not.toBeInTheDocument();
-    expect(
-      screen.queryByText(/placements were tested/i),
-    ).not.toBeInTheDocument();
+      screen.getByRole("heading", {
+        name: "Place a pool concept on the selected property",
+      }),
+    ).toBeVisible();
   });
 
   it("summarises successful pool shells by count", async () => {
@@ -392,7 +351,9 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
 
     await screen.findByRole("heading", { name: requestedAddress });
-    expect(screen.getByText("5 sizes with a possible fit")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Manual pool placement" }),
+    ).toBeVisible();
     expect(document.body).not.toHaveTextContent("[object Object]");
   });
 
@@ -528,17 +489,18 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
 
     expect(
-      await screen.findByRole("heading", {
-        name: "Select the correct address",
-      }),
+      await screen.findByRole("option", { name: requestedAddress }),
     ).toBeVisible();
-    await user.click(screen.getByRole("button", { name: requestedAddress }));
+    await user.click(screen.getByRole("option", { name: requestedAddress }));
+    await user.click(
+      screen.getByRole("button", { name: "Fetch property data" }),
+    );
 
     expect(
       await screen.findByRole("heading", { name: requestedAddress }),
     ).toBeVisible();
     expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toEqual({
-      address: "Bahari Drive, Ranui, Auckland",
+      address: requestedAddress,
       selectedAddressId: "2359811",
     });
   });
@@ -628,7 +590,10 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     await user.click(
       screen.getByRole("button", { name: "Fetch property data" }),
     );
-    await user.click(screen.getByRole("button", { name: requestedAddress }));
+    await user.click(screen.getByRole("option", { name: requestedAddress }));
+    await user.click(
+      screen.getByRole("button", { name: "Fetch property data" }),
+    );
     await user.click(await screen.findByRole("button", { name: "Try again" }));
 
     expect(

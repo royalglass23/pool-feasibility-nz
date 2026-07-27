@@ -148,13 +148,13 @@ export function AssessmentWorkspace({
   }
 
   return (
-    <section aria-labelledby="assessment-heading" className="space-y-5">
-      <div>
+    <section aria-labelledby="assessment-heading" className="space-y-6">
+      <div className="border-b border-slate-200 pb-5">
         <h2
           ref={headingRef}
           id="assessment-heading"
           tabIndex={-1}
-          className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl"
+          className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-4xl"
         >
           {result.resolvedAddress.fullAddress}
         </h2>
@@ -164,36 +164,38 @@ export function AssessmentWorkspace({
         </p>
       </div>
 
-      <div
-        role="status"
-        className={parcelStatus.className}
-      >
+      <div role="status" className={parcelStatus.className}>
         <p className="text-sm font-semibold text-slate-950">
           {parcelStatus.heading}
         </p>
-        <p className="mt-1 text-sm text-slate-700">
-          {parcelStatus.detail}
-        </p>
+        <p className="mt-1 text-sm text-slate-700">{parcelStatus.detail}</p>
       </div>
 
-      <div className="overflow-hidden rounded-3xl border border-teal-200 bg-white shadow-sm">
-        <div className="grid gap-5 bg-teal-50/70 p-5 sm:grid-cols-[auto_1fr] sm:p-7">
-          <div className="grid size-24 place-items-center rounded-full bg-teal-800 text-3xl font-semibold text-white">
+      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/5%)]">
+        <div className="grid gap-5 bg-teal-50/70 p-5 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-7">
+          <div className="grid size-20 place-items-center rounded-full bg-slate-950 text-2xl font-semibold text-white sm:size-24 sm:text-3xl">
             {result.feasibilityAssessment.score ?? "—"}
           </div>
           <div>
-            <p className="text-sm font-semibold text-teal-800">
-              Preliminary recommendation
+            <p className="text-xs font-semibold tracking-[0.12em] text-teal-800 uppercase">
+              Screening recommendation
             </p>
             <h3 className="mt-1 text-xl leading-snug font-semibold text-slate-950 sm:text-2xl">
               {result.feasibilityAssessment.finalRecommendation}
             </h3>
-            <p className="mt-2 text-sm text-slate-700">
+            <p className="mt-2 text-sm leading-6 text-slate-700">
               {result.feasibilityAssessment.band
                 ? humanize(result.feasibilityAssessment.band)
                 : "Indeterminate"}{" "}
               · {humanize(result.feasibilityAssessment.confidence.level)}{" "}
               confidence
+            </p>
+          </div>
+          <div className="rounded-xl border border-teal-200 bg-white/80 p-4 text-sm text-slate-700 sm:max-w-56">
+            <p className="font-semibold text-slate-950">What happens next</p>
+            <p className="mt-1 leading-5">
+              Review the proposed layout, then ask a builder to verify the site
+              before design or construction decisions.
             </p>
           </div>
         </div>
@@ -229,14 +231,14 @@ export function AssessmentWorkspace({
         )}
       </div>
 
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <p className="font-semibold text-slate-950">
-            Three-page assessment report
+            Ready for a preliminary report?
           </p>
           <p className="text-sm text-slate-600">
-            Preview before downloading. Generated only from this browser
-            session.
+            The report includes the selected property, pool concept, mapped
+            evidence, warnings, and recommended follow-up.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -244,9 +246,17 @@ export function AssessmentWorkspace({
             type="button"
             disabled={!mapImage}
             onClick={() => setPreview(true)}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl bg-slate-950 px-4 font-semibold text-white hover:bg-teal-800 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             <FileText className="size-4" aria-hidden="true" />
+            Get my preliminary report
+          </button>
+          <button
+            type="button"
+            disabled={!mapImage}
+            onClick={() => setPreview(true)}
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 px-4 font-semibold text-slate-800 transition-colors hover:border-teal-600 hover:text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+          >
             Preview PDF report
           </button>
           <button
@@ -260,7 +270,31 @@ export function AssessmentWorkspace({
         </div>
       </div>
 
-      <div className="flex items-center justify-between gap-3">
+      <section aria-labelledby="map-workspace-heading" className="space-y-4">
+        <div>
+          <p className="text-xs font-semibold tracking-[0.12em] text-teal-800 uppercase">
+            Property workspace
+          </p>
+          <h3
+            id="map-workspace-heading"
+            className="mt-1 text-xl font-semibold text-slate-950"
+          >
+            Place a pool concept on the selected property
+          </h3>
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+            The map is the working surface. Choose a size, drag the pool, and
+            rotate it to explore the mapped evidence. Warnings are screening
+            signals, not building approval.
+          </p>
+        </div>
+        <PropertyAerialMap
+          result={result}
+          onRetry={onRetry}
+          onSnapshotReady={onSnapshotReady}
+        />
+      </section>
+
+      <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-5">
         <h3 className="text-lg font-semibold text-slate-950">
           Assessment details
         </h3>
@@ -292,11 +326,6 @@ export function AssessmentWorkspace({
         open={openSections.has("property")}
         onToggle={toggle}
       >
-        <PropertyAerialMap
-          result={result}
-          onRetry={onRetry}
-          onSnapshotReady={onSnapshotReady}
-        />
         <div className="mt-5 grid gap-4 sm:grid-cols-2">
           <Info
             title="Property identity"
@@ -424,18 +453,17 @@ function parcelStatusPresentation(result: DataAccessSpikeResult): {
     result.identityCheck.distinctFromAlternatives
   ) {
     return {
-      className:
-        "rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3",
+      className: "rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3",
       heading: "Legal parcel confirmed",
       detail: `Parcel ${result.parcel.parcelId} is the confirmed parcel for this selected address.`,
     };
   }
 
   return {
-    className:
-      "rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3",
+    className: "rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3",
     heading: "Legal parcel requires manual review",
-    detail: "The address remains viewable, but do not treat its parcel as confirmed.",
+    detail:
+      "The address remains viewable, but do not treat its parcel as confirmed.",
   };
 }
 
