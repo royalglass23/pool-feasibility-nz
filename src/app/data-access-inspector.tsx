@@ -336,39 +336,6 @@ export function DataAccessInspector() {
           )}
         </div>
 
-        {addressOptions.length > 0 && (
-          <section
-            aria-labelledby="address-options-heading"
-            className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4"
-          >
-            <h3
-              id="address-options-heading"
-              className="font-semibold text-amber-950"
-            >
-              Select the correct address
-            </h3>
-            <p className="mt-1 text-sm text-amber-800">
-              More than one Auckland address matched. Choose one before its
-              legal parcel is loaded.
-            </p>
-            <div className="mt-3 grid gap-2">
-              {addressOptions.map((option) => (
-                <button
-                  key={option.addressId}
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() => {
-                    setSelectedAddressId(option.addressId);
-                    void requestPropertyData(option.addressId);
-                  }}
-                  className="rounded-xl border border-amber-300 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:border-teal-600 hover:text-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  {option.fullAddress}
-                </button>
-              ))}
-            </div>
-          </section>
-        )}
       </form>
 
       {result && (
