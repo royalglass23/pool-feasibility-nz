@@ -45,7 +45,7 @@ export async function GET(request: Request): Promise<Response> {
     }).suggestAddresses(query.data);
     return apiJsonResponse(
       {
-        suggestions: suggestions.map(({ addressId, fullAddress }) => ({
+        suggestions: suggestions.slice(0, 8).map(({ addressId, fullAddress }) => ({
           addressId,
           fullAddress,
         })),

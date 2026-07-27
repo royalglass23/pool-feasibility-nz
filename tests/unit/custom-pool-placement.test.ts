@@ -19,7 +19,10 @@ describe("custom pool placement assessment", () => {
       lengthMetres: 8,
       widthMetres: 4,
       parcelEvidence: evidence("legal_parcel", collection([parcel])),
-      buildings: evidence("building_footprints", collection([])),
+      buildings: evidence(
+        "building_footprints",
+        collection([rectangleParcel([174.6085, -36.8602], 0.00001, 0.00001)]),
+      ),
       constraints: [],
     });
 
@@ -143,6 +146,169 @@ describe("custom pool placement assessment", () => {
       ]),
     );
     expect(unknown.hardConflicts).toEqual([]);
+  });
+
+  it("returns practical distances, confidence, and a customer-safe next action", () => {
+    const nearbyBuilding = rectangleParcel(
+      [174.608, -36.8602],
+      0.00001,
+      0.00001,
+    );
+    const result = assessCustomPoolPlacement({
+      parcel,
+      parcelStatus: "confirmed",
+      position: centre,
+      rotationDegrees: 0,
+      lengthMetres: 8,
+      widthMetres: 4,
+      parcelEvidence: evidence("legal_parcel", collection([parcel])),
+      buildings: evidence("building_footprints", collection([nearbyBuilding])),
+      services: [
+        evidence(
+          "mapped_services",
+          collection([rectangleParcel([174.6082, -36.8602], 0.00001, 0.00001)]),
+        ),
+      ],
+      manholes: [
+        evidence(
+          "manholes",
+          collection([
+            rectangleParcel([174.6083, -36.8602], 0.000001, 0.000001),
+          ]),
+        ),
+      ],
+      catchpits: [
+        evidence(
+          "catchpits",
+          collection([
+            {
+              type: "Point",
+              coordinates: [174.6084, -36.8602],
+            },
+          ]),
+        ),
+      ],
+      constraints: [],
+    });
+
+    expect(result.distances.parcelBoundaryMetres).toBeGreaterThan(0);
+    expect(result.distances.buildingsMetres).toBeGreaterThan(0);
+    expect(result.distances.mappedServicesMetres).toBeGreaterThan(0);
+    expect(result.distances.manholesMetres).toBeGreaterThan(0);
+    expect(result.distances.catchpitsMetres).toBeGreaterThan(0);
+    expect(result.confidence).toBe(100);
+    expect(result.nextAction).toBe(
+      "No measured GIS conflict; continue to review the preliminary result.",
+    );
+    expect(result.confidenceLabel).toBe("High confidence");
+  });
+
+  it("marks missing evidence as unknown and requires review below 80 percent", () => {
+    const result = assessCustomPoolPlacement({
+      parcel,
+      parcelStatus: "confirmed",
+      position: centre,
+      rotationDegrees: 0,
+      lengthMetres: 8,
+      widthMetres: 4,
+      parcelEvidence: evidence("legal_parcel", collection([parcel])),
+      buildings: evidence("building_footprints", undefined),
+      services: [evidence("mapped_services", undefined)],
+      manholes: [evidence("manholes", undefined)],
+      catchpits: [evidence("catchpits", undefined)],
+      constraints: [],
+    });
+
+    expect(result.classification).toBe("unknown");
+    expect(result.confidence).toBeLessThan(80);
+    expect(result.nextAction).toBe("Preliminary result — review required");
+    expect(result.unknownEvidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          technicalLabel: "Building footprint evidence",
+        }),
+        expect.objectContaining({ technicalLabel: "Mapped service evidence" }),
+      ]),
+    );
+  });
+
+  it("does not treat an empty mapped layer as proof that no asset exists", () => {
+    const result = assessCustomPoolPlacement({
+      parcel,
+      parcelStatus: "confirmed",
+      position: centre,
+      rotationDegrees: 0,
+      lengthMetres: 8,
+      widthMetres: 4,
+      parcelEvidence: evidence("legal_parcel", collection([parcel])),
+      buildings: evidence("building_footprints", collection([])),
+      services: [evidence("mapped_services", collection([]))],
+      manholes: [evidence("manholes", collection([]))],
+      catchpits: [evidence("catchpits", collection([]))],
+      constraints: [],
+    });
+
+    expect(result.classification).toBe("unknown");
+    expect(result.confidence).toBeLessThan(80);
+    expect(result.unknownEvidence).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ evidenceId: "building_footprints" }),
+        expect.objectContaining({ evidenceId: "mapped_services" }),
+      ]),
+    );
+  });
+
+  it("measures the nearest point on a mapped line, not only its vertices", () => {
+    const result = assessCustomPoolPlacement({
+      parcel,
+      parcelStatus: "confirmed",
+      position: centre,
+      rotationDegrees: 0,
+      lengthMetres: 8,
+      widthMetres: 4,
+      parcelEvidence: evidence("legal_parcel", collection([parcel])),
+      buildings: evidence("building_footprints", collection([])),
+      services: [
+        evidence(
+          "mapped_services",
+          collection([
+            {
+              type: "LineString",
+              coordinates: [
+                [174.60802, -36.86021],
+                [174.60802, -36.86019],
+              ],
+            },
+          ]),
+        ),
+      ],
+      constraints: [],
+    });
+
+    expect(result.distances.mappedServicesMetres).toBeLessThan(10);
+  });
+
+  it("treats a reliable mapped service overlap as a hard blocker", () => {
+    const result = assessCustomPoolPlacement({
+      parcel,
+      parcelStatus: "confirmed",
+      position: centre,
+      rotationDegrees: 0,
+      lengthMetres: 8,
+      widthMetres: 4,
+      parcelEvidence: evidence("legal_parcel", collection([parcel])),
+      buildings: evidence("building_footprints", collection([])),
+      services: [evidence("mapped_services", collection([parcel]))],
+      constraints: [],
+    });
+
+    expect(result.classification).toBe("hard_conflict");
+    expect(result.hardConflicts).toContainEqual(
+      expect.objectContaining({
+        evidenceId: "mapped_services",
+        technicalLabel: "Mapped service overlap",
+      }),
+    );
   });
 
   it("treats leaving the confirmed parcel as a hard conflict", () => {

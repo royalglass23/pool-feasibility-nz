@@ -72,17 +72,6 @@ export async function executeDataAccessRequest(input: {
       now: input.now,
     });
 
-    if (
-      data.parcelMatch.status !== "mapped_primary_parcel" ||
-      !data.identityCheck.distinctFromAlternatives
-    ) {
-      return requestError(
-        409,
-        "PARCEL_UNCONFIRMED",
-        "The legal parcel could not be confirmed for this address. Manual property review is required.",
-      );
-    }
-
     return { ok: true, status: 200, data };
   } catch (error) {
     return mapDataAccessError(error);

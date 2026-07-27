@@ -165,6 +165,69 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(revokeObjectUrl).toHaveBeenCalledWith("blob:property-data");
   });
 
+  it("announces the confirmed legal parcel before the assessment details", async () => {
+    const user = userEvent.setup();
+    const result = await createResult();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ data: result }, { status: 200 })),
+    );
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Fetch property data" }),
+    );
+
+    expect(await screen.findByRole("status")).toHaveTextContent(
+      "Legal parcel confirmed",
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Parcel 8545868");
+  });
+
+  it("announces when autocomplete has no matching addresses", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ suggestions: [] }, { status: 200 })),
+    );
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      "42A Bahari",
+    );
+
+    expect(
+      await screen.findByText("No matching Auckland addresses were found yet."),
+    ).toBeVisible();
+  });
+
+  it("announces autocomplete provider failure", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => {
+        throw new Error("provider unavailable");
+      }),
+    );
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      "42A Bahari",
+    );
+
+    expect(
+      await screen.findByText(
+        "Address suggestions are temporarily unavailable.",
+      ),
+    ).toBeVisible();
+  });
+
   it("shows the constrained AI explanation without presenting it as a calculation", async () => {
     const user = userEvent.setup();
     const result = await createResult();
@@ -516,6 +579,62 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       await screen.findByRole("heading", { name: requestedAddress }),
     ).toBeVisible();
     expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toEqual({
+      address: requestedAddress,
+      selectedAddressId: "2359811",
+    });
+  });
+
+  it("preserves a post-submit address selection when retrying a provider failure", async () => {
+    const user = userEvent.setup();
+    const result = await createResult();
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          {
+            error: {
+              code: "ADDRESS_AMBIGUOUS",
+              message: "Select the correct Auckland address to continue.",
+              options: [
+                {
+                  addressId: "2359811",
+                  fullAddress: requestedAddress,
+                },
+              ],
+            },
+          },
+          { status: 409 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          {
+            error: {
+              code: "DATA_PROVIDER_ERROR",
+              message: "The provider is temporarily unavailable.",
+            },
+          },
+          { status: 502 },
+        ),
+      )
+      .mockResolvedValueOnce(Response.json({ data: result }, { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Fetch property data" }),
+    );
+    await user.click(screen.getByRole("button", { name: requestedAddress }));
+    await user.click(await screen.findByRole("button", { name: "Try again" }));
+
+    expect(
+      await screen.findByRole("heading", { name: requestedAddress }),
+    ).toBeVisible();
+    expect(JSON.parse(fetchMock.mock.calls[2][1].body as string)).toEqual({
       address: requestedAddress,
       selectedAddressId: "2359811",
     });

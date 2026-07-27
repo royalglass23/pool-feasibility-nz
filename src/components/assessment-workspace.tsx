@@ -72,6 +72,7 @@ export function AssessmentWorkspace({
   const unavailable = datasets.filter(
     ([, item]) => item.status === "unavailable",
   ).length;
+  const parcelStatus = parcelStatusPresentation(result);
   const onSnapshotReady = useCallback(
     (dataUrl: string | null) => setMapImage(dataUrl),
     [],
@@ -160,6 +161,18 @@ export function AssessmentWorkspace({
         <p className="mt-2 font-mono text-sm text-slate-600">
           Retrieved {formatDate(result.generatedAt)} · LINZ address ID{" "}
           {result.resolvedAddress.addressId}
+        </p>
+      </div>
+
+      <div
+        role="status"
+        className={parcelStatus.className}
+      >
+        <p className="text-sm font-semibold text-slate-950">
+          {parcelStatus.heading}
+        </p>
+        <p className="mt-1 text-sm text-slate-700">
+          {parcelStatus.detail}
         </p>
       </div>
 
@@ -302,7 +315,7 @@ export function AssessmentWorkspace({
               result.identityCheck.distinctFromAlternatives
                 ? "Separated from alternatives"
                 : "Shares a parcel with an alternative",
-              humanize(result.parcelMatch.status),
+              parcelStatus.heading,
             ]}
           />
         </div>
@@ -399,6 +412,31 @@ export function AssessmentWorkspace({
       </Disclosure>
     </section>
   );
+}
+
+function parcelStatusPresentation(result: DataAccessSpikeResult): {
+  className: string;
+  heading: string;
+  detail: string;
+} {
+  if (
+    result.parcelMatch.status === "mapped_primary_parcel" &&
+    result.identityCheck.distinctFromAlternatives
+  ) {
+    return {
+      className:
+        "rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3",
+      heading: "Legal parcel confirmed",
+      detail: `Parcel ${result.parcel.parcelId} is the confirmed parcel for this selected address.`,
+    };
+  }
+
+  return {
+    className:
+      "rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3",
+    heading: "Legal parcel requires manual review",
+    detail: "The address remains viewable, but do not treat its parcel as confirmed.",
+  };
 }
 
 function Disclosure({

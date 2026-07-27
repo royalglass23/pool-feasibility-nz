@@ -60,6 +60,9 @@ export function DataAccessInspector() {
   const [canRetry, setCanRetry] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [suggestionMessage, setSuggestionMessage] = useState<string | null>(
+    null,
+  );
 
   useEffect(() => {
     const query = address.trim();
@@ -75,18 +78,32 @@ export function DataAccessInspector() {
     const controller = new AbortController();
     const timeout = window.setTimeout(async () => {
       setIsSuggesting(true);
+      setSuggestionMessage(null);
       try {
         const response = await fetch(
           `/api/internal/address-suggestions?q=${encodeURIComponent(query)}`,
           { signal: controller.signal },
         );
-        if (!response.ok) return;
+        if (!response.ok) {
+          throw new Error("Address suggestions are temporarily unavailable.");
+        }
         const body = (await response.json()) as {
           suggestions?: Array<{ addressId: string; fullAddress: string }>;
         };
-        setAddressOptions(body.suggestions ?? []);
+        const nextSuggestions = body.suggestions ?? [];
+        setAddressOptions(nextSuggestions);
+        setSuggestionMessage(
+          nextSuggestions.length === 0
+            ? "No matching Auckland addresses were found yet."
+            : null,
+        );
       } catch {
-        if (!controller.signal.aborted) setAddressOptions([]);
+        if (!controller.signal.aborted) {
+          setAddressOptions([]);
+          setSuggestionMessage(
+            "Address suggestions are temporarily unavailable.",
+          );
+        }
       } finally {
         if (!controller.signal.aborted) setIsSuggesting(false);
       }
@@ -120,6 +137,7 @@ export function DataAccessInspector() {
     setCanRetry(false);
     setResult(null);
     setAddressOptions([]);
+    setSuggestionMessage(null);
 
     try {
       const response = await fetch("/api/internal/data-access", {
@@ -213,11 +231,12 @@ export function DataAccessInspector() {
               id="property-address"
               name="address"
               value={address}
-              onChange={(event) => {
-                setAddress(event.target.value);
-                setSelectedAddressId(null);
-                setAddressOptions([]);
-              }}
+                onChange={(event) => {
+                  setAddress(event.target.value);
+                  setSelectedAddressId(null);
+                  setAddressOptions([]);
+                  setSuggestionMessage(null);
+                }}
               required
               minLength={8}
               maxLength={200}
@@ -255,6 +274,11 @@ export function DataAccessInspector() {
             {isSuggesting && (
               <p className="mt-1 text-xs text-slate-500">
                 Searching LINZ addresses…
+              </p>
+            )}
+            {!isSuggesting && suggestionMessage && !selectedAddressId && (
+              <p className="mt-1 text-xs text-slate-600" role="status">
+                {suggestionMessage}
               </p>
             )}
           </div>
@@ -333,7 +357,10 @@ export function DataAccessInspector() {
                   key={option.addressId}
                   type="button"
                   disabled={isLoading}
-                  onClick={() => void requestPropertyData(option.addressId)}
+                  onClick={() => {
+                    setSelectedAddressId(option.addressId);
+                    void requestPropertyData(option.addressId);
+                  }}
                   className="rounded-xl border border-amber-300 bg-white px-4 py-3 text-left text-sm font-semibold text-slate-900 transition hover:border-teal-600 hover:text-teal-800 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {option.fullAddress}
@@ -424,10 +451,15 @@ export function PropertyDataResult({
         <SummaryCard
           icon={<ShieldCheck className="size-5" aria-hidden="true" />}
           label="Parcel match"
-          value={humanize(result.parcelMatch.status)}
+          value={
+            result.parcelMatch.status === "mapped_primary_parcel" &&
+            result.identityCheck.distinctFromAlternatives
+              ? "Confirmed"
+              : "Manual review required"
+          }
           detail={
             result.identityCheck.distinctFromAlternatives
-              ? "Separated from returned alternatives"
+              ? "Legal parcel separated from returned alternatives"
               : "Alternative address shares this parcel"
           }
         />
@@ -476,7 +508,10 @@ export function PropertyDataResult({
                 text="Selected parcel separated from returned alternatives"
               />
               <CheckItem
-                passed={result.parcelMatch.status === "mapped_primary_parcel"}
+                passed={
+                  result.parcelMatch.status === "mapped_primary_parcel" &&
+                  result.identityCheck.distinctFromAlternatives
+                }
                 text={humanize(result.parcelMatch.status)}
               />
             </ul>

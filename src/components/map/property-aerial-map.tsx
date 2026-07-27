@@ -1,13 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { bearing, booleanWithin, feature, point } from "@turf/turf";
-import type { Feature, FeatureCollection, Point } from "geojson";
+import { bearing, point } from "@turf/turf";
+import type { Feature, FeatureCollection, Geometry, Point } from "geojson";
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
 import { escapeHtml } from "@/shared/html/escape-html";
 import {
   assessCustomPoolPlacement,
+  type CustomPoolPlacementEvidence,
   type CustomPoolPlacementAssessment,
 } from "@/modules/spatial/assess-custom-pool-placement";
 import {
@@ -122,7 +123,8 @@ export function PropertyAerialMap({
         return assessCustomPoolPlacement({
           parcel: result.parcel.geometry,
           parcelStatus:
-            result.parcelMatch.status === "mapped_primary_parcel"
+            result.parcelMatch.status === "mapped_primary_parcel" &&
+            result.identityCheck.distinctFromAlternatives
               ? "confirmed"
               : "unconfirmed",
           position,
@@ -131,12 +133,31 @@ export function PropertyAerialMap({
           widthMetres: placementDimensions.widthMetres,
           parcelEvidence: legalParcelEvidenceForMap(result),
           buildings: spatialEvidenceForMap("building_footprints", result),
-          constraints: [
-            "planning_overlays",
-            "flood_plains",
-            "flood_prone_areas",
-            "overland_flow_paths",
-          ].map((key) => spatialEvidenceForMap(key, result)),
+          services: combinedSpatialEvidenceForMap(
+            [
+              "public_stormwater_assets",
+              "wastewater_assets",
+              "public_water_assets",
+              "electricity_feeder_lines",
+              "gas_distribution_lines",
+            ],
+            result,
+            "mapped_services",
+            "mapped services",
+          ),
+          manholes: combinedSpatialEvidenceForMap(
+            ["manholes", "wastewater_manholes"],
+            result,
+            "manholes",
+            "manholes",
+          ),
+          catchpits: combinedSpatialEvidenceForMap(
+            ["catchpits"],
+            result,
+            "catchpits",
+            "catchpits",
+          ),
+          constraints: placementConstraintsForMap(result),
         });
       } catch {
         return null;
@@ -380,55 +401,14 @@ export function PropertyAerialMap({
       activeMap.addControl(new maplibregl.NavigationControl(), "top-right");
 
       let interaction: "move" | "rotate" | null = null;
-      const updatePositionIfInsideParcel = (nextPosition: [number, number]) => {
-        const currentAssessment = placementAssessmentRef.current;
-        if (!currentAssessment) return;
-
-        const candidate = assessCustomPoolPlacement({
-          parcel: result.parcel.geometry,
-          parcelStatus: "confirmed",
-          position: nextPosition,
-          rotationDegrees: currentAssessment.rotationDegrees,
-          lengthMetres: currentAssessment.dimensions.lengthMetres,
-          widthMetres: currentAssessment.dimensions.widthMetres,
-          parcelEvidence: legalParcelEvidenceForMap(result),
-          buildings: spatialEvidenceForMap("building_footprints", result),
-          constraints: [],
-        });
-        if (
-          !booleanWithin(
-            candidate.envelopes.constructionAllowance,
-            feature(result.parcel.geometry),
-          )
-        ) {
-          return;
-        }
+      const updatePosition = (nextPosition: [number, number]) => {
+        if (!isConfirmedParcelForPlacement(result)) return;
         setPosition(nextPosition);
       };
-      const updateRotationIfInsideParcel = (nextRotation: number) => {
-        const currentAssessment = placementAssessmentRef.current;
-        if (!currentAssessment) return;
+      const updateRotation = (nextRotation: number) => {
+        if (!isConfirmedParcelForPlacement(result)) return;
         const wholeRotation = Math.round(nextRotation) % 360;
-
-        const candidate = assessCustomPoolPlacement({
-          parcel: result.parcel.geometry,
-          parcelStatus: "confirmed",
-          position: currentAssessment.position,
-          rotationDegrees: wholeRotation,
-          lengthMetres: currentAssessment.dimensions.lengthMetres,
-          widthMetres: currentAssessment.dimensions.widthMetres,
-          parcelEvidence: legalParcelEvidenceForMap(result),
-          buildings: spatialEvidenceForMap("building_footprints", result),
-          constraints: [],
-        });
-        if (
-          booleanWithin(
-            candidate.envelopes.constructionAllowance,
-            feature(result.parcel.geometry),
-          )
-        ) {
-          setRotationDegrees(wholeRotation);
-        }
+        setRotationDegrees(wholeRotation);
       };
       activeMap.on("mousedown", "placement-rotation-handle", (event) => {
         interaction = "rotate";
@@ -440,15 +420,11 @@ export function PropertyAerialMap({
         interaction = "move";
         activeMap.getCanvas().style.cursor = "grabbing";
         activeMap.dragPan.disable();
-        updatePositionIfInsideParcel(
-          activeMap.unproject(event.point).toArray(),
-        );
+        updatePosition(activeMap.unproject(event.point).toArray());
       });
       activeMap.on("mousemove", (event) => {
         if (interaction === "move") {
-          updatePositionIfInsideParcel(
-            activeMap.unproject(event.point).toArray(),
-          );
+          updatePosition(activeMap.unproject(event.point).toArray());
         } else if (interaction === "rotate") {
           const currentAssessment = placementAssessmentRef.current;
           if (!currentAssessment) return;
@@ -458,7 +434,7 @@ export function PropertyAerialMap({
               bearing(point([...currentAssessment.position]), point(cursor)) +
               360) %
             360;
-          updateRotationIfInsideParcel((nextRotation + 360) % 360);
+          updateRotation((nextRotation + 360) % 360);
         }
       });
       activeMap.on("mouseup", () => {
@@ -660,7 +636,7 @@ export function PropertyAerialMap({
         </div>
       </div>
       <div ref={containerRef} className="h-[600px] w-full bg-slate-800" />
-      {result.parcelMatch.status === "mapped_primary_parcel" ? (
+      {isConfirmedParcelForPlacement(result) ? (
         <PlacementControls
           assessment={placementAssessment}
           customLength={customLength}
@@ -699,6 +675,56 @@ export function PropertyAerialMap({
       </div>
     </section>
   );
+}
+
+function isConfirmedParcelForPlacement(result: DataAccessSpikeResult): boolean {
+  return (
+    result.parcelMatch.status === "mapped_primary_parcel" &&
+    result.identityCheck.distinctFromAlternatives
+  );
+}
+
+function placementConstraintsForMap(result: DataAccessSpikeResult) {
+  return [
+    "planning_overlays",
+    "flood_plains",
+    "flood_prone_areas",
+    "overland_flow_paths",
+  ].map((key) => spatialEvidenceForMap(key, result));
+}
+
+function combinedSpatialEvidenceForMap(
+  keys: string[],
+  result: DataAccessSpikeResult,
+  id: string,
+  label: string,
+): CustomPoolPlacementEvidence[] {
+  const datasets = keys.map((key) => result.datasets[key as DatasetKey]);
+  const available = datasets.filter(
+    (item) =>
+      item.status === "success" &&
+      item.geometry &&
+      item.geometry.features.length > 0,
+  );
+  const unavailable = datasets.some(
+    (item) => item.status !== "success" || !item.geometry,
+  );
+  const evidence: CustomPoolPlacementEvidence[] = [];
+  if (available.length > 0) {
+    evidence.push({
+      id,
+      label,
+      status: "available",
+      geometry: {
+        type: "FeatureCollection",
+        features: available.flatMap((item) => item.geometry?.features ?? []),
+      } satisfies FeatureCollection<Geometry>,
+    });
+  }
+  if (available.length === 0 || unavailable) {
+    evidence.push({ id, label, status: "unavailable" });
+  }
+  return evidence;
 }
 
 function PlacementControls({
@@ -847,7 +873,9 @@ function PlacementStatus({
         className={
           assessment.classification === "hard_conflict"
             ? "rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-950"
-            : "rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950"
+            : assessment.classification === "unknown"
+              ? "rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
+              : "rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950"
         }
       >
         <strong>
@@ -859,12 +887,45 @@ function PlacementStatus({
         </strong>
         <ul className="mt-1 list-disc pl-5">
           {assessment.hardConflicts.map((item) => (
-            <li key={`${item.type}-${item.evidenceId}`}>{item.message}</li>
+            <li key={`${item.type}-${item.evidenceId}`}>
+              {item.customerMessage} ({item.technicalLabel})
+            </li>
           ))}
           {assessment.unknownEvidence.map((item) => (
-            <li key={item.evidenceId}>{item.message}</li>
+            <li key={item.evidenceId}>
+              {item.customerMessage} ({item.technicalLabel})
+            </li>
           ))}
         </ul>
+      </div>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900">
+        <strong>Measured distances</strong>
+        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+          <Distance
+            label="Parcel boundary"
+            value={assessment.distances.parcelBoundaryMetres}
+          />
+          <Distance
+            label="Buildings"
+            value={assessment.distances.buildingsMetres}
+          />
+          <Distance
+            label="Mapped services"
+            value={assessment.distances.mappedServicesMetres}
+          />
+          <Distance
+            label="Manholes"
+            value={assessment.distances.manholesMetres}
+          />
+          <Distance
+            label="Catchpits"
+            value={assessment.distances.catchpitsMetres}
+          />
+        </dl>
+        <p className="mt-3 font-semibold">
+          Confidence: {assessment.confidence}% — {assessment.confidenceLabel}
+        </p>
+        <p className="mt-1">Next action: {assessment.nextAction}</p>
       </div>
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
         <strong>Advisory aerial imagery conflict review</strong>
@@ -873,6 +934,17 @@ function PlacementStatus({
           placement, then verify any apparent surface conflict on site.
         </p>
       </div>
+    </div>
+  );
+}
+
+function Distance({ label, value }: { label: string; value: number | null }) {
+  return (
+    <div>
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="font-semibold">
+        {value === null ? "Not mapped" : `${value.toFixed(1)} m`}
+      </dd>
     </div>
   );
 }

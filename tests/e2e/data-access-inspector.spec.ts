@@ -10,6 +10,60 @@ import type { PoolScenarioComparison } from "@/modules/spatial/analyze-pool-scen
 const address = "42A Bahari Drive, Ranui, Auckland";
 const secondAddress = "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland";
 
+test("shows the confirmed legal parcel status before assessment details", async ({
+  page,
+}) => {
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ data: dataAccessResult }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+
+  await expect(page.getByRole("status")).toContainText(
+    "Legal parcel confirmed",
+  );
+  await expect(page.getByRole("status")).toContainText("Parcel 8545868");
+});
+
+test("labels an unconfirmed parcel for manual review before map details", async ({
+  page,
+}) => {
+  await page.route("**/api/internal/data-access", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          ...dataAccessResult,
+          parcelMatch: {
+            status: "containing_parcel_requires_confirmation",
+            reasons: [
+              "The containing parcel has not been confirmed for this address.",
+            ],
+          },
+        },
+      }),
+    });
+  });
+
+  await page.goto("/");
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+
+  await expect(page.getByRole("status")).toContainText(
+    "Legal parcel requires manual review",
+  );
+  await expect(page.getByRole("status")).toContainText(
+    "do not treat its parcel as confirmed",
+  );
+});
+
 test("supports manual placement controls, validation, rotation, and conflict states", async ({
   page,
 }) => {

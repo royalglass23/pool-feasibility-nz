@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "feature": "customer-address",
+  "baseCommit": "655695e2dce98dba634830bd6087d20740708fa3",
+  "candidateState": "uncommitted-working-tree",
+  "command": "npx.cmd playwright test tests/e2e/data-access-inspector.spec.ts -g \"legal parcel\" --workers=1 --retries=0; npx.cmd playwright test tests/e2e/data-access-inspector.spec.ts -g \"unconfirmed parcel\" --workers=1 --retries=0",
+  "retries": 0,
+  "environment": {
+    "name": "isolated-local-next-dev",
+    "baseUrl": "http://127.0.0.1:3000",
+    "production": false,
+    "fingerprint": "local-next-dev-chromium-one-worker"
+  },
+  "configHash": "unavailable",
+  "fixtureVersion": "unavailable",
+  "matrixHash": "unavailable",
+  "projects": ["chromium"],
+  "coverage": { "required": 9, "covered": 3 },
+  "counts": { "total": 3, "passed": 3, "failed": 0, "skipped": 0, "flaky": 0 },
+  "artifacts": { "report": "playwright-report/index.html", "traces": [] },
+  "verdict": "BLOCKED"
+}
