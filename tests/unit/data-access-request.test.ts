@@ -218,7 +218,7 @@ describe("executeDataAccessRequest", () => {
     expect(JSON.stringify(response)).not.toContain("secret-internal-detail");
   });
 
-  it("fails closed when the containing parcel cannot be confirmed as the legal parcel", async () => {
+  it("returns the property with a manual-review parcel status", async () => {
     const response = await executeDataAccessRequest({
       body: {
         address: "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland",
@@ -230,13 +230,13 @@ describe("executeDataAccessRequest", () => {
       }),
     });
 
-    expect(response).toEqual({
-      ok: false,
-      status: 409,
-      error: {
-        code: "PARCEL_UNCONFIRMED",
-        message:
-          "The legal parcel could not be confirmed for this address. Manual property review is required.",
+    expect(response).toMatchObject({
+      ok: true,
+      status: 200,
+      data: {
+        parcelMatch: {
+          status: "containing_parcel_requires_confirmation",
+        },
       },
     });
   });
@@ -295,9 +295,14 @@ describe("executeDataAccessRequest", () => {
     });
 
     expect(response).toMatchObject({
-      ok: false,
-      status: 409,
-      error: { code: "PARCEL_UNCONFIRMED" },
+      ok: true,
+      status: 200,
+      data: {
+        parcelMatch: {
+          status: "containing_parcel_requires_confirmation",
+        },
+        identityCheck: { distinctFromAlternatives: true },
+      },
     });
   });
 
@@ -309,13 +314,11 @@ describe("executeDataAccessRequest", () => {
       }),
     });
 
-    expect(response).toEqual({
-      ok: false,
-      status: 409,
-      error: {
-        code: "PARCEL_UNCONFIRMED",
-        message:
-          "The legal parcel could not be confirmed for this address. Manual property review is required.",
+    expect(response).toMatchObject({
+      ok: true,
+      status: 200,
+      data: {
+        identityCheck: { distinctFromAlternatives: false },
       },
     });
   });
@@ -358,9 +361,11 @@ describe("executeDataAccessRequest", () => {
     });
 
     expect(response).toMatchObject({
-      ok: false,
-      status: 409,
-      error: { code: "PARCEL_UNCONFIRMED" },
+      ok: true,
+      status: 200,
+      data: {
+        identityCheck: { distinctFromAlternatives: false },
+      },
     });
   });
 

@@ -1,12 +1,14 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Feature, FeatureCollection, Point } from "geojson";
+import { bearing, point } from "@turf/turf";
+import type { Feature, FeatureCollection, Geometry, Point } from "geojson";
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
 import { escapeHtml } from "@/shared/html/escape-html";
 import {
   assessCustomPoolPlacement,
+  type CustomPoolPlacementEvidence,
   type CustomPoolPlacementAssessment,
 } from "@/modules/spatial/assess-custom-pool-placement";
 import {
@@ -121,7 +123,8 @@ export function PropertyAerialMap({
         return assessCustomPoolPlacement({
           parcel: result.parcel.geometry,
           parcelStatus:
-            result.parcelMatch.status === "mapped_primary_parcel"
+            result.parcelMatch.status === "mapped_primary_parcel" &&
+            result.identityCheck.distinctFromAlternatives
               ? "confirmed"
               : "unconfirmed",
           position,
@@ -130,36 +133,63 @@ export function PropertyAerialMap({
           widthMetres: placementDimensions.widthMetres,
           parcelEvidence: legalParcelEvidenceForMap(result),
           buildings: spatialEvidenceForMap("building_footprints", result),
-          constraints: [
-            "planning_zone",
-            "planning_overlays",
-            "flood_plains",
-            "flood_prone_areas",
-            "overland_flow_paths",
-          ].map((key) => spatialEvidenceForMap(key, result)),
+          services: combinedSpatialEvidenceForMap(
+            [
+              "public_stormwater_assets",
+              "wastewater_assets",
+              "public_water_assets",
+              "electricity_feeder_lines",
+              "gas_distribution_lines",
+            ],
+            result,
+            "mapped_services",
+            "mapped services",
+          ),
+          manholes: combinedSpatialEvidenceForMap(
+            ["manholes", "wastewater_manholes"],
+            result,
+            "manholes",
+            "manholes",
+          ),
+          catchpits: combinedSpatialEvidenceForMap(
+            ["catchpits"],
+            result,
+            "catchpits",
+            "catchpits",
+          ),
+          constraints: placementConstraintsForMap(result),
         });
       } catch {
         return null;
       }
     }, [placementDimensions, position, result, rotationDegrees]);
+  const placementAssessmentRef = useRef<CustomPoolPlacementAssessment | null>(
+    null,
+  );
+  useEffect(() => {
+    placementAssessmentRef.current = placementAssessment;
+  }, [placementAssessment]);
   const placementValidationMessage =
     placementPreset === "custom" && !placementAssessment
       ? "Enter length and width between 0.1 m and 30 m before assessing the placement."
       : null;
-  const captureReportSnapshot = useCallback((waitForIdle = false) => {
-    const map = mapRef.current;
-    if (!map) return;
-    const capture = () => {
-      if (mapRef.current !== map) return;
-      try {
-        onSnapshotReady?.(map.getCanvas().toDataURL("image/png"));
-      } catch {
-        onSnapshotReady?.(null);
-      }
-    };
-    if (waitForIdle) map.once("idle", capture);
-    else capture();
-  }, [onSnapshotReady]);
+  const captureReportSnapshot = useCallback(
+    (waitForIdle = false) => {
+      const map = mapRef.current;
+      if (!map) return;
+      const capture = () => {
+        if (mapRef.current !== map) return;
+        try {
+          onSnapshotReady?.(map.getCanvas().toDataURL("image/png"));
+        } catch {
+          onSnapshotReady?.(null);
+        }
+      };
+      if (waitForIdle) map.once("idle", capture);
+      else capture();
+    },
+    [onSnapshotReady],
+  );
 
   useEffect(() => {
     const container = containerRef.current;
@@ -213,12 +243,13 @@ export function PropertyAerialMap({
         "placement-construction": geoJsonSource(
           placementAssessment?.envelopes.constructionAllowance,
         ),
-        "placement-barrier": geoJsonSource(
-          placementAssessment?.envelopes.barrier,
-        ),
         "placement-access": geoJsonSource(
           placementAssessment?.envelopes.access,
         ),
+        "placement-rotation-handle": {
+          type: "geojson",
+          data: rotationHandleGeometry(placementAssessment),
+        },
       };
       const layers: LayerSpecification[] = [];
       if (aerialConfigured) {
@@ -278,19 +309,9 @@ export function PropertyAerialMap({
             type: "line",
             source: "placement-access",
             paint: {
-              "line-color": "#2563eb",
+              "line-color": "#0891b2",
               "line-width": 3,
               "line-dasharray": [1, 2],
-            },
-          },
-          {
-            id: "placement-barrier-line",
-            type: "line",
-            source: "placement-barrier",
-            paint: {
-              "line-color": "#7c3aed",
-              "line-width": 3,
-              "line-dasharray": [2, 1],
             },
           },
           {
@@ -307,21 +328,32 @@ export function PropertyAerialMap({
             id: "placement-shell-fill",
             type: "fill",
             source: "placement-shell",
-            paint: {
-              "fill-color":
-                placementAssessment?.classification === "hard_conflict"
-                  ? "#dc2626"
-                  : placementAssessment?.classification === "unknown"
-                    ? "#d97706"
-                    : "#0f766e",
-              "fill-opacity": 0.72,
-            },
+            paint: { "fill-color": "#2563eb", "fill-opacity": 0.72 },
           },
           {
             id: "placement-shell-outline",
             type: "line",
             source: "placement-shell",
             paint: { "line-color": "#0f172a", "line-width": 3 },
+          },
+          {
+            id: "placement-rotation-guide",
+            type: "line",
+            source: "placement-rotation-handle",
+            filter: ["==", ["get", "kind"], "guide"],
+            paint: { "line-color": "#2563eb", "line-width": 2 },
+          },
+          {
+            id: "placement-rotation-handle",
+            type: "circle",
+            source: "placement-rotation-handle",
+            filter: ["==", ["get", "kind"], "handle"],
+            paint: {
+              "circle-color": "#2563eb",
+              "circle-radius": 7,
+              "circle-stroke-color": "#ffffff",
+              "circle-stroke-width": 2,
+            },
           },
         );
       }
@@ -368,18 +400,45 @@ export function PropertyAerialMap({
       mapRef.current = activeMap;
       activeMap.addControl(new maplibregl.NavigationControl(), "top-right");
 
-      let dragging = false;
+      let interaction: "move" | "rotate" | null = null;
+      const updatePosition = (nextPosition: [number, number]) => {
+        if (!isConfirmedParcelForPlacement(result)) return;
+        setPosition(nextPosition);
+      };
+      const updateRotation = (nextRotation: number) => {
+        if (!isConfirmedParcelForPlacement(result)) return;
+        const wholeRotation = Math.round(nextRotation) % 360;
+        setRotationDegrees(wholeRotation);
+      };
+      activeMap.on("mousedown", "placement-rotation-handle", (event) => {
+        interaction = "rotate";
+        activeMap.getCanvas().style.cursor = "crosshair";
+        activeMap.dragPan.disable();
+        event.originalEvent.stopPropagation();
+      });
       activeMap.on("mousedown", "placement-shell-fill", (event) => {
-        dragging = true;
+        interaction = "move";
         activeMap.getCanvas().style.cursor = "grabbing";
         activeMap.dragPan.disable();
-        setPosition(activeMap.unproject(event.point).toArray());
+        updatePosition(activeMap.unproject(event.point).toArray());
       });
       activeMap.on("mousemove", (event) => {
-        if (dragging) setPosition(activeMap.unproject(event.point).toArray());
+        if (interaction === "move") {
+          updatePosition(activeMap.unproject(event.point).toArray());
+        } else if (interaction === "rotate") {
+          const currentAssessment = placementAssessmentRef.current;
+          if (!currentAssessment) return;
+          const cursor = activeMap.unproject(event.point).toArray();
+          const nextRotation =
+            (180 -
+              bearing(point([...currentAssessment.position]), point(cursor)) +
+              360) %
+            360;
+          updateRotation((nextRotation + 360) % 360);
+        }
       });
       activeMap.on("mouseup", () => {
-        dragging = false;
+        interaction = null;
         activeMap.getCanvas().style.cursor = "";
         activeMap.dragPan.enable();
       });
@@ -433,12 +492,12 @@ export function PropertyAerialMap({
         placementAssessment?.envelopes.constructionAllowance ?? emptyGeometry,
       ],
       [
-        "placement-barrier",
-        placementAssessment?.envelopes.barrier ?? emptyGeometry,
-      ],
-      [
         "placement-access",
         placementAssessment?.envelopes.access ?? emptyGeometry,
+      ],
+      [
+        "placement-rotation-handle",
+        rotationHandleGeometry(placementAssessment),
       ],
     ] as const) {
       const source = map.getSource(sourceId) as
@@ -446,15 +505,7 @@ export function PropertyAerialMap({
       source?.setData(geometry);
     }
     if (!placementAssessment) return;
-    map.setPaintProperty(
-      "placement-shell-fill",
-      "fill-color",
-      placementAssessment.classification === "hard_conflict"
-        ? "#dc2626"
-        : placementAssessment.classification === "unknown"
-          ? "#d97706"
-          : "#0f766e",
-    );
+    map.setPaintProperty("placement-shell-fill", "fill-color", "#2563eb");
 
     captureReportSnapshot(true);
   }, [
@@ -462,7 +513,6 @@ export function PropertyAerialMap({
     placementAssessment,
     placementAssessment?.classification,
     placementAssessment?.envelopes.access,
-    placementAssessment?.envelopes.barrier,
     placementAssessment?.envelopes.constructionAllowance,
     placementAssessment?.shell,
   ]);
@@ -585,8 +635,8 @@ export function PropertyAerialMap({
           </div>
         </div>
       </div>
-      <div ref={containerRef} className="h-96 w-full bg-slate-800" />
-      {result.parcelMatch.status === "mapped_primary_parcel" ? (
+      <div ref={containerRef} className="h-[600px] w-full bg-slate-800" />
+      {isConfirmedParcelForPlacement(result) ? (
         <PlacementControls
           assessment={placementAssessment}
           customLength={customLength}
@@ -598,7 +648,6 @@ export function PropertyAerialMap({
             setPlacementPreset(value);
             if (value !== "custom") setRotationDegrees(0);
           }}
-          onRotate={() => setRotationDegrees((value) => (value + 15) % 360)}
           placementPreset={placementPreset}
           validationMessage={placementValidationMessage}
         />
@@ -628,6 +677,56 @@ export function PropertyAerialMap({
   );
 }
 
+function isConfirmedParcelForPlacement(result: DataAccessSpikeResult): boolean {
+  return (
+    result.parcelMatch.status === "mapped_primary_parcel" &&
+    result.identityCheck.distinctFromAlternatives
+  );
+}
+
+function placementConstraintsForMap(result: DataAccessSpikeResult) {
+  return [
+    "planning_overlays",
+    "flood_plains",
+    "flood_prone_areas",
+    "overland_flow_paths",
+  ].map((key) => spatialEvidenceForMap(key, result));
+}
+
+function combinedSpatialEvidenceForMap(
+  keys: string[],
+  result: DataAccessSpikeResult,
+  id: string,
+  label: string,
+): CustomPoolPlacementEvidence[] {
+  const datasets = keys.map((key) => result.datasets[key as DatasetKey]);
+  const available = datasets.filter(
+    (item) =>
+      item.status === "success" &&
+      item.geometry &&
+      item.geometry.features.length > 0,
+  );
+  const unavailable = datasets.some(
+    (item) => item.status !== "success" || !item.geometry,
+  );
+  const evidence: CustomPoolPlacementEvidence[] = [];
+  if (available.length > 0) {
+    evidence.push({
+      id,
+      label,
+      status: "available",
+      geometry: {
+        type: "FeatureCollection",
+        features: available.flatMap((item) => item.geometry?.features ?? []),
+      } satisfies FeatureCollection<Geometry>,
+    });
+  }
+  if (available.length === 0 || unavailable) {
+    evidence.push({ id, label, status: "unavailable" });
+  }
+  return evidence;
+}
+
 function PlacementControls({
   assessment,
   customLength,
@@ -636,7 +735,6 @@ function PlacementControls({
   onCustomLength,
   onCustomWidth,
   onPreset,
-  onRotate,
   placementPreset,
   validationMessage,
 }: {
@@ -647,7 +745,6 @@ function PlacementControls({
   onCustomLength: (value: string) => void;
   onCustomWidth: (value: string) => void;
   onPreset: (value: string) => void;
-  onRotate: () => void;
   placementPreset: string;
   validationMessage: string | null;
 }) {
@@ -662,7 +759,9 @@ function PlacementControls({
             Manual pool placement
           </h4>
           <p className="mt-1 text-sm text-slate-600">
-            Drag the selected pool on the map. Rotate it in 15° steps.
+            <span className="font-semibold text-slate-800">How to use:</span>{" "}
+            drag the pool within the parcel, or drag the blue handle to rotate
+            it with the mouse.
           </p>
         </div>
         <div
@@ -678,7 +777,7 @@ function PlacementControls({
               onClick={() => onPreset(id)}
               className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold hover:border-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50"
             >
-              {id.replaceAll("-", " ")}
+              {formatPlacementPresetLabel(id)}
             </button>
           ))}
           <button
@@ -688,13 +787,6 @@ function PlacementControls({
             className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold hover:border-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50"
           >
             Custom size
-          </button>
-          <button
-            type="button"
-            onClick={onRotate}
-            className="rounded-lg bg-slate-950 px-3 py-2 text-sm font-semibold text-white hover:bg-teal-800"
-          >
-            Rotate 15°
           </button>
         </div>
       </div>
@@ -736,20 +828,20 @@ function PlacementControls({
       {dimensions && (
         <p className="mt-3 text-sm text-slate-700">
           Selected shell: {dimensions.lengthMetres} m × {dimensions.widthMetres}{" "}
-          m. Rotation: {assessment?.rotationDegrees ?? 0}°.
+          m.
         </p>
       )}
       {assessment && <PlacementStatus assessment={assessment} />}
       <div
-        className="mt-4 grid gap-2 text-xs text-slate-700 sm:grid-cols-4"
+        className="mt-4 grid gap-2 text-xs text-slate-700 sm:grid-cols-3"
         aria-label="Placement overlay legend"
       >
         <span>
           <i
-            className="mr-2 inline-block size-3 rounded-sm bg-teal-700"
+            className="mr-2 inline-block size-3 rounded-sm bg-blue-600"
             aria-hidden="true"
           />
-          Pool shell
+          Pool shell (blue)
         </span>
         <span>
           <i
@@ -760,14 +852,7 @@ function PlacementControls({
         </span>
         <span>
           <i
-            className="mr-2 inline-block size-3 rounded-sm bg-violet-600"
-            aria-hidden="true"
-          />
-          Indicative barrier
-        </span>
-        <span>
-          <i
-            className="mr-2 inline-block size-3 rounded-sm bg-blue-600"
+            className="mr-2 inline-block size-3 rounded-sm bg-cyan-600"
             aria-hidden="true"
           />
           Access envelope
@@ -788,7 +873,9 @@ function PlacementStatus({
         className={
           assessment.classification === "hard_conflict"
             ? "rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-950"
-            : "rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950"
+            : assessment.classification === "unknown"
+              ? "rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
+              : "rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950"
         }
       >
         <strong>
@@ -800,12 +887,45 @@ function PlacementStatus({
         </strong>
         <ul className="mt-1 list-disc pl-5">
           {assessment.hardConflicts.map((item) => (
-            <li key={`${item.type}-${item.evidenceId}`}>{item.message}</li>
+            <li key={`${item.type}-${item.evidenceId}`}>
+              {item.customerMessage} ({item.technicalLabel})
+            </li>
           ))}
           {assessment.unknownEvidence.map((item) => (
-            <li key={item.evidenceId}>{item.message}</li>
+            <li key={item.evidenceId}>
+              {item.customerMessage} ({item.technicalLabel})
+            </li>
           ))}
         </ul>
+      </div>
+      <div className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-900">
+        <strong>Measured distances</strong>
+        <dl className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+          <Distance
+            label="Parcel boundary"
+            value={assessment.distances.parcelBoundaryMetres}
+          />
+          <Distance
+            label="Buildings"
+            value={assessment.distances.buildingsMetres}
+          />
+          <Distance
+            label="Mapped services"
+            value={assessment.distances.mappedServicesMetres}
+          />
+          <Distance
+            label="Manholes"
+            value={assessment.distances.manholesMetres}
+          />
+          <Distance
+            label="Catchpits"
+            value={assessment.distances.catchpitsMetres}
+          />
+        </dl>
+        <p className="mt-3 font-semibold">
+          Confidence: {assessment.confidence}% — {assessment.confidenceLabel}
+        </p>
+        <p className="mt-1">Next action: {assessment.nextAction}</p>
       </div>
       <div className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
         <strong>Advisory aerial imagery conflict review</strong>
@@ -818,11 +938,59 @@ function PlacementStatus({
   );
 }
 
+function Distance({ label, value }: { label: string; value: number | null }) {
+  return (
+    <div>
+      <dt className="text-slate-500">{label}</dt>
+      <dd className="font-semibold">
+        {value === null ? "Not mapped" : `${value.toFixed(1)} m`}
+      </dd>
+    </div>
+  );
+}
+
 function geoJsonSource(geometry: Feature | undefined) {
   return {
     type: "geojson" as const,
     data: geometry ?? { type: "FeatureCollection" as const, features: [] },
   };
+}
+
+function rotationHandleGeometry(
+  assessment: CustomPoolPlacementAssessment | null,
+): FeatureCollection {
+  if (!assessment) return { type: "FeatureCollection", features: [] };
+
+  const [first, second] = assessment.shell.geometry.coordinates[0];
+  const handle: [number, number] = [
+    (first[0] + second[0]) / 2,
+    (first[1] + second[1]) / 2,
+  ];
+  return {
+    type: "FeatureCollection",
+    features: [
+      {
+        type: "Feature",
+        properties: { kind: "guide" },
+        geometry: {
+          type: "LineString",
+          coordinates: [[...assessment.position], handle],
+        },
+      },
+      {
+        type: "Feature",
+        properties: { kind: "handle" },
+        geometry: { type: "Point", coordinates: handle },
+      },
+    ],
+  };
+}
+
+function formatPlacementPresetLabel(value: string): string {
+  return value
+    .split("-")
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
 }
 
 function mapEvidenceSummary(

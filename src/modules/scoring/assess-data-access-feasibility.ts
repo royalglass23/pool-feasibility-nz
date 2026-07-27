@@ -25,6 +25,7 @@ export function assessDataAccessFeasibility(input: {
   exactAddressMatched: boolean;
   parcelMatchStatus:
     "mapped_primary_parcel" | "containing_parcel_requires_confirmation";
+  parcelIdentityConfirmed?: boolean;
   parcel: ParcelMatch;
   datasets: Record<DatasetKey, DatasetEvidence>;
   terrainEvidence: NormalizedTerrainEvidence;
@@ -35,7 +36,8 @@ export function assessDataAccessFeasibility(input: {
     address: { status: "confirmed", exactMatch: input.exactAddressMatched },
     parcel: {
       status:
-        input.parcelMatchStatus === "mapped_primary_parcel"
+        input.parcelMatchStatus === "mapped_primary_parcel" &&
+        input.parcelIdentityConfirmed !== false
           ? "confirmed"
           : "unconfirmed",
       titleEvidence:

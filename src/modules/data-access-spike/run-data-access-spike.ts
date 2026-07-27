@@ -241,7 +241,8 @@ export async function runDataAccessSpike(input: {
   const scenarioComparison = analyzePoolScenarios({
     parcel: parcel.geometry,
     parcelStatus:
-      parcelMatch.status === "mapped_primary_parcel"
+      parcelMatch.status === "mapped_primary_parcel" &&
+      distinctFromAlternatives
         ? "confirmed"
         : "unconfirmed",
     parcelEvidence: spatialEvidence("legal_parcel", datasets, {
@@ -267,6 +268,7 @@ export async function runDataAccessSpike(input: {
     scenarioComparison,
     exactAddressMatched,
     parcelMatchStatus: parcelMatch.status,
+    parcelIdentityConfirmed: distinctFromAlternatives,
     parcel,
     datasets,
     terrainEvidence: deriveTerrainEvidence(datasets.contours),

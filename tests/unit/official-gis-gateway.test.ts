@@ -295,6 +295,22 @@ describe("OfficialGisGateway", () => {
     );
   });
 
+  it("builds a bounded current-address autocomplete lookup", async () => {
+    const fetchStub = vi.fn<typeof fetch>(async () =>
+      Response.json({ type: "FeatureCollection", features: [] }),
+    );
+    const gateway = new OfficialGisGateway({ fetch: fetchStub });
+
+    await gateway.suggestAddresses("42 bahari");
+
+    const requestedUrl = new URL(String(fetchStub.mock.calls[0]?.[0]));
+    expect(requestedUrl.searchParams.get("where")).toBe(
+      "territorial_authority='Auckland' AND address_lifecycle='Current' AND full_address LIKE '%42 bahari%'",
+    );
+    expect(requestedUrl.searchParams.get("resultRecordCount")).toBe("8");
+    expect(requestedUrl.searchParams.get("returnGeometry")).toBe("true");
+  });
+
   it("does not normalize a retired address returned by the provider", async () => {
     const retiredResponse = {
       ...addressesFixture,
