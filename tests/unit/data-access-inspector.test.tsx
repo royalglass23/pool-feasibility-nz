@@ -491,6 +491,12 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(
       await screen.findByRole("option", { name: requestedAddress }),
     ).toBeVisible();
+    expect(
+      screen.getAllByRole("option", { name: requestedAddress }),
+    ).toHaveLength(1);
+    expect(
+      screen.queryByRole("heading", { name: "Select the correct address" }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("option", { name: requestedAddress }));
     await user.click(
       screen.getByRole("button", { name: "Fetch property data" }),
