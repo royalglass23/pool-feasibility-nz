@@ -93,6 +93,10 @@ export function providerEvidenceErrorCode(
 
 export interface DataAccessSpikeGateway {
   datasetEvidence(dataset: DatasetKey, retrievedAt: string): DatasetEvidence;
+  datasetCapability(dataset: DatasetKey): {
+    detailedQuery: boolean;
+    reason: string | null;
+  };
   searchAddresses(requestedAddress: string): Promise<AddressMatch[]>;
   findParcelsAt(position: Position): Promise<ParcelQueryResult>;
   countFeatures(

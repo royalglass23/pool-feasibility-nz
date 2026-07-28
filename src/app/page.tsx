@@ -12,8 +12,8 @@ export default function Home() {
             Inspect official property data before assessing pool feasibility.
           </h1>
           <p className="mt-5 max-w-2xl text-base leading-7 text-slate-600 sm:text-lg sm:leading-8">
-            Enter an Auckland address to resolve its LINZ address point, match
-            the mapped legal parcel, and check the current official dataset
+            Enter a New Zealand address to resolve its LINZ address point, match
+            the mapped property boundary, and check the current official dataset
             catalogue.
           </p>
         </header>

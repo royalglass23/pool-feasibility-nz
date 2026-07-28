@@ -15,6 +15,7 @@
     "test:watch": "vitest",
     "test:e2e": "playwright test",
     "spike:data-access": "tsx scripts/data-access-spike.ts",
+    "coverage:linz": "tsx scripts/verify-nationwide-linz-coverage.ts",
     "spike:verify-aerial": "tsx scripts/verify-aerial-alignment.ts",
     "smoke:live-layers": "tsx scripts/verify-live-property-layers.ts",
     "db:generate": "drizzle-kit generate",

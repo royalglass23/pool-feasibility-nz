@@ -5,6 +5,7 @@ import {
   type DataAccessSpikeGateway,
   type DataAccessSpikeResult,
   type AddressOption,
+  type BoundaryState,
 } from "./run-data-access-spike";
 import { isProviderEvidenceError } from "./data-access-gateway";
 
@@ -15,17 +16,39 @@ const requestSchema = z
   })
   .strict();
 
-export type DataAccessRequestErrorCode =
-  | "INVALID_ADDRESS"
-  | "ADDRESS_FORMAT_UNSUPPORTED"
-  | "ADDRESS_NOT_FOUND"
-  | "ADDRESS_AMBIGUOUS"
-  | "PARCEL_NOT_FOUND"
-  | "PARCEL_AMBIGUOUS"
-  | "PARCEL_UNCONFIRMED"
-  | "OUTSIDE_SUPPORTED_REGION"
-  | "DATA_PROVIDER_ERROR"
-  | "ANALYSIS_FAILED";
+export type DataAccessRequestError =
+  | {
+      code:
+        | "INVALID_ADDRESS"
+        | "ADDRESS_FORMAT_UNSUPPORTED"
+        | "ADDRESS_NOT_FOUND"
+        | "PARCEL_UNCONFIRMED"
+        | "DATA_PROVIDER_ERROR"
+        | "ANALYSIS_FAILED";
+      message: string;
+      options?: never;
+      boundaryState?: never;
+    }
+  | {
+      code: "ADDRESS_AMBIGUOUS";
+      message: string;
+      options: AddressOption[];
+      boundaryState?: never;
+    }
+  | {
+      code: "PARCEL_NOT_FOUND";
+      message: string;
+      options?: never;
+      boundaryState: "unavailable";
+    }
+  | {
+      code: "PARCEL_AMBIGUOUS";
+      message: string;
+      options?: never;
+      boundaryState: "multiple";
+    };
+
+export type DataAccessRequestErrorCode = DataAccessRequestError["code"];
 
 export type DataAccessRequestResponse =
   | {
@@ -36,11 +59,7 @@ export type DataAccessRequestResponse =
   | {
       ok: false;
       status: 400 | 404 | 409 | 422 | 500 | 502;
-      error: {
-        code: DataAccessRequestErrorCode;
-        message: string;
-        options?: AddressOption[];
-      };
+      error: DataAccessRequestError;
     };
 
 export async function executeDataAccessRequest(input: {
@@ -54,7 +73,7 @@ export async function executeDataAccessRequest(input: {
     return requestError(
       400,
       "INVALID_ADDRESS",
-      "Enter a complete Auckland property address.",
+      "Enter a complete New Zealand property address.",
     );
   }
 
@@ -85,7 +104,7 @@ function mapDataAccessError(error: unknown): DataAccessRequestResponse {
         return requestError(
           404,
           error.code,
-          "No exact Auckland address match was found.",
+          "No exact New Zealand address match was found.",
         );
       case "ADDRESS_AMBIGUOUS":
         return {
@@ -93,7 +112,7 @@ function mapDataAccessError(error: unknown): DataAccessRequestResponse {
           status: 409,
           error: {
             code: error.code,
-            message: "Select the correct Auckland address to continue.",
+            message: "Select the correct New Zealand address to continue.",
             options: error.addressOptions,
           },
         };
@@ -101,19 +120,15 @@ function mapDataAccessError(error: unknown): DataAccessRequestResponse {
         return requestError(
           404,
           error.code,
-          "No legal parcel was found at the resolved address point.",
+          "No mapped property boundary was found at the selected address point.",
+          error.boundaryState ?? undefined,
         );
       case "PARCEL_AMBIGUOUS":
         return requestError(
           409,
           error.code,
-          "More than one legal parcel contains this address point. Manual review is required.",
-        );
-      case "OUTSIDE_SUPPORTED_REGION":
-        return requestError(
-          422,
-          error.code,
-          "This proof of concept currently supports Auckland addresses only.",
+          "More than one mapped property boundary contains this address point. Manual review is required.",
+          error.boundaryState ?? undefined,
         );
     }
   }
@@ -125,7 +140,7 @@ function mapDataAccessError(error: unknown): DataAccessRequestResponse {
     return requestError(
       400,
       "ADDRESS_FORMAT_UNSUPPORTED",
-      "Use a street address such as 42A Bahari Drive, Ranui, Auckland.",
+      "Use a complete street address such as 42A Bahari Drive, Ranui, Auckland.",
     );
   }
 
@@ -152,6 +167,15 @@ function requestError(
   status: 400 | 404 | 409 | 422 | 500 | 502,
   code: DataAccessRequestErrorCode,
   message: string,
+  boundaryState?: BoundaryState,
 ): DataAccessRequestResponse {
-  return { ok: false, status, error: { code, message } };
+  return {
+    ok: false,
+    status,
+    error: {
+      code,
+      message,
+      ...(boundaryState ? { boundaryState } : {}),
+    },
+  } as DataAccessRequestResponse;
 }

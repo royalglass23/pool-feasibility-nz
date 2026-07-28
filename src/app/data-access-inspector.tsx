@@ -24,15 +24,23 @@ import { SessionAssessmentResult } from "@/components/session-assessment-result"
 import { AssessmentExplanationResult } from "@/components/assessment-explanation-result";
 import { AssessmentWorkspace } from "@/components/assessment-workspace";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
+import type { DataAccessRequestError } from "@/modules/data-access-spike/execute-data-access-request";
 import { buildSessionAssessment } from "@/modules/assessment/build-session-assessment";
 import type { AssessmentExplanation } from "@/modules/recommendations/generate-assessment-explanation";
 import { PropertyAerialMap } from "@/components/map/property-aerial-map";
 import { humanizeIdentifierTitleCase as humanize } from "@/shared/text/humanize-identifier";
+import { FastPropertyView } from "@/components/fast-property-view";
+import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
+import type { FastPropertyViewRequestError } from "@/modules/data-access-spike/execute-fast-property-view-request";
+import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fast-property-details";
 
 type DataAccessApiResult = DataAccessSpikeResult & {
   assessmentExplanation?: AssessmentExplanation;
   reportToken: string;
 };
+
+type FastApiResponse =
+  { data: FastPropertyViewResult } | { error: FastPropertyViewRequestError };
 
 type ApiResponse =
   | {
@@ -40,11 +48,7 @@ type ApiResponse =
       reportToken: string;
     }
   | {
-      error: {
-        code: string;
-        message: string;
-        options?: Array<{ addressId: string; fullAddress: string }>;
-      };
+      error: DataAccessRequestError;
     };
 
 export function DataAccessInspector() {
@@ -53,6 +57,9 @@ export function DataAccessInspector() {
     null,
   );
   const [result, setResult] = useState<DataAccessApiResult | null>(null);
+  const [fastResult, setFastResult] = useState<FastPropertyViewResult | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
   const [addressOptions, setAddressOptions] = useState<
     Array<{ addressId: string; fullAddress: string }>
@@ -60,18 +67,15 @@ export function DataAccessInspector() {
   const [canRetry, setCanRetry] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
+  const [isLoadingDetailed, setIsLoadingDetailed] = useState(false);
+  const detailedRequestInFlightRef = useRef(false);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(
     null,
   );
 
   useEffect(() => {
     const query = address.trim();
-    if (
-      query.length < 3 ||
-      query.includes(",") ||
-      selectedAddressId ||
-      result
-    ) {
+    if (query.length < 3 || selectedAddressId || result || isLoading) {
       return;
     }
 
@@ -94,7 +98,7 @@ export function DataAccessInspector() {
         setAddressOptions(nextSuggestions);
         setSuggestionMessage(
           nextSuggestions.length === 0
-            ? "No matching Auckland addresses were found yet."
+            ? "No matching New Zealand addresses were found yet."
             : null,
         );
       } catch {
@@ -113,13 +117,16 @@ export function DataAccessInspector() {
       controller.abort();
       window.clearTimeout(timeout);
     };
-  }, [address, result, selectedAddressId]);
+  }, [address, isLoading, result, selectedAddressId]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isLoading) return;
 
-    await requestPropertyData();
+    await requestPropertyData(
+      selectedAddressId ??
+        (addressOptions.length === 1 ? addressOptions[0].addressId : undefined),
+    );
   }
 
   async function requestPropertyData(selectedId?: string) {
@@ -127,7 +134,7 @@ export function DataAccessInspector() {
 
     const requestedAddress = address.trim();
     if (requestedAddress.length < 8) {
-      setError("Enter a complete Auckland property address.");
+      setError("Enter a complete New Zealand property address.");
       setCanRetry(false);
       return;
     }
@@ -136,11 +143,12 @@ export function DataAccessInspector() {
     setError(null);
     setCanRetry(false);
     setResult(null);
+    setFastResult(null);
     setAddressOptions([]);
     setSuggestionMessage(null);
 
     try {
-      const response = await fetch("/api/internal/data-access", {
+      const response = await fetch("/api/internal/fast-property-view", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -150,7 +158,7 @@ export function DataAccessInspector() {
             : {}),
         }),
       });
-      const body = (await response.json()) as ApiResponse;
+      const body = (await response.json()) as FastApiResponse;
 
       if (!response.ok || "error" in body) {
         if (
@@ -160,20 +168,41 @@ export function DataAccessInspector() {
         ) {
           setAddressOptions(body.error.options);
         } else {
+          const responseError = "error" in body ? body.error : null;
           setError(
-            "error" in body
-              ? body.error.message
-              : "The data request could not be completed.",
+            responseError
+              ? responseError.message
+              : "The fast property view could not be completed.",
           );
           setCanRetry(
-            "error" in body && body.error.code === "DATA_PROVIDER_ERROR",
+            "error" in body &&
+              (body.error.code === "DATA_PROVIDER_ERROR" ||
+                body.error.code === "ANALYSIS_FAILED"),
           );
         }
         return;
       }
 
-      setResult({ ...body.data, reportToken: body.reportToken });
+      const legacyBody = body as unknown as ApiResponse;
+      if (
+        "data" in legacyBody &&
+        legacyBody.data &&
+        !("boundary" in legacyBody.data)
+      ) {
+        setResult({
+          ...legacyBody.data,
+          reportToken:
+            "reportToken" in legacyBody && typeof legacyBody.reportToken === "string"
+              ? legacyBody.reportToken
+              : "legacy-response",
+        });
+        setCanRetry(false);
+        return;
+      }
+
+      setFastResult(body.data);
       setCanRetry(false);
+      void requestFastStages(body.data);
     } catch {
       setError(
         "The data service could not be reached. Check the local server and try again.",
@@ -181,6 +210,76 @@ export function DataAccessInspector() {
       setCanRetry(true);
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  async function requestFastStages(initial: FastPropertyViewResult) {
+    try {
+      const response = await fetch("/api/internal/fast-property-view/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          addressId: initial.resolvedAddress.addressId,
+          coordinates: initial.resolvedAddress.coordinates,
+        }),
+      });
+      const body = (await response.json()) as {
+        data?: Pick<
+          FastPropertyViewResult,
+          "boundary" | "aerial" | "datasets" | "progress" | "fastPathDurationMs"
+        >;
+      };
+      if (!response.ok || !body.data) return;
+      setFastResult((current) =>
+        current?.resolvedAddress.addressId === initial.resolvedAddress.addressId
+          ? { ...current, ...body.data }
+          : current,
+      );
+    } catch {
+      setFastResult((current) =>
+        current?.resolvedAddress.addressId === initial.resolvedAddress.addressId
+          ? {
+              ...current,
+              aerial: { ...current.aerial, state: "error" },
+              progress: { ...current.progress, aerial: "error" },
+            }
+          : current,
+      );
+    }
+  }
+
+  async function requestDetailedPropertyData() {
+    if (!fastResult || isLoadingDetailed || detailedRequestInFlightRef.current) return;
+    detailedRequestInFlightRef.current = true;
+    setIsLoadingDetailed(true);
+    try {
+      const response = await fetch("/api/internal/fast-property-view/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "detailed",
+          addressId: fastResult.resolvedAddress.addressId,
+          coordinates: fastResult.resolvedAddress.coordinates,
+        }),
+      });
+      const body = (await response.json()) as { data?: FastPropertyDetails; error?: { message: string } };
+      if (!response.ok || !body.data) {
+        setError(
+          body.error
+            ? body.error.message
+            : "Detailed checks could not be completed.",
+        );
+        return;
+      }
+      setFastResult((current) => current ? { ...current, detailedChecks: body.data } : current);
+      setError(null);
+    } catch {
+      setError(
+        "The detailed data service could not be reached. The fast view remains available.",
+      );
+    } finally {
+      detailedRequestInFlightRef.current = false;
+      setIsLoadingDetailed(false);
     }
   }
 
@@ -217,7 +316,7 @@ export function DataAccessInspector() {
           <div>
             <h2 className="font-semibold text-slate-950">Property address</h2>
             <p className="text-sm text-slate-500">
-              Auckland addresses only for this proof of concept.
+              Search the nationwide LINZ NZ Addresses dataset.
             </p>
           </div>
         </div>
@@ -231,12 +330,12 @@ export function DataAccessInspector() {
               id="property-address"
               name="address"
               value={address}
-                onChange={(event) => {
-                  setAddress(event.target.value);
-                  setSelectedAddressId(null);
-                  setAddressOptions([]);
-                  setSuggestionMessage(null);
-                }}
+              onChange={(event) => {
+                setAddress(event.target.value);
+                setSelectedAddressId(null);
+                setAddressOptions([]);
+                setSuggestionMessage(null);
+              }}
               required
               minLength={8}
               maxLength={200}
@@ -263,6 +362,7 @@ export function DataAccessInspector() {
                       setAddress(option.fullAddress);
                       setSelectedAddressId(option.addressId);
                       setAddressOptions([]);
+                      void requestPropertyData(option.addressId);
                     }}
                     className="w-full rounded-xl px-3 py-3 text-left text-sm font-semibold text-slate-900 hover:bg-teal-50 hover:text-teal-800"
                   >
@@ -303,12 +403,13 @@ export function DataAccessInspector() {
           {isLoading && (
             <div className="rounded-2xl border border-teal-100 bg-teal-50/70 p-4">
               <p className="text-sm font-medium text-teal-950">
-                Checking official property data. This may take several seconds.
+                Opening the fastest useful property view. Detailed checks stay
+                deferred.
               </p>
               <ol className="mt-3 grid gap-2 text-sm text-teal-900 sm:grid-cols-3">
-                <li>1. Resolving address</li>
-                <li>2. Confirming legal parcel</li>
-                <li>3. Loading aerial imagery</li>
+                <li>Address found</li>
+                <li>Mapped boundary and aerial starting</li>
+                <li>Detailed checks not loaded</li>
               </ol>
             </div>
           )}
@@ -335,15 +436,25 @@ export function DataAccessInspector() {
             </div>
           )}
         </div>
-
       </form>
+
+      {fastResult && !result && (
+        <FastPropertyView
+          result={fastResult}
+          onLoadDetailed={() => void requestDetailedPropertyData()}
+          onRetry={() =>
+            void requestPropertyData(fastResult.resolvedAddress.addressId)
+          }
+          isLoadingDetailed={isLoadingDetailed}
+        />
+      )}
 
       {result && (
         <AssessmentWorkspace
           key={result.resolvedAddress.addressId}
           result={result}
           onDownloadData={downloadResult}
-          onRetry={() => void requestPropertyData()}
+          onRetry={() => void requestDetailedPropertyData()}
         />
       )}
     </div>
@@ -451,6 +562,11 @@ export function PropertyDataResult({
                 ["Parcel ID", result.parcel.parcelId],
                 ["Appellation", result.parcel.appellation || "Not supplied"],
                 ["Parcel intent", result.parcel.parcelIntent],
+                ["Boundary state", humanize(result.boundaryState)],
+                [
+                  "Regional layer coverage",
+                  humanize(result.regionCoverageState),
+                ],
                 ["Titles", result.parcel.titles.join(", ") || "Not supplied"],
                 [
                   "Calculated area",

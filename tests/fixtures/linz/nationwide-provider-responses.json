@@ -1,0 +1,427 @@
+{
+  "standard": {
+    "address": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": { "type": "Point", "coordinates": [174.76, -36.85] },
+          "properties": {
+            "address_id": 101,
+            "full_address": "12 Queen Street, Auckland 1010",
+            "full_address_number": "12",
+            "territorial_authority": "Auckland",
+            "address_lifecycle": "Current"
+          }
+        }
+      ]
+    },
+    "parcel": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [174.759, -36.851],
+                [174.761, -36.851],
+                [174.761, -36.849],
+                [174.759, -36.849],
+                [174.759, -36.851]
+              ]
+            ]
+          },
+          "properties": {
+            "id": 201,
+            "appellation": "Lot 1 DP 1",
+            "parcel_intent": "Fee Simple Title",
+            "land_district": "North Auckland",
+            "titles": "TITLE-1",
+            "survey_area": 400,
+            "calc_area": 400
+          }
+        }
+      ]
+    }
+  },
+  "unit": {
+    "address": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": { "type": "Point", "coordinates": [174.61, -36.86] },
+          "properties": {
+            "address_id": 102,
+            "full_address": "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland",
+            "full_address_number": "2/49",
+            "unit": "2",
+            "territorial_authority": "Auckland",
+            "address_lifecycle": "Current"
+          }
+        }
+      ]
+    },
+    "parcel": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [174.609, -36.861],
+                [174.611, -36.861],
+                [174.611, -36.859],
+                [174.609, -36.859],
+                [174.609, -36.861]
+              ]
+            ]
+          },
+          "properties": {
+            "id": 202,
+            "appellation": "Lot 2 DP 2",
+            "parcel_intent": "Cross Lease",
+            "land_district": "North Auckland",
+            "titles": "TITLE-2,TITLE-3",
+            "survey_area": 500,
+            "calc_area": 500
+          }
+        }
+      ]
+    }
+  },
+  "multi-title": {
+    "address": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": { "type": "Point", "coordinates": [172.63, -43.53] },
+          "properties": {
+            "address_id": 103,
+            "full_address": "1 Cathedral Square, Christchurch",
+            "full_address_number": "8",
+            "territorial_authority": "Christchurch City",
+            "address_lifecycle": "Current"
+          }
+        }
+      ]
+    },
+    "parcel": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [172.629, -43.531],
+                [172.631, -43.531],
+                [172.631, -43.529],
+                [172.629, -43.529],
+                [172.629, -43.531]
+              ]
+            ]
+          },
+          "properties": {
+            "id": 203,
+            "appellation": "Lot 3 DP 3",
+            "parcel_intent": "Fee Simple Title",
+            "land_district": "Canterbury",
+            "titles": "TITLE-4,TITLE-5",
+            "survey_area": 600,
+            "calc_area": 600
+          }
+        }
+      ]
+    }
+  },
+  "cross-lease": {
+    "address": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": { "type": "Point", "coordinates": [174.78, -41.29] },
+          "properties": {
+            "address_id": 104,
+            "full_address": "1/22 Tinakori Road, Thorndon, Wellington",
+            "full_address_number": "1/14",
+            "unit": "1",
+            "territorial_authority": "Wellington City",
+            "address_lifecycle": "Current"
+          }
+        }
+      ]
+    },
+    "parcel": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [174.779, -41.291],
+                [174.781, -41.291],
+                [174.781, -41.289],
+                [174.779, -41.289],
+                [174.779, -41.291]
+              ]
+            ]
+          },
+          "properties": {
+            "id": 204,
+            "appellation": "Lot 4 DP 4",
+            "parcel_intent": "Cross Lease",
+            "land_district": "Wellington",
+            "titles": "TITLE-6,TITLE-7",
+            "survey_area": 450,
+            "calc_area": 450
+          }
+        }
+      ]
+    }
+  },
+  "rural": {
+    "address": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": { "type": "Point", "coordinates": [174.45, -35.84] },
+          "properties": {
+            "address_id": 105,
+            "full_address": "245 State Highway 1, Waipu",
+            "full_address_number": "245",
+            "territorial_authority": "Whangarei District",
+            "address_lifecycle": "Current"
+          }
+        }
+      ]
+    },
+    "parcel": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [174.449, -35.841],
+                [174.451, -35.841],
+                [174.451, -35.839],
+                [174.449, -35.839],
+                [174.449, -35.841]
+              ]
+            ]
+          },
+          "properties": {
+            "id": 205,
+            "appellation": "Lot 5 DP 5",
+            "parcel_intent": "Fee Simple Title",
+            "land_district": "Whangarei",
+            "titles": "TITLE-8",
+            "survey_area": 800,
+            "calc_area": 800
+          }
+        }
+      ]
+    }
+  },
+  "long-driveway": {
+    "address": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": { "type": "Point", "coordinates": [176.17, -37.69] },
+          "properties": {
+            "address_id": 106,
+            "full_address": "15 Welcome Bay Road, Tauranga",
+            "full_address_number": "77",
+            "territorial_authority": "Tauranga City",
+            "address_lifecycle": "Current"
+          }
+        }
+      ]
+    },
+    "parcel": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [176.169, -37.691],
+                [176.171, -37.691],
+                [176.171, -37.689],
+                [176.169, -37.689],
+                [176.169, -37.691]
+              ]
+            ]
+          },
+          "properties": {
+            "id": 206,
+            "appellation": "Lot 6 DP 6",
+            "parcel_intent": "Fee Simple Title",
+            "land_district": "Tauranga",
+            "titles": "TITLE-9,TITLE-10",
+            "survey_area": 700,
+            "calc_area": 700
+          }
+        }
+      ]
+    }
+  },
+  "new-subdivision": {
+    "address": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": { "type": "Point", "coordinates": [175.28, -37.78] },
+          "properties": {
+            "address_id": 107,
+            "full_address": "18 Borman Road, Hamilton",
+            "full_address_number": "3",
+            "territorial_authority": "Hamilton City",
+            "address_lifecycle": "Current"
+          }
+        }
+      ]
+    },
+    "parcel": { "type": "FeatureCollection", "features": [] }
+  },
+  "multiple-addresses": {
+    "address": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": { "type": "Point", "coordinates": [174.61, -36.86] },
+          "properties": {
+            "address_id": 108,
+            "full_address": "42 Bahari Drive, Ranui, Auckland",
+            "full_address_number": "42",
+            "territorial_authority": "Auckland",
+            "address_lifecycle": "Current"
+          }
+        }
+      ]
+    },
+    "parcel": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [174.609, -36.861],
+                [174.611, -36.861],
+                [174.611, -36.859],
+                [174.609, -36.859],
+                [174.609, -36.861]
+              ]
+            ]
+          },
+          "properties": {
+            "id": 208,
+            "appellation": "Lot 8 DP 8",
+            "parcel_intent": "Fee Simple Title",
+            "land_district": "North Auckland",
+            "titles": "TITLE-11",
+            "survey_area": 500,
+            "calc_area": 500
+          }
+        },
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [174.611, -36.861],
+                [174.613, -36.861],
+                [174.613, -36.859],
+                [174.611, -36.859],
+                [174.611, -36.861]
+              ]
+            ]
+          },
+          "properties": {
+            "id": 209,
+            "appellation": "Lot 9 DP 9",
+            "parcel_intent": "Fee Simple Title",
+            "land_district": "North Auckland",
+            "titles": "TITLE-12",
+            "survey_area": 500,
+            "calc_area": 500
+          }
+        }
+      ]
+    }
+  },
+  "no-match": {
+    "address": { "type": "FeatureCollection", "features": [] },
+    "parcel": { "type": "FeatureCollection", "features": [] }
+  },
+  "outside-region": {
+    "address": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": { "type": "Point", "coordinates": [170.5, -45.87] },
+          "properties": {
+            "address_id": 110,
+            "full_address": "1 George Street, Dunedin",
+            "full_address_number": "10",
+            "territorial_authority": "Dunedin City",
+            "address_lifecycle": "Current"
+          }
+        }
+      ]
+    },
+    "parcel": {
+      "type": "FeatureCollection",
+      "features": [
+        {
+          "type": "Feature",
+          "geometry": {
+            "type": "Polygon",
+            "coordinates": [
+              [
+                [170.499, -45.871],
+                [170.501, -45.871],
+                [170.501, -45.869],
+                [170.499, -45.869],
+                [170.499, -45.871]
+              ]
+            ]
+          },
+          "properties": {
+            "id": 210,
+            "appellation": "Lot 10 DP 10",
+            "parcel_intent": "Fee Simple Title",
+            "land_district": "Otago",
+            "titles": "TITLE-13,TITLE-14",
+            "survey_area": 500,
+            "calc_area": 500
+          }
+        }
+      ]
+    }
+  }
+}

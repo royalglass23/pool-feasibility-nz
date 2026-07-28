@@ -333,6 +333,8 @@ export function AssessmentWorkspace({
               `Parcel ${result.parcel.parcelId}`,
               result.parcel.appellation || "Appellation not supplied",
               `${result.parcel.calculatedAreaSquareMetres?.toLocaleString("en-NZ") ?? "Unknown"} m²`,
+              `Boundary state: ${humanize(result.boundaryState)}`,
+              `Regional layer coverage: ${humanize(result.regionCoverageState)}`,
             ]}
           />
           <Info
