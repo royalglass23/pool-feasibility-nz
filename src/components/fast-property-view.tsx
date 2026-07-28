@@ -12,6 +12,11 @@ import {
   type FastPoolId,
   validateFastCustomDimensions,
 } from "@/modules/data-access-spike/fast-pool-placement";
+import {
+  classifyFastPoolWarning,
+  type FastPoolPlacementSnapshot,
+  type FastPoolWarning,
+} from "@/modules/data-access-spike/fast-pool-warning";
 import { bearing, point } from "@turf/turf";
 
 export function FastPropertyView({
@@ -19,11 +24,13 @@ export function FastPropertyView({
   onLoadDetailed,
   onRetry,
   isLoadingDetailed,
+  onPlacementChange,
 }: {
   result: FastPropertyViewResult;
   onLoadDetailed: () => void;
   onRetry: () => void;
   isLoadingDetailed: boolean;
+  onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
@@ -78,6 +85,24 @@ export function FastPropertyView({
         : null,
     [dimensions, position, result.boundary.geometry, rotationDegrees],
   );
+  const poolWarning = useMemo(
+    () =>
+      classifyFastPoolWarning({
+        boundaryState: result.boundary.state,
+        pool: poolGeometry,
+        detailedChecks: result.detailedChecks,
+      }),
+    [poolGeometry, result.boundary.state, result.detailedChecks],
+  );
+
+  useEffect(() => {
+    onPlacementChange?.({
+      position,
+      rotationDegrees,
+      dimensions,
+      warning: poolWarning,
+    });
+  }, [dimensions, onPlacementChange, poolWarning, position, rotationDegrees]);
 
   useEffect(() => {
     placementRef.current = { position, rotationDegrees, dimensions };
@@ -544,6 +569,7 @@ export function FastPropertyView({
           </p>
         )}
       </div>
+      <FastPoolWarning warning={poolWarning} />
       {mapError && (
         <p role="alert" className="text-sm font-semibold text-red-700">
           The map could not load. Retry the fast view to try again.
@@ -582,6 +608,37 @@ export function FastPropertyView({
           Retry fast view
         </button>
       </div>
+    </section>
+  );
+}
+
+function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
+  const tone =
+    warning.status === "blocked"
+      ? "border-red-200 bg-red-50 text-red-950"
+      : warning.status === "needs_checking"
+        ? "border-amber-200 bg-amber-50 text-amber-950"
+        : "border-emerald-200 bg-emerald-50 text-emerald-950";
+
+  return (
+    <section
+      aria-labelledby="pool-warning-heading"
+      className={`rounded-2xl border p-4 ${tone}`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <h3 id="pool-warning-heading" className="font-semibold">
+          {warning.label}
+        </h3>
+        <span className="text-xs font-bold uppercase tracking-wide">
+          Live pool check
+        </span>
+      </div>
+      <p className="mt-2 text-sm leading-6">{warning.text}</p>
+      {warning.recommendation && (
+        <p className="mt-2 text-sm font-semibold leading-6">
+          Recommendation: {warning.recommendation}
+        </p>
+      )}
     </section>
   );
 }

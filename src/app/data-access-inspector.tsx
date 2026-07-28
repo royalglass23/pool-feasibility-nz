@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  useCallback,
   useEffect,
   useRef,
   useState,
@@ -33,6 +34,7 @@ import { FastPropertyView } from "@/components/fast-property-view";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 import type { FastPropertyViewRequestError } from "@/modules/data-access-spike/execute-fast-property-view-request";
 import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fast-property-details";
+import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
 
 type DataAccessApiResult = DataAccessSpikeResult & {
   assessmentExplanation?: AssessmentExplanation;
@@ -60,6 +62,8 @@ export function DataAccessInspector() {
   const [fastResult, setFastResult] = useState<FastPropertyViewResult | null>(
     null,
   );
+  const [, setFastPlacementSnapshot] =
+    useState<FastPoolPlacementSnapshot | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [addressOptions, setAddressOptions] = useState<
     Array<{ addressId: string; fullAddress: string }>
@@ -71,6 +75,12 @@ export function DataAccessInspector() {
   const detailedRequestInFlightRef = useRef(false);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(
     null,
+  );
+  const handleFastPlacementChange = useCallback(
+    (placement: FastPoolPlacementSnapshot) => {
+      setFastPlacementSnapshot(placement);
+    },
+    [],
   );
 
   useEffect(() => {
@@ -446,6 +456,7 @@ export function DataAccessInspector() {
             void requestPropertyData(fastResult.resolvedAddress.addressId)
           }
           isLoadingDetailed={isLoadingDetailed}
+          onPlacementChange={handleFastPlacementChange}
         />
       )}
 
