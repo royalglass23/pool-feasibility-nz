@@ -3,7 +3,7 @@ import { providerTimeoutMs } from "@/shared/http/provider-runtime";
 import { escapeHtml } from "@/shared/html/escape-html";
 import { mkdir } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
-import { chromium } from "playwright";
+import { chromium } from "@playwright/test";
 import { bbox } from "@turf/turf";
 import type { Feature, FeatureCollection, Point, Polygon } from "geojson";
 import type * as MapLibre from "maplibre-gl";

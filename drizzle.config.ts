@@ -1,7 +1,5 @@
-import { loadEnvConfig } from "@next/env";
+import "dotenv/config";
 import { defineConfig } from "drizzle-kit";
-
-loadEnvConfig(process.cwd());
 
 if (!process.env.DATABASE_URL) {
   throw new Error("DATABASE_URL is required for Drizzle commands.");

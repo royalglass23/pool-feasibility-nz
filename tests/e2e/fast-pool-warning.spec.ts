@@ -4,6 +4,7 @@ const boundary = {
   type: "Polygon",
   coordinates: [[[174.5, -36.9], [174.7, -36.9], [174.7, -36.8], [174.5, -36.8], [174.5, -36.9]]],
 };
+const assessmentSnapshot = "server-issued-assessment-snapshot";
 
 const baseResult = {
   requestedAddress: "42A Bahari Drive, Ranui, Auckland",
@@ -69,7 +70,7 @@ async function openFastView(page: import("@playwright/test").Page) {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ data: baseResult }),
+      body: JSON.stringify({ data: baseResult, assessmentSnapshot }),
     });
   });
   await page.route("**/api/internal/fast-property-view/stages", async (route) => {
@@ -85,6 +86,7 @@ async function openFastView(page: import("@playwright/test").Page) {
           progress: baseResult.progress,
           fastPathDurationMs: baseResult.fastPathDurationMs,
         },
+        assessmentSnapshot,
       }),
     });
   });
@@ -103,7 +105,10 @@ test("shows Needs Checking before detailed evidence, then No Warning after a cle
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ data: detail([emptyLayer()]) }),
+      body: JSON.stringify({
+        data: detail([emptyLayer()]),
+        assessmentSnapshot,
+      }),
     });
   });
   await page.getByRole("button", { name: "Load detailed official checks" }).click();
@@ -117,7 +122,10 @@ test("shows Blocked while leaving the pool warning and recommendation visible", 
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ data: detail([conflictLayer()]) }),
+      body: JSON.stringify({
+        data: detail([conflictLayer()]),
+        assessmentSnapshot,
+      }),
     });
   });
   await page.getByRole("button", { name: "Load detailed official checks" }).click();
