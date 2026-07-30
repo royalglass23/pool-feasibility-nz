@@ -5,7 +5,7 @@ const shortText = z.string().min(1).max(240);
 const longText = z.string().min(1).max(2_000);
 const isoDateTime = z.iso.datetime({ offset: true });
 
-const reportAssessmentSnapshotSchema = z
+export const reportAssessmentSnapshotSchema = z
   .object({
     property: z
       .object({

@@ -23,6 +23,16 @@ type MapLayerDefinition = {
   kind: "fill" | "line" | "circle";
 };
 
+export type PropertyPoolPlacement = {
+  lengthMetres: number;
+  widthMetres: number;
+  rotationDegrees: number;
+  position: readonly [number, number];
+  shellGeometry: Geometry;
+  constructionEnvelopeGeometry: Geometry;
+  classification: CustomPoolPlacementAssessment["classification"];
+};
+
 const mapLayerDefinitions: MapLayerDefinition[] = [
   { key: "building_footprints", color: "#f97316", kind: "fill" },
   { key: "contours", color: "#a16207", kind: "line" },
@@ -48,10 +58,12 @@ export function PropertyAerialMap({
   result,
   onRetry,
   onSnapshotReady,
+  onPlacementChange,
 }: {
   result: DataAccessSpikeResult;
   onRetry: () => void;
   onSnapshotReady?: (dataUrl: string | null) => void;
+  onPlacementChange?: (placement: PropertyPoolPlacement | null) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("maplibre-gl").Map | null>(null);
@@ -169,6 +181,22 @@ export function PropertyAerialMap({
   useEffect(() => {
     placementAssessmentRef.current = placementAssessment;
   }, [placementAssessment]);
+  useEffect(() => {
+    onPlacementChange?.(
+      placementAssessment
+        ? {
+            lengthMetres: placementAssessment.dimensions.lengthMetres,
+            widthMetres: placementAssessment.dimensions.widthMetres,
+            rotationDegrees: placementAssessment.rotationDegrees,
+            position: placementAssessment.position,
+            shellGeometry: placementAssessment.shell.geometry,
+            constructionEnvelopeGeometry:
+              placementAssessment.envelopes.constructionAllowance.geometry,
+            classification: placementAssessment.classification,
+          }
+        : null,
+    );
+  }, [onPlacementChange, placementAssessment]);
   const placementValidationMessage =
     placementPreset === "custom" && !placementAssessment
       ? "Enter length and width between 0.1 m and 30 m before assessing the placement."
@@ -778,7 +806,7 @@ function PlacementControls({
               type="button"
               aria-pressed={placementPreset === id}
               onClick={() => onPreset(id)}
-              className="min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold transition-colors hover:border-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+              className="min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold transition-colors hover:border-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50"
             >
               {formatPlacementPresetLabel(id)}
             </button>
@@ -787,7 +815,7 @@ function PlacementControls({
             type="button"
             aria-pressed={placementPreset === "custom"}
             onClick={() => onPreset("custom")}
-            className="min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold transition-colors hover:border-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+            className="min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold transition-colors hover:border-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50"
           >
             Custom size
           </button>

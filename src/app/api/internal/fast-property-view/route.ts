@@ -1,5 +1,6 @@
 import "server-only";
 import { executeFastPropertyViewRequest } from "@/modules/data-access-spike/execute-fast-property-view-request";
+import { issueAssessmentSnapshot } from "@/modules/assessment/assessment-snapshot";
 import { OfficialGisGateway } from "@/modules/providers/official-gis-gateway";
 import {
   authorizeInternalRequest,
@@ -47,9 +48,17 @@ export async function POST(request: Request): Promise<Response> {
     basemapApiKey: process.env.LINZ_BASEMAPS_API_KEY || undefined,
   });
   if (response.ok)
-    return apiJsonResponse({ data: response.data }, 200, correlationId, {
-      "Cache-Control": "no-store",
-    });
+    return apiJsonResponse(
+      {
+        data: response.data,
+        assessmentSnapshot: issueAssessmentSnapshot(response.data),
+      },
+      200,
+      correlationId,
+      {
+        "Cache-Control": "no-store",
+      },
+    );
   return apiErrorResponse(response.error, response.status, correlationId, {
     "Cache-Control": "no-store",
   });

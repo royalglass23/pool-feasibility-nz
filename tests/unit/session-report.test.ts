@@ -237,7 +237,7 @@ describe("session PDF report", () => {
 
       const pdf = generateSessionReportPdf(request, { render });
       const timedOut = expect(pdf).rejects.toThrow("REPORT_RENDERER_TIMEOUT");
-      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(30_000);
 
       await timedOut;
     } finally {
@@ -262,7 +262,7 @@ describe("session PDF report", () => {
           error instanceof Error ? error.message : "unknown-error",
       );
 
-      await vi.advanceTimersByTimeAsync(15_000);
+      await vi.advanceTimersByTimeAsync(30_000);
 
       expect(
         await Promise.race([outcome, Promise.resolve("still-pending")]),

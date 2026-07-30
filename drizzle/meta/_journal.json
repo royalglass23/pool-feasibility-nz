@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1785275178148,
+      "tag": "0000_homeowner-assessments",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1785276327037,
+      "tag": "0001_homeowner-assessment-numeric-coordinates",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1785284328811,
+      "tag": "0002_sleepy_midnight",
+      "breakpoints": true
+    }
+  ]
+}

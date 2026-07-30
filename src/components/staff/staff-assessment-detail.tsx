@@ -1,0 +1,110 @@
+"use client";
+
+import { SavedPreliminaryReportView } from "@/components/saved-preliminary-report-view";
+import type { StaffAssessmentDetail as StaffAssessmentDetailModel } from "@/modules/staff/staff-assessment-read-model";
+
+const submittedDate = new Intl.DateTimeFormat("en-NZ", {
+  dateStyle: "medium",
+  timeStyle: "short",
+  timeZone: "Pacific/Auckland",
+});
+
+const timingLabels: Record<
+  StaffAssessmentDetailModel["desiredTiming"],
+  string
+> = {
+  asap: "ASAP",
+  "3_months": "Within 3 months",
+  "6_months": "Within 6 months",
+  "12_months": "Within 12 months",
+};
+
+export function StaffAssessmentDetail({
+  assessment,
+  onBack,
+}: {
+  assessment: StaffAssessmentDetailModel;
+  onBack: () => void;
+}) {
+  return (
+    <div className="space-y-6">
+      <section
+        aria-labelledby="staff-homeowner-heading"
+        className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"
+      >
+        <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <p className="font-mono text-xs font-semibold text-teal-700">
+              {assessment.reference}
+            </p>
+            <h1
+              id="staff-homeowner-heading"
+              className="mt-2 text-2xl font-semibold tracking-tight text-slate-950"
+            >
+              {assessment.homeownerName}
+            </h1>
+            <p className="mt-1 text-sm text-slate-600">
+              {assessment.homeownerAddress}
+            </p>
+          </div>
+          <p className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold tracking-wide text-slate-700 uppercase">
+            Read-only saved submission
+          </p>
+        </div>
+
+        <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
+          <Fact label="Phone" value={assessment.homeownerPhone} />
+          <Fact label="Email" value={assessment.homeownerEmail} />
+          <Fact
+            label="Submitted"
+            value={submittedDate.format(assessment.createdAt)}
+          />
+          <Fact
+            label="Desired timing"
+            value={timingLabels[assessment.desiredTiming]}
+          />
+          <Fact
+            label="Boundary status"
+            value={humanize(assessment.boundaryStatus)}
+          />
+          <Fact label="Submission status" value={humanize(assessment.status)} />
+        </dl>
+
+        {assessment.additionalInfo && (
+          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+            <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+              Additional information
+            </p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">
+              {assessment.additionalInfo}
+            </p>
+          </div>
+        )}
+      </section>
+
+      <SavedPreliminaryReportView
+        report={assessment.report}
+        delivery={{
+          homeowner: assessment.emailDeliveryState,
+          servicem8: assessment.forwardingState,
+        }}
+        onBack={onBack}
+      />
+    </div>
+  );
+}
+
+function Fact({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <dt className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+        {label}
+      </dt>
+      <dd className="mt-1 font-medium break-words text-slate-900">{value}</dd>
+    </div>
+  );
+}
+
+function humanize(value: string) {
+  return value.replaceAll("_", " ");
+}

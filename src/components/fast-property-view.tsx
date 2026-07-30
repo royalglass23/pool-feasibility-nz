@@ -25,12 +25,14 @@ export function FastPropertyView({
   onRetry,
   isLoadingDetailed,
   onPlacementChange,
+  onSnapshotReady,
 }: {
   result: FastPropertyViewResult;
   onLoadDetailed: () => void;
   onRetry: () => void;
   isLoadingDetailed: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
+  onSnapshotReady?: (dataUrl: string | null) => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
@@ -100,9 +102,17 @@ export function FastPropertyView({
       position,
       rotationDegrees,
       dimensions,
+      poolGeometry: poolGeometry ?? null,
       warning: poolWarning,
     });
-  }, [dimensions, onPlacementChange, poolWarning, position, rotationDegrees]);
+  }, [
+    dimensions,
+    onPlacementChange,
+    poolGeometry,
+    poolWarning,
+    position,
+    rotationDegrees,
+  ]);
 
   useEffect(() => {
     placementRef.current = { position, rotationDegrees, dimensions };
@@ -194,8 +204,14 @@ export function FastPropertyView({
         type: "FeatureCollection" as const,
         features: [],
       };
-      const officialPolygons = returnedGeometry(result, ["Polygon", "MultiPolygon"]);
-      const officialLines = returnedGeometry(result, ["LineString", "MultiLineString"]);
+      const officialPolygons = returnedGeometry(result, [
+        "Polygon",
+        "MultiPolygon",
+      ]);
+      const officialLines = returnedGeometry(result, [
+        "LineString",
+        "MultiLineString",
+      ]);
       const sources: Record<string, import("maplibre-gl").SourceSpecification> =
         {
           address: {
@@ -215,7 +231,12 @@ export function FastPropertyView({
             ? { boundary: { type: "geojson", data: boundary } }
             : {}),
           ...(officialPolygons.features.length
-            ? { "official-polygons": { type: "geojson", data: officialPolygons } }
+            ? {
+                "official-polygons": {
+                  type: "geojson",
+                  data: officialPolygons,
+                },
+              }
             : {}),
           ...(officialLines.features.length
             ? { "official-lines": { type: "geojson", data: officialLines } }
@@ -249,17 +270,20 @@ export function FastPropertyView({
         );
       }
       if (officialPolygons.features.length) {
-        layers.push({
-          id: "official-polygons",
-          type: "fill",
-          source: "official-polygons",
-          paint: { "fill-color": "#f59e0b", "fill-opacity": 0.18 },
-        }, {
-          id: "official-polygon-lines",
-          type: "line",
-          source: "official-polygons",
-          paint: { "line-color": "#b45309", "line-width": 2 },
-        });
+        layers.push(
+          {
+            id: "official-polygons",
+            type: "fill",
+            source: "official-polygons",
+            paint: { "fill-color": "#f59e0b", "fill-opacity": 0.18 },
+          },
+          {
+            id: "official-polygon-lines",
+            type: "line",
+            source: "official-polygons",
+            paint: { "line-color": "#b45309", "line-width": 2 },
+          },
+        );
       }
       if (officialLines.features.length) {
         layers.push({
@@ -319,6 +343,7 @@ export function FastPropertyView({
           center: result.resolvedAddress.coordinates,
           zoom: 18,
           attributionControl: { compact: true },
+          canvasContextAttributes: { preserveDrawingBuffer: true },
         });
         mapInstanceRef.current = map;
         map.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -329,6 +354,11 @@ export function FastPropertyView({
             map?.isSourceLoaded("aerial")
           ) {
             setAerialTilesReady(true);
+          }
+          try {
+            onSnapshotReady?.(map?.getCanvas().toDataURL("image/png") ?? null);
+          } catch {
+            onSnapshotReady?.(null);
           }
         });
         let interaction: "move" | "rotate" | null = null;
@@ -372,6 +402,7 @@ export function FastPropertyView({
     });
     return () => {
       disposed = true;
+      onSnapshotReady?.(null);
       map?.remove();
       mapInstanceRef.current = null;
     };
@@ -582,20 +613,44 @@ export function FastPropertyView({
         </p>
       )}
       {result.detailedChecks && (
-        <section aria-labelledby="detailed-checks-heading" className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4">
+        <section
+          aria-labelledby="detailed-checks-heading"
+          className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4"
+        >
           <div className="flex items-center justify-between gap-3">
             <div>
-              <h3 id="detailed-checks-heading" className="font-semibold text-slate-950">Detailed official checks</h3>
-              <p className="text-sm text-slate-600">{result.detailedChecks.status === "complete" ? "All configured provider queries completed." : "Some provider queries remain unknown; this is a partial result."}</p>
+              <h3
+                id="detailed-checks-heading"
+                className="font-semibold text-slate-950"
+              >
+                Detailed official checks
+              </h3>
+              <p className="text-sm text-slate-600">
+                {result.detailedChecks.status === "complete"
+                  ? "All configured provider queries completed."
+                  : "Some provider queries remain unknown; this is a partial result."}
+              </p>
             </div>
-            <span className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-bold uppercase">{result.detailedChecks.status}</span>
+            <span className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-bold uppercase">
+              {result.detailedChecks.status}
+            </span>
           </div>
-          <ul className="grid gap-2 sm:grid-cols-2" aria-label="Official layer results">
-            {result.detailedChecks.layers.map((layer) => <DetailedLayer key={layer.key} layer={layer} />)}
+          <ul
+            className="grid gap-2 sm:grid-cols-2"
+            aria-label="Official layer results"
+          >
+            {result.detailedChecks.layers.map((layer) => (
+              <DetailedLayer key={layer.key} layer={layer} />
+            ))}
           </ul>
-          <p className="text-xs leading-5 text-slate-600">{result.detailedChecks.region} Attribution and limitations remain applicable to every returned layer.</p>
+          <p className="text-xs leading-5 text-slate-600">
+            {result.detailedChecks.region} Attribution and limitations remain
+            applicable to every returned layer.
+          </p>
           <ul className="list-disc space-y-1 pl-5 text-xs leading-5 text-slate-600">
-            {result.detailedChecks.limitations.map((limitation) => <li key={limitation}>{limitation}</li>)}
+            {result.detailedChecks.limitations.map((limitation) => (
+              <li key={limitation}>{limitation}</li>
+            ))}
           </ul>
         </section>
       )}
@@ -629,13 +684,13 @@ function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
         <h3 id="pool-warning-heading" className="font-semibold">
           {warning.label}
         </h3>
-        <span className="text-xs font-bold uppercase tracking-wide">
+        <span className="text-xs font-bold tracking-wide uppercase">
           Live pool check
         </span>
       </div>
       <p className="mt-2 text-sm leading-6">{warning.text}</p>
       {warning.recommendation && (
-        <p className="mt-2 text-sm font-semibold leading-6">
+        <p className="mt-2 text-sm leading-6 font-semibold">
           Recommendation: {warning.recommendation}
         </p>
       )}
@@ -647,9 +702,18 @@ function DetailedLayer({ layer }: { layer: DetailedLayerResult }) {
   const stateLabel = layer.state.replaceAll("_", " ");
   return (
     <li className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
-      <div className="flex items-center justify-between gap-2"><span className="font-semibold text-slate-900">{layer.evidence.dataset}</span><span className="text-xs font-bold uppercase text-slate-700">{stateLabel}</span></div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-semibold text-slate-900">
+          {layer.evidence.dataset}
+        </span>
+        <span className="text-xs font-bold text-slate-700 uppercase">
+          {stateLabel}
+        </span>
+      </div>
       <p className="mt-1 text-xs leading-5 text-slate-600">{layer.message}</p>
-      <p className="mt-1 text-xs text-slate-500">Provider: {layer.evidence.provider}</p>
+      <p className="mt-1 text-xs text-slate-500">
+        Provider: {layer.evidence.provider}
+      </p>
       {layer.evidence.attribution && (
         <a
           href={layer.evidence.attribution.url}
@@ -697,8 +761,11 @@ export function returnedGeometry(
 ): FeatureCollection<Geometry> {
   return {
     type: "FeatureCollection",
-    features: (result.detailedChecks?.layers ?? []).flatMap((layer) =>
-      layer.geometry?.features.filter((item) => types.includes(item.geometry.type)) ?? [],
+    features: (result.detailedChecks?.layers ?? []).flatMap(
+      (layer) =>
+        layer.geometry?.features.filter((item) =>
+          types.includes(item.geometry.type),
+        ) ?? [],
     ),
   };
 }

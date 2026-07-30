@@ -19,7 +19,14 @@ import {
 import Image from "next/image";
 import { AssessmentExplanationResult } from "@/components/assessment-explanation-result";
 import { FeasibilityAssessmentResult } from "@/components/feasibility-assessment-result";
-import { PropertyAerialMap } from "@/components/map/property-aerial-map";
+import {
+  SavedAssessmentReportPanel,
+  useSavedAssessmentReport,
+} from "@/components/saved-assessment-report-panel";
+import {
+  PropertyAerialMap,
+  type PropertyPoolPlacement,
+} from "@/components/map/property-aerial-map";
 import { SessionAssessmentResult } from "@/components/session-assessment-result";
 import {
   buildSessionAssessment,
@@ -61,6 +68,11 @@ export function AssessmentWorkspace({
   const [page, setPage] = useState(1);
   const [generating, setGenerating] = useState(false);
   const [pdfError, setPdfError] = useState<string | null>(null);
+  const [placement, setPlacement] = useState<PropertyPoolPlacement | null>(
+    null,
+  );
+  const savedReport = useSavedAssessmentReport();
+  const savedReference = savedReport.assessment?.reference ?? null;
   const assessment = buildSessionAssessment(
     result,
     result.assessmentExplanation,
@@ -75,6 +87,11 @@ export function AssessmentWorkspace({
   const parcelStatus = parcelStatusPresentation(result);
   const onSnapshotReady = useCallback(
     (dataUrl: string | null) => setMapImage(dataUrl),
+    [],
+  );
+  const onPlacementChange = useCallback(
+    (nextPlacement: PropertyPoolPlacement | null) =>
+      setPlacement(nextPlacement),
     [],
   );
 
@@ -131,10 +148,22 @@ export function AssessmentWorkspace({
     }
   }
 
+  if (savedReport.showReport && savedReport.assessment) {
+    return (
+      <SavedAssessmentReportPanel
+        assessment={savedReport.assessment}
+        showReport
+        onOpen={savedReport.openReport}
+        onBack={savedReport.closeReport}
+      />
+    );
+  }
+
   if (preview) {
     return (
       <ReportPreview
         assessment={assessment}
+        savedReference={savedReference}
         mapImage={mapImage}
         page={page}
         onPage={setPage}
@@ -245,7 +274,11 @@ export function AssessmentWorkspace({
           <button
             type="button"
             disabled={!mapImage}
-            onClick={() => setPreview(true)}
+            onClick={() =>
+              document
+                .getElementById("homeowner-details-heading")
+                ?.scrollIntoView({ behavior: "smooth" })
+            }
             className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:bg-slate-400"
           >
             <FileText className="size-4" aria-hidden="true" />
@@ -291,8 +324,27 @@ export function AssessmentWorkspace({
           result={result}
           onRetry={onRetry}
           onSnapshotReady={onSnapshotReady}
+          onPlacementChange={onPlacementChange}
         />
       </section>
+
+      {savedReport.assessment ? (
+        <SavedAssessmentReportPanel
+          assessment={savedReport.assessment}
+          showReport={false}
+          onOpen={savedReport.openReport}
+          onBack={savedReport.closeReport}
+        />
+      ) : placement && mapImage ? (
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">
+          This legacy assessment view cannot save a report until it has a
+          server-issued assessment snapshot. Use the fast property workflow.
+        </p>
+      ) : (
+        <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">
+          Complete a valid pool placement before saving the report.
+        </p>
+      )}
 
       <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-5">
         <h3 className="text-lg font-semibold text-slate-950">
@@ -522,6 +574,7 @@ function Info({ title, items }: { title: string; items: string[] }) {
 
 function ReportPreview({
   assessment,
+  savedReference,
   mapImage,
   page,
   onPage,
@@ -532,6 +585,7 @@ function ReportPreview({
   error,
 }: {
   assessment: SessionAssessment;
+  savedReference: string | null;
   mapImage: string | null;
   page: number;
   onPage: (page: number) => void;
@@ -609,6 +663,7 @@ function ReportPreview({
             assessment={assessment}
             mapImage={mapImage}
             page={page}
+            savedReference={savedReference}
           />
         </div>
       </div>
@@ -636,6 +691,7 @@ function ReportPreview({
               assessment={assessment}
               mapImage={mapImage}
               page={number}
+              savedReference={savedReference}
             />
           </div>
         ))}
@@ -648,10 +704,12 @@ function PreviewPage({
   assessment,
   mapImage,
   page,
+  savedReference,
 }: {
   assessment: SessionAssessment;
   mapImage: string | null;
   page: number;
+  savedReference?: string | null;
 }) {
   const map = mapImage ? (
     <Image
@@ -793,7 +851,9 @@ function PreviewPage({
         </>
       )}
       <footer className="mt-auto border-t border-slate-300 pt-2 text-slate-500">
-        Internal preliminary assessment · No durable report history
+        {savedReference
+          ? `Saved assessment ${savedReference}`
+          : "Internal preliminary assessment · No durable report history"}
       </footer>
     </article>
   );

@@ -31,6 +31,11 @@ import type { AssessmentExplanation } from "@/modules/recommendations/generate-a
 import { PropertyAerialMap } from "@/components/map/property-aerial-map";
 import { humanizeIdentifierTitleCase as humanize } from "@/shared/text/humanize-identifier";
 import { FastPropertyView } from "@/components/fast-property-view";
+import { HomeownerSubmissionForm } from "@/components/homeowner-submission-form";
+import {
+  SavedAssessmentReportPanel,
+  useSavedAssessmentReport,
+} from "@/components/saved-assessment-report-panel";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 import type { FastPropertyViewRequestError } from "@/modules/data-access-spike/execute-fast-property-view-request";
 import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fast-property-details";
@@ -42,7 +47,8 @@ type DataAccessApiResult = DataAccessSpikeResult & {
 };
 
 type FastApiResponse =
-  { data: FastPropertyViewResult } | { error: FastPropertyViewRequestError };
+  | { data: FastPropertyViewResult; assessmentSnapshot: string }
+  | { error: FastPropertyViewRequestError };
 
 type ApiResponse =
   | {
@@ -62,8 +68,13 @@ export function DataAccessInspector() {
   const [fastResult, setFastResult] = useState<FastPropertyViewResult | null>(
     null,
   );
-  const [, setFastPlacementSnapshot] =
+  const [fastAssessmentSnapshot, setFastAssessmentSnapshot] = useState<
+    string | null
+  >(null);
+  const [fastPlacementSnapshot, setFastPlacementSnapshot] =
     useState<FastPoolPlacementSnapshot | null>(null);
+  const [fastMapImage, setFastMapImage] = useState<string | null>(null);
+  const fastSavedReport = useSavedAssessmentReport();
   const [error, setError] = useState<string | null>(null);
   const [addressOptions, setAddressOptions] = useState<
     Array<{ addressId: string; fullAddress: string }>
@@ -73,6 +84,7 @@ export function DataAccessInspector() {
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isLoadingDetailed, setIsLoadingDetailed] = useState(false);
   const detailedRequestInFlightRef = useRef(false);
+  const fastRequestIdRef = useRef(0);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(
     null,
   );
@@ -149,11 +161,16 @@ export function DataAccessInspector() {
       return;
     }
 
+    const requestId = ++fastRequestIdRef.current;
     setIsLoading(true);
     setError(null);
     setCanRetry(false);
     setResult(null);
     setFastResult(null);
+    setFastAssessmentSnapshot(null);
+    setFastPlacementSnapshot(null);
+    setFastMapImage(null);
+    fastSavedReport.resetReport();
     setAddressOptions([]);
     setSuggestionMessage(null);
 
@@ -202,7 +219,8 @@ export function DataAccessInspector() {
         setResult({
           ...legacyBody.data,
           reportToken:
-            "reportToken" in legacyBody && typeof legacyBody.reportToken === "string"
+            "reportToken" in legacyBody &&
+            typeof legacyBody.reportToken === "string"
               ? legacyBody.reportToken
               : "legacy-response",
         });
@@ -210,9 +228,11 @@ export function DataAccessInspector() {
         return;
       }
 
+      if (fastRequestIdRef.current !== requestId) return;
       setFastResult(body.data);
+      setFastAssessmentSnapshot(body.assessmentSnapshot);
       setCanRetry(false);
-      void requestFastStages(body.data);
+      void requestFastStages(body.data, body.assessmentSnapshot, requestId);
     } catch {
       setError(
         "The data service could not be reached. Check the local server and try again.",
@@ -223,7 +243,11 @@ export function DataAccessInspector() {
     }
   }
 
-  async function requestFastStages(initial: FastPropertyViewResult) {
+  async function requestFastStages(
+    initial: FastPropertyViewResult,
+    assessmentSnapshot: string,
+    requestId: number,
+  ) {
     try {
       const response = await fetch("/api/internal/fast-property-view/stages", {
         method: "POST",
@@ -231,6 +255,7 @@ export function DataAccessInspector() {
         body: JSON.stringify({
           addressId: initial.resolvedAddress.addressId,
           coordinates: initial.resolvedAddress.coordinates,
+          assessmentSnapshot,
         }),
       });
       const body = (await response.json()) as {
@@ -238,13 +263,21 @@ export function DataAccessInspector() {
           FastPropertyViewResult,
           "boundary" | "aerial" | "datasets" | "progress" | "fastPathDurationMs"
         >;
+        assessmentSnapshot?: string;
       };
-      if (!response.ok || !body.data) return;
+      if (
+        !response.ok ||
+        !body.data ||
+        !body.assessmentSnapshot ||
+        fastRequestIdRef.current !== requestId
+      )
+        return;
       setFastResult((current) =>
         current?.resolvedAddress.addressId === initial.resolvedAddress.addressId
           ? { ...current, ...body.data }
           : current,
       );
+      setFastAssessmentSnapshot(body.assessmentSnapshot);
     } catch {
       setFastResult((current) =>
         current?.resolvedAddress.addressId === initial.resolvedAddress.addressId
@@ -259,7 +292,14 @@ export function DataAccessInspector() {
   }
 
   async function requestDetailedPropertyData() {
-    if (!fastResult || isLoadingDetailed || detailedRequestInFlightRef.current) return;
+    if (
+      !fastResult ||
+      !fastAssessmentSnapshot ||
+      isLoadingDetailed ||
+      detailedRequestInFlightRef.current
+    )
+      return;
+    const requestId = fastRequestIdRef.current;
     detailedRequestInFlightRef.current = true;
     setIsLoadingDetailed(true);
     try {
@@ -270,10 +310,20 @@ export function DataAccessInspector() {
           mode: "detailed",
           addressId: fastResult.resolvedAddress.addressId,
           coordinates: fastResult.resolvedAddress.coordinates,
+          assessmentSnapshot: fastAssessmentSnapshot,
         }),
       });
-      const body = (await response.json()) as { data?: FastPropertyDetails; error?: { message: string } };
-      if (!response.ok || !body.data) {
+      const body = (await response.json()) as {
+        data?: FastPropertyDetails;
+        assessmentSnapshot?: string;
+        error?: { message: string };
+      };
+      if (
+        !response.ok ||
+        !body.data ||
+        !body.assessmentSnapshot ||
+        fastRequestIdRef.current !== requestId
+      ) {
         setError(
           body.error
             ? body.error.message
@@ -281,7 +331,10 @@ export function DataAccessInspector() {
         );
         return;
       }
-      setFastResult((current) => current ? { ...current, detailedChecks: body.data } : current);
+      setFastResult((current) =>
+        current ? { ...current, detailedChecks: body.data } : current,
+      );
+      setFastAssessmentSnapshot(body.assessmentSnapshot);
       setError(null);
     } catch {
       setError(
@@ -449,15 +502,42 @@ export function DataAccessInspector() {
       </form>
 
       {fastResult && !result && (
-        <FastPropertyView
-          result={fastResult}
-          onLoadDetailed={() => void requestDetailedPropertyData()}
-          onRetry={() =>
-            void requestPropertyData(fastResult.resolvedAddress.addressId)
-          }
-          isLoadingDetailed={isLoadingDetailed}
-          onPlacementChange={handleFastPlacementChange}
-        />
+        <>
+          <FastPropertyView
+            result={fastResult}
+            onLoadDetailed={() => void requestDetailedPropertyData()}
+            onRetry={() =>
+              void requestPropertyData(fastResult.resolvedAddress.addressId)
+            }
+            isLoadingDetailed={isLoadingDetailed}
+            onPlacementChange={handleFastPlacementChange}
+            onSnapshotReady={setFastMapImage}
+          />
+          {fastSavedReport.assessment ? (
+            <SavedAssessmentReportPanel
+              assessment={fastSavedReport.assessment}
+              showReport={fastSavedReport.showReport}
+              onOpen={fastSavedReport.openReport}
+              onBack={fastSavedReport.closeReport}
+            />
+          ) : (
+            (() => {
+              return fastPlacementSnapshot?.dimensions &&
+                fastAssessmentSnapshot ? (
+                <HomeownerSubmissionForm
+                  assessmentSnapshot={fastAssessmentSnapshot}
+                  placement={fastPlacementSnapshot}
+                  onSaved={fastSavedReport.saveAssessment}
+                />
+              ) : (
+                <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">
+                  Choose a valid pool placement and wait for the map capture
+                  before saving the report.
+                </p>
+              );
+            })()
+          )}
+        </>
       )}
 
       {result && (
