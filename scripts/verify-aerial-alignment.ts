@@ -122,7 +122,7 @@ async function main(): Promise<void> {
               aerial: {
                 type: "raster",
                 tiles: [
-                  `https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/{z}/{x}/{y}.webp?api=${apiKey}`,
+                  `https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/{z}/{x}/{y}.webp?api=${apiKey}`,
                 ],
                 tileSize: 256,
                 attribution: attributionLink.outerHTML,

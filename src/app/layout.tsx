@@ -34,14 +34,14 @@ export default function RootLayout({
     >
       <body className="flex min-h-full flex-col">
         {isDevelopmentStaffAccessAllowed() ? (
-          <header className="sticky top-0 z-50 border-b border-slate-200/90 bg-white/90 px-4 backdrop-blur sm:px-6">
+          <header className="sticky top-0 z-50 border-b border-white/10 bg-[#171918]/95 px-4 text-[#f6f4ee] backdrop-blur sm:px-6">
             <nav
               aria-label="Primary"
               className="mx-auto flex min-h-16 w-full max-w-7xl items-center justify-between gap-4"
             >
               <Link
                 href="/"
-                className="inline-flex min-h-11 items-center gap-2 rounded-full pr-3 text-sm font-semibold text-slate-950 outline-offset-4 focus-visible:outline-2 focus-visible:outline-teal-700"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full pr-3 text-sm font-semibold text-[#f6f4ee] outline-offset-4 focus-visible:outline-2 focus-visible:outline-[#69b8ff]"
               >
                 <span className="grid size-9 place-items-center rounded-full bg-teal-800 text-white">
                   <Waves aria-hidden="true" className="size-4" />
@@ -50,7 +50,7 @@ export default function RootLayout({
               </Link>
               <Link
                 href="/staff"
-                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm outline-offset-4 transition hover:border-teal-700/30 hover:bg-teal-50 hover:text-teal-900 focus-visible:outline-2 focus-visible:outline-teal-700"
+                className="inline-flex min-h-11 items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 text-sm font-semibold text-[#d7d9d5] shadow-sm outline-offset-4 transition hover:border-[#69b8ff]/40 hover:bg-[#0d304b] hover:text-[#69b8ff] focus-visible:outline-2 focus-visible:outline-[#69b8ff]"
               >
                 <ClipboardList aria-hidden="true" className="size-4" />
                 Staff

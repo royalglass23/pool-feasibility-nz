@@ -6,7 +6,7 @@ import {
 
 const MAX_TILE_BYTES = 2_000_000;
 const LINZ_AERIAL_TILE_BASE =
-  "https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/";
+  "https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/";
 
 export type AerialTileCoordinate = { z: number; x: number; y: number };
 
