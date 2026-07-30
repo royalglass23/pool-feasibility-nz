@@ -79,7 +79,10 @@ export async function buildServerAssessmentSubmission(input: {
     boundary.geometry &&
     !isFastPoolWithinMappedArea(
       request.poolLayout.position,
-      { lengthMetres: dimensions.lengthMetres + 2, widthMetres: dimensions.widthMetres + 2 },
+      {
+        lengthMetres: dimensions.lengthMetres + 2,
+        widthMetres: dimensions.widthMetres + 2,
+      },
       request.poolLayout.rotationDegrees,
       boundary.geometry,
     )
@@ -94,7 +97,6 @@ export async function buildServerAssessmentSubmission(input: {
   });
   const submittedAt = (input.now?.() ?? new Date()).toISOString();
   const mapImageDataUrl = await renderTrustedAssessmentMap({
-    address: snapshot.fastResult.resolvedAddress.fullAddress,
     boundary: boundary.geometry,
     shell: poolGeometry.geometry,
     constructionEnvelope: constructionEnvelope.geometry,
