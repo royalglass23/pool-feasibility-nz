@@ -30,6 +30,10 @@ describe("POST /api/internal/data-access narrative integration", () => {
       data: result,
     });
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv(
+      "INTERNAL_REPORT_SIGNING_SECRET",
+      "controlled-report-signing-secret-1234567890",
+    );
     vi.stubEnv("AI_PROVIDER", "openai");
     vi.stubEnv("OPENAI_API_KEY", "server-only-test-key");
     vi.stubEnv("OPENAI_MODEL", "gpt-5.6-luna");
@@ -87,6 +91,10 @@ describe("POST /api/internal/data-access narrative integration", () => {
       data: result,
     });
     vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv(
+      "INTERNAL_REPORT_SIGNING_SECRET",
+      "controlled-report-signing-secret-1234567890",
+    );
     vi.stubEnv("AI_PROVIDER", "none");
     vi.stubEnv("OPENAI_API_KEY", "");
     const fetchStub = vi.fn<typeof fetch>();

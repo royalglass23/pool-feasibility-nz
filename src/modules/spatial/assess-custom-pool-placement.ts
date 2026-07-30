@@ -324,10 +324,7 @@ function isNumber(value: number | null): value is number {
 }
 
 function hasUsableGeometry(evidence: CustomPoolPlacementEvidence): boolean {
-  return (
-    evidence.status === "available" &&
-    Boolean(evidence.geometry && evidence.geometry.features.length > 0)
-  );
+  return evidence.status === "available" && evidence.geometry !== undefined;
 }
 
 function distanceToPolygonBoundary(
