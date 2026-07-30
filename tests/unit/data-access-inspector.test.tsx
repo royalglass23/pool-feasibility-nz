@@ -4,6 +4,7 @@ import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DataAccessInspector } from "@/app/data-access-inspector";
 import { runDataAccessSpike } from "@/modules/data-access-spike/run-data-access-spike";
+import { runFastPropertyView } from "@/modules/data-access-spike/fast-property-view";
 
 const requestedAddress = "42A Bahari Drive, Ranui, Auckland";
 
@@ -17,11 +18,12 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
   it("starts empty and prevents duplicate requests while loading", async () => {
     const user = userEvent.setup();
     let resolveRequest: ((response: Response) => void) | undefined;
-    const fetchMock = vi.fn(
-      () =>
-        new Promise<Response>((resolve) => {
-          resolveRequest = resolve;
-        }),
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === "POST"
+        ? new Promise<Response>((resolve) => {
+            resolveRequest = resolve;
+          })
+        : Promise.resolve(Response.json({ suggestions: [] }, { status: 200 })),
     );
     vi.stubGlobal("fetch", fetchMock);
     render(<DataAccessInspector />);
@@ -38,11 +40,11 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       name: "Fetching official data…",
     });
     expect(pendingButton).toBeDisabled();
-    expect(screen.getByText("1. Resolving address")).toBeVisible();
-    expect(screen.getByText("2. Confirming legal parcel")).toBeVisible();
-    expect(screen.getByText("3. Loading aerial imagery")).toBeVisible();
+    expect(screen.getByText("Address found")).toBeVisible();
+    expect(screen.getByText("Mapped boundary and aerial starting")).toBeVisible();
+    expect(screen.getByText("Detailed checks not loaded")).toBeVisible();
     await user.click(pendingButton);
-    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
 
     resolveRequest?.(
       new Response(
@@ -162,6 +164,91 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(screen.getByRole("status")).toHaveTextContent("Parcel 8545868");
   });
 
+  it.each([
+    ["confirmed", "nationwide", "Confirmed", "Nationwide"],
+    ["provisional", "outside-region", "Provisional", "Outside Region"],
+  ] as const)(
+    "presents the %s boundary and %s regional coverage states",
+    async (
+      boundaryState,
+      regionCoverageState,
+      expectedBoundary,
+      expectedCoverage,
+    ) => {
+      const user = userEvent.setup();
+      const result = await createResult();
+      result.boundaryState = boundaryState;
+      result.regionCoverageState = regionCoverageState;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () => Response.json({ data: result }, { status: 200 })),
+      );
+
+      render(<DataAccessInspector />);
+      await user.type(
+        screen.getByLabelText("Auckland property address"),
+        requestedAddress,
+      );
+      await user.click(
+        screen.getByRole("button", { name: "Fetch property data" }),
+      );
+
+      expect(
+        await screen.findByRole("heading", { name: requestedAddress }),
+      ).toBeVisible();
+      expect(
+        screen.getByText(`Boundary state: ${expectedBoundary}`),
+      ).toBeVisible();
+      expect(
+        screen.getByText(`Regional layer coverage: ${expectedCoverage}`),
+      ).toBeVisible();
+    },
+  );
+
+  it.each([
+    [
+      "multiple",
+      "PARCEL_AMBIGUOUS",
+      409,
+      "More than one mapped boundary",
+    ],
+    [
+      "unavailable",
+      "PARCEL_NOT_FOUND",
+      404,
+      "No mapped boundary was found",
+    ],
+  ] as const)(
+    "presents the %s boundary error state",
+    async (boundaryState, code, status, message) => {
+      const user = userEvent.setup();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json(
+            { error: { code, message, boundaryState } },
+            { status },
+          ),
+        ),
+      );
+
+      render(<DataAccessInspector />);
+      await user.type(
+        screen.getByLabelText("Auckland property address"),
+        requestedAddress,
+      );
+      await user.click(
+        screen.getByRole("button", { name: "Fetch property data" }),
+      );
+
+      expect(
+        await screen.findByText(
+          message,
+        ),
+      ).toBeVisible();
+    },
+  );
+
   it("announces when autocomplete has no matching addresses", async () => {
     const user = userEvent.setup();
     vi.stubGlobal(
@@ -176,7 +263,9 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
 
     expect(
-      await screen.findByText("No matching Auckland addresses were found yet."),
+      await screen.findByText(
+        "No matching New Zealand addresses were found yet.",
+      ),
     ).toBeVisible();
   });
 
@@ -454,29 +543,35 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     const user = userEvent.setup();
     const result = await createResult();
     const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        Response.json(
-          {
-            error: {
-              code: "ADDRESS_AMBIGUOUS",
-              message: "Select the correct Auckland address to continue.",
-              options: [
-                {
-                  addressId: "969138",
-                  fullAddress: "42 Bahari Drive, Ranui, Auckland",
-                },
-                {
-                  addressId: "2359811",
-                  fullAddress: requestedAddress,
-                },
-              ],
-            },
-          },
-          { status: 409 },
-        ),
-      )
-      .mockResolvedValueOnce(Response.json({ data: result }, { status: 200 }));
+      .fn((_input: RequestInfo | URL, init?: RequestInit) =>
+        init?.method === "POST"
+          ? fetchMock.mock.calls.filter(
+              ([, requestInit]) => requestInit?.method === "POST",
+            ).length === 1
+            ? Promise.resolve(
+                Response.json(
+                  {
+                    error: {
+                      code: "ADDRESS_AMBIGUOUS",
+                      message: "Select the correct Auckland address to continue.",
+                      options: [
+                        {
+                          addressId: "969138",
+                          fullAddress: "42 Bahari Drive, Ranui, Auckland",
+                        },
+                        {
+                          addressId: "2359811",
+                          fullAddress: requestedAddress,
+                        },
+                      ],
+                    },
+                  },
+                  { status: 409 },
+                ),
+              )
+            : Promise.resolve(Response.json({ data: result }, { status: 200 }))
+          : Promise.resolve(Response.json({ suggestions: [] }, { status: 200 })),
+      );
     vi.stubGlobal("fetch", fetchMock);
 
     render(<DataAccessInspector />);
@@ -498,15 +593,12 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.queryByRole("heading", { name: "Select the correct address" }),
     ).not.toBeInTheDocument();
     await user.click(screen.getByRole("option", { name: requestedAddress }));
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
 
     expect(
       await screen.findByRole("heading", { name: requestedAddress }),
     ).toBeVisible();
-    expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toEqual({
-      address: requestedAddress,
+    expect(JSON.parse(fetchMock.mock.calls[1]?.[1]?.body as string)).toEqual({
+      address: "Bahari Drive, Ranui, Auckland",
       selectedAddressId: "2359811",
     });
   });
@@ -539,15 +631,11 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     await user.click(screen.getByRole("option", { name: requestedAddress }));
     expect(input).toHaveValue(requestedAddress);
 
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
-
     expect(
       await screen.findByRole("heading", { name: requestedAddress }),
     ).toBeVisible();
     expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toEqual({
-      address: requestedAddress,
+      address: "42A Bahari",
       selectedAddressId: "2359811",
     });
   });
@@ -597,9 +685,6 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByRole("button", { name: "Fetch property data" }),
     );
     await user.click(screen.getByRole("option", { name: requestedAddress }));
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
     await user.click(await screen.findByRole("button", { name: "Try again" }));
 
     expect(
@@ -653,17 +738,28 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
 
   it("retries when the property resolves but LINZ imagery fails", async () => {
     const user = userEvent.setup();
-    const result = await createResult();
-    result.datasets.aerial_imagery = {
-      ...result.datasets.aerial_imagery,
-      status: "error",
-      evidenceUse: "unavailable",
-      confidence: "unavailable",
-      errorCode: "PROVIDER_REQUEST_FAILED",
-    };
-    const fetchMock = vi.fn(async () =>
-      Response.json({ data: result }, { status: 200 }),
-    );
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      gateway: createDataAccessGateway(),
+      basemapApiKey: "test-key",
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/fast-property-view/stages")) {
+        return Response.json({
+          data: {
+            boundary: fastResult.boundary,
+            aerial: { state: "error" },
+            progress: {
+              address: "found",
+              boundary: "found",
+              aerial: "error",
+              detailedChecks: "not_loaded",
+            },
+          },
+        });
+      }
+      return Response.json({ data: fastResult }, { status: 200 });
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     render(<DataAccessInspector />);
@@ -675,10 +771,15 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByRole("button", { name: "Fetch property data" }),
     );
 
+    await screen.findByText(/Aerial imagery is not ready yet/);
     await user.click(
-      await screen.findByRole("button", { name: "Try imagery again" }),
+      screen.getByRole("button", { name: "Retry fast view" }),
     );
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(
+      fetchMock.mock.calls.filter(
+        ([input]) => String(input) === "/api/internal/fast-property-view",
+      ),
+    ).toHaveLength(2);
   });
 });
 

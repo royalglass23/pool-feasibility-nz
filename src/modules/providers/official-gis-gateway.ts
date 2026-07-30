@@ -33,6 +33,9 @@ import type {
   ParcelQueryResult,
   Position,
 } from "../data-access-spike/data-access-gateway";
+import { normalizeAddressQuery } from "@/shared/text/normalize-address-query";
+
+export { normalizeAddressQuery } from "@/shared/text/normalize-address-query";
 
 const LINZ_AERIAL_ATTRIBUTION_URL =
   "https://www.linz.govt.nz/data/linz-data/linz-basemaps/data-attribution";
@@ -199,16 +202,26 @@ export class OfficialGisGateway implements DataAccessSpikeGateway {
     return officialDatasetEvidence(dataset, retrievedAt);
   }
 
+  datasetCapability(dataset: DatasetKey): {
+    detailedQuery: boolean;
+    reason: string | null;
+  } {
+    return dataset === "culverts"
+      ? { detailedQuery: false, reason: "No dedicated official culvert endpoint was verified in this spike." }
+      : { detailedQuery: true, reason: null };
+  }
+
   async searchAddresses(requestedAddress: string): Promise<AddressMatch[]> {
     const parsed = parseSuppliedStreetAddress(requestedAddress);
+    const normalizedQuery = normalizeAddressQuery(requestedAddress);
+    const addressLikePattern = buildAddressLikePattern(normalizedQuery);
 
     const url = new URL(linzAddressQueryUrl);
-    const unitClause = parsed.unit
-      ? ` AND unit='${escapeArcGisText(parsed.unit)}'`
-      : "";
     url.searchParams.set(
       "where",
-      `address_number=${parsed.addressNumber} AND full_road_name='${escapeArcGisText(parsed.fullRoadName)}' AND address_lifecycle='Current'${unitClause}`,
+      parsed
+        ? `address_number=${parsed.addressNumber} AND full_road_name='${escapeArcGisText(parsed.fullRoadName)}' AND address_lifecycle='Current'${parsed.unit ? ` AND unit='${escapeArcGisText(parsed.unit)}'` : ""}`
+        : `address_lifecycle='Current' AND full_address LIKE '%${escapeArcGisText(addressLikePattern)}%'`,
     );
     url.searchParams.set(
       "outFields",
@@ -236,13 +249,13 @@ export class OfficialGisGateway implements DataAccessSpikeGateway {
   }
 
   async suggestAddresses(query: string): Promise<AddressMatch[]> {
-    const normalizedQuery = query.trim().replace(/\s+/g, " ");
+    const normalizedQuery = normalizeAddressQuery(query);
     if (normalizedQuery.length < 3) return [];
 
     const url = new URL(linzAddressQueryUrl);
     url.searchParams.set(
       "where",
-      `territorial_authority='Auckland' AND address_lifecycle='Current' AND full_address LIKE '%${escapeArcGisText(normalizedQuery)}%'`,
+      `address_lifecycle='Current' AND full_address LIKE '%${escapeArcGisText(buildAddressLikePattern(normalizedQuery))}%'`,
     );
     url.searchParams.set(
       "outFields",
@@ -502,7 +515,7 @@ function parseSuppliedStreetAddress(requestedAddress: string): {
   unit?: string;
   addressNumber: number;
   fullRoadName: string;
-} {
+} | null {
   const slashUnit = unitSlashAddressPattern.exec(requestedAddress);
   if (slashUnit) {
     return {
@@ -521,7 +534,7 @@ function parseSuppliedStreetAddress(requestedAddress: string): {
     };
   }
 
-  const streetAddress = streetAddressPattern.exec(requestedAddress);
+  const streetAddress = streetAddressPattern.exec(requestedAddress.trim());
   if (streetAddress) {
     return {
       addressNumber: Number(streetAddress[1]),
@@ -529,5 +542,13 @@ function parseSuppliedStreetAddress(requestedAddress: string): {
     };
   }
 
-  throw new Error("ADDRESS_FORMAT_UNSUPPORTED");
+  return null;
+}
+
+/**
+ * Normalizes the common formatting variations accepted by NZ Addresses.
+ * This deliberately does not infer a region or replace LINZ's official text.
+ */
+export function buildAddressLikePattern(normalizedQuery: string): string {
+  return normalizedQuery.split(" ").filter(Boolean).join("%");
 }

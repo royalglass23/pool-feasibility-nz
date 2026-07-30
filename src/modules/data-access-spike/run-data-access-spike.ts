@@ -27,6 +27,7 @@ import {
   type NormalizedTerrainEvidence,
 } from "../scoring/assess-data-access-feasibility";
 import type { FeasibilityAssessment } from "../scoring/assess-feasibility";
+import { normalizeAddressQuery } from "../providers/official-gis-gateway";
 
 export type {
   AddressMatch,
@@ -44,9 +45,9 @@ export class DataAccessSpikeError extends Error {
       | "ADDRESS_NOT_FOUND"
       | "ADDRESS_AMBIGUOUS"
       | "PARCEL_NOT_FOUND"
-      | "PARCEL_AMBIGUOUS"
-      | "OUTSIDE_SUPPORTED_REGION",
+      | "PARCEL_AMBIGUOUS",
     readonly addressOptions: AddressOption[] = [],
+    readonly boundaryState: BoundaryState | null = null,
   ) {
     super(code);
     this.name = "DataAccessSpikeError";
@@ -54,6 +55,11 @@ export class DataAccessSpikeError extends Error {
 }
 
 export type AddressOption = Pick<AddressMatch, "addressId" | "fullAddress">;
+
+export type BoundaryState =
+  "confirmed" | "provisional" | "multiple" | "unavailable";
+
+export type RegionCoverageState = "nationwide" | "outside-region";
 
 export interface DataAccessSpikeResult {
   requestedAddress: string;
@@ -64,6 +70,8 @@ export interface DataAccessSpikeResult {
     status: "mapped_primary_parcel" | "containing_parcel_requires_confirmation";
     reasons: string[];
   };
+  boundaryState: BoundaryState;
+  regionCoverageState: RegionCoverageState;
   comparisonParcels: Array<{
     addressId: string;
     fullAddress: string;
@@ -117,13 +125,14 @@ export async function runDataAccessSpike(input: {
   if (!resolvedAddress) {
     throw new DataAccessSpikeError("ADDRESS_NOT_FOUND");
   }
-  if (resolvedAddress.territorialAuthority !== "Auckland") {
-    throw new DataAccessSpikeError("OUTSIDE_SUPPORTED_REGION");
-  }
-
   const resolvedParcels = await input.gateway.findParcelsAt(
     resolvedAddress.coordinates,
   );
+  const regionCoverageState: RegionCoverageState =
+    resolvedAddress.territorialAuthority === "Auckland"
+      ? "nationwide"
+      : "outside-region";
+  const boundaryState = classifyBoundaryState(resolvedParcels.parcels);
   const parcel = requireSingleParcel(resolvedParcels.parcels);
   const parcelMatch = assessParcelMatch(parcel);
 
@@ -146,6 +155,22 @@ export async function runDataAccessSpike(input: {
   const datasetEntries: Array<readonly [DatasetKey, DatasetEvidence]> = [];
   for (const key of queryableDatasetKeys) {
     const evidence = input.gateway.datasetEvidence(key, retrievedAt);
+    if (
+      regionCoverageState === "outside-region" &&
+      evidence.provider !== "LINZ"
+    ) {
+      datasetEntries.push([
+        key,
+        {
+          ...evidence,
+          status: "unavailable",
+          evidenceUse: "unavailable",
+          confidence: "unavailable",
+          reason: "REGIONAL_DATASET_OUTSIDE_COVERAGE",
+        },
+      ]);
+      continue;
+    }
     try {
       const geometry = await input.gateway.queryFeatures?.(key, envelope);
       const result = geometry
@@ -241,8 +266,7 @@ export async function runDataAccessSpike(input: {
   const scenarioComparison = analyzePoolScenarios({
     parcel: parcel.geometry,
     parcelStatus:
-      parcelMatch.status === "mapped_primary_parcel" &&
-      distinctFromAlternatives
+      parcelMatch.status === "mapped_primary_parcel" && distinctFromAlternatives
         ? "confirmed"
         : "unconfirmed",
     parcelEvidence: spatialEvidence("legal_parcel", datasets, {
@@ -281,6 +305,8 @@ export async function runDataAccessSpike(input: {
     addressAlternatives,
     parcel,
     parcelMatch,
+    boundaryState,
+    regionCoverageState,
     comparisonParcels,
     identityCheck: {
       exactAddressMatched,
@@ -482,14 +508,16 @@ function assessParcelMatch(
   };
 }
 
+export function classifyBoundaryState(parcels: ParcelMatch[]): BoundaryState {
+  if (parcels.length === 0) return "unavailable";
+  if (parcels.length > 1) return "multiple";
+  return assessParcelMatch(parcels[0]).status === "mapped_primary_parcel"
+    ? "confirmed"
+    : "provisional";
+}
+
 function normalizeAddress(value: string): string {
-  const addressTokens = value
-    .toLocaleLowerCase("en-NZ")
-    .replace(/\bnew zealand\b/g, " ")
-    .replace(/\b\d{4}\b/g, " ")
-    .replace(/[^\p{L}\p{N}]+/gu, " ")
-    .trim()
-    .split(/\s+/);
+  const addressTokens = normalizeAddressQuery(value).split(/\s+/);
 
   if (addressTokens.at(-1) === "auckland") {
     addressTokens.pop();
@@ -500,10 +528,10 @@ function normalizeAddress(value: string): string {
 
 function requireSingleParcel(parcels: ParcelMatch[]): ParcelMatch {
   if (parcels.length === 0) {
-    throw new DataAccessSpikeError("PARCEL_NOT_FOUND");
+    throw new DataAccessSpikeError("PARCEL_NOT_FOUND", [], "unavailable");
   }
   if (parcels.length > 1) {
-    throw new DataAccessSpikeError("PARCEL_AMBIGUOUS");
+    throw new DataAccessSpikeError("PARCEL_AMBIGUOUS", [], "multiple");
   }
   return parcels[0];
 }

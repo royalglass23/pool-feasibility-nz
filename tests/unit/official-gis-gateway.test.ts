@@ -305,10 +305,43 @@ describe("OfficialGisGateway", () => {
 
     const requestedUrl = new URL(String(fetchStub.mock.calls[0]?.[0]));
     expect(requestedUrl.searchParams.get("where")).toBe(
-      "territorial_authority='Auckland' AND address_lifecycle='Current' AND full_address LIKE '%42 bahari%'",
+      "address_lifecycle='Current' AND full_address LIKE '%42%bahari%'",
     );
     expect(requestedUrl.searchParams.get("resultRecordCount")).toBe("8");
     expect(requestedUrl.searchParams.get("returnGeometry")).toBe("true");
+  });
+
+  it("uses nationwide LINZ suggestions for comma-separated input", async () => {
+    const fetchStub = vi.fn<typeof fetch>(async () =>
+      Response.json({ type: "FeatureCollection", features: [] }),
+    );
+    const gateway = new OfficialGisGateway({ fetch: fetchStub });
+
+    await gateway.suggestAddresses(
+      "  245 State Highway 1, Waipu, New Zealand ",
+    );
+
+    const requestedUrl = new URL(String(fetchStub.mock.calls[0]?.[0]));
+    expect(requestedUrl.searchParams.get("where")).toBe(
+      "address_lifecycle='Current' AND full_address LIKE '%245%state%highway%1%waipu%'",
+    );
+    expect(requestedUrl.searchParams.get("where")).not.toContain(
+      "territorial_authority",
+    );
+  });
+
+  it("accepts a complete address without commas through the normalized fallback", async () => {
+    const fetchStub = vi.fn<typeof fetch>(async () =>
+      Response.json({ type: "FeatureCollection", features: [] }),
+    );
+    const gateway = new OfficialGisGateway({ fetch: fetchStub });
+
+    await gateway.searchAddresses("245 State Highway 1 Waipu");
+
+    const requestedUrl = new URL(String(fetchStub.mock.calls[0]?.[0]));
+    expect(requestedUrl.searchParams.get("where")).toBe(
+      "address_lifecycle='Current' AND full_address LIKE '%245%state%highway%1%waipu%'",
+    );
   });
 
   it("does not normalize a retired address returned by the provider", async () => {

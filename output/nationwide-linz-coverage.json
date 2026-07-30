@@ -1,0 +1,104 @@
+{
+  "generatedAt": "2026-07-28T00:44:33.748Z",
+  "source": "LINZ NZ Addresses",
+  "mode": "fixture-baseline",
+  "fallback": "none",
+  "cases": [
+    {
+      "id": "standard",
+      "category": "standard",
+      "input": "12 Queen Street, Auckland 1010",
+      "found": true,
+      "boundaryState": "confirmed",
+      "layerAvailability": "regional_layers_available",
+      "durationMs": 25.514
+    },
+    {
+      "id": "unit",
+      "category": "unit",
+      "input": "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland",
+      "found": true,
+      "boundaryState": "provisional",
+      "layerAvailability": "regional_layers_available",
+      "durationMs": 1.721
+    },
+    {
+      "id": "multi-title",
+      "category": "multi-title",
+      "input": "1 Cathedral Square, Christchurch",
+      "found": true,
+      "boundaryState": "provisional",
+      "layerAvailability": "regional_unavailable",
+      "durationMs": 0.361
+    },
+    {
+      "id": "cross-lease",
+      "category": "cross-lease",
+      "input": "1/22 Tinakori Road, Thorndon, Wellington",
+      "found": true,
+      "boundaryState": "provisional",
+      "layerAvailability": "regional_unavailable",
+      "durationMs": 0.636
+    },
+    {
+      "id": "rural",
+      "category": "rural",
+      "input": "245 State Highway 1, Waipu",
+      "found": true,
+      "boundaryState": "confirmed",
+      "layerAvailability": "regional_unavailable",
+      "durationMs": 0.437
+    },
+    {
+      "id": "long-driveway",
+      "category": "long-driveway",
+      "input": "15 Welcome Bay Road, Tauranga",
+      "found": true,
+      "boundaryState": "provisional",
+      "layerAvailability": "regional_unavailable",
+      "durationMs": 0.283
+    },
+    {
+      "id": "new-subdivision",
+      "category": "new-subdivision",
+      "input": "18 Borman Road, Hamilton",
+      "found": true,
+      "boundaryState": "unavailable",
+      "layerAvailability": "regional_unavailable",
+      "durationMs": 0.657
+    },
+    {
+      "id": "multiple-addresses",
+      "category": "multiple-addresses",
+      "input": "Bahari Drive, Ranui, Auckland",
+      "found": true,
+      "boundaryState": "multiple",
+      "layerAvailability": "regional_layers_available",
+      "durationMs": 0.335
+    },
+    {
+      "id": "no-match",
+      "category": "no-match",
+      "input": "99999 State Highway 1, New Zealand",
+      "found": false,
+      "boundaryState": "unavailable",
+      "layerAvailability": "not_requested",
+      "durationMs": 0.171
+    },
+    {
+      "id": "outside-region",
+      "category": "outside-region",
+      "input": "1 George Street, Dunedin",
+      "found": true,
+      "boundaryState": "provisional",
+      "layerAvailability": "regional_unavailable",
+      "durationMs": 0.352
+    }
+  ],
+  "notes": [
+    "Address coverage and latency are measured independently from detailed regional layers.",
+    "A missing boundary is not evidence that usable property area is absent.",
+    "Fixture-baseline timing measures local normalization and classification of captured provider-shaped responses; it is not network latency.",
+    "Run with --live only when official-provider network access is approved to record provider response timing."
+  ]
+}

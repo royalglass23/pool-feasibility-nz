@@ -44,7 +44,7 @@ export async function POST(request: Request): Promise<Response> {
     return apiErrorResponse(
       {
         code: "INVALID_REQUEST",
-        message: "Submit one Auckland property address.",
+        message: "Submit one New Zealand property address.",
       },
       400,
       correlationId,

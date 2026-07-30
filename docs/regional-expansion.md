@@ -1,5 +1,20 @@
 # Regional expansion design
 
+## Nationwide address baseline (MT-243)
+
+LINZ NZ Addresses is the primary nationwide address source. Address queries are
+normalized for case, punctuation, comma-separated input, postcodes, and the
+optional `New Zealand` suffix before being sent to the official service. The
+resolver preserves LINZ's stable `address_id`; it does not add Google or another
+third-party fallback.
+
+Boundary certainty is explicit: `confirmed`, `provisional`, `multiple`, or
+`unavailable`. A provisional or unavailable title/boundary result is not treated
+as clear space. The focused fixture matrix is in
+`tests/fixtures/linz/nationwide-address-cases.json`; generate the separate
+coverage/latency artifact with `npm run coverage:linz`, or use `--live` only with
+approved official-provider network access.
+
 National expansion is an architectural seam, not POC scope.
 
 ```ts

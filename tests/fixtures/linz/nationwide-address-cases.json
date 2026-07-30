@@ -1,0 +1,62 @@
+[
+  {
+    "id": "standard",
+    "category": "standard",
+    "input": "12 Queen Street, Auckland 1010",
+    "expected": "12 Queen Street, Auckland 1010"
+  },
+  {
+    "id": "unit",
+    "category": "unit",
+    "input": "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland",
+    "expected": "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland"
+  },
+  {
+    "id": "multi-title",
+    "category": "multi-title",
+    "input": "1 Cathedral Square, Christchurch",
+    "expected": "1 Cathedral Square, Christchurch"
+  },
+  {
+    "id": "cross-lease",
+    "category": "cross-lease",
+    "input": "1/22 Tinakori Road, Thorndon, Wellington",
+    "expected": "1/22 Tinakori Road, Thorndon, Wellington"
+  },
+  {
+    "id": "rural",
+    "category": "rural",
+    "input": "245 State Highway 1, Waipu",
+    "expected": "245 State Highway 1, Waipu"
+  },
+  {
+    "id": "long-driveway",
+    "category": "long-driveway",
+    "input": "15 Welcome Bay Road, Tauranga",
+    "expected": "15 Welcome Bay Road, Tauranga"
+  },
+  {
+    "id": "new-subdivision",
+    "category": "new-subdivision",
+    "input": "18 Borman Road, Hamilton",
+    "expected": "18 Borman Road, Hamilton"
+  },
+  {
+    "id": "multiple-addresses",
+    "category": "multiple-addresses",
+    "input": "Bahari Drive, Ranui, Auckland",
+    "expected": "Bahari Drive, Ranui, Auckland"
+  },
+  {
+    "id": "no-match",
+    "category": "no-match",
+    "input": "99999 State Highway 1, New Zealand",
+    "expected": "99999 State Highway 1"
+  },
+  {
+    "id": "outside-region",
+    "category": "outside-region",
+    "input": "1 George Street, Dunedin",
+    "expected": "1 George Street, Dunedin"
+  }
+]

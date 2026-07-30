@@ -4,6 +4,11 @@
 
 Build one saved `GeneratedReport` view model and render it into both the interactive report page and a print-only HTML route. The PDF generator consumes only that persisted model and pre-rendered/static map imagery derived from the same verified geometries. It must not call live GIS providers during PDF rendering.
 
+MT-249 implements this as `SavedPreliminaryReport`. The assessment response returns that model
+immediately for browser display. The PDF renderer and both email destinations consume the same
+saved model and map capture, and the homeowner and ServiceM8 destinations receive the same PDF
+bytes and filename.
+
 HTML-to-PDF is preferred, but the browser binary/runtime is not selected until a Vercel deployment spike proves compatibility, cold-start and bundle limits, A4 pagination, map capture, and attribution. Playwright is installed for application and E2E testing; that does not yet prove it is the production PDF runtime.
 
 ## Page contract

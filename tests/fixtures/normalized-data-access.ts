@@ -35,6 +35,10 @@ export function createDataAccessGateway(
 ): DataAccessSpikeGateway {
   return {
     datasetEvidence: officialDatasetEvidence,
+    datasetCapability: (dataset) =>
+      dataset === "culverts"
+        ? { detailedQuery: false, reason: "No dedicated official culvert endpoint was verified in this spike." }
+        : { detailedQuery: true, reason: null },
     searchAddresses: async () => addressMatchesFrom(addressesFixture),
     findParcelsAt: async ([longitude]) =>
       parcelQueryFrom(

@@ -26,7 +26,7 @@ describe("executeDataAccessRequest", () => {
       status: 400,
       error: {
         code: "INVALID_ADDRESS",
-        message: "Enter a complete Auckland property address.",
+        message: "Enter a complete New Zealand property address.",
       },
     });
     expect(searchAddresses).not.toHaveBeenCalled();
@@ -52,6 +52,7 @@ describe("executeDataAccessRequest", () => {
       appellation: "Lot 1 DP 576345",
     });
     expect(response.data.identityCheck.exactAddressMatched).toBe(true);
+    expect(response.data.regionCoverageState).toBe("nationwide");
   });
 
   it("uses neutral scenario inputs and rejects caller-supplied preferences", async () => {
@@ -118,7 +119,7 @@ describe("executeDataAccessRequest", () => {
       status: 404,
       error: {
         code: "ADDRESS_NOT_FOUND",
-        message: "No exact Auckland address match was found.",
+        message: "No exact New Zealand address match was found.",
       },
     });
   });
@@ -134,7 +135,7 @@ describe("executeDataAccessRequest", () => {
       status: 409,
       error: {
         code: "ADDRESS_AMBIGUOUS",
-        message: "Select the correct Auckland address to continue.",
+        message: "Select the correct New Zealand address to continue.",
         options: [
           {
             addressId: "969138",
@@ -237,6 +238,26 @@ describe("executeDataAccessRequest", () => {
         parcelMatch: {
           status: "containing_parcel_requires_confirmation",
         },
+      },
+    });
+  });
+
+  it("returns a typed unavailable boundary when LINZ has no containing parcel", async () => {
+    const response = await executeDataAccessRequest({
+      body: { address: "42A Bahari Drive, Ranui, Auckland" },
+      gateway: createGateway({
+        findParcelsAt: async () => ({ parcels: [], duplicatesRemoved: 0 }),
+      }),
+    });
+
+    expect(response).toEqual({
+      ok: false,
+      status: 404,
+      error: {
+        code: "PARCEL_NOT_FOUND",
+        message:
+          "No mapped property boundary was found at the selected address point.",
+        boundaryState: "unavailable",
       },
     });
   });
@@ -369,7 +390,7 @@ describe("executeDataAccessRequest", () => {
     });
   });
 
-  it("returns the supported-region error for an address outside Auckland", async () => {
+  it("resolves an address outside Auckland without the retired region guard", async () => {
     const outsideAuckland = {
       ...addressesFixture,
       features: addressesFixture.features.map((feature) => ({
@@ -388,14 +409,16 @@ describe("executeDataAccessRequest", () => {
       }),
     });
 
-    expect(response).toEqual({
-      ok: false,
-      status: 422,
-      error: {
-        code: "OUTSIDE_SUPPORTED_REGION",
-        message:
-          "This proof of concept currently supports Auckland addresses only.",
-      },
-    });
+    expect(response).toMatchObject({ ok: true, status: 200 });
+    if (response.ok) {
+      expect(response.data.resolvedAddress.territorialAuthority).toBe(
+        "Wellington",
+      );
+      expect(response.data.regionCoverageState).toBe("outside-region");
+      expect(response.data.datasets.contours).toMatchObject({
+        status: "unavailable",
+        reason: "REGIONAL_DATASET_OUTSIDE_COVERAGE",
+      });
+    }
   });
 });
