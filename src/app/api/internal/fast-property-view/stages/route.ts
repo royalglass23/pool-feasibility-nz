@@ -117,6 +117,17 @@ export async function POST(request: Request): Promise<Response> {
           body: requestBody,
           gateway,
           basemapApiKey: process.env.LINZ_BASEMAPS_API_KEY || undefined,
+          initialBoundary:
+            snapshot.fastResult.datasets?.legal_parcel &&
+            snapshot.fastResult.progress?.boundary &&
+            snapshot.fastResult.progress.boundary !== "loading"
+              ? {
+                  boundary: snapshot.fastResult.boundary,
+                  legalParcelEvidence:
+                    snapshot.fastResult.datasets.legal_parcel,
+                  progressBoundary: snapshot.fastResult.progress.boundary,
+                }
+              : undefined,
         });
   if (response.ok) {
     const assessmentSnapshot =

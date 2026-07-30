@@ -44,6 +44,7 @@ test("shows the fast address-to-property stages before detailed checks", async (
           firstUsableViewStartedAt: "2026-07-28T00:00:00.000Z",
           fastPathDurationMs: 120,
         },
+        assessmentSnapshot: "server-issued-initial-snapshot",
       }),
     });
   });
@@ -59,50 +60,104 @@ test("shows the fast address-to-property stages before detailed checks", async (
   ).toBeVisible();
   await expect(page.getByText("Fast property view")).toBeVisible();
   await expect(
-    page.getByText("Detailed checks not loaded").first(),
-  ).toBeVisible();
+    page.getByRole("list", { name: "Fast view progress" }),
+  ).toContainText("Address found");
+  await expect(page.getByText("Mapped boundary found")).toHaveCount(0);
+  await expect(page.getByText("Aerial image ready")).toHaveCount(0);
+  await expect(page.getByText("Detailed checks not loaded")).toHaveCount(0);
   await expect(
     page.getByText("Default pool: Compact (6.5 × 3 m)"),
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Load detailed official checks" }),
   ).toBeVisible();
-  await page.route("**/api/internal/fast-property-view/stages", async (route) => {
-    const requestBody = route.request().postDataJSON();
-    if (requestBody?.mode !== "detailed") return route.continue();
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        data: {
-          status: "partial",
-          retrievedAt: "2026-07-28T00:00:01.000Z",
-          durationMs: 210,
-          region: "New Zealand; provider coverage varies by territorial authority and dataset licence.",
-          limitations: ["A verified empty response does not prove absence."],
-          layers: [{
-            key: "building_footprints",
-            state: "returned",
-            evidence: { dataset: "NZ Building Outlines", provider: "LINZ", attribution: { text: "Land Information New Zealand (LINZ), CC BY 4.0", url: "https://www.linz.govt.nz/products-services/data/licensing-and-using-data" } },
-            geometry: { type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: { type: "Polygon", coordinates: [[[174.60, -36.86], [174.61, -36.86], [174.61, -36.87], [174.60, -36.86]]] } }] },
-            message: "Returned 0 mapped features.",
-          }, {
-            key: "contours",
-            state: "timeout",
-            evidence: { dataset: "Contours" },
-            geometry: null,
-            message: "The provider timed out; no geometry was drawn. Retry is available.",
-          }],
-        },
-      }),
-    });
-  });
-  await page.getByRole("button", { name: "Load detailed official checks" }).click();
-  await expect(page.getByRole("heading", { name: "Detailed official checks" })).toBeVisible();
-  await expect(page.getByText("Some provider queries remain unknown; this is a partial result.")).toBeVisible();
-  await expect(page.getByRole("link", { name: "Land Information New Zealand (LINZ), CC BY 4.0" })).toBeVisible();
-  await page.getByRole("button", { name: "Load detailed official checks" }).click();
-  await expect(page.getByRole("heading", { name: "Detailed official checks" })).toBeVisible();
+  await page.route(
+    "**/api/internal/fast-property-view/stages",
+    async (route) => {
+      const requestBody = route.request().postDataJSON();
+      if (requestBody?.mode !== "detailed") return route.continue();
+      await route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          data: {
+            status: "partial",
+            retrievedAt: "2026-07-28T00:00:01.000Z",
+            durationMs: 210,
+            region:
+              "New Zealand; provider coverage varies by territorial authority and dataset licence.",
+            limitations: ["A verified empty response does not prove absence."],
+            layers: [
+              {
+                key: "building_footprints",
+                state: "returned",
+                evidence: {
+                  dataset: "NZ Building Outlines",
+                  provider: "LINZ",
+                  attribution: {
+                    text: "Land Information New Zealand (LINZ), CC BY 4.0",
+                    url: "https://www.linz.govt.nz/products-services/data/licensing-and-using-data",
+                  },
+                },
+                geometry: {
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      properties: {},
+                      geometry: {
+                        type: "Polygon",
+                        coordinates: [
+                          [
+                            [174.6, -36.86],
+                            [174.61, -36.86],
+                            [174.61, -36.87],
+                            [174.6, -36.86],
+                          ],
+                        ],
+                      },
+                    },
+                  ],
+                },
+                message: "Returned 0 mapped features.",
+              },
+              {
+                key: "contours",
+                state: "timeout",
+                evidence: { dataset: "Contours" },
+                geometry: null,
+                message:
+                  "The provider timed out; no geometry was drawn. Retry is available.",
+              },
+            ],
+          },
+          assessmentSnapshot: "server-issued-detailed-snapshot",
+        }),
+      });
+    },
+  );
+  await page
+    .getByRole("button", { name: "Load detailed official checks" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Detailed official checks" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(
+      "Some provider queries remain unknown; this is a partial result.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("link", {
+      name: "Land Information New Zealand (LINZ), CC BY 4.0",
+    }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Load detailed official checks" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "Detailed official checks" }),
+  ).toBeVisible();
 });
 
 test("supports the pool catalogue, bounded custom input, and keyboard rotation", async ({

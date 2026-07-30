@@ -48,7 +48,6 @@ export function FastPropertyView({
     () => undefined,
   );
   const [mapError, setMapError] = useState(false);
-  const [aerialTilesReady, setAerialTilesReady] = useState(false);
   const [selectedPoolId, setSelectedPoolId] = useState<FastPoolId>("compact");
   const [customLength, setCustomLength] = useState("6.5");
   const [customWidth, setCustomWidth] = useState("3");
@@ -349,12 +348,6 @@ export function FastPropertyView({
         map.addControl(new maplibregl.NavigationControl(), "top-right");
         map.on("error", () => setMapError(true));
         map.on("idle", () => {
-          if (
-            result.aerial.state === "ready" &&
-            map?.isSourceLoaded("aerial")
-          ) {
-            setAerialTilesReady(true);
-          }
           try {
             onSnapshotReady?.(map?.getCanvas().toDataURL("image/png") ?? null);
           } catch {
@@ -436,8 +429,6 @@ export function FastPropertyView({
       : result.boundary.state === "multiple"
         ? "A mapped area was found, but more than one boundary needs checking."
         : "No usable mapped property boundary was returned. The address and aerial view remain available.";
-  const aerialReady = result.aerial.state === "ready" && aerialTilesReady;
-
   return (
     <section
       aria-labelledby="fast-view-heading"
@@ -472,18 +463,9 @@ export function FastPropertyView({
       </div>
       <ol
         aria-label="Fast view progress"
-        className="grid gap-2 text-sm sm:grid-cols-4"
+        className="grid gap-2 text-sm sm:max-w-xs"
       >
         <Progress label="Address found" state="complete" />
-        <Progress
-          label="Mapped boundary found"
-          state={result.progress.boundary === "found" ? "complete" : "partial"}
-        />
-        <Progress
-          label="Aerial image ready"
-          state={aerialReady ? "complete" : "partial"}
-        />
-        <Progress label="Detailed checks not loaded" state="pending" />
       </ol>
       <div className="overflow-hidden rounded-2xl border border-slate-200">
         <div

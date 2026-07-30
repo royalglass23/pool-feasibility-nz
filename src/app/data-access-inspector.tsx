@@ -479,10 +479,8 @@ export function DataAccessInspector() {
                 Opening the fastest useful property view. Detailed checks stay
                 deferred.
               </p>
-              <ol className="mt-3 grid gap-2 text-sm text-teal-900 sm:grid-cols-3">
+              <ol className="mt-3 text-sm text-teal-900">
                 <li>Address found</li>
-                <li>Mapped boundary and aerial starting</li>
-                <li>Detailed checks not loaded</li>
               </ol>
             </div>
           )}

@@ -41,10 +41,6 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     });
     expect(pendingButton).toBeDisabled();
     expect(screen.getByText("Address found")).toBeVisible();
-    expect(
-      screen.getByText("Mapped boundary and aerial starting"),
-    ).toBeVisible();
-    expect(screen.getByText("Detailed checks not loaded")).toBeVisible();
     await user.click(pendingButton);
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
 
@@ -743,9 +739,16 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
               detailedChecks: "not_loaded",
             },
           },
+          assessmentSnapshot: "server-issued-stage-snapshot",
         });
       }
-      return Response.json({ data: fastResult }, { status: 200 });
+      return Response.json(
+        {
+          data: fastResult,
+          assessmentSnapshot: "server-issued-initial-snapshot",
+        },
+        { status: 200 },
+      );
     });
     vi.stubGlobal("fetch", fetchMock);
 

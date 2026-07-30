@@ -69,6 +69,12 @@ export type FastPropertyViewStage = Pick<
   "boundary" | "aerial" | "datasets" | "progress" | "fastPathDurationMs"
 >;
 
+export type FastPropertyBoundaryData = {
+  boundary: FastPropertyViewResult["boundary"];
+  legalParcelEvidence: DatasetEvidence;
+  progressBoundary: FastPropertyViewResult["progress"]["boundary"];
+};
+
 const addressSchema = z.string().trim().min(8).max(200);
 
 export async function resolveFastPropertyAddress(input: {
@@ -86,29 +92,29 @@ export async function resolveFastPropertyAddress(input: {
       )
     : resolveAddress(addressMatches, requestedAddress);
   if (!resolvedAddress) throw new DataAccessSpikeError("ADDRESS_NOT_FOUND");
+  const boundaryData = await loadFastPropertyBoundary({
+    resolvedAddress,
+    gateway: input.gateway,
+    retrievedAt: startedAt,
+  });
 
   return {
     requestedAddress,
     resolvedAddress,
-    boundary: {
-      state: "loading",
-      geometry: null,
-      areaSquareMetres: null,
-      parcelId: null,
-    },
+    boundary: boundaryData.boundary,
     aerial: {
       state: "loading",
       durationMs: null,
       attribution: null,
     },
     datasets: {
-      legal_parcel: null,
+      legal_parcel: boundaryData.legalParcelEvidence,
       aerial_imagery: null,
     },
     defaultPool: FAST_COMPACT_POOL,
     progress: {
       address: "found",
-      boundary: "loading",
+      boundary: boundaryData.progressBoundary,
       aerial: "loading",
       detailedChecks: "not_loaded",
     },
@@ -121,44 +127,28 @@ export async function loadFastPropertyStages(input: {
   resolvedAddress: AddressMatch;
   gateway: DataAccessSpikeGateway;
   basemapApiKey?: string;
+  initialBoundary?: FastPropertyBoundaryData;
   startedClock?: number;
   retrievedAt?: string;
 }): Promise<FastPropertyViewStage> {
   const startedClock = input.startedClock ?? performance.now();
   const retrievedAt = input.retrievedAt ?? new Date().toISOString();
-  const [boundaryOutcome, aerialOutcome] = await Promise.allSettled([
-    input.gateway.findParcelsAt(input.resolvedAddress.coordinates),
+  const boundaryPromise = input.initialBoundary
+    ? Promise.resolve(input.initialBoundary)
+    : loadFastPropertyBoundary({
+        resolvedAddress: input.resolvedAddress,
+        gateway: input.gateway,
+        retrievedAt,
+      });
+  const aerialPromise = Promise.allSettled([
     input.basemapApiKey
       ? input.gateway.checkAerial(input.basemapApiKey)
       : Promise.reject(new Error("AERIAL_NOT_CONFIGURED")),
+  ]).then(([outcome]) => outcome);
+  const [boundaryData, aerialOutcome] = await Promise.all([
+    boundaryPromise,
+    aerialPromise,
   ]);
-  const parcels =
-    boundaryOutcome.status === "fulfilled" ? boundaryOutcome.value.parcels : [];
-  const legalParcelBase = input.gateway.datasetEvidence(
-    "legal_parcel",
-    retrievedAt,
-  );
-  const legalParcelEvidence =
-    boundaryOutcome.status === "fulfilled"
-      ? {
-          ...legalParcelBase,
-          status: "success" as const,
-          confidence:
-            parcels.length === 1 ? ("high" as const) : ("limited" as const),
-          featureCount: parcels.length,
-        }
-      : {
-          ...legalParcelBase,
-          status: "error" as const,
-          evidenceUse: "unavailable" as const,
-          confidence: "unavailable" as const,
-          errorCode: providerEvidenceErrorCode(boundaryOutcome.reason),
-        };
-  const boundaryState: BoundaryState =
-    boundaryOutcome.status === "rejected"
-      ? "unavailable"
-      : classifyBoundaryState(parcels);
-  const parcel = parcels[0] ?? null;
   const aerial =
     aerialOutcome.status === "fulfilled"
       ? {
@@ -204,25 +194,15 @@ export async function loadFastPropertyStages(input: {
         };
 
   return {
-    boundary: {
-      state: boundaryState,
-      geometry: parcel?.geometry ?? null,
-      areaSquareMetres: parcel?.calculatedAreaSquareMetres ?? null,
-      parcelId: parcel?.parcelId ?? null,
-    },
+    boundary: boundaryData.boundary,
     aerial,
     datasets: {
-      legal_parcel: legalParcelEvidence,
+      legal_parcel: boundaryData.legalParcelEvidence,
       aerial_imagery: aerialEvidence,
     },
     progress: {
       address: "found",
-      boundary:
-        boundaryState === "confirmed"
-          ? "found"
-          : boundaryState === "unavailable"
-            ? "unavailable"
-            : "provisional",
+      boundary: boundaryData.progressBoundary,
       aerial: aerial.state,
       detailedChecks: "not_loaded",
     },
@@ -248,10 +228,71 @@ export async function runFastPropertyView(input: {
     resolvedAddress: initial.resolvedAddress,
     gateway: input.gateway,
     basemapApiKey: input.basemapApiKey,
+    initialBoundary:
+      initial.datasets.legal_parcel === null
+        ? undefined
+        : {
+            boundary: initial.boundary,
+            legalParcelEvidence: initial.datasets.legal_parcel,
+            progressBoundary: initial.progress.boundary,
+          },
     startedClock,
     retrievedAt: initial.firstUsableViewStartedAt,
   });
   return { ...initial, ...stage };
+}
+
+async function loadFastPropertyBoundary(input: {
+  resolvedAddress: AddressMatch;
+  gateway: DataAccessSpikeGateway;
+  retrievedAt: string;
+}): Promise<FastPropertyBoundaryData> {
+  const [boundaryOutcome] = await Promise.allSettled([
+    input.gateway.findParcelsAt(input.resolvedAddress.coordinates),
+  ]);
+  const parcels =
+    boundaryOutcome.status === "fulfilled" ? boundaryOutcome.value.parcels : [];
+  const legalParcelBase = input.gateway.datasetEvidence(
+    "legal_parcel",
+    input.retrievedAt,
+  );
+  const legalParcelEvidence =
+    boundaryOutcome.status === "fulfilled"
+      ? {
+          ...legalParcelBase,
+          status: "success" as const,
+          confidence:
+            parcels.length === 1 ? ("high" as const) : ("limited" as const),
+          featureCount: parcels.length,
+        }
+      : {
+          ...legalParcelBase,
+          status: "error" as const,
+          evidenceUse: "unavailable" as const,
+          confidence: "unavailable" as const,
+          errorCode: providerEvidenceErrorCode(boundaryOutcome.reason),
+        };
+  const boundaryState: BoundaryState =
+    boundaryOutcome.status === "rejected"
+      ? "unavailable"
+      : classifyBoundaryState(parcels);
+  const parcel = parcels[0] ?? null;
+
+  return {
+    boundary: {
+      state: boundaryState,
+      geometry: parcel?.geometry ?? null,
+      areaSquareMetres: parcel?.calculatedAreaSquareMetres ?? null,
+      parcelId: parcel?.parcelId ?? null,
+    },
+    legalParcelEvidence,
+    progressBoundary:
+      boundaryState === "confirmed"
+        ? "found"
+        : boundaryState === "unavailable"
+          ? "unavailable"
+          : "provisional",
+  };
 }
 
 function resolveAddress(
