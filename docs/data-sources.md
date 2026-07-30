@@ -93,7 +93,7 @@ treated as a licence.
 
 - **Provider:** Toitū Te Whenua LINZ
 - **Metadata:** <https://www.linz.govt.nz/guidance/data-service/linz-basemaps-guide/how-use-linz-basemaps-apis>
-- **Endpoint:** `https://basemaps.linz.govt.nz/v1/tiles/aerial/3857/`
+- **Endpoint:** `https://basemaps.linz.govt.nz/v1/tiles/aerial/WebMercatorQuad/`
   XYZ tile API and related style/copyright APIs
 - **Licence:** underlying open datasets are generally CC BY 4.0; attribution is
   read from the authenticated aerial StyleJSON rather than duplicated in UI code

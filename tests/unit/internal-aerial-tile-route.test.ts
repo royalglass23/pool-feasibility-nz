@@ -46,7 +46,7 @@ describe("GET /api/internal/aerial/tiles/:z/:x/:y", () => {
     const upstreamUrl = fetchMock.mock.calls[0][0] as URL;
     expect(upstreamUrl.origin).toBe("https://basemaps.linz.govt.nz");
     expect(upstreamUrl.pathname).toBe(
-      "/v1/tiles/aerial/3857/18/258210/160518.webp",
+      "/v1/tiles/aerial/WebMercatorQuad/18/258210/160518.webp",
     );
     expect(upstreamUrl.searchParams.get("api")).toBe("linz-secret-key");
     expect(response.headers.get("x-linz-api-key")).toBeNull();
