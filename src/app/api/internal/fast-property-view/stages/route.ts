@@ -26,6 +26,9 @@ import { z } from "zod";
 
 export const runtime = "nodejs";
 
+const MAX_ASSESSMENT_SNAPSHOT_BYTES = 5_500_000;
+const MAX_STAGE_REQUEST_BYTES = MAX_ASSESSMENT_SNAPSHOT_BYTES + 1_024;
+
 const stageRequestSchema = z
   .object({
     mode: z.literal("detailed").optional(),
@@ -34,7 +37,7 @@ const stageRequestSchema = z
       z.number().min(160).max(180),
       z.number().min(-48).max(-33),
     ]),
-    assessmentSnapshot: z.string().min(32).max(5_500_000),
+    assessmentSnapshot: z.string().min(32).max(MAX_ASSESSMENT_SNAPSHOT_BYTES),
   })
   .strict();
 
@@ -45,7 +48,10 @@ export async function POST(request: Request): Promise<Response> {
     return internalAccessDeniedResponse(access, correlationId);
   let body: unknown;
   try {
-    const bytes = await readRequestBytesWithinLimit(request, 1_024);
+    const bytes = await readRequestBytesWithinLimit(
+      request,
+      MAX_STAGE_REQUEST_BYTES,
+    );
     body = JSON.parse(new TextDecoder().decode(bytes));
   } catch (error) {
     return apiErrorResponse(
