@@ -8,6 +8,8 @@ import {
   type SavedPreliminaryReport,
 } from "@/modules/reporting/preliminary-report";
 import { renderSessionReportHtml } from "@/modules/reporting/session-report";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 
 export interface PdfRenderer {
   render(html: string, signal?: AbortSignal): Promise<Buffer>;
@@ -83,26 +85,21 @@ async function generateReportHtmlPdf(
 }
 
 function defaultPdfRenderer(): PdfRenderer {
-  if (process.env.VERCEL) {
-    throw new Error(
-      "REPORT_GENERATION_FAILED: production PDF runtime is pending its deployment evidence gate.",
-    );
-  }
-  return playwrightRenderer;
+  return puppeteerRenderer;
 }
 
-const playwrightRenderer: PdfRenderer = {
+const puppeteerRenderer: PdfRenderer = {
   async render(html, signal) {
-    const { chromium } = await import("playwright");
-    const browser = await chromium.launch({ headless: true });
+    const browser = await launchPdfBrowser();
     const closeOnAbort = () => void browser.close();
     signal?.addEventListener("abort", closeOnAbort, { once: true });
     try {
       if (signal?.aborted) throw new Error("REPORT_RENDER_ABORTED");
       const page = await browser.newPage();
-      await page.route("**/*", (route) => route.abort("blockedbyclient"));
+      await page.setRequestInterception(true);
+      page.on("request", (request) => void request.abort("blockedbyclient"));
       await page.setContent(html, { waitUntil: "load" });
-      await page.emulateMedia({ media: "print" });
+      await page.emulateMediaType("print");
       return Buffer.from(
         await page.pdf({
           format: "A4",
@@ -117,6 +114,71 @@ const playwrightRenderer: PdfRenderer = {
     }
   },
 };
+
+async function launchPdfBrowser() {
+  const { default: puppeteer } = await import("puppeteer-core");
+  if (process.env.VERCEL) {
+    const { default: chromium } = await import("@sparticuz/chromium");
+    return puppeteer.launch({
+      args: await puppeteer.defaultArgs({
+        args: chromium.args,
+        headless: "shell",
+      }),
+      executablePath: await chromium.executablePath(),
+      headless: "shell",
+    });
+  }
+
+  const executablePath = findLocalChromiumExecutable();
+  if (!executablePath) {
+    throw new Error(
+      "REPORT_GENERATION_FAILED: local Chrome or Edge was not found.",
+    );
+  }
+  return puppeteer.launch({ executablePath, headless: true });
+}
+
+function findLocalChromiumExecutable(): string | undefined {
+  const candidates = [
+    process.env.PDF_CHROMIUM_EXECUTABLE_PATH,
+    process.env.LOCALAPPDATA &&
+      join(
+        process.env.LOCALAPPDATA,
+        "Google",
+        "Chrome",
+        "Application",
+        "chrome.exe",
+      ),
+    process.env.PROGRAMFILES &&
+      join(
+        process.env.PROGRAMFILES,
+        "Google",
+        "Chrome",
+        "Application",
+        "chrome.exe",
+      ),
+    process.env["PROGRAMFILES(X86)"] &&
+      join(
+        process.env["PROGRAMFILES(X86)"],
+        "Microsoft",
+        "Edge",
+        "Application",
+        "msedge.exe",
+      ),
+    process.env.PROGRAMFILES &&
+      join(
+        process.env.PROGRAMFILES,
+        "Microsoft",
+        "Edge",
+        "Application",
+        "msedge.exe",
+      ),
+  ];
+  return candidates.find(
+    (candidate): candidate is string =>
+      typeof candidate === "string" && existsSync(candidate),
+  );
+}
 
 function canonicalizePdfMetadata(pdf: Buffer, generatedAt: string): Buffer {
   const timestamp = new Date(generatedAt)
