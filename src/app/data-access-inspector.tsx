@@ -264,14 +264,24 @@ export function DataAccessInspector() {
           "boundary" | "aerial" | "datasets" | "progress" | "fastPathDurationMs"
         >;
         assessmentSnapshot?: string;
+        error?: { message?: string };
       };
       if (
         !response.ok ||
         !body.data ||
         !body.assessmentSnapshot ||
         fastRequestIdRef.current !== requestId
-      )
+      ) {
+        if (
+          !response.ok &&
+          body.error?.message &&
+          fastRequestIdRef.current === requestId
+        ) {
+          setError(body.error.message);
+          setCanRetry(true);
+        }
         return;
+      }
       setFastResult((current) =>
         current?.resolvedAddress.addressId === initial.resolvedAddress.addressId
           ? { ...current, ...body.data }

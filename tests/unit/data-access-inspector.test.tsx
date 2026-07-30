@@ -41,7 +41,9 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     });
     expect(pendingButton).toBeDisabled();
     expect(screen.getByText("Address found")).toBeVisible();
-    expect(screen.getByText("Mapped boundary and aerial starting")).toBeVisible();
+    expect(
+      screen.getByText("Mapped boundary and aerial starting"),
+    ).toBeVisible();
     expect(screen.getByText("Detailed checks not loaded")).toBeVisible();
     await user.click(pendingButton);
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
@@ -206,18 +208,8 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
   );
 
   it.each([
-    [
-      "multiple",
-      "PARCEL_AMBIGUOUS",
-      409,
-      "More than one mapped boundary",
-    ],
-    [
-      "unavailable",
-      "PARCEL_NOT_FOUND",
-      404,
-      "No mapped boundary was found",
-    ],
+    ["multiple", "PARCEL_AMBIGUOUS", 409, "More than one mapped boundary"],
+    ["unavailable", "PARCEL_NOT_FOUND", 404, "No mapped boundary was found"],
   ] as const)(
     "presents the %s boundary error state",
     async (boundaryState, code, status, message) => {
@@ -241,11 +233,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         screen.getByRole("button", { name: "Fetch property data" }),
       );
 
-      expect(
-        await screen.findByText(
-          message,
-        ),
-      ).toBeVisible();
+      expect(await screen.findByText(message)).toBeVisible();
     },
   );
 
@@ -542,36 +530,35 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
   it("requires the user to choose an ambiguous address before parcel resolution", async () => {
     const user = userEvent.setup();
     const result = await createResult();
-    const fetchMock = vi
-      .fn((_input: RequestInfo | URL, init?: RequestInit) =>
-        init?.method === "POST"
-          ? fetchMock.mock.calls.filter(
-              ([, requestInit]) => requestInit?.method === "POST",
-            ).length === 1
-            ? Promise.resolve(
-                Response.json(
-                  {
-                    error: {
-                      code: "ADDRESS_AMBIGUOUS",
-                      message: "Select the correct Auckland address to continue.",
-                      options: [
-                        {
-                          addressId: "969138",
-                          fullAddress: "42 Bahari Drive, Ranui, Auckland",
-                        },
-                        {
-                          addressId: "2359811",
-                          fullAddress: requestedAddress,
-                        },
-                      ],
-                    },
+    const fetchMock = vi.fn((_input: RequestInfo | URL, init?: RequestInit) =>
+      init?.method === "POST"
+        ? fetchMock.mock.calls.filter(
+            ([, requestInit]) => requestInit?.method === "POST",
+          ).length === 1
+          ? Promise.resolve(
+              Response.json(
+                {
+                  error: {
+                    code: "ADDRESS_AMBIGUOUS",
+                    message: "Select the correct Auckland address to continue.",
+                    options: [
+                      {
+                        addressId: "969138",
+                        fullAddress: "42 Bahari Drive, Ranui, Auckland",
+                      },
+                      {
+                        addressId: "2359811",
+                        fullAddress: requestedAddress,
+                      },
+                    ],
                   },
-                  { status: 409 },
-                ),
-              )
-            : Promise.resolve(Response.json({ data: result }, { status: 200 }))
-          : Promise.resolve(Response.json({ suggestions: [] }, { status: 200 })),
-      );
+                },
+                { status: 409 },
+              ),
+            )
+          : Promise.resolve(Response.json({ data: result }, { status: 200 }))
+        : Promise.resolve(Response.json({ suggestions: [] }, { status: 200 })),
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     render(<DataAccessInspector />);
@@ -772,14 +759,49 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
 
     await screen.findByText(/Aerial imagery is not ready yet/);
-    await user.click(
-      screen.getByRole("button", { name: "Retry fast view" }),
-    );
+    await user.click(screen.getByRole("button", { name: "Retry fast view" }));
     expect(
       fetchMock.mock.calls.filter(
         ([input]) => String(input) === "/api/internal/fast-property-view",
       ),
     ).toHaveLength(2);
+  });
+
+  it("shows a stage validation error instead of leaving the boundary pending", async () => {
+    const user = userEvent.setup();
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      gateway: createDataAccessGateway(),
+      basemapApiKey: "test-key",
+    });
+    const stageError =
+      "The property assessment has expired or is invalid. Search for the address again.";
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(
+          { data: fastResult, assessmentSnapshot: "server-issued-snapshot" },
+          { status: 200 },
+        ),
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          { error: { code: "INVALID_REQUEST", message: stageError } },
+          { status: 400 },
+        ),
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Fetch property data" }),
+    );
+
+    expect(await screen.findByText(stageError)).toBeVisible();
   });
 });
 
