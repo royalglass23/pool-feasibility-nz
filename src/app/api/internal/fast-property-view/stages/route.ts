@@ -60,7 +60,10 @@ export async function POST(request: Request): Promise<Response> {
           error instanceof BodyLimitError
             ? "REQUEST_TOO_LARGE"
             : "INVALID_REQUEST",
-        message: "Submit one selected address point.",
+        message:
+          error instanceof BodyLimitError
+            ? "The property view request is too large. Search for the address again."
+            : "The property imagery request is invalid. Search for the address again.",
       },
       error instanceof BodyLimitError ? 413 : 400,
       correlationId,
@@ -70,10 +73,7 @@ export async function POST(request: Request): Promise<Response> {
   const parsed = stageRequestSchema.safeParse(body);
   if (!parsed.success) {
     return apiErrorResponse(
-      {
-        code: "INVALID_REQUEST",
-        message: "Submit one selected address point.",
-      },
+      stageRequestValidationError(body),
       400,
       correlationId,
       { "Cache-Control": "no-store" },
@@ -91,7 +91,7 @@ export async function POST(request: Request): Promise<Response> {
     if (!(error instanceof AssessmentSnapshotValidationError)) throw error;
     return apiErrorResponse(
       {
-        code: "INVALID_REQUEST",
+        code: "INVALID_ASSESSMENT_SNAPSHOT",
         message:
           "The property assessment has expired or is invalid. Search for the address again.",
       },
@@ -150,4 +150,77 @@ export async function POST(request: Request): Promise<Response> {
   return apiErrorResponse(response.error, response.status, correlationId, {
     "Cache-Control": "no-store",
   });
+}
+
+function stageRequestValidationError(body: unknown): {
+  code:
+    | "MISSING_ASSESSMENT_SNAPSHOT"
+    | "INVALID_ASSESSMENT_SNAPSHOT"
+    | "ASSESSMENT_SNAPSHOT_TOO_LARGE"
+    | "INVALID_ADDRESS_POINT"
+    | "INVALID_REQUEST";
+  message: string;
+} {
+  if (!body || typeof body !== "object" || Array.isArray(body)) {
+    return {
+      code: "INVALID_REQUEST",
+      message: "The property imagery request is invalid. Search for the address again.",
+    };
+  }
+
+  if (!("assessmentSnapshot" in body)) {
+    return {
+      code: "MISSING_ASSESSMENT_SNAPSHOT",
+      message: "The property view session is missing. Search for the address again.",
+    };
+  }
+
+  const snapshot = body.assessmentSnapshot;
+  if (typeof snapshot !== "string" || snapshot.length < 32) {
+    return {
+      code: "INVALID_ASSESSMENT_SNAPSHOT",
+      message: "The property view session is invalid. Search for the address again.",
+    };
+  }
+  if (snapshot.length > MAX_ASSESSMENT_SNAPSHOT_BYTES) {
+    return {
+      code: "ASSESSMENT_SNAPSHOT_TOO_LARGE",
+      message:
+        "The property view session is too large to continue. Search for the address again.",
+    };
+  }
+
+  if (!hasValidSelectedAddressPoint(body)) {
+    return {
+      code: "INVALID_ADDRESS_POINT",
+      message: "The selected address point is incomplete. Search for the address again.",
+    };
+  }
+
+  return {
+    code: "INVALID_REQUEST",
+    message: "The property imagery request is invalid. Search for the address again.",
+  };
+}
+
+function hasValidSelectedAddressPoint(body: object): boolean {
+  if (!("addressId" in body) || !("coordinates" in body)) return false;
+  if (
+    typeof body.addressId !== "string" ||
+    body.addressId.trim().length === 0 ||
+    body.addressId.length > 100
+  )
+    return false;
+  if (!Array.isArray(body.coordinates) || body.coordinates.length !== 2)
+    return false;
+
+  const [longitude, latitude] = body.coordinates;
+  return (
+    typeof longitude === "number" &&
+    longitude >= 160 &&
+    longitude <= 180 &&
+    typeof latitude === "number" &&
+    latitude >= -48 &&
+    latitude <= -33
+  );
 }
