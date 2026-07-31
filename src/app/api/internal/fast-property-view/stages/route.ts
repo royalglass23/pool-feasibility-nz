@@ -102,14 +102,13 @@ export async function POST(request: Request): Promise<Response> {
   }
   const gateway = new OfficialGisGateway({ timeoutMs: providerTimeoutMs() });
   const requestBody = {
-    mode: parsed.data.mode,
     addressId: parsed.data.addressId,
     coordinates: parsed.data.coordinates,
   };
   const response =
     parsed.data.mode === "detailed"
       ? await executeFastPropertyDetailsRequest({
-          body: requestBody,
+          body: { ...requestBody, mode: "detailed" },
           gateway,
           timeoutMs: providerTimeoutMs(),
         })
@@ -164,14 +163,16 @@ function stageRequestValidationError(body: unknown): {
   if (!body || typeof body !== "object" || Array.isArray(body)) {
     return {
       code: "INVALID_REQUEST",
-      message: "The property imagery request is invalid. Search for the address again.",
+      message:
+        "The property imagery request is invalid. Search for the address again.",
     };
   }
 
   if (!("assessmentSnapshot" in body)) {
     return {
       code: "MISSING_ASSESSMENT_SNAPSHOT",
-      message: "The property view session is missing. Search for the address again.",
+      message:
+        "The property view session is missing. Search for the address again.",
     };
   }
 
@@ -179,7 +180,8 @@ function stageRequestValidationError(body: unknown): {
   if (typeof snapshot !== "string" || snapshot.length < 32) {
     return {
       code: "INVALID_ASSESSMENT_SNAPSHOT",
-      message: "The property view session is invalid. Search for the address again.",
+      message:
+        "The property view session is invalid. Search for the address again.",
     };
   }
   if (snapshot.length > MAX_ASSESSMENT_SNAPSHOT_BYTES) {
@@ -193,13 +195,15 @@ function stageRequestValidationError(body: unknown): {
   if (!hasValidSelectedAddressPoint(body)) {
     return {
       code: "INVALID_ADDRESS_POINT",
-      message: "The selected address point is incomplete. Search for the address again.",
+      message:
+        "The selected address point is incomplete. Search for the address again.",
     };
   }
 
   return {
     code: "INVALID_REQUEST",
-    message: "The property imagery request is invalid. Search for the address again.",
+    message:
+      "The property imagery request is invalid. Search for the address again.",
   };
 }
 

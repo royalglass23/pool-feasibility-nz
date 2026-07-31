@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const executeFastPropertyStagesRequest = vi.hoisted(() => vi.fn());
+const loadFastPropertyStages = vi.hoisted(() => vi.fn());
 const executeFastPropertyDetailsRequest = vi.hoisted(() => vi.fn());
 const verifyAssessmentSnapshot = vi.hoisted(() => vi.fn());
 const assertSnapshotAddressMatches = vi.hoisted(() => vi.fn());
@@ -14,12 +14,9 @@ const selectedAddressPoint = {
 } as const;
 
 vi.mock("server-only", () => ({}));
-vi.mock(
-  "@/modules/data-access-spike/execute-fast-property-stages-request",
-  () => ({
-    executeFastPropertyStagesRequest,
-  }),
-);
+vi.mock("@/modules/data-access-spike/fast-property-view", () => ({
+  loadFastPropertyStages,
+}));
 vi.mock("@/modules/data-access-spike/execute-fast-property-details", () => ({
   executeFastPropertyDetailsRequest,
 }));
@@ -36,7 +33,7 @@ vi.mock("@/modules/assessment/assessment-snapshot", () => ({
 import { POST } from "@/app/api/internal/fast-property-view/stages/route";
 
 afterEach(() => {
-  executeFastPropertyStagesRequest.mockReset();
+  loadFastPropertyStages.mockReset();
   executeFastPropertyDetailsRequest.mockReset();
   verifyAssessmentSnapshot.mockReset();
   assertSnapshotAddressMatches.mockReset();
@@ -63,10 +60,11 @@ describe("POST /api/internal/fast-property-view/stages", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: {
         code: "INVALID_REQUEST",
-        message: "The property imagery request is invalid. Search for the address again.",
+        message:
+          "The property imagery request is invalid. Search for the address again.",
       },
     });
-    expect(executeFastPropertyStagesRequest).not.toHaveBeenCalled();
+    expect(loadFastPropertyStages).not.toHaveBeenCalled();
   });
 
   it("identifies non-object stage requests without starting imagery", async () => {
@@ -87,10 +85,11 @@ describe("POST /api/internal/fast-property-view/stages", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: {
         code: "INVALID_REQUEST",
-        message: "The property imagery request is invalid. Search for the address again.",
+        message:
+          "The property imagery request is invalid. Search for the address again.",
       },
     });
-    expect(executeFastPropertyStagesRequest).not.toHaveBeenCalled();
+    expect(loadFastPropertyStages).not.toHaveBeenCalled();
   });
 
   it("identifies a missing assessment snapshot without starting imagery", async () => {
@@ -117,7 +116,7 @@ describe("POST /api/internal/fast-property-view/stages", () => {
           "The property view session is missing. Search for the address again.",
       },
     });
-    expect(executeFastPropertyStagesRequest).not.toHaveBeenCalled();
+    expect(loadFastPropertyStages).not.toHaveBeenCalled();
   });
 
   it("identifies an invalid selected address point without starting imagery", async () => {
@@ -146,7 +145,7 @@ describe("POST /api/internal/fast-property-view/stages", () => {
           "The selected address point is incomplete. Search for the address again.",
       },
     });
-    expect(executeFastPropertyStagesRequest).not.toHaveBeenCalled();
+    expect(loadFastPropertyStages).not.toHaveBeenCalled();
   });
 
   it("identifies an invalid assessment snapshot without starting imagery", async () => {
@@ -177,7 +176,7 @@ describe("POST /api/internal/fast-property-view/stages", () => {
           "The property assessment has expired or is invalid. Search for the address again.",
       },
     });
-    expect(executeFastPropertyStagesRequest).not.toHaveBeenCalled();
+    expect(loadFastPropertyStages).not.toHaveBeenCalled();
   });
 
   it("accepts a signed snapshot larger than the request metadata", async () => {
@@ -199,11 +198,7 @@ describe("POST /api/internal/fast-property-view/stages", () => {
       },
       fastPathDurationMs: 10,
     };
-    executeFastPropertyStagesRequest.mockResolvedValue({
-      ok: true,
-      status: 200,
-      data: stageData,
-    });
+    loadFastPropertyStages.mockResolvedValue(stageData);
     verifyAssessmentSnapshot.mockReturnValue({
       submissionId: "snapshot-id",
       fastResult: {},
@@ -226,10 +221,52 @@ describe("POST /api/internal/fast-property-view/stages", () => {
     );
 
     expect(response.status).toBe(200);
-    expect(executeFastPropertyStagesRequest).toHaveBeenCalledOnce();
+    expect(loadFastPropertyStages).toHaveBeenCalledOnce();
     await expect(response.json()).resolves.toMatchObject({
       data: stageData,
       assessmentSnapshot: "refreshed-stage-snapshot",
+    });
+  });
+
+  it("keeps detailed mode on the detailed-stage request", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const detailedData = { datasets: {}, durationMs: 10 };
+    executeFastPropertyDetailsRequest.mockResolvedValue({
+      ok: true,
+      status: 200,
+      data: detailedData,
+    });
+    verifyAssessmentSnapshot.mockReturnValue({
+      submissionId: "snapshot-id",
+      fastResult: {},
+      expiresAt: Date.now() + 60_000,
+    });
+    refreshAssessmentSnapshot.mockReturnValue("refreshed-detailed-snapshot");
+
+    const response = await POST(
+      new Request(
+        "http://127.0.0.1:3000/api/internal/fast-property-view/stages",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...selectedAddressPoint,
+            mode: "detailed",
+            assessmentSnapshot: "s".repeat(2_000),
+          }),
+        },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    expect(executeFastPropertyDetailsRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: { ...selectedAddressPoint, mode: "detailed" },
+      }),
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      data: detailedData,
+      assessmentSnapshot: "refreshed-detailed-snapshot",
     });
   });
 });
