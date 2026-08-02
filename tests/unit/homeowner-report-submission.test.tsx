@@ -108,6 +108,7 @@ describe("homeowner report submission", () => {
             text: "Some mapped evidence is unavailable or uncertain.",
             recommendation: null,
             conflictingDatasets: [],
+            checkingDatasets: [],
           },
         }}
         onSaved={onSaved}

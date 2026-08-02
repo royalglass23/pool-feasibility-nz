@@ -145,4 +145,40 @@ describe("classifyFastPoolWarning", () => {
 
     expect(result.status).toBe("blocked");
   });
+
+  it("names every intersecting indicative utility that needs checking", () => {
+    const indicativeStormwater = layer("public_stormwater_assets", "returned", {
+      type: "FeatureCollection",
+      features: [point([174.6005, -36.8605])],
+    });
+    indicativeStormwater.evidence = {
+      ...indicativeStormwater.evidence,
+      dataset: "Stormwater Pipes",
+      evidenceUse: "spike_only",
+    };
+    const indicativeWastewater = layer("wastewater_assets", "returned", {
+      type: "FeatureCollection",
+      features: [point([174.6005, -36.8605])],
+    });
+    indicativeWastewater.evidence = {
+      ...indicativeWastewater.evidence,
+      dataset: "Wastewater Pipes",
+      evidenceUse: "internal_reference",
+    };
+
+    const result = classifyFastPoolWarning(
+      input({
+        detailedChecks: {
+          ...input().detailedChecks!,
+          layers: [indicativeStormwater, indicativeWastewater],
+        },
+      }),
+    );
+
+    expect(result).toMatchObject({
+      status: "needs_checking",
+      checkingDatasets: ["Stormwater Pipes", "Wastewater Pipes"],
+    });
+    expect(result.text).toContain("stormwater pipes and wastewater pipes");
+  });
 });
