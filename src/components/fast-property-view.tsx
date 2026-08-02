@@ -99,6 +99,7 @@ export function FastPropertyView({
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
   const existingPoolCheckRequestRef = useRef(0);
+  const automaticExistingPoolCheckAddressRef = useRef<string | null>(null);
   const placementRef = useRef<{
     position: [number, number];
     rotationDegrees: number;
@@ -313,6 +314,7 @@ export function FastPropertyView({
             envelope: poolGeometry,
             dimensions,
             rotationDegrees,
+            scope: "property",
           },
           context: {
             status: "available",
@@ -365,6 +367,17 @@ export function FastPropertyView({
         },
       });
     }
+  }
+
+  function startAutomaticExistingPoolCheck() {
+    if (
+      automaticExistingPoolCheckAddressRef.current ===
+      result.resolvedAddress.addressId
+    )
+      return;
+    automaticExistingPoolCheckAddressRef.current =
+      result.resolvedAddress.addressId;
+    void checkForExistingPool();
   }
 
   useEffect(() => {
@@ -555,6 +568,7 @@ export function FastPropertyView({
           } catch {
             onSnapshotReady?.(null);
           }
+          startAutomaticExistingPoolCheck();
         });
         let interaction: "move" | "rotate" | null = null;
         map.on("mousedown", "pool-rotation-handle", (event) => {
@@ -838,8 +852,6 @@ export function FastPropertyView({
       </div>
       <ExistingPoolCheckCard
         check={activeExistingPoolCheck}
-        onCheck={() => void checkForExistingPool()}
-        disabled={!poolGeometry}
       />
       <FastPoolWarning warning={poolWarning} />
       {mapError && (
@@ -910,12 +922,8 @@ export function FastPropertyView({
 
 function ExistingPoolCheckCard({
   check,
-  onCheck,
-  disabled,
 }: {
   check: ExistingPoolCheck;
-  onCheck: () => void;
-  disabled: boolean;
 }) {
   const tone =
     check.state === "possible" || check.state === "needs_checking"
@@ -932,7 +940,7 @@ function ExistingPoolCheckCard({
           ? check.message
           : check.state === "loading"
             ? "Reviewing the selected area against the aerial imagery…"
-            : "Check the selected area for a possible existing pool visible in the aerial imagery.";
+            : "The aerial imagery check starts automatically when the property map is ready.";
 
   return (
     <section
@@ -948,16 +956,6 @@ function ExistingPoolCheckCard({
           </h3>
           <p className="mt-2 max-w-3xl text-sm leading-6">{message}</p>
         </div>
-        <button
-          type="button"
-          onClick={onCheck}
-          disabled={disabled || check.state === "loading"}
-          className="min-h-11 rounded-xl border border-current bg-white px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-        >
-          {check.state === "loading"
-            ? "Checking aerial imagery…"
-            : "Check for existing pool"}
-        </button>
       </div>
     </section>
   );

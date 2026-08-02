@@ -18,6 +18,7 @@ export interface AerialConflictCandidate {
   envelope: Feature<Polygon>;
   dimensions: { lengthMetres: number; widthMetres: number };
   rotationDegrees: number;
+  scope?: "candidate" | "property";
 }
 
 export interface AerialImageryContext {
