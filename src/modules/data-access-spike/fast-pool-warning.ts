@@ -20,6 +20,7 @@ export type FastPoolWarning = {
   text: string;
   recommendation: string | null;
   conflictingDatasets: string[];
+  checkingDatasets: string[];
 };
 
 export type FastPoolWarningInput = {
@@ -68,6 +69,38 @@ export function classifyFastPoolWarning(
     );
   }
 
+  const intersectingLayers = input.detailedChecks.layers
+    .filter((layer) => serviceDatasetKeys.has(layer.key))
+    .filter((layer) => isMappedIntersection(layer, input.pool!));
+  const conflictingDatasets = intersectingLayers
+    .filter((layer) => isReliableIntersection(layer, input.pool!))
+    .map(datasetName);
+  const checkingDatasets = intersectingLayers
+    .filter((layer) => !isReliableIntersection(layer, input.pool!))
+    .map(datasetName);
+
+  if (conflictingDatasets.length > 0) {
+    const checkingText =
+      checkingDatasets.length > 0
+        ? ` Mapped ${formatDatasetList(checkingDatasets)} position also needs checking.`
+        : "";
+    return {
+      status: "blocked",
+      label: "Blocked",
+      text: `The pool overlaps reliable mapped ${formatDatasetList(conflictingDatasets)} infrastructure.${checkingText}`,
+      recommendation: FAST_POOL_SERVICE_RECOMMENDATION,
+      conflictingDatasets,
+      checkingDatasets,
+    };
+  }
+
+  if (checkingDatasets.length > 0) {
+    return needsChecking(
+      `The pool overlaps mapped ${formatDatasetList(checkingDatasets)} infrastructure. Its mapped position needs checking before this layout can be assessed.`,
+      checkingDatasets,
+    );
+  }
+
   if (input.detailedChecks.status !== "complete") {
     return needsChecking(
       "Some detailed official checks are incomplete or unavailable, so the mapped utility evidence needs checking.",
@@ -78,21 +111,6 @@ export function classifyFastPoolWarning(
     return needsChecking(
       "No detailed official layer results were returned, so the mapped utility evidence needs checking.",
     );
-  }
-
-  const conflictingDatasets = input.detailedChecks.layers
-    .filter((layer) => serviceDatasetKeys.has(layer.key))
-    .filter((layer) => isReliableIntersection(layer, input.pool!))
-    .map((layer) => layer.evidence.dataset || layer.key);
-
-  if (conflictingDatasets.length > 0) {
-    return {
-      status: "blocked",
-      label: "Blocked",
-      text: `The pool overlaps reliable mapped ${formatDatasetList(conflictingDatasets)} infrastructure.`,
-      recommendation: FAST_POOL_SERVICE_RECOMMENDATION,
-      conflictingDatasets,
-    };
   }
 
   const incompleteLayer = input.detailedChecks.layers.find(
@@ -108,9 +126,10 @@ export function classifyFastPoolWarning(
     status: "no_warning",
     label: "No Warning",
     text: "No mapped utility conflict was found in the loaded official checks.",
-    recommendation: null,
-    conflictingDatasets: [],
-  };
+      recommendation: null,
+      conflictingDatasets: [],
+      checkingDatasets: [],
+    };
 }
 
 function isReliableIntersection(
@@ -118,14 +137,22 @@ function isReliableIntersection(
   pool: Feature<Polygon>,
 ): boolean {
   if (
-    layer.state !== "returned" ||
-    !layer.geometry ||
+    !isMappedIntersection(layer, pool) ||
     layer.evidence.status !== "success" ||
     layer.evidence.evidenceUse !== "report_allowed" ||
     layer.evidence.confidence === "unavailable"
   ) {
     return false;
   }
+
+  return true;
+}
+
+function isMappedIntersection(
+  layer: DetailedLayerResult,
+  pool: Feature<Polygon>,
+): boolean {
+  if (layer.state !== "returned" || !layer.geometry) return false;
 
   return layer.geometry.features.some((item) => {
     if (!item.geometry) return false;
@@ -142,14 +169,22 @@ function isKnownLayerOutcome(layer: DetailedLayerResult): boolean {
   );
 }
 
-function needsChecking(text: string): FastPoolWarning {
+function needsChecking(
+  text: string,
+  checkingDatasets: string[] = [],
+): FastPoolWarning {
   return {
     status: "needs_checking",
     label: "Needs Checking",
     text,
     recommendation: null,
     conflictingDatasets: [],
+    checkingDatasets,
   };
+}
+
+function datasetName(layer: DetailedLayerResult): string {
+  return layer.evidence.dataset || layer.key;
 }
 
 function formatDatasetList(datasets: string[]): string {

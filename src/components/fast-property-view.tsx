@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Feature, FeatureCollection, Geometry, Polygon } from "geojson";
 import { type FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 import type { DetailedLayerResult } from "@/modules/data-access-spike/execute-fast-property-details";
+import type { AerialConflictFinding } from "@/modules/spatial/assess-aerial-imagery-conflicts";
 import {
   buildFastPoolGeometry,
   FAST_POOL_CATALOGUE,
@@ -68,6 +69,18 @@ const allUtilityCategoriesVisible: Record<UtilityCategory, boolean> = {
   gas: true,
 };
 
+type ExistingPoolCheck =
+  | { state: "idle" }
+  | { state: "loading" }
+  | { state: "possible"; finding: AerialConflictFinding }
+  | { state: "not_detected" }
+  | { state: "needs_checking"; message: string };
+
+type ExistingPoolCheckResult = {
+  candidateKey: string;
+  check: ExistingPoolCheck;
+};
+
 export function FastPropertyView({
   result,
   onLoadDetailed,
@@ -85,6 +98,7 @@ export function FastPropertyView({
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
+  const existingPoolCheckRequestRef = useRef(0);
   const placementRef = useRef<{
     position: [number, number];
     rotationDegrees: number;
@@ -108,6 +122,8 @@ export function FastPropertyView({
     defaultPosition(result),
   );
   const [placementMessage, setPlacementMessage] = useState<string | null>(null);
+  const [existingPoolCheck, setExistingPoolCheck] =
+    useState<ExistingPoolCheckResult | null>(null);
   const dimensions = useMemo(() => {
     const preset = FAST_POOL_CATALOGUE.find(
       (pool) => pool.id === selectedPoolId,
@@ -138,6 +154,11 @@ export function FastPropertyView({
         : null,
     [dimensions, position, result.boundary.geometry, rotationDegrees],
   );
+  const existingPoolCheckKey = `${result.resolvedAddress.addressId}:${JSON.stringify(poolGeometry?.geometry.coordinates ?? null)}`;
+  const activeExistingPoolCheck =
+    existingPoolCheck?.candidateKey === existingPoolCheckKey
+      ? existingPoolCheck.check
+      : { state: "idle" as const };
   const poolWarning = useMemo(
     () =>
       classifyFastPoolWarning({
@@ -227,6 +248,124 @@ export function FastPropertyView({
     setPlacementMessage(null);
     setRotationDegrees(normalized);
   };
+
+  async function checkForExistingPool() {
+    if (
+      !poolGeometry ||
+      !dimensions ||
+      activeExistingPoolCheck.state === "loading"
+    )
+      return;
+    if (result.aerial.state !== "ready") {
+      setExistingPoolCheck({
+        candidateKey: existingPoolCheckKey,
+        check: {
+          state: "needs_checking",
+          message:
+            "Aerial imagery is not available, so an existing pool cannot be checked from this view.",
+        },
+      });
+      return;
+    }
+
+    const map = mapInstanceRef.current;
+    if (!map) {
+      setExistingPoolCheck({
+        candidateKey: existingPoolCheckKey,
+        check: {
+          state: "needs_checking",
+          message:
+            "The aerial map is still loading, so the existing-pool check cannot run yet.",
+        },
+      });
+      return;
+    }
+    const aerialEvidence = result.datasets.aerial_imagery;
+    if (!aerialEvidence) {
+      setExistingPoolCheck({
+        candidateKey: existingPoolCheckKey,
+        check: {
+          state: "needs_checking",
+          message:
+            "Aerial imagery evidence is incomplete, so an existing pool cannot be checked from this view.",
+        },
+      });
+      return;
+    }
+
+    const requestId = existingPoolCheckRequestRef.current + 1;
+    existingPoolCheckRequestRef.current = requestId;
+    setExistingPoolCheck({
+      candidateKey: existingPoolCheckKey,
+      check: { state: "loading" },
+    });
+    try {
+      const dataUrl = map.getCanvas().toDataURL("image/png");
+      if (dataUrl.length > 8_000_000) {
+        throw new Error("AERIAL_IMAGE_TOO_LARGE");
+      }
+      const response = await fetch("/api/internal/aerial-conflicts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          candidate: {
+            id: `fast-pool-${result.resolvedAddress.addressId}`,
+            envelope: poolGeometry,
+            dimensions,
+            rotationDegrees,
+          },
+          context: {
+            status: "available",
+            alignment: "aligned",
+            resolution: "sufficient",
+            evidenceId: aerialEvidence.datasetIdentifier,
+            image: { dataUrl, mediaType: "image/png" },
+          },
+        }),
+      });
+      if (!response.ok) throw new Error("AERIAL_CONFLICT_ROUTE_FAILED");
+      const body = (await response.json()) as {
+        source?: "provider" | "fallback";
+        findings?: AerialConflictFinding[];
+        providerFailure?: boolean;
+      };
+      if (requestId !== existingPoolCheckRequestRef.current) return;
+
+      const finding = body.findings?.find(
+        ({ type }) => type === "possible_existing_pool",
+      );
+      if (finding && body.source === "provider" && !body.providerFailure) {
+        setExistingPoolCheck({
+          candidateKey: existingPoolCheckKey,
+          check: { state: "possible", finding },
+        });
+      } else if (body.source === "provider" && !body.providerFailure) {
+        setExistingPoolCheck({
+          candidateKey: existingPoolCheckKey,
+          check: { state: "not_detected" },
+        });
+      } else {
+        setExistingPoolCheck({
+          candidateKey: existingPoolCheckKey,
+          check: {
+            state: "needs_checking",
+            message:
+              "The aerial existing-pool review was unavailable. Confirm the selected area on site.",
+          },
+        });
+      }
+    } catch {
+      if (requestId !== existingPoolCheckRequestRef.current) return;
+      setExistingPoolCheck({
+        candidateKey: existingPoolCheckKey,
+        check: {
+          state: "needs_checking",
+          message:
+            "The aerial existing-pool review could not be completed. Confirm the selected area on site.",
+        },
+      });
+    }
+  }
 
   useEffect(() => {
     positionHandlerRef.current = setCandidatePosition;
@@ -402,6 +541,13 @@ export function FastPropertyView({
         });
         mapInstanceRef.current = map;
         map.addControl(new maplibregl.NavigationControl(), "top-right");
+        if (result.boundary.geometry) {
+          map.fitBounds(boundaryBounds(result.boundary.geometry), {
+            padding: 56,
+            duration: 0,
+            maxZoom: 18,
+          });
+        }
         map.on("error", () => setMapError(true));
         map.on("idle", () => {
           try {
@@ -690,6 +836,11 @@ export function FastPropertyView({
           </p>
         )}
       </div>
+      <ExistingPoolCheckCard
+        check={activeExistingPoolCheck}
+        onCheck={() => void checkForExistingPool()}
+        disabled={!poolGeometry}
+      />
       <FastPoolWarning warning={poolWarning} />
       {mapError && (
         <p role="alert" className="text-sm font-semibold text-red-700">
@@ -751,6 +902,61 @@ export function FastPropertyView({
           className="text-sm font-semibold text-teal-800 underline"
         >
           Retry fast view
+        </button>
+      </div>
+    </section>
+  );
+}
+
+function ExistingPoolCheckCard({
+  check,
+  onCheck,
+  disabled,
+}: {
+  check: ExistingPoolCheck;
+  onCheck: () => void;
+  disabled: boolean;
+}) {
+  const tone =
+    check.state === "possible" || check.state === "needs_checking"
+      ? "border-amber-200 bg-amber-50 text-amber-950"
+      : check.state === "not_detected"
+        ? "border-sky-200 bg-sky-50 text-sky-950"
+        : "border-slate-200 bg-slate-50 text-slate-950";
+  const message =
+    check.state === "possible"
+      ? `${check.finding.explanation} This is an aerial indication only; confirm whether the pool is retained, replaced, or removed.`
+      : check.state === "not_detected"
+        ? "No existing pool was detected in the selected area. Aerial imagery cannot prove that a pool is absent."
+        : check.state === "needs_checking"
+          ? check.message
+          : check.state === "loading"
+            ? "Reviewing the selected area against the aerial imagery…"
+            : "Check the selected area for a possible existing pool visible in the aerial imagery.";
+
+  return (
+    <section
+      aria-labelledby="existing-pool-check-heading"
+      className={`rounded-2xl border p-4 ${tone}`}
+    >
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h3 id="existing-pool-check-heading" className="font-semibold">
+            {check.state === "possible"
+              ? "Possible existing pool"
+              : "Existing pool check"}
+          </h3>
+          <p className="mt-2 max-w-3xl text-sm leading-6">{message}</p>
+        </div>
+        <button
+          type="button"
+          onClick={onCheck}
+          disabled={disabled || check.state === "loading"}
+          className="min-h-11 rounded-xl border border-current bg-white px-3 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {check.state === "loading"
+            ? "Checking aerial imagery…"
+            : "Check for existing pool"}
         </button>
       </div>
     </section>
@@ -843,6 +1049,16 @@ function pointFeature(coordinates: [number, number]): Feature {
 }
 function feature(geometry: Polygon): Feature {
   return { type: "Feature", properties: {}, geometry };
+}
+
+function boundaryBounds(geometry: Polygon): [[number, number], [number, number]] {
+  const coordinates = geometry.coordinates.flat(1);
+  const longitudes = coordinates.map(([longitude]) => longitude);
+  const latitudes = coordinates.map(([, latitude]) => latitude);
+  return [
+    [Math.min(...longitudes), Math.min(...latitudes)],
+    [Math.max(...longitudes), Math.max(...latitudes)],
+  ];
 }
 
 export function returnedGeometry(

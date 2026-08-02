@@ -1,10 +1,13 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FastPropertyView } from "@/components/fast-property-view";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 
-const { mapCreated } = vi.hoisted(() => ({ mapCreated: vi.fn() }));
+const { mapCreated, fitBounds } = vi.hoisted(() => ({
+  mapCreated: vi.fn(),
+  fitBounds: vi.fn(),
+}));
 
 vi.mock("maplibre-gl", () => {
   class Map {
@@ -25,6 +28,9 @@ vi.mock("maplibre-gl", () => {
     on() {}
     remove() {}
     setLayoutProperty() {}
+    fitBounds(...args: unknown[]) {
+      fitBounds(...args);
+    }
   }
 
   return {
@@ -38,7 +44,10 @@ vi.mock("maplibre-gl", () => {
 });
 
 afterEach(() => {
+  cleanup();
   mapCreated.mockClear();
+  fitBounds.mockClear();
+  vi.unstubAllGlobals();
 });
 
 it("keeps unavailable utilities unchecked and preserves the map when a utility is hidden", async () => {
@@ -53,6 +62,13 @@ it("keeps unavailable utilities unchecked and preserves the map when a utility i
   );
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  expect(fitBounds).toHaveBeenCalledWith(
+    [
+      [174.608, -36.8604],
+      [174.6084, -36.8601],
+    ],
+    expect.objectContaining({ padding: 56, duration: 0, maxZoom: 18 }),
+  );
 
   const stormwater = screen.getByRole("checkbox", { name: "Stormwater" });
   expect(stormwater).toBeDisabled();
@@ -62,6 +78,54 @@ it("keeps unavailable utilities unchecked and preserves the map when a utility i
   await user.click(wastewater);
   expect(wastewater).not.toBeChecked();
   expect(mapCreated).toHaveBeenCalledTimes(1);
+});
+
+it("shows an imagery-based possible existing-pool finding for the selected area", async () => {
+  const user = userEvent.setup();
+  const fetchStub = vi.fn().mockResolvedValue({
+    ok: true,
+    json: async () => ({
+      source: "provider",
+      findings: [
+        {
+          type: "possible_existing_pool",
+          confidence: "medium",
+          explanation: "A rectangular water-like feature is visible.",
+          evidenceStatus: "possible",
+          inspectionRequirement: "required",
+        },
+      ],
+    }),
+  });
+  vi.stubGlobal("fetch", fetchStub);
+  const view = render(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        aerial: { state: "ready", durationMs: 20, attribution: null },
+        datasets: { aerial_imagery: { datasetIdentifier: "aerial-imagery" } },
+      } as unknown as FastPropertyViewResult}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  await user.click(
+    view.getByRole("button", { name: "Check for existing pool" }),
+  );
+
+  expect(fetchStub).toHaveBeenCalledWith(
+    "/api/internal/aerial-conflicts",
+    expect.objectContaining({ method: "POST" }),
+  );
+  expect(
+    await view.findByRole("heading", { name: "Possible existing pool" }),
+  ).toBeVisible();
+  expect(
+    view.getByText(/A rectangular water-like feature is visible/),
+  ).toBeVisible();
 });
 
 const fastResult = {
