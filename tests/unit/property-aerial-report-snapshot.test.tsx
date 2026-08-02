@@ -144,8 +144,6 @@ it("returns report-allowed evidence with derived candidate geometry", async () =
 
   expect(layerIds).toEqual([
     "aerial",
-    "official-building_footprints",
-    "official-contours",
     "official-wastewater_assets",
     "placement-access-line",
     "placement-construction-line",

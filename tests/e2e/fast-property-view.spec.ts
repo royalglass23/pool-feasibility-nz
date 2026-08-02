@@ -129,6 +129,31 @@ test("shows the fast address-to-property stages before detailed checks", async (
                 message:
                   "The provider timed out; no geometry was drawn. Retry is available.",
               },
+              {
+                key: "wastewater_assets",
+                state: "returned",
+                evidence: {
+                  dataset: "Wastewater Pipes",
+                  provider: "Watercare",
+                },
+                geometry: {
+                  type: "FeatureCollection",
+                  features: [
+                    {
+                      type: "Feature",
+                      properties: {},
+                      geometry: {
+                        type: "LineString",
+                        coordinates: [
+                          [174.6079, -36.8603],
+                          [174.6081, -36.8602],
+                        ],
+                      },
+                    },
+                  ],
+                },
+                message: "Returned 1 mapped feature.",
+              },
             ],
           },
           assessmentSnapshot: "server-issued-detailed-snapshot",
@@ -151,6 +176,23 @@ test("shows the fast address-to-property stages before detailed checks", async (
     page.getByRole("link", {
       name: "Land Information New Zealand (LINZ), CC BY 4.0",
     }),
+  ).toBeVisible();
+  const legend = page.getByLabel("Utility map legend");
+  await expect(legend).toBeVisible();
+  await expect(legend).toContainText("Wastewater");
+  await expect(
+    legend.getByRole("checkbox", { name: "Wastewater" }),
+  ).toBeChecked();
+  const unavailableStormwater = legend.getByRole("checkbox", {
+    name: "Stormwater",
+  });
+  await expect(unavailableStormwater).toBeDisabled();
+  await expect(unavailableStormwater).not.toBeChecked();
+  await expect(
+    legend.getByText("Telecommunications: not available in this preliminary map."),
+  ).toBeVisible();
+  await expect(
+    legend.getByText("Building outlines and contours are excluded from the map."),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Load detailed official checks" })

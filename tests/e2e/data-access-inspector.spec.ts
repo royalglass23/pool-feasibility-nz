@@ -639,131 +639,76 @@ test("keeps the expandable assessment and A4 preview usable on mobile", async ({
   ).toBe(true);
 });
 
-test("selects the exact address, prevents duplicate work, maps the parcel, and downloads the result", async ({
+test("selects an address suggestion and opens the fast property view", async ({
   page,
 }) => {
-  await stubAerialTiles(page);
   const submittedBodies: unknown[] = [];
-  await page.route("**/api/internal/data-access", async (route) => {
-    const body = route.request().postDataJSON();
-    submittedBodies.push(body);
-    if (!body.selectedAddressId) {
-      await route.fulfill({
-        status: 409,
-        contentType: "application/json",
-        body: JSON.stringify({
-          error: {
-            code: "ADDRESS_AMBIGUOUS",
-            message: "Select the correct Auckland address to continue.",
-            options: [
-              {
-                addressId: "969138",
-                fullAddress: "42 Bahari Drive, Ranui, Auckland",
-              },
-              { addressId: "2359811", fullAddress: address },
-            ],
-          },
-        }),
-      });
-      return;
-    }
-
-    await new Promise((resolve) => setTimeout(resolve, 250));
+  await page.route("**/api/internal/address-suggestions?*", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
-      body: JSON.stringify({ data: dataAccessResult }),
+      body: JSON.stringify({
+        suggestions: [{ addressId: "2359811", fullAddress: address }],
+      }),
+    });
+  });
+  await page.route("**/api/internal/fast-property-view", async (route) => {
+    submittedBodies.push(route.request().postDataJSON());
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        assessmentSnapshot: "server-issued-initial-snapshot",
+        data: {
+          requestedAddress: address,
+          resolvedAddress: {
+            addressId: "2359811",
+            fullAddress: address,
+            fullAddressNumber: "42A",
+            unit: null,
+            territorialAuthority: "Auckland",
+            coordinates: [174.6082, -36.8603],
+          },
+          boundary: {
+            state: "provisional",
+            geometry: null,
+            areaSquareMetres: null,
+            parcelId: null,
+          },
+          aerial: { state: "unavailable", durationMs: null, attribution: null },
+          defaultPool: {
+            id: "compact",
+            label: "Compact",
+            lengthMetres: 6.5,
+            widthMetres: 3,
+          },
+          progress: {
+            address: "found",
+            boundary: "provisional",
+            aerial: "unavailable",
+            detailedChecks: "not_loaded",
+          },
+          firstUsableViewStartedAt: "2026-07-31T00:00:00.000Z",
+          fastPathDurationMs: 120,
+        },
+      }),
     });
   });
 
   await page.goto("/");
-  await expect(
-    page.getByRole("heading", {
-      name: "Inspect official property data before assessing pool feasibility.",
-    }),
-  ).toBeVisible();
-
   await page
     .getByLabel("Auckland property address")
     .fill("Bahari Drive, Ranui, Auckland");
-  await page.getByRole("button", { name: "Fetch property data" }).click();
   await page.getByRole("option", { name: address }).click();
-  await page.getByRole("button", { name: "Fetch property data" }).click();
 
-  await expect(
-    page.getByRole("button", { name: "Fetching official data…" }),
-  ).toBeDisabled();
-  await expect(page.getByText("1. Resolving address")).toBeVisible();
-  await expect(page.getByText("3. Loading aerial imagery")).toBeVisible();
-
-  const resultHeading = page.getByRole("heading", { name: address });
-  await expect(resultHeading).toBeVisible();
-  await expect(resultHeading).toBeFocused();
-  await page.getByRole("button", { name: "Expand all" }).click();
-  await expect(page.getByText("Parcel 8545868", { exact: true })).toBeVisible();
-  await expect(
-    page.getByRole("table").getByText("NZ Addresses", { exact: true }),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: `Aerial map for ${address}` }),
-  ).toBeVisible();
-  await expect(page.getByText("Official map layers")).toBeVisible();
-  await expect(
-    page.getByRole("heading", { name: "Pool size screening" }),
-  ).toHaveCount(0);
-  await expect(
-    page.getByRole("heading", { name: "Feasibility assessment" }),
-  ).toBeVisible();
-  await expect(page.getByText("82 / 100")).toBeVisible();
-  await expect(
-    page.getByText("Likely feasible with normal investigations", {
-      exact: true,
-    }),
-  ).toBeVisible();
-  await expect(page.getByText("High data confidence")).toBeVisible();
-  await expect(
-    page.getByRole("heading", {
-      name: "Likely feasible with normal onsite and specialist investigations.",
-    }),
-  ).toBeVisible();
-  await expect(page.getByRole("button", { name: "Custom size" })).toBeVisible();
-  await expect(
-    page.getByRole("checkbox", { name: "NZ Building Outlines" }),
-  ).toBeChecked();
-  await expect(
-    page.getByRole("checkbox", { name: "Wastewater Pipes" }),
-  ).toBeChecked();
-  for (const dataset of requiredMappedDatasetNames) {
-    await expect(
-      page.getByRole("checkbox", { name: dataset, exact: true }),
-    ).toBeChecked();
-  }
-  await expect(
-    page.getByText("Dataset vintage: not published").first(),
-  ).toBeVisible();
-  await expect(page.getByText("Internal reference only").first()).toBeVisible();
-  await page.getByRole("checkbox", { name: "NZ Building Outlines" }).click();
-  await expect(
-    page.getByRole("checkbox", { name: "NZ Building Outlines" }),
-  ).not.toBeChecked();
-  await expect(
-    page.getByText("Flood Plains: provider timed out"),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: "© CC BY 4.0 LINZ" }).first(),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: address })).toBeVisible();
+  await expect(page.getByText("Fast property view")).toBeVisible();
   expect(submittedBodies).toEqual([
-    { address: "Bahari Drive, Ranui, Auckland" },
     {
-      address: "42A Bahari Drive, Ranui, Auckland",
+      address: "Bahari Drive, Ranui, Auckland",
       selectedAddressId: "2359811",
     },
   ]);
-
-  const downloadPromise = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Assessment data" }).click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe("session-assessment-2359811.json");
 });
 
 test("completes the controlled journey for a second Auckland address", async ({
@@ -959,24 +904,6 @@ async function stubAerialTiles(page: import("@playwright/test").Page) {
     });
   });
 }
-
-const requiredMappedDatasetNames = [
-  "NZ Building Outlines",
-  "Contours 2016 - 0.25 metre contours",
-  "Unitary Plan Base Zone",
-  "Significant Ecological Areas Overlay (representative overlay spike)",
-  "Flood Prone Areas",
-  "Overland Flow Paths",
-  "Stormwater Pipe",
-  "Stormwater Manhole and Chamber",
-  "Stormwater Catchpit",
-  "Stormwater Watercourse",
-  "Wastewater Pipes",
-  "Water Pipes",
-  "Wastewater Manholes",
-  "Water Fittings",
-  "Wastewater Fittings",
-] as const;
 
 type ProviderFixtureKey = keyof typeof providerFixtures;
 
