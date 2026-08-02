@@ -17,7 +17,56 @@ import {
   type FastPoolPlacementSnapshot,
   type FastPoolWarning,
 } from "@/modules/data-access-spike/fast-pool-warning";
+import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { bearing, point } from "@turf/turf";
+
+type UtilityCategory =
+  | "stormwater"
+  | "wastewater"
+  | "water"
+  | "electricity"
+  | "gas";
+
+type UtilityLayerDefinition = {
+  key: DatasetKey;
+  category: UtilityCategory;
+  color: string;
+  kind: "line" | "circle";
+};
+
+const utilityCategories: {
+  id: UtilityCategory;
+  label: string;
+  color: string;
+}[] = [
+  { id: "stormwater", label: "Stormwater", color: "#0369a1" },
+  { id: "wastewater", label: "Wastewater", color: "#7c3aed" },
+  { id: "water", label: "Water", color: "#0f766e" },
+  { id: "electricity", label: "Electricity", color: "#ca8a04" },
+  { id: "gas", label: "Gas", color: "#dc2626" },
+];
+
+const utilityLayerDefinitions: UtilityLayerDefinition[] = [
+  { key: "public_stormwater_assets", category: "stormwater", color: "#0369a1", kind: "line" },
+  { key: "manholes", category: "stormwater", color: "#0369a1", kind: "circle" },
+  { key: "catchpits", category: "stormwater", color: "#0369a1", kind: "circle" },
+  { key: "watercourses", category: "stormwater", color: "#0369a1", kind: "line" },
+  { key: "wastewater_assets", category: "wastewater", color: "#7c3aed", kind: "line" },
+  { key: "wastewater_manholes", category: "wastewater", color: "#7c3aed", kind: "circle" },
+  { key: "wastewater_fittings", category: "wastewater", color: "#7c3aed", kind: "circle" },
+  { key: "public_water_assets", category: "water", color: "#0f766e", kind: "line" },
+  { key: "water_fittings", category: "water", color: "#0f766e", kind: "circle" },
+  { key: "electricity_feeder_lines", category: "electricity", color: "#ca8a04", kind: "line" },
+  { key: "gas_distribution_lines", category: "gas", color: "#dc2626", kind: "line" },
+];
+
+const allUtilityCategoriesVisible: Record<UtilityCategory, boolean> = {
+  stormwater: true,
+  wastewater: true,
+  water: true,
+  electricity: true,
+  gas: true,
+};
 
 export function FastPropertyView({
   result,
@@ -52,6 +101,9 @@ export function FastPropertyView({
   const [customLength, setCustomLength] = useState("6.5");
   const [customWidth, setCustomWidth] = useState("3");
   const [rotationDegrees, setRotationDegrees] = useState(0);
+  const [utilityVisibility, setUtilityVisibility] = useState(
+    allUtilityCategoriesVisible,
+  );
   const [position, setPosition] = useState<[number, number]>(() =>
     defaultPosition(result),
   );
@@ -95,6 +147,24 @@ export function FastPropertyView({
       }),
     [poolGeometry, result.boundary.state, result.detailedChecks],
   );
+  const mappedUtilityLayers = useMemo(
+    () =>
+      (result.detailedChecks?.layers ?? []).flatMap((layer) => {
+        const definition = utilityLayerDefinitions.find(
+          (candidate) => candidate.key === layer.key,
+        );
+        return definition && layer.geometry?.features.length
+          ? [{ definition, layer }]
+          : [];
+      }),
+    [result.detailedChecks],
+  );
+  function toggleUtilityCategory(category: UtilityCategory) {
+    setUtilityVisibility((current) => ({
+      ...current,
+      [category]: !current[category],
+    }));
+  }
 
   useEffect(() => {
     onPlacementChange?.({
@@ -203,14 +273,6 @@ export function FastPropertyView({
         type: "FeatureCollection" as const,
         features: [],
       };
-      const officialPolygons = returnedGeometry(result, [
-        "Polygon",
-        "MultiPolygon",
-      ]);
-      const officialLines = returnedGeometry(result, [
-        "LineString",
-        "MultiLineString",
-      ]);
       const sources: Record<string, import("maplibre-gl").SourceSpecification> =
         {
           address: {
@@ -229,18 +291,13 @@ export function FastPropertyView({
           ...(boundary
             ? { boundary: { type: "geojson", data: boundary } }
             : {}),
-          ...(officialPolygons.features.length
-            ? {
-                "official-polygons": {
-                  type: "geojson",
-                  data: officialPolygons,
-                },
-              }
-            : {}),
-          ...(officialLines.features.length
-            ? { "official-lines": { type: "geojson", data: officialLines } }
-            : {}),
         };
+      for (const { definition, layer } of mappedUtilityLayers) {
+        sources[`utility-${definition.key}`] = {
+          type: "geojson",
+          data: layer.geometry!,
+        };
+      }
       const layers: import("maplibre-gl").LayerSpecification[] = [];
       if (result.aerial.state === "ready") {
         sources.aerial = {
@@ -268,29 +325,28 @@ export function FastPropertyView({
           },
         );
       }
-      if (officialPolygons.features.length) {
+      for (const { definition } of mappedUtilityLayers) {
+        const source = `utility-${definition.key}`;
         layers.push(
-          {
-            id: "official-polygons",
-            type: "fill",
-            source: "official-polygons",
-            paint: { "fill-color": "#f59e0b", "fill-opacity": 0.18 },
-          },
-          {
-            id: "official-polygon-lines",
-            type: "line",
-            source: "official-polygons",
-            paint: { "line-color": "#b45309", "line-width": 2 },
-          },
+          definition.kind === "line"
+            ? {
+                id: source,
+                type: "line",
+                source,
+                paint: { "line-color": definition.color, "line-width": 3 },
+              }
+            : {
+                id: source,
+                type: "circle",
+                source,
+                paint: {
+                  "circle-color": definition.color,
+                  "circle-radius": 5,
+                  "circle-stroke-color": "#fff",
+                  "circle-stroke-width": 1.5,
+                },
+              },
         );
-      }
-      if (officialLines.features.length) {
-        layers.push({
-          id: "official-lines",
-          type: "line",
-          source: "official-lines",
-          paint: { "line-color": "#7c3aed", "line-width": 3 },
-        });
       }
       layers.push(
         {
@@ -340,7 +396,7 @@ export function FastPropertyView({
           container: mapRef.current,
           style: { version: 8, sources, layers },
           center: result.resolvedAddress.coordinates,
-          zoom: 18,
+          zoom: 17,
           attributionControl: { compact: true },
           canvasContextAttributes: { preserveDrawingBuffer: true },
         });
@@ -402,7 +458,22 @@ export function FastPropertyView({
     // MapLibre is initialized once per resolved property. Placement geometry is
     // updated through GeoJSON source sync so pointer interaction is not rebuilt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [result]);
+  }, [mappedUtilityLayers, result]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    if (!map) return;
+    for (const { definition } of mappedUtilityLayers) {
+      const layerId = `utility-${definition.key}`;
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(
+          layerId,
+          "visibility",
+          utilityVisibility[definition.category] ? "visible" : "none",
+        );
+      }
+    }
+  }, [mappedUtilityLayers, utilityVisibility]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -423,12 +494,6 @@ export function FastPropertyView({
     );
   }, [dimensions, poolGeometry, position, rotationDegrees]);
 
-  const boundaryMessage =
-    result.boundary.state === "confirmed"
-      ? `Mapped property boundary found${result.boundary.areaSquareMetres ? ` · ${result.boundary.areaSquareMetres.toLocaleString("en-NZ")} m²` : ""}.`
-      : result.boundary.state === "multiple"
-        ? "A mapped area was found, but more than one boundary needs checking."
-        : "No usable mapped property boundary was returned. The address and aerial view remain available.";
   return (
     <section
       aria-labelledby="fast-view-heading"
@@ -468,22 +533,65 @@ export function FastPropertyView({
         <Progress label="Address found" state="complete" />
       </ol>
       <div className="overflow-hidden rounded-2xl border border-slate-200">
-        <div
-          ref={mapRef}
-          className="h-[min(62vw,600px)] min-h-[360px] w-full bg-slate-800"
-          aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
-        />
-        <div className="flex flex-col gap-2 bg-white px-4 py-3 text-sm sm:flex-row sm:items-center sm:justify-between">
-          <p
-            className={
-              result.boundary.state === "confirmed"
-                ? "text-teal-800"
-                : "text-amber-800"
-            }
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_18rem]">
+          <div
+            ref={mapRef}
+            className="h-[min(62vw,600px)] min-h-[360px] w-full bg-slate-800"
+            aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
+          />
+          <aside
+            aria-label="Utility map legend"
+            className="border-t border-slate-200 bg-white p-4 lg:border-t-0 lg:border-l"
           >
-            {boundaryMessage}{" "}
-            {result.boundary.state !== "confirmed" && "Needs Checking."}
-          </p>
+            <h3 className="font-semibold text-slate-950">Utility legend</h3>
+            <p className="mt-1 text-xs leading-5 text-slate-600">
+              Building outlines and contours are excluded from the map.
+            </p>
+            {result.detailedChecks ? (
+              <ul className="mt-4 space-y-3 text-sm text-slate-700">
+                {utilityCategories.map((category) => {
+                  const hasGeometry = mappedUtilityLayers.some(
+                    ({ definition }) => definition.category === category.id,
+                  );
+                  return (
+                    <li key={category.id}>
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input
+                          type="checkbox"
+                          checked={
+                            hasGeometry && utilityVisibility[category.id]
+                          }
+                          onChange={() => toggleUtilityCategory(category.id)}
+                          disabled={!hasGeometry}
+                          className="size-4 accent-slate-950"
+                        />
+                        <span
+                          aria-hidden="true"
+                          className="h-1 w-5 rounded-full"
+                          style={{ backgroundColor: category.color }}
+                        />
+                        <span className="font-semibold">{category.label}</span>
+                      </label>
+                      <p className="ml-11 mt-1 text-xs text-slate-500">
+                        {hasGeometry
+                          ? "Mapped evidence returned"
+                          : "No mapped evidence returned"}
+                      </p>
+                    </li>
+                  );
+                })}
+              </ul>
+            ) : (
+              <p className="mt-4 text-sm leading-6 text-slate-600">
+                Load detailed official checks to see mapped utility evidence.
+              </p>
+            )}
+            <p className="mt-5 text-xs leading-5 text-slate-600">
+              Telecommunications: not available in this preliminary map.
+            </p>
+          </aside>
+        </div>
+        <div className="flex justify-end bg-white px-4 py-3 text-sm">
           <p className="text-slate-600">
             Default pool: {result.defaultPool.label} (
             {result.defaultPool.lengthMetres} × {result.defaultPool.widthMetres}{" "}

@@ -430,7 +430,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(document.body).not.toHaveTextContent("[object Object]");
   });
 
-  it("shows mapped official layers with controls, provenance, and honest unavailable states", async () => {
+  it("shows a focused utility legend", async () => {
     const user = userEvent.setup();
     const result = await createResult();
     result.datasets.building_footprints = {
@@ -506,21 +506,19 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByRole("button", { name: "Fetch property data" }),
     );
 
-    expect(await screen.findByText("Official map layers")).toBeVisible();
-    expect(
-      screen.getByRole("checkbox", { name: /NZ Building Outlines/i }),
-    ).toBeChecked();
-    expect(
-      screen.getByRole("checkbox", { name: /Wastewater Pipes/i }),
-    ).toBeChecked();
+    expect(await screen.findByText("Utility legend")).toBeVisible();
+    expect(screen.getByLabelText("Map legend")).toHaveTextContent(
+      "Wastewater Pipes",
+    );
+    const wastewaterLayer = screen.getByRole("checkbox", {
+      name: "Wastewater Pipes",
+    });
+    expect(wastewaterLayer).toBeChecked();
+    await user.click(wastewaterLayer);
+    expect(wastewaterLayer).not.toBeChecked();
     expect(
       screen.getAllByText("Internal reference only").length,
     ).toBeGreaterThan(0);
-    expect(screen.getByText("Dataset vintage: 2026-06")).toBeVisible();
-    expect(
-      screen.getAllByText("Dataset vintage: not published").length,
-    ).toBeGreaterThan(0);
-    expect(screen.getByText("Flood Plains: provider timed out")).toBeVisible();
   });
 
   it("requires the user to choose an ambiguous address before parcel resolution", async () => {

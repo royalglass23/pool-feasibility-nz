@@ -34,23 +34,16 @@ export type PropertyPoolPlacement = {
 };
 
 const mapLayerDefinitions: MapLayerDefinition[] = [
-  { key: "building_footprints", color: "#f97316", kind: "fill" },
-  { key: "contours", color: "#a16207", kind: "line" },
-  { key: "planning_zone", color: "#8b5cf6", kind: "fill" },
-  { key: "planning_overlays", color: "#ec4899", kind: "fill" },
-  { key: "flood_plains", color: "#2563eb", kind: "fill" },
-  { key: "flood_prone_areas", color: "#60a5fa", kind: "fill" },
-  { key: "overland_flow_paths", color: "#0ea5e9", kind: "line" },
-  { key: "public_stormwater_assets", color: "#64748b", kind: "line" },
-  { key: "manholes", color: "#334155", kind: "circle" },
-  { key: "catchpits", color: "#475569", kind: "circle" },
-  { key: "watercourses", color: "#0891b2", kind: "line" },
-  { key: "public_water_assets", color: "#0d9488", kind: "line" },
-  { key: "water_fittings", color: "#14b8a6", kind: "circle" },
+  { key: "public_stormwater_assets", color: "#0369a1", kind: "line" },
+  { key: "manholes", color: "#0369a1", kind: "circle" },
+  { key: "catchpits", color: "#0369a1", kind: "circle" },
+  { key: "watercourses", color: "#0369a1", kind: "line" },
   { key: "wastewater_assets", color: "#7c3aed", kind: "line" },
-  { key: "wastewater_manholes", color: "#6d28d9", kind: "circle" },
-  { key: "wastewater_fittings", color: "#8b5cf6", kind: "circle" },
-  { key: "electricity_feeder_lines", color: "#eab308", kind: "line" },
+  { key: "wastewater_manholes", color: "#7c3aed", kind: "circle" },
+  { key: "wastewater_fittings", color: "#7c3aed", kind: "circle" },
+  { key: "public_water_assets", color: "#0f766e", kind: "line" },
+  { key: "water_fittings", color: "#0f766e", kind: "circle" },
+  { key: "electricity_feeder_lines", color: "#ca8a04", kind: "line" },
   { key: "gas_distribution_lines", color: "#dc2626", kind: "line" },
 ];
 
@@ -93,15 +86,22 @@ export function PropertyAerialMap({
       }),
     [result.datasets],
   );
-  const visibleMappedLayers = useMemo(
+  const availableMappedLayers = useMemo(
     () =>
       mappedLayers.filter(
-        ({ definition, evidence }) =>
+        ({ evidence }) =>
           evidence.status === "success" &&
-          Boolean(evidence.geometry) &&
+          Boolean(evidence.geometry),
+      ),
+    [mappedLayers],
+  );
+  const visibleMappedLayers = useMemo(
+    () =>
+      availableMappedLayers.filter(
+        ({ definition }) =>
           (layerVisibility[definition.key] ?? true),
       ),
-    [layerVisibility, mappedLayers],
+    [availableMappedLayers, layerVisibility],
   );
   const placementScenarios = useMemo(
     () => result.scenarioComparison.scenarios,
@@ -477,7 +477,7 @@ export function PropertyAerialMap({
           bounds.extend([coordinate[0], coordinate[1]]);
         }
       }
-      map.fitBounds(bounds, { padding: 48, maxZoom: 20, duration: 0 });
+      map.fitBounds(bounds, { padding: 72, maxZoom: 17, duration: 0 });
       map.on("error", () => setMapError(true));
       captureAfterMove = () => captureReportSnapshot(true);
       map.on("moveend", captureAfterMove);
@@ -579,77 +579,69 @@ export function PropertyAerialMap({
           )}
         </div>
       </div>
-      <div className="grid gap-5 border-b border-slate-200 bg-white p-5 lg:grid-cols-[1.5fr_0.8fr]">
-        <div>
-          <h4 className="font-semibold text-slate-950">Official map layers</h4>
+      <div className="grid border-b border-slate-200 bg-white lg:grid-cols-[minmax(0,1fr)_17rem]">
+        <div
+          ref={containerRef}
+          className="h-[min(62vw,600px)] min-h-[420px] w-full bg-slate-800"
+          aria-label="Interactive property map showing the confirmed parcel, pool concept, and mapped utility evidence"
+        />
+        <aside
+          aria-label="Map legend"
+          className="border-t border-slate-200 p-5 lg:border-t-0 lg:border-l"
+        >
+          <h4 className="font-semibold text-slate-950">Utility legend</h4>
           <p className="mt-1 text-xs leading-5 text-slate-500">
-            Only returned official geometry is drawn. Missing infrastructure is
-            never inferred.
+            Returned services only. Building outlines, contours, and planning
+            layers are kept out of this view.
           </p>
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            {mappedLayers.map(({ definition, evidence }) => {
-              const hasGeometry =
-                evidence.status === "success" && Boolean(evidence.geometry);
-              return (
-                <label
-                  key={definition.key}
-                  className="flex gap-3 rounded-xl border border-slate-200 p-3 text-sm"
-                >
-                  <input
-                    type="checkbox"
-                    aria-label={evidence.dataset}
-                    checked={
-                      hasGeometry && (layerVisibility[definition.key] ?? true)
-                    }
-                    disabled={!hasGeometry}
-                    onChange={(event) =>
-                      setLayerVisibility((current) => ({
-                        ...current,
-                        [definition.key]: event.target.checked,
-                      }))
-                    }
-                    className="mt-1 size-4 accent-teal-700"
-                  />
-                  <span className="min-w-0">
-                    <span className="flex items-center gap-2 font-medium text-slate-900">
-                      <span
-                        aria-hidden="true"
-                        className="size-2.5 shrink-0 rounded-full"
-                        style={{ backgroundColor: definition.color }}
-                      />
-                      {evidence.dataset}
-                    </span>
-                    <span className="mt-1 block text-xs leading-5 text-slate-500">
-                      {mapEvidenceSummary(evidence)}
-                    </span>
-                    <span className="block text-xs text-slate-500">
-                      Dataset vintage: {evidence.datasetDate ?? "not published"}
-                    </span>
-                    {evidence.evidenceUse === "internal_reference" && (
-                      <span className="mt-1 block font-semibold text-amber-700">
-                        Internal reference only
+          {availableMappedLayers.length ? (
+            <ul className="mt-4 space-y-3 text-sm text-slate-700">
+              {availableMappedLayers.map(({ definition, evidence }) => (
+                <li key={definition.key}>
+                  <label className="flex cursor-pointer gap-2">
+                    <input
+                      type="checkbox"
+                      aria-label={evidence.dataset}
+                      checked={layerVisibility[definition.key] ?? true}
+                      onChange={(event) =>
+                        setLayerVisibility((current) => ({
+                          ...current,
+                          [definition.key]: event.target.checked,
+                        }))
+                      }
+                      className="mt-1 size-4 shrink-0 accent-teal-700"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className={
+                        definition.kind === "circle"
+                          ? "mt-1 size-3 shrink-0 rounded-full"
+                          : "mt-2 h-0.5 w-4 shrink-0 rounded-full"
+                      }
+                      style={{ backgroundColor: definition.color }}
+                    />
+                    <span>
+                      <span className="block font-medium text-slate-900">
+                        {evidence.dataset}
                       </span>
-                    )}
-                  </span>
-                </label>
-              );
-            })}
-          </div>
-        </div>
-        <div>
-          <h4 className="font-semibold text-slate-950">Legend</h4>
-          <ul className="mt-3 space-y-2 text-sm text-slate-600">
-            {visibleMappedLayers.map(({ definition, evidence }) => (
-              <li key={definition.key} className="flex items-center gap-2">
-                <span
-                  aria-hidden="true"
-                  className="size-3 rounded-full"
-                  style={{ backgroundColor: definition.color }}
-                />
-                {evidence.dataset} ({evidence.featureCount ?? 0})
-              </li>
-            ))}
-          </ul>
+                      <span className="block text-xs text-slate-500">
+                        {evidence.featureCount ?? 0} mapped
+                      </span>
+                      {evidence.evidenceUse === "internal_reference" && (
+                        <span className="block text-xs font-semibold text-amber-700">
+                          Internal reference only
+                        </span>
+                      )}
+                    </span>
+                  </label>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="mt-4 text-sm leading-6 text-slate-600">
+              No mapped utility geometry was returned for this property.
+            </p>
+          )}
           <div className="mt-5 space-y-2 text-xs leading-5 text-slate-500">
             {uniqueMappedAttributions(mappedLayers).map((attribution) => (
               <a
@@ -661,13 +653,8 @@ export function PropertyAerialMap({
               </a>
             ))}
           </div>
-        </div>
+        </aside>
       </div>
-      <div
-        ref={containerRef}
-        className="h-[min(62vw,600px)] min-h-[420px] w-full bg-slate-800"
-        aria-label="Interactive property map showing the confirmed parcel, pool concept, and mapped evidence"
-      />
       {isConfirmedParcelForPlacement(result) ? (
         <PlacementControls
           assessment={placementAssessment}
@@ -1031,27 +1018,6 @@ function formatPlacementPresetLabel(value: string): string {
     .split("-")
     .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
     .join(" ");
-}
-
-function mapEvidenceSummary(
-  evidence: DataAccessSpikeResult["datasets"][DatasetKey],
-): string {
-  if (evidence.status === "success" && evidence.geometry) {
-    return `${evidence.featureCount ?? evidence.geometry.features.length} mapped features from ${evidence.provider}`;
-  }
-  if (evidence.errorCode === "PROVIDER_TIMEOUT") {
-    return `${evidence.dataset}: provider timed out`;
-  }
-  if (evidence.errorCode === "PROVIDER_RESPONSE_INVALID") {
-    return `${evidence.dataset}: provider response was invalid`;
-  }
-  if (evidence.errorCode === "PROVIDER_RESPONSE_TOO_LARGE") {
-    return `${evidence.dataset}: provider response exceeded the safe limit`;
-  }
-  if (evidence.status === "error") {
-    return `${evidence.dataset}: provider unavailable`;
-  }
-  return evidence.reason ?? `${evidence.dataset}: geometry unavailable`;
 }
 
 function uniqueMappedAttributions(
