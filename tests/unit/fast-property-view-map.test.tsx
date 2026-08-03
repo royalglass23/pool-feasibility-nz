@@ -25,7 +25,9 @@ vi.mock("maplibre-gl", () => {
     getLayer() {
       return {};
     }
-    on() {}
+    on(event: string, handler: () => void) {
+      if (event === "idle") handler();
+    }
     remove() {}
     setLayoutProperty() {}
     fitBounds(...args: unknown[]) {
@@ -80,8 +82,7 @@ it("keeps unavailable utilities unchecked and preserves the map when a utility i
   expect(mapCreated).toHaveBeenCalledTimes(1);
 });
 
-it("shows an imagery-based possible existing-pool finding for the selected area", async () => {
-  const user = userEvent.setup();
+it("automatically shows an imagery-based possible existing-pool finding", async () => {
   const fetchStub = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({
@@ -111,15 +112,11 @@ it("shows an imagery-based possible existing-pool finding for the selected area"
     />,
   );
 
-  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
-  await user.click(
-    view.getByRole("button", { name: "Check for existing pool" }),
-  );
-
-  expect(fetchStub).toHaveBeenCalledWith(
-    "/api/internal/aerial-conflicts",
-    expect.objectContaining({ method: "POST" }),
-  );
+  await waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
+  const request = JSON.parse(
+    String(fetchStub.mock.calls[0]?.[1]?.body),
+  ) as { candidate: { scope?: string } };
+  expect(request.candidate.scope).toBe("property");
   expect(
     await view.findByRole("heading", { name: "Possible existing pool" }),
   ).toBeVisible();

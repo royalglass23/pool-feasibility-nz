@@ -42,6 +42,7 @@ const requestSchema = z.object({
       widthMetres: z.number().finite().positive().max(30),
     }),
     rotationDegrees: z.number().finite(),
+    scope: z.enum(["candidate", "property"]).optional(),
   }),
   context: z.object({
     status: z.enum(["available", "unavailable"]),

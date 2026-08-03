@@ -181,4 +181,30 @@ describe("classifyFastPoolWarning", () => {
     });
     expect(result.text).toContain("stormwater pipes and wastewater pipes");
   });
+
+  it("names an intersecting Watercare internal-reference wastewater pipe", () => {
+    const wastewater = layer("wastewater_assets", "internal_reference_only", {
+      type: "FeatureCollection",
+      features: [point([174.6005, -36.8605])],
+    });
+    wastewater.evidence = {
+      ...wastewater.evidence,
+      dataset: "Wastewater Pipes",
+      evidenceUse: "internal_reference",
+    };
+
+    const result = classifyFastPoolWarning(
+      input({
+        detailedChecks: {
+          ...input().detailedChecks!,
+          layers: [wastewater],
+        },
+      }),
+    );
+
+    expect(result).toMatchObject({
+      status: "needs_checking",
+      checkingDatasets: ["Wastewater Pipes"],
+    });
+  });
 });

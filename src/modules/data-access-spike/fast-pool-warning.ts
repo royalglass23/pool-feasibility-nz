@@ -152,7 +152,12 @@ function isMappedIntersection(
   layer: DetailedLayerResult,
   pool: Feature<Polygon>,
 ): boolean {
-  if (layer.state !== "returned" || !layer.geometry) return false;
+  if (
+    (layer.state !== "returned" &&
+      layer.state !== "internal_reference_only") ||
+    !layer.geometry
+  )
+    return false;
 
   return layer.geometry.features.some((item) => {
     if (!item.geometry) return false;
