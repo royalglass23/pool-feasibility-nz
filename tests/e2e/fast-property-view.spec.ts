@@ -212,7 +212,7 @@ test("shows the fast address-to-property stages before detailed checks", async (
   ).toBeVisible();
 });
 
-test("supports the pool catalogue, bounded custom input, and keyboard rotation", async ({
+test("supports the pool catalogue and bounded custom input", async ({
   page,
 }) => {
   await page.route("**/api/internal/fast-property-view", async (route) => {
@@ -261,9 +261,9 @@ test("supports the pool catalogue, bounded custom input, and keyboard rotation",
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
   await page.getByRole("button", { name: "Fetch property data" }).click();
-  await expect(
-    page.getByRole("group", { name: "Pool catalogue" }),
-  ).toBeVisible();
+  const catalogue = page.getByRole("group", { name: "Pool catalogue" });
+  await expect(catalogue).toBeVisible();
+  await expect(catalogue).toHaveClass(/sm:grid-cols-3/);
   await expect(
     page.getByRole("button", { name: /Compact \(6.5/ }),
   ).toHaveAttribute("aria-pressed", "true");
@@ -278,6 +278,6 @@ test("supports the pool catalogue, bounded custom input, and keyboard rotation",
 
   await length.fill("8.0");
   await page.getByLabel("Custom width (m)").fill("3.0");
-  await page.getByRole("button", { name: "Rotate right 5°" }).click();
-  await expect(page.getByText("Rotation: 5°")).toBeVisible();
+  await expect(page.getByRole("button", { name: /Rotate/ })).toHaveCount(0);
+  await expect(page.getByText(/^Rotation:/)).toHaveCount(0);
 });
