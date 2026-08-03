@@ -69,7 +69,7 @@ it("keeps unavailable utilities unchecked and preserves the map when a utility i
       [174.608, -36.8604],
       [174.6084, -36.8601],
     ],
-    expect.objectContaining({ padding: 56, duration: 0, maxZoom: 18 }),
+    expect.objectContaining({ padding: 56, duration: 0, maxZoom: 15 }),
   );
 
   const detailedChecks = screen

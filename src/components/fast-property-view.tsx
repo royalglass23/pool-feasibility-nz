@@ -444,7 +444,7 @@ export function FastPropertyView({
           container: mapRef.current,
           style: { version: 8, sources, layers },
           center: result.resolvedAddress.coordinates,
-          zoom: 17,
+          zoom: 15,
           attributionControl: { compact: true },
           canvasContextAttributes: { preserveDrawingBuffer: true },
         });
@@ -454,7 +454,7 @@ export function FastPropertyView({
           map.fitBounds(boundaryBounds(result.boundary.geometry), {
             padding: 56,
             duration: 0,
-            maxZoom: 18,
+            maxZoom: 20,
           });
         }
         map.on("error", () => setMapError(true));
