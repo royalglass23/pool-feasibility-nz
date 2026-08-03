@@ -100,6 +100,7 @@ export function HomeownerSubmissionForm({
     >
       <h3
         id="homeowner-details-heading"
+        tabIndex={-1}
         className="text-xl font-semibold text-slate-950"
       >
         Your details for the preliminary report

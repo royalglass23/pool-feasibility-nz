@@ -520,6 +520,13 @@ export function DataAccessInspector() {
             isLoadingDetailed={isLoadingDetailed}
             onPlacementChange={handleFastPlacementChange}
             onSnapshotReady={setFastMapImage}
+            onGenerateReport={() => {
+              const reportDetails = document.getElementById(
+                "homeowner-details-heading",
+              );
+              reportDetails?.scrollIntoView({ behavior: "smooth" });
+              reportDetails?.focus();
+            }}
           />
           {fastSavedReport.assessment ? (
             <SavedAssessmentReportPanel

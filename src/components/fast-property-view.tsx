@@ -4,7 +4,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Feature, FeatureCollection, Geometry, Polygon } from "geojson";
 import { type FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 import type { DetailedLayerResult } from "@/modules/data-access-spike/execute-fast-property-details";
-import type { AerialConflictFinding } from "@/modules/spatial/assess-aerial-imagery-conflicts";
 import {
   buildFastPoolGeometry,
   FAST_POOL_CATALOGUE,
@@ -22,11 +21,7 @@ import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { bearing, point } from "@turf/turf";
 
 type UtilityCategory =
-  | "stormwater"
-  | "wastewater"
-  | "water"
-  | "electricity"
-  | "gas";
+  "stormwater" | "wastewater" | "water" | "electricity" | "gas";
 
 type UtilityLayerDefinition = {
   key: DatasetKey;
@@ -48,17 +43,67 @@ const utilityCategories: {
 ];
 
 const utilityLayerDefinitions: UtilityLayerDefinition[] = [
-  { key: "public_stormwater_assets", category: "stormwater", color: "#0369a1", kind: "line" },
+  {
+    key: "public_stormwater_assets",
+    category: "stormwater",
+    color: "#0369a1",
+    kind: "line",
+  },
   { key: "manholes", category: "stormwater", color: "#0369a1", kind: "circle" },
-  { key: "catchpits", category: "stormwater", color: "#0369a1", kind: "circle" },
-  { key: "watercourses", category: "stormwater", color: "#0369a1", kind: "line" },
-  { key: "wastewater_assets", category: "wastewater", color: "#7c3aed", kind: "line" },
-  { key: "wastewater_manholes", category: "wastewater", color: "#7c3aed", kind: "circle" },
-  { key: "wastewater_fittings", category: "wastewater", color: "#7c3aed", kind: "circle" },
-  { key: "public_water_assets", category: "water", color: "#0f766e", kind: "line" },
-  { key: "water_fittings", category: "water", color: "#0f766e", kind: "circle" },
-  { key: "electricity_feeder_lines", category: "electricity", color: "#ca8a04", kind: "line" },
-  { key: "gas_distribution_lines", category: "gas", color: "#dc2626", kind: "line" },
+  {
+    key: "catchpits",
+    category: "stormwater",
+    color: "#0369a1",
+    kind: "circle",
+  },
+  {
+    key: "watercourses",
+    category: "stormwater",
+    color: "#0369a1",
+    kind: "line",
+  },
+  {
+    key: "wastewater_assets",
+    category: "wastewater",
+    color: "#7c3aed",
+    kind: "line",
+  },
+  {
+    key: "wastewater_manholes",
+    category: "wastewater",
+    color: "#7c3aed",
+    kind: "circle",
+  },
+  {
+    key: "wastewater_fittings",
+    category: "wastewater",
+    color: "#7c3aed",
+    kind: "circle",
+  },
+  {
+    key: "public_water_assets",
+    category: "water",
+    color: "#0f766e",
+    kind: "line",
+  },
+  {
+    key: "water_fittings",
+    category: "water",
+    color: "#0f766e",
+    kind: "circle",
+  },
+  {
+    key: "electricity_feeder_lines",
+    category: "electricity",
+    color: "#ca8a04",
+    kind: "line",
+  },
+  {
+    key: "gas_distribution_lines",
+    category: "gas",
+    color: "#dc2626",
+    kind: "line",
+  },
 ];
 
 const allUtilityCategoriesVisible: Record<UtilityCategory, boolean> = {
@@ -69,18 +114,6 @@ const allUtilityCategoriesVisible: Record<UtilityCategory, boolean> = {
   gas: true,
 };
 
-type ExistingPoolCheck =
-  | { state: "idle" }
-  | { state: "loading" }
-  | { state: "possible"; finding: AerialConflictFinding }
-  | { state: "not_detected" }
-  | { state: "needs_checking"; message: string };
-
-type ExistingPoolCheckResult = {
-  candidateKey: string;
-  check: ExistingPoolCheck;
-};
-
 export function FastPropertyView({
   result,
   onLoadDetailed,
@@ -88,6 +121,7 @@ export function FastPropertyView({
   isLoadingDetailed,
   onPlacementChange,
   onSnapshotReady,
+  onGenerateReport,
 }: {
   result: FastPropertyViewResult;
   onLoadDetailed: () => void;
@@ -95,11 +129,10 @@ export function FastPropertyView({
   isLoadingDetailed: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
   onSnapshotReady?: (dataUrl: string | null) => void;
+  onGenerateReport?: () => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
-  const existingPoolCheckRequestRef = useRef(0);
-  const automaticExistingPoolCheckAddressRef = useRef<string | null>(null);
   const placementRef = useRef<{
     position: [number, number];
     rotationDegrees: number;
@@ -123,8 +156,6 @@ export function FastPropertyView({
     defaultPosition(result),
   );
   const [placementMessage, setPlacementMessage] = useState<string | null>(null);
-  const [existingPoolCheck, setExistingPoolCheck] =
-    useState<ExistingPoolCheckResult | null>(null);
   const dimensions = useMemo(() => {
     const preset = FAST_POOL_CATALOGUE.find(
       (pool) => pool.id === selectedPoolId,
@@ -155,11 +186,6 @@ export function FastPropertyView({
         : null,
     [dimensions, position, result.boundary.geometry, rotationDegrees],
   );
-  const existingPoolCheckKey = `${result.resolvedAddress.addressId}:${JSON.stringify(poolGeometry?.geometry.coordinates ?? null)}`;
-  const activeExistingPoolCheck =
-    existingPoolCheck?.candidateKey === existingPoolCheckKey
-      ? existingPoolCheck.check
-      : { state: "idle" as const };
   const poolWarning = useMemo(
     () =>
       classifyFastPoolWarning({
@@ -249,136 +275,6 @@ export function FastPropertyView({
     setPlacementMessage(null);
     setRotationDegrees(normalized);
   };
-
-  async function checkForExistingPool() {
-    if (
-      !poolGeometry ||
-      !dimensions ||
-      activeExistingPoolCheck.state === "loading"
-    )
-      return;
-    if (result.aerial.state !== "ready") {
-      setExistingPoolCheck({
-        candidateKey: existingPoolCheckKey,
-        check: {
-          state: "needs_checking",
-          message:
-            "Aerial imagery is not available, so an existing pool cannot be checked from this view.",
-        },
-      });
-      return;
-    }
-
-    const map = mapInstanceRef.current;
-    if (!map) {
-      setExistingPoolCheck({
-        candidateKey: existingPoolCheckKey,
-        check: {
-          state: "needs_checking",
-          message:
-            "The aerial map is still loading, so the existing-pool check cannot run yet.",
-        },
-      });
-      return;
-    }
-    const aerialEvidence = result.datasets.aerial_imagery;
-    if (!aerialEvidence) {
-      setExistingPoolCheck({
-        candidateKey: existingPoolCheckKey,
-        check: {
-          state: "needs_checking",
-          message:
-            "Aerial imagery evidence is incomplete, so an existing pool cannot be checked from this view.",
-        },
-      });
-      return;
-    }
-
-    const requestId = existingPoolCheckRequestRef.current + 1;
-    existingPoolCheckRequestRef.current = requestId;
-    setExistingPoolCheck({
-      candidateKey: existingPoolCheckKey,
-      check: { state: "loading" },
-    });
-    try {
-      const dataUrl = map.getCanvas().toDataURL("image/png");
-      if (dataUrl.length > 8_000_000) {
-        throw new Error("AERIAL_IMAGE_TOO_LARGE");
-      }
-      const response = await fetch("/api/internal/aerial-conflicts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          candidate: {
-            id: `fast-pool-${result.resolvedAddress.addressId}`,
-            envelope: poolGeometry,
-            dimensions,
-            rotationDegrees,
-            scope: "property",
-          },
-          context: {
-            status: "available",
-            alignment: "aligned",
-            resolution: "sufficient",
-            evidenceId: aerialEvidence.datasetIdentifier,
-            image: { dataUrl, mediaType: "image/png" },
-          },
-        }),
-      });
-      if (!response.ok) throw new Error("AERIAL_CONFLICT_ROUTE_FAILED");
-      const body = (await response.json()) as {
-        source?: "provider" | "fallback";
-        findings?: AerialConflictFinding[];
-        providerFailure?: boolean;
-      };
-      if (requestId !== existingPoolCheckRequestRef.current) return;
-
-      const finding = body.findings?.find(
-        ({ type }) => type === "possible_existing_pool",
-      );
-      if (finding && body.source === "provider" && !body.providerFailure) {
-        setExistingPoolCheck({
-          candidateKey: existingPoolCheckKey,
-          check: { state: "possible", finding },
-        });
-      } else if (body.source === "provider" && !body.providerFailure) {
-        setExistingPoolCheck({
-          candidateKey: existingPoolCheckKey,
-          check: { state: "not_detected" },
-        });
-      } else {
-        setExistingPoolCheck({
-          candidateKey: existingPoolCheckKey,
-          check: {
-            state: "needs_checking",
-            message:
-              "The aerial existing-pool review was unavailable. Confirm the selected area on site.",
-          },
-        });
-      }
-    } catch {
-      if (requestId !== existingPoolCheckRequestRef.current) return;
-      setExistingPoolCheck({
-        candidateKey: existingPoolCheckKey,
-        check: {
-          state: "needs_checking",
-          message:
-            "The aerial existing-pool review could not be completed. Confirm the selected area on site.",
-        },
-      });
-    }
-  }
-
-  function startAutomaticExistingPoolCheck() {
-    if (
-      automaticExistingPoolCheckAddressRef.current ===
-      result.resolvedAddress.addressId
-    )
-      return;
-    automaticExistingPoolCheckAddressRef.current =
-      result.resolvedAddress.addressId;
-    void checkForExistingPool();
-  }
 
   useEffect(() => {
     positionHandlerRef.current = setCandidatePosition;
@@ -568,7 +464,6 @@ export function FastPropertyView({
           } catch {
             onSnapshotReady?.(null);
           }
-          startAutomaticExistingPoolCheck();
         });
         let interaction: "move" | "rotate" | null = null;
         map.on("mousedown", "pool-rotation-handle", (event) => {
@@ -732,7 +627,7 @@ export function FastPropertyView({
                         />
                         <span className="font-semibold">{category.label}</span>
                       </label>
-                      <p className="ml-11 mt-1 text-xs text-slate-500">
+                      <p className="mt-1 ml-11 text-xs text-slate-500">
                         {hasGeometry
                           ? "Mapped evidence returned"
                           : "No mapped evidence returned"}
@@ -850,10 +745,16 @@ export function FastPropertyView({
           </p>
         )}
       </div>
-      <ExistingPoolCheckCard
-        check={activeExistingPoolCheck}
-      />
       <FastPoolWarning warning={poolWarning} />
+      {onGenerateReport && (
+        <button
+          type="button"
+          onClick={onGenerateReport}
+          className="min-h-11 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+        >
+          Generate PDF report
+        </button>
+      )}
       {mapError && (
         <p role="alert" className="text-sm font-semibold text-red-700">
           The map could not load. Retry the fast view to try again.
@@ -866,46 +767,47 @@ export function FastPropertyView({
         </p>
       )}
       {result.detailedChecks && (
-        <section
-          aria-labelledby="detailed-checks-heading"
-          className="space-y-3 rounded-2xl border border-slate-200 bg-slate-50 p-4"
-        >
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <h3
+        <details className="group rounded-2xl border border-slate-200 bg-slate-50">
+          <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 p-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-700">
+            <span>
+              <span
                 id="detailed-checks-heading"
-                className="font-semibold text-slate-950"
+                role="heading"
+                aria-level={3}
+                className="block font-semibold text-slate-950"
               >
                 Detailed official checks
-              </h3>
-              <p className="text-sm text-slate-600">
+              </span>
+              <span className="mt-1 block text-sm text-slate-600">
                 {result.detailedChecks.status === "complete"
                   ? "All configured provider queries completed."
                   : "Some provider queries remain unknown; this is a partial result."}
-              </p>
-            </div>
+              </span>
+            </span>
             <span className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-bold uppercase">
               {result.detailedChecks.status}
             </span>
+          </summary>
+          <div className="space-y-3 border-t border-slate-200 p-4">
+            <ul
+              className="grid gap-2 sm:grid-cols-2"
+              aria-label="Official layer results"
+            >
+              {result.detailedChecks.layers.map((layer) => (
+                <DetailedLayer key={layer.key} layer={layer} />
+              ))}
+            </ul>
+            <p className="text-xs leading-5 text-slate-600">
+              {result.detailedChecks.region} Attribution and limitations remain
+              applicable to every returned layer.
+            </p>
+            <ul className="list-disc space-y-1 pl-5 text-xs leading-5 text-slate-600">
+              {result.detailedChecks.limitations.map((limitation) => (
+                <li key={limitation}>{limitation}</li>
+              ))}
+            </ul>
           </div>
-          <ul
-            className="grid gap-2 sm:grid-cols-2"
-            aria-label="Official layer results"
-          >
-            {result.detailedChecks.layers.map((layer) => (
-              <DetailedLayer key={layer.key} layer={layer} />
-            ))}
-          </ul>
-          <p className="text-xs leading-5 text-slate-600">
-            {result.detailedChecks.region} Attribution and limitations remain
-            applicable to every returned layer.
-          </p>
-          <ul className="list-disc space-y-1 pl-5 text-xs leading-5 text-slate-600">
-            {result.detailedChecks.limitations.map((limitation) => (
-              <li key={limitation}>{limitation}</li>
-            ))}
-          </ul>
-        </section>
+        </details>
       )}
       <div className="flex justify-end">
         <button
@@ -915,47 +817,6 @@ export function FastPropertyView({
         >
           Retry fast view
         </button>
-      </div>
-    </section>
-  );
-}
-
-function ExistingPoolCheckCard({
-  check,
-}: {
-  check: ExistingPoolCheck;
-}) {
-  const tone =
-    check.state === "possible" || check.state === "needs_checking"
-      ? "border-amber-200 bg-amber-50 text-amber-950"
-      : check.state === "not_detected"
-        ? "border-sky-200 bg-sky-50 text-sky-950"
-        : "border-slate-200 bg-slate-50 text-slate-950";
-  const message =
-    check.state === "possible"
-      ? `${check.finding.explanation} This is an aerial indication only; confirm whether the pool is retained, replaced, or removed.`
-      : check.state === "not_detected"
-        ? "No existing pool was detected in the selected area. Aerial imagery cannot prove that a pool is absent."
-        : check.state === "needs_checking"
-          ? check.message
-          : check.state === "loading"
-            ? "Reviewing the selected area against the aerial imagery…"
-            : "The aerial imagery check starts automatically when the property map is ready.";
-
-  return (
-    <section
-      aria-labelledby="existing-pool-check-heading"
-      className={`rounded-2xl border p-4 ${tone}`}
-    >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h3 id="existing-pool-check-heading" className="font-semibold">
-            {check.state === "possible"
-              ? "Possible existing pool"
-              : "Existing pool check"}
-          </h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6">{message}</p>
-        </div>
       </div>
     </section>
   );
@@ -1049,7 +910,9 @@ function feature(geometry: Polygon): Feature {
   return { type: "Feature", properties: {}, geometry };
 }
 
-function boundaryBounds(geometry: Polygon): [[number, number], [number, number]] {
+function boundaryBounds(
+  geometry: Polygon,
+): [[number, number], [number, number]] {
   const coordinates = geometry.coordinates.flat(1);
   const longitudes = coordinates.map(([longitude]) => longitude);
   const latitudes = coordinates.map(([, latitude]) => latitude);

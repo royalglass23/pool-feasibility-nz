@@ -167,6 +167,12 @@ test("shows the fast address-to-property stages before detailed checks", async (
   await expect(
     page.getByRole("heading", { name: "Detailed official checks" }),
   ).toBeVisible();
+  const officialChecks = page
+    .locator("details")
+    .filter({ hasText: "Detailed official checks" });
+  await expect(officialChecks).not.toHaveAttribute("open", "");
+  await officialChecks.locator("summary").click();
+  await expect(officialChecks).toHaveAttribute("open", "");
   await expect(
     page.getByText(
       "Some provider queries remain unknown; this is a partial result.",
@@ -189,10 +195,14 @@ test("shows the fast address-to-property stages before detailed checks", async (
   await expect(unavailableStormwater).toBeDisabled();
   await expect(unavailableStormwater).not.toBeChecked();
   await expect(
-    legend.getByText("Telecommunications: not available in this preliminary map."),
+    legend.getByText(
+      "Telecommunications: not available in this preliminary map.",
+    ),
   ).toBeVisible();
   await expect(
-    legend.getByText("Building outlines and contours are excluded from the map."),
+    legend.getByText(
+      "Building outlines and contours are excluded from the map.",
+    ),
   ).toBeVisible();
   await page
     .getByRole("button", { name: "Load detailed official checks" })

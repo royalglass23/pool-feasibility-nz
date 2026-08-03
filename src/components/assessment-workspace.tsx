@@ -290,7 +290,7 @@ export function AssessmentWorkspace({
             onClick={() => setPreview(true)}
             className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 px-4 font-semibold text-slate-800 transition-colors hover:border-teal-600 hover:text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
           >
-            Preview PDF report
+            Generate PDF report
           </button>
           <button
             type="button"

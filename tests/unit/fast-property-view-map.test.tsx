@@ -72,6 +72,13 @@ it("keeps unavailable utilities unchecked and preserves the map when a utility i
     expect.objectContaining({ padding: 56, duration: 0, maxZoom: 18 }),
   );
 
+  const detailedChecks = screen
+    .getByText("Detailed official checks")
+    .closest("details");
+  expect(detailedChecks).not.toHaveAttribute("open");
+  await user.click(screen.getByText("Detailed official checks"));
+  expect(detailedChecks).toHaveAttribute("open");
+
   const stormwater = screen.getByRole("checkbox", { name: "Stormwater" });
   expect(stormwater).toBeDisabled();
   expect(stormwater).not.toBeChecked();
@@ -82,7 +89,7 @@ it("keeps unavailable utilities unchecked and preserves the map when a utility i
   expect(mapCreated).toHaveBeenCalledTimes(1);
 });
 
-it("automatically shows an imagery-based possible existing-pool finding", async () => {
+it("does not run an aerial existing-pool check when the map becomes ready", async () => {
   const fetchStub = vi.fn().mockResolvedValue({
     ok: true,
     json: async () => ({
@@ -99,30 +106,26 @@ it("automatically shows an imagery-based possible existing-pool finding", async 
     }),
   });
   vi.stubGlobal("fetch", fetchStub);
-  const view = render(
+  render(
     <FastPropertyView
-      result={{
-        ...fastResult,
-        aerial: { state: "ready", durationMs: 20, attribution: null },
-        datasets: { aerial_imagery: { datasetIdentifier: "aerial-imagery" } },
-      } as unknown as FastPropertyViewResult}
+      result={
+        {
+          ...fastResult,
+          aerial: { state: "ready", durationMs: 20, attribution: null },
+          datasets: { aerial_imagery: { datasetIdentifier: "aerial-imagery" } },
+        } as unknown as FastPropertyViewResult
+      }
       isLoadingDetailed={false}
       onLoadDetailed={() => {}}
       onRetry={() => {}}
     />,
   );
 
-  await waitFor(() => expect(fetchStub).toHaveBeenCalledTimes(1));
-  const request = JSON.parse(
-    String(fetchStub.mock.calls[0]?.[1]?.body),
-  ) as { candidate: { scope?: string } };
-  expect(request.candidate.scope).toBe("property");
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  expect(fetchStub).not.toHaveBeenCalled();
   expect(
-    await view.findByRole("heading", { name: "Possible existing pool" }),
-  ).toBeVisible();
-  expect(
-    view.getByText(/A rectangular water-like feature is visible/),
-  ).toBeVisible();
+    screen.queryByRole("heading", { name: /existing pool/i }),
+  ).not.toBeInTheDocument();
 });
 
 const fastResult = {
@@ -153,8 +156,18 @@ const fastResult = {
     parcelId: "parcel-1",
   },
   aerial: { state: "unavailable", durationMs: null, attribution: null },
-  defaultPool: { id: "compact", label: "Compact", lengthMetres: 6.5, widthMetres: 3 },
-  progress: { address: "found", boundary: "found", aerial: "unavailable", detailedChecks: "complete" },
+  defaultPool: {
+    id: "compact",
+    label: "Compact",
+    lengthMetres: 6.5,
+    widthMetres: 3,
+  },
+  progress: {
+    address: "found",
+    boundary: "found",
+    aerial: "unavailable",
+    detailedChecks: "complete",
+  },
   firstUsableViewStartedAt: "2026-07-28T00:00:00.000Z",
   fastPathDurationMs: 120,
   detailedChecks: {

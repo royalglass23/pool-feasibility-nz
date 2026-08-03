@@ -489,7 +489,7 @@ test("previews all three report pages and downloads the generated PDF", async ({
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("button", { name: "Fetch property data" }).click();
   await expect(page.getByText("Imagery verified")).toBeVisible();
-  await page.getByRole("button", { name: "Preview PDF report" }).click();
+  await page.getByRole("button", { name: "Generate PDF report" }).click();
 
   await expect(
     page.getByRole("heading", { name: "PDF report preview" }),
@@ -541,7 +541,7 @@ test("prints all three preview pages when server PDF generation is unavailable",
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("button", { name: "Fetch property data" }).click();
   await expect(page.getByText("Imagery verified")).toBeVisible();
-  await page.getByRole("button", { name: "Preview PDF report" }).click();
+  await page.getByRole("button", { name: "Generate PDF report" }).click();
   await page.getByRole("button", { name: "Download PDF" }).click();
   await expect(page.locator('p[role="alert"]')).toContainText(
     "Use Print / save PDF instead.",
@@ -591,7 +591,7 @@ test("downloads the PDF with an API-issued token and browser-captured map", asyn
   await expect(page.getByText("Imagery verified")).toBeVisible({
     timeout: 15_000,
   });
-  await page.getByRole("button", { name: "Preview PDF report" }).click();
+  await page.getByRole("button", { name: "Generate PDF report" }).click();
 
   const responsePromise = page.waitForResponse("**/api/internal/report/pdf");
   const downloadPromise = page.waitForEvent("download");
@@ -627,7 +627,7 @@ test("keeps the expandable assessment and A4 preview usable on mobile", async ({
   await expect(
     page.getByText("Preliminary desktop assessment only"),
   ).toBeVisible();
-  await page.getByRole("button", { name: "Preview PDF report" }).click();
+  await page.getByRole("button", { name: "Generate PDF report" }).click();
   await page.getByRole("button", { name: "3" }).click();
   await expect(
     page.getByRole("heading", { name: "What needs attention next" }),
