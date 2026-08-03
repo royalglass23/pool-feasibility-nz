@@ -566,8 +566,7 @@ export function FastPropertyView({
             {result.resolvedAddress.fullAddress}
           </h2>
           <p className="mt-2 text-sm text-slate-600">
-            A preliminary mapped view is ready. Detailed official checks are not
-            loaded.
+            A preliminary mapped view is ready. 
           </p>
         </div>
         <button
@@ -599,9 +598,7 @@ export function FastPropertyView({
             className="border-t border-slate-200 bg-white p-4 lg:border-t-0 lg:border-l"
           >
             <h3 className="font-semibold text-slate-950">Utility legend</h3>
-            <p className="mt-1 text-xs leading-5 text-slate-600">
-              Building outlines and contours are excluded from the map.
-            </p>
+            
             {result.detailedChecks ? (
               <ul className="mt-4 space-y-3 text-sm text-slate-700">
                 {utilityCategories.map((category) => {
@@ -638,12 +635,10 @@ export function FastPropertyView({
               </ul>
             ) : (
               <p className="mt-4 text-sm leading-6 text-slate-600">
-                Click "Load detailed official checks" button to see the mapped utility evidence.
+                Click &quot;Load detailed official checks&quot; button to see the mapped utility evidence.
               </p>
             )}
-            <p className="mt-5 text-xs leading-5 text-slate-600">
-              Telecommunications: not available in this preliminary map.
-            </p>
+            
           </aside>
         </div>
         <div className="flex justify-end bg-white px-4 py-3 text-sm">
@@ -666,7 +661,7 @@ export function FastPropertyView({
           </p>
         </div>
         <div
-          className="flex flex-wrap gap-2"
+          className="grid grid-cols-1 gap-2 sm:grid-cols-3"
           role="group"
           aria-label="Pool catalogue"
         >
@@ -712,27 +707,6 @@ export function FastPropertyView({
             />
           </div>
         )}
-        <div className="flex flex-wrap items-center gap-2">
-          <button
-            type="button"
-            onClick={() => setCandidateRotation(rotationDegrees - 5)}
-            disabled={!dimensions}
-            className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold disabled:opacity-50"
-          >
-            Rotate left 5°
-          </button>
-          <button
-            type="button"
-            onClick={() => setCandidateRotation(rotationDegrees + 5)}
-            disabled={!dimensions}
-            className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 text-sm font-semibold disabled:opacity-50"
-          >
-            Rotate right 5°
-          </button>
-          <span aria-live="polite" className="text-sm text-slate-700">
-            Rotation: {Math.round(rotationDegrees)}°
-          </span>
-        </div>
         {!dimensions && (
           <p role="alert" className="text-sm font-semibold text-red-700">
             Enter a length from 2–20 m and width from 1.5–10 m in 0.1 m
