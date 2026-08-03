@@ -638,7 +638,7 @@ export function FastPropertyView({
               </ul>
             ) : (
               <p className="mt-4 text-sm leading-6 text-slate-600">
-                Load detailed official checks to see mapped utility evidence.
+                Click "Load detailed official checks" button to see the mapped utility evidence.
               </p>
             )}
             <p className="mt-5 text-xs leading-5 text-slate-600">
