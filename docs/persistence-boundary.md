@@ -43,3 +43,12 @@ Drizzle migrations in order. The forward migration creates the assessment table 
 sequence. Before production use, the rollback plan is to stop writes, export retained records,
 drop `homeowner_assessments`, then drop `homeowner_assessment_reference_seq` only after retention
 approval.
+
+MT-253 forward migration `drizzle/0003_curved_george_stacy.sql` adds a nullable visitor type,
+nullable visitor-type and timing detail fields, and database checks for the supported values and
+required `Other` details. The visitor type deliberately has no default so pre-MT-253 assessments
+remain distinguishable as not captured. Before rolling this migration back, stop assessment
+writes and export any rows that use the new fields. Remove the MT-253 detail and visitor-type
+checks, migrate every `desired_timing = 'other'` row to an explicitly approved legacy value or
+retain it outside the table, restore the previous timing check, and only then drop the three new
+columns. Never discard captured visitor details as an implicit rollback step.

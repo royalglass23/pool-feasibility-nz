@@ -1,4 +1,8 @@
 import { z } from "zod";
+import {
+  requireOtherDetails,
+  visitorContextFields,
+} from "@/modules/assessment/visitor-context";
 import { isValidPngMapImageDataUrl } from "@/modules/reporting/map-image";
 import { reportAssessmentSnapshotSchema } from "@/modules/reporting/report-assessment-snapshot";
 
@@ -159,17 +163,19 @@ const reportData = z.object({
 export const persistedAssessmentSubmissionSchema = z
   .object({
     idempotencyKey: z.string().trim().min(16).max(128),
-    homeowner: z.object({
-      name: z.string().trim().min(1).max(160),
-      phone: z.string().trim().min(7).max(40),
-      email: z.email().max(320),
-      address: z.string().trim().min(1).max(500),
-      desiredTiming: z.enum(["asap", "3_months", "6_months", "12_months"]),
-      additionalInfo: z.string().trim().max(4_000).optional(),
-      consentGiven: z.literal(true),
-      consentVersion: z.string().trim().min(1).max(80),
-      consentedAt: isoDateTime,
-    }),
+    homeowner: z
+      .object({
+        name: z.string().trim().min(1).max(160),
+        phone: z.string().trim().min(7).max(40),
+        email: z.email().max(320),
+        address: z.string().trim().min(1).max(500),
+        ...visitorContextFields,
+        additionalInfo: z.string().trim().max(4_000).optional(),
+        consentGiven: z.literal(true),
+        consentVersion: z.string().trim().min(1).max(80),
+        consentedAt: isoDateTime,
+      })
+      .superRefine(requireOtherDetails),
     addressEvidence: z.object({
       selectedAddressId: z.string().trim().min(1).max(200),
       formattedAddress: z.string().trim().min(1).max(500),

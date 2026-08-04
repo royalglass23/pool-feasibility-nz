@@ -10,6 +10,7 @@ const validSubmission = {
     phone: "021 555 1234",
     email: "jane@example.com",
     address: "1 Test Street, Auckland",
+    visitorType: "homeowner",
     desiredTiming: "3_months",
     consentGiven: true,
     consentVersion: "assessment-v1",
@@ -93,6 +94,37 @@ describe("persisted homeowner assessment contract", () => {
         homeowner: { ...validSubmission.homeowner, desiredTiming: "tomorrow" },
       }),
     ).toThrow();
+  });
+
+  it("requires a brief explanation when Other is selected", () => {
+    expect(() =>
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        homeowner: {
+          ...validSubmission.homeowner,
+          visitorType: "other",
+          desiredTiming: "other",
+        },
+      }),
+    ).toThrow(/tell us who you are/i);
+
+    expect(
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        homeowner: {
+          ...validSubmission.homeowner,
+          visitorType: "other",
+          visitorTypeOtherDetail: "Landscape architect",
+          desiredTiming: "other",
+          desiredTimingOtherDetail: "Next summer",
+        },
+      }).homeowner,
+    ).toMatchObject({
+      visitorType: "other",
+      visitorTypeOtherDetail: "Landscape architect",
+      desiredTiming: "other",
+      desiredTimingOtherDetail: "Next summer",
+    });
   });
 
   it("accepts only normalized evidence references rather than arbitrary provider payloads", () => {

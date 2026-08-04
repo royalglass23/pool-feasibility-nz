@@ -6,6 +6,10 @@ import {
 } from "@/modules/data-access-spike/fast-pool-placement";
 import { classifyFastPoolWarning } from "@/modules/data-access-spike/fast-pool-warning";
 import { renderTrustedAssessmentMap } from "@/modules/reporting/trusted-assessment-map";
+import {
+  requireOtherDetails,
+  visitorContextFields,
+} from "@/modules/assessment/visitor-context";
 import type { TrustedAssessmentSnapshot } from "./assessment-snapshot";
 import {
   parsePersistedAssessmentSubmission,
@@ -20,10 +24,11 @@ const browserSubmissionSchema = z
         name: z.string().trim().min(1).max(160),
         phone: z.string().trim().min(7).max(40),
         email: z.email().max(320),
-        desiredTiming: z.enum(["asap", "3_months", "6_months", "12_months"]),
+        ...visitorContextFields,
         additionalInfo: z.string().trim().max(4_000).optional(),
         consentGiven: z.literal(true),
       })
+      .superRefine(requireOtherDetails)
       .strict(),
     poolLayout: z
       .object({

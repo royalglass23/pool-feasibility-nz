@@ -1,6 +1,7 @@
 "use client";
 
 import { SavedPreliminaryReportView } from "@/components/saved-preliminary-report-view";
+import { getVisitorTypeLabel } from "@/modules/assessment/visitor-type";
 import type { StaffAssessmentDetail as StaffAssessmentDetailModel } from "@/modules/staff/staff-assessment-read-model";
 
 const submittedDate = new Intl.DateTimeFormat("en-NZ", {
@@ -17,6 +18,7 @@ const timingLabels: Record<
   "3_months": "Within 3 months",
   "6_months": "Within 6 months",
   "12_months": "Within 12 months",
+  other: "Other",
 };
 
 export function StaffAssessmentDetail({
@@ -56,12 +58,26 @@ export function StaffAssessmentDetail({
           <Fact label="Phone" value={assessment.homeownerPhone} />
           <Fact label="Email" value={assessment.homeownerEmail} />
           <Fact
+            label="I am a"
+            value={
+              assessment.visitorType === null
+                ? "Not captured"
+                : assessment.visitorType === "other"
+                  ? (assessment.visitorTypeOtherDetail ?? "Other")
+                  : getVisitorTypeLabel(assessment.visitorType)
+            }
+          />
+          <Fact
             label="Submitted"
             value={submittedDate.format(assessment.createdAt)}
           />
           <Fact
             label="Desired timing"
-            value={timingLabels[assessment.desiredTiming]}
+            value={
+              assessment.desiredTiming === "other"
+                ? (assessment.desiredTimingOtherDetail ?? "Other")
+                : timingLabels[assessment.desiredTiming]
+            }
           />
           <Fact
             label="Boundary status"

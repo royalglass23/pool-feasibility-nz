@@ -25,7 +25,10 @@ export const homeownerAssessments = pgTable(
     homeownerPhone: text("homeowner_phone").notNull(),
     homeownerEmail: text("homeowner_email").notNull(),
     homeownerAddress: text("homeowner_address").notNull(),
+    visitorType: text("visitor_type"),
+    visitorTypeOtherDetail: text("visitor_type_other_detail"),
     desiredTiming: text("desired_timing").notNull(),
+    desiredTimingOtherDetail: text("desired_timing_other_detail"),
     additionalInfo: text("additional_info"),
     consentGiven: boolean("consent_given").notNull(),
     consentVersion: text("consent_version").notNull(),
@@ -109,7 +112,15 @@ export const homeownerAssessments = pgTable(
     ),
     check(
       "homeowner_assessments_timing_ck",
-      sql`${table.desiredTiming} in ('asap', '3_months', '6_months', '12_months')`,
+      sql`${table.desiredTiming} in ('asap', '3_months', '6_months', '12_months', 'other')`,
+    ),
+    check(
+      "homeowner_assessments_visitor_type_ck",
+      sql`${table.visitorType} in ('homeowner', 'pool_builder', 'other')`,
+    ),
+    check(
+      "homeowner_assessments_other_detail_ck",
+      sql`(${table.visitorType} <> 'other' or length(trim(coalesce(${table.visitorTypeOtherDetail}, ''))) > 0) and (${table.desiredTiming} <> 'other' or length(trim(coalesce(${table.desiredTimingOtherDetail}, ''))) > 0)`,
     ),
     check(
       "homeowner_assessments_consent_ck",

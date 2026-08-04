@@ -1,14 +1,9 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import {
-  HomeownerSubmissionForm,
-} from "@/components/homeowner-submission-form";
+import { HomeownerSubmissionForm } from "@/components/homeowner-submission-form";
 import { SavedAssessmentReportPanel } from "@/components/saved-assessment-report-panel";
-import {
-  buildTestPreliminaryReport,
-  TEST_MAP_IMAGE_DATA_URL,
-} from "../fixtures/preliminary-report";
+import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 
 const context = {
   addressEvidence: {
@@ -139,6 +134,85 @@ describe("homeowner report submission", () => {
       poolLayout: { lengthMetres: 6.5, widthMetres: 3 },
     });
     expect(body).not.toHaveProperty("report");
+  });
+
+  it("collects visitor context and explains Other selections before requesting the report", async () => {
+    const user = userEvent.setup();
+    const request = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          assessment: {
+            id: "assessment-2",
+            reference: report.reference,
+            status: "new_enquiry",
+            created: true,
+            report,
+            delivery: { homeowner: "pending", servicem8: "pending" },
+          },
+        }),
+        { status: 201, headers: { "Content-Type": "application/json" } },
+      ),
+    );
+    vi.stubGlobal("fetch", request);
+
+    render(
+      <HomeownerSubmissionForm
+        assessmentSnapshot="server-issued-assessment-snapshot"
+        placement={{
+          position: [174.76, -36.85],
+          rotationDegrees: 12,
+          dimensions: { lengthMetres: 6.5, widthMetres: 3 },
+          poolGeometry: null,
+          warning: {
+            status: "needs_checking",
+            label: "Needs Checking",
+            text: "Some mapped evidence is unavailable or uncertain.",
+            recommendation: null,
+            conflictingDatasets: [],
+            checkingDatasets: [],
+          },
+        }}
+        onSaved={() => undefined}
+      />,
+    );
+
+    const form = within(screen.getAllByRole("form")[1]);
+    expect(form.getByRole("option", { name: "Homeowner" })).toHaveValue(
+      "homeowner",
+    );
+    expect(form.getByRole("option", { name: "Pool Builder" })).toHaveValue(
+      "pool_builder",
+    );
+    await user.type(form.getByLabelText("Name"), "Roxy Builder");
+    await user.type(form.getByLabelText("Phone"), "021 555 4567");
+    await user.type(form.getByLabelText("Email"), "roxy@example.com");
+    await user.selectOptions(form.getByLabelText("I am a"), "other");
+    await user.type(
+      form.getByLabelText("Tell us who you are"),
+      "Landscape architect",
+    );
+    await user.selectOptions(
+      form.getByLabelText("When do you need it?"),
+      "other",
+    );
+    await user.type(
+      form.getByLabelText("Tell us when you need it"),
+      "Next summer",
+    );
+    await user.click(form.getByRole("checkbox"));
+    await user.click(
+      form.getByRole("button", { name: "Save and show my report" }),
+    );
+
+    await waitFor(() => expect(request).toHaveBeenCalledOnce());
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toMatchObject({
+      homeowner: {
+        visitorType: "other",
+        visitorTypeOtherDetail: "Landscape architect",
+        desiredTiming: "other",
+        desiredTimingOtherDetail: "Next summer",
+      },
+    });
   });
 
   it("shows the returned shared report while both deliveries continue independently", () => {

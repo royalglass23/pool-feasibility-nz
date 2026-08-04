@@ -15,7 +15,10 @@ function assessmentRow(
     homeownerPhone: "021 555 1234",
     homeownerEmail: "jane@example.com",
     homeownerAddress: "1 Test Street, Auckland",
+    visitorType: "pool_builder",
+    visitorTypeOtherDetail: null,
     desiredTiming: "3_months",
+    desiredTimingOtherDetail: null,
     additionalInfo: null,
     boundaryStatus: "provisional",
     feasibilityState: "needs_checking",
@@ -145,6 +148,7 @@ describe("staff assessment read model", () => {
       id: "assessment-1",
       homeownerName: "Jane Homeowner",
       homeownerEmail: "jane@example.com",
+      visitorType: "pool_builder",
       feasibilityState: "needs_checking",
       emailDeliveryState: "sent",
       forwardingState: "pending",
@@ -156,5 +160,26 @@ describe("staff assessment read model", () => {
     await expect(
       getHomeownerAssessmentById(db, "archived"),
     ).resolves.toBeNull();
+  });
+
+  it("keeps a legacy assessment readable without inventing a visitor type", async () => {
+    const findFirst = vi.fn().mockResolvedValue(
+      assessmentRow({
+        visitorType: null,
+        visitorTypeOtherDetail: null,
+        desiredTimingOtherDetail: null,
+      }),
+    );
+    const db = {
+      query: { homeownerAssessments: { findFirst } },
+    } as unknown as Parameters<typeof getHomeownerAssessmentById>[0];
+
+    await expect(
+      getHomeownerAssessmentById(db, "assessment-1"),
+    ).resolves.toMatchObject({
+      visitorType: null,
+      visitorTypeOtherDetail: null,
+      desiredTimingOtherDetail: null,
+    });
   });
 });

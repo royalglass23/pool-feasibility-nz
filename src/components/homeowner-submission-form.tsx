@@ -10,6 +10,7 @@ import type { PersistedAssessmentSubmission } from "@/modules/assessment/persist
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import type { ReportDeliveryState } from "@/components/saved-preliminary-report-view";
 import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
+import { visitorTypeOptions } from "@/modules/assessment/visitor-type";
 
 export type AssessmentSubmissionContext = Omit<
   PersistedAssessmentSubmission,
@@ -41,6 +42,8 @@ export function HomeownerSubmissionForm({
 }) {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [visitorType, setVisitorType] = useState("homeowner");
+  const [desiredTiming, setDesiredTiming] = useState("asap");
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -65,7 +68,12 @@ export function HomeownerSubmissionForm({
             name: form.get("name"),
             phone: form.get("phone"),
             email: form.get("email"),
+            visitorType: form.get("visitorType"),
+            visitorTypeOtherDetail:
+              form.get("visitorTypeOtherDetail") || undefined,
             desiredTiming: form.get("desiredTiming"),
+            desiredTimingOtherDetail:
+              form.get("desiredTimingOtherDetail") || undefined,
             additionalInfo: form.get("additionalInfo") || undefined,
             consentGiven: form.get("consent") === "on",
           },
@@ -114,18 +122,51 @@ export function HomeownerSubmissionForm({
         <Field label="Phone" name="phone" type="tel" required />
         <Field label="Email" name="email" type="email" required />
         <label className="text-sm font-medium text-slate-800">
-          Desired timing
+          I am a
+          <select
+            name="visitorType"
+            required
+            value={visitorType}
+            onChange={(event) => setVisitorType(event.target.value)}
+            className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
+          >
+            {visitorTypeOptions.map((option) => (
+              <option key={option.value} value={option.value}>
+                {option.label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm font-medium text-slate-800">
+          When do you need it?
           <select
             name="desiredTiming"
             required
+            value={desiredTiming}
+            onChange={(event) => setDesiredTiming(event.target.value)}
             className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-white px-3"
           >
             <option value="asap">ASAP</option>
             <option value="3_months">Within 3 months</option>
             <option value="6_months">Within 6 months</option>
             <option value="12_months">Within 12 months</option>
+            <option value="other">Other</option>
           </select>
         </label>
+        {visitorType === "other" && (
+          <Field
+            label="Tell us who you are"
+            name="visitorTypeOtherDetail"
+            required
+          />
+        )}
+        {desiredTiming === "other" && (
+          <Field
+            label="Tell us when you need it"
+            name="desiredTimingOtherDetail"
+            required
+          />
+        )}
         <label className="text-sm font-medium text-slate-800 sm:col-span-2">
           Additional Info (optional)
           <textarea

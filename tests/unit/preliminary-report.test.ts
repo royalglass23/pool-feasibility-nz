@@ -15,6 +15,7 @@ const submission: PersistedAssessmentSubmission = {
     phone: "021 555 1234",
     email: "jane@example.com",
     address: "1 Test Street, Auckland",
+    visitorType: "homeowner",
     desiredTiming: "3_months",
     consentGiven: true,
     consentVersion: "assessment-v1",
