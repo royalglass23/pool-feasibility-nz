@@ -391,7 +391,9 @@ export function DataAccessInspector() {
             <MapPin className="size-5" aria-hidden="true" />
           </span>
           <div>
-            <h2 className="font-semibold text-slate-950">Your property address</h2>
+            <h2 className="font-semibold text-slate-950">
+              Your property address
+            </h2>
             <p className="text-sm text-slate-500">
               Start with an Auckland address. We will match it against official
               address data before showing the property view.
