@@ -11,6 +11,7 @@ Exact versions are locked in `package-lock.json`; the major responsibilities are
 | GIS                  | `maplibre-gl`, `@turf/turf`, `@types/geojson`                                                                                     | Interactive map and deterministic GeoJSON operations         |
 | Validation           | `zod`, `@t3-oss/env-nextjs`                                                                                                       | Input, provider-response, domain, and environment validation |
 | Persistence          | `drizzle-orm`, `drizzle-kit`, `@neondatabase/serverless`, `dotenv`                                                                | PostgreSQL access and migrations compatible with Vercel      |
+| Public rate limiting | `@upstash/ratelimit`, `@upstash/redis`                                                                                            | Distributed rolling limits for serverless public routes      |
 | Server boundaries    | `server-only`, `pino`                                                                                                             | Prevent client imports and emit structured logs              |
 | Unit/component tests | `vitest`, `jsdom`, Testing Library packages, Vite React/path plugins                                                              | Deterministic domain and UI tests                            |
 | End-to-end tests     | `@playwright/test`                                                                                                                | Fixture-backed browser workflow and PDF endpoint checks      |
@@ -18,13 +19,13 @@ Exact versions are locked in `package-lock.json`; the major responsibilities are
 
 ## Deferred until the owning spike
 
-| Need                            | Candidate                                                                   | Decision gate                                                                |
-| ------------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| NZTM2000/WGS84 transformation   | `proj4` or a narrowly scoped equivalent                                     | Confirm actual source CRSs and accuracy tests in Stage 2                     |
-| PDF browser runtime             | Playwright plus a Vercel-compatible Chromium build, or an external renderer | Prove cold-start, binary size, three-page fidelity, and licensing in Stage 7 |
-| Durable PDF storage             | Vercel Blob or compatible object storage                                    | Decide whether immutable PDFs must persist                                   |
-| Distributed rate limiting/cache | Upstash Redis or equivalent                                                 | Confirm deployment topology, cost, and licence caching rules                 |
-| Optional narrative AI           | Provider SDK                                                                | Add only after deterministic report completion and constrained-output tests  |
+| Need                          | Candidate                                                                   | Decision gate                                                                |
+| ----------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
+| NZTM2000/WGS84 transformation | `proj4` or a narrowly scoped equivalent                                     | Confirm actual source CRSs and accuracy tests in Stage 2                     |
+| PDF browser runtime           | Playwright plus a Vercel-compatible Chromium build, or an external renderer | Prove cold-start, binary size, three-page fidelity, and licensing in Stage 7 |
+| Durable PDF storage           | Vercel Blob or compatible object storage                                    | Decide whether immutable PDFs must persist                                   |
+| Distributed provider cache    | Upstash Redis or equivalent                                                 | Confirm deployment topology, cost, and licence caching rules                 |
+| Optional narrative AI         | Provider SDK                                                                | Add only after deterministic report completion and constrained-output tests  |
 
 No PostGIS dependency is proposed for the POC. Introduce it only after measured application-side spatial limits or cross-property spatial query requirements emerge.
 

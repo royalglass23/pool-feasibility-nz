@@ -15,6 +15,12 @@ const scheduledCallbacks = vi.hoisted(
 );
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/modules/rate-limit/public-rate-limit", () => ({
+  createPublicRateLimitedHandler: (
+    _action: string,
+    next: (request: Request) => Promise<Response>,
+  ) => next,
+}));
 vi.mock("next/server", () => ({
   after: (callback: () => void | Promise<void>) => {
     scheduledCallbacks.push(callback);

@@ -1,6 +1,13 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/modules/rate-limit/public-rate-limit", () => ({
+  createPublicRateLimitedHandler: (
+    _action: string,
+    next: (request: Request) => Promise<Response>,
+  ) => next,
+  enforcePublicPropertyStageRateLimit: vi.fn(async () => null),
+}));
 
 import { POST as addressSuggestions } from "@/app/api/public/address-suggestions/route";
 import { POST as aerialConflicts } from "@/app/api/public/aerial-conflicts/route";

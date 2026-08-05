@@ -12,6 +12,13 @@ const handlers = vi.hoisted(() => ({
 }));
 
 vi.mock("server-only", () => ({}));
+vi.mock("@/modules/rate-limit/public-rate-limit", () => ({
+  createPublicRateLimitedHandler: (
+    _action: string,
+    next: (request: Request) => Promise<Response>,
+  ) => next,
+  enforcePublicPropertyStageRateLimit: vi.fn(async () => null),
+}));
 vi.mock(
   "@/modules/data-access-spike/handle-address-suggestions-request",
   () => ({ handleAddressSuggestionsRequest: handlers.addressSuggestions }),
@@ -32,7 +39,10 @@ vi.mock(
 );
 vi.mock(
   "@/modules/data-access-spike/handle-fast-property-stages-request",
-  () => ({ POST: handlers.propertyStages }),
+  () => ({
+    POST: handlers.propertyStages,
+    handleFastPropertyStagesRequest: handlers.propertyStages,
+  }),
 );
 vi.mock("@/modules/reporting/handle-report-pdf-request", () => ({
   handleReportPdfRequest: handlers.reportPdf,

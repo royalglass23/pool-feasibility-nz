@@ -112,7 +112,7 @@ Store and render geometry in WGS84 GeoJSON for interoperability. Stage 2 must do
 
 ## Error contract
 
-Application failures use stable codes: `INVALID_ADDRESS`, `ADDRESS_FORMAT_UNSUPPORTED`, `ADDRESS_NOT_FOUND`, `ADDRESS_AMBIGUOUS`, `PARCEL_NOT_FOUND`, `PARCEL_AMBIGUOUS`, `PARCEL_UNCONFIRMED`, `OUTSIDE_SUPPORTED_REGION`, `REQUIRED_DATA_UNAVAILABLE`, `DATA_PROVIDER_ERROR`, `ANALYSIS_FAILED`, and `REPORT_GENERATION_FAILED`. Internal delivery adapters additionally use `INVALID_REQUEST`, `REQUEST_TOO_LARGE`, `UNAUTHORIZED`, `ACCESS_CONTROL_MISCONFIGURED`, `ASSESSMENT_NOT_FOUND`, `INVALID_TILE`, `AERIAL_IMAGERY_UNAVAILABLE`, and `AERIAL_PROVIDER_ERROR`. Route handlers map them to safe HTTP responses, return the same correlation ID in the `X-Correlation-ID` header and error body, and accept only bounded safe incoming correlation IDs. Provider URLs, keys, raw payloads, stack traces, and internal database errors are never returned.
+Application failures use stable codes: `INVALID_ADDRESS`, `ADDRESS_FORMAT_UNSUPPORTED`, `ADDRESS_NOT_FOUND`, `ADDRESS_AMBIGUOUS`, `PARCEL_NOT_FOUND`, `PARCEL_AMBIGUOUS`, `PARCEL_UNCONFIRMED`, `OUTSIDE_SUPPORTED_REGION`, `REQUIRED_DATA_UNAVAILABLE`, `DATA_PROVIDER_ERROR`, `ANALYSIS_FAILED`, and `REPORT_GENERATION_FAILED`. Internal delivery adapters additionally use `INVALID_REQUEST`, `REQUEST_TOO_LARGE`, `UNAUTHORIZED`, `ACCESS_CONTROL_MISCONFIGURED`, `ASSESSMENT_NOT_FOUND`, `INVALID_TILE`, `AERIAL_IMAGERY_UNAVAILABLE`, and `AERIAL_PROVIDER_ERROR`. Public abuse controls use `RATE_LIMITED` with HTTP `429` and `TEMPORARILY_UNAVAILABLE` with HTTP `503`; both return the calm message `Please try again shortly.` Route handlers return the same correlation ID in the `X-Correlation-ID` header and error body and accept only bounded safe incoming correlation IDs. Provider URLs, keys, raw payloads, stack traces, and internal database errors are never returned.
 
 ## Environment boundary
 
@@ -125,11 +125,11 @@ Required when the corresponding adapter is enabled:
 | `LINZ_DATA_SERVICE_API_KEY`                     | Server only            | LINZ data queries if Stage 2 confirms the endpoint    |
 | `LINZ_BASEMAPS_API_KEY`                         | Server only by default | Aerial configuration; public delivery is unresolved   |
 | `AUCKLAND_COUNCIL_API_KEY`                      | Server only            | Only if an approved service requires it               |
-| `UPSTASH_REDIS_REST_URL/TOKEN`                  | Server only            | Distributed rate limit/cache if selected              |
+| `UPSTASH_REDIS_REST_URL/TOKEN`                  | Server only            | Required public rate limits; provider cache deferred  |
 | `BLOB_READ_WRITE_TOKEN`                         | Server only            | Durable generated-PDF storage if selected             |
 | `AI_PROVIDER`, `OPENAI_API_KEY`, `OPENAI_MODEL` | Server only, optional  | Constrained narrative enhancement                     |
 | `PROVIDER_TIMEOUT_MS`, `PROVIDER_RETRY_COUNT`   | Server only            | Bounded provider behavior                             |
-| `INTERNAL_ACCESS_USERNAME/PASSWORD`             | Server only            | Legacy `/api/internal/*` diagnostics; never public UI  |
+| `INTERNAL_ACCESS_USERNAME/PASSWORD`             | Server only            | Legacy `/api/internal/*` diagnostics; never public UI |
 | `INTERNAL_REPORT_SIGNING_SECRET`                | Server only            | Shared 32+ byte key for short-lived PDF report tokens |
 | `ANALYSIS_VERSION`, `LOG_LEVEL`                 | Server only            | Reproducibility and observability                     |
 
@@ -152,4 +152,4 @@ No credential receives a `NEXT_PUBLIC_` name in Stage 1.
 4. Metric CRS/transformation library after source CRS discovery.
 5. HTML-to-PDF runtime (Playwright, a Vercel-compatible Chromium package, or an external renderer) after a deployment spike.
 6. Whether report PDFs need durable blob storage or can be generated on demand.
-7. Distributed rate-limit/cache provider.
+7. Distributed cache provider for licence-permitted provider responses; public rate limiting uses Upstash Redis.

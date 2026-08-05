@@ -35,7 +35,20 @@ const stageRequestSchema = z
   })
   .strict();
 
+type BeforePublicProviderWork = (input: {
+  request: Request;
+  correlationId: string;
+  snapshot: import("@/modules/assessment/assessment-snapshot").TrustedAssessmentSnapshot;
+}) => Promise<Response | null>;
+
 export async function POST(request: Request): Promise<Response> {
+  return handleFastPropertyStagesRequest(request);
+}
+
+export async function handleFastPropertyStagesRequest(
+  request: Request,
+  beforeProviderWork?: BeforePublicProviderWork,
+): Promise<Response> {
   const correlationId = requestCorrelationId(request);
   let body: unknown;
   try {
@@ -90,6 +103,14 @@ export async function POST(request: Request): Promise<Response> {
       correlationId,
       { "Cache-Control": "no-store" },
     );
+  }
+  if (beforeProviderWork) {
+    const denied = await beforeProviderWork({
+      request,
+      correlationId,
+      snapshot,
+    });
+    if (denied) return denied;
   }
   const gateway = new OfficialGisGateway({ timeoutMs: providerTimeoutMs() });
   const requestBody = {
