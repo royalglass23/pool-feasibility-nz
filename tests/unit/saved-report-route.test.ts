@@ -4,6 +4,7 @@ import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 const getDb = vi.hoisted(() => vi.fn(() => ({}) as never));
 const getSavedPreliminaryReportById = vi.hoisted(() => vi.fn());
 const generatePreliminaryReportPdf = vi.hoisted(() => vi.fn());
+const staffSessionDeniedResponse = vi.hoisted(() => vi.fn());
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/db/client", () => ({ getDb }));
@@ -12,6 +13,9 @@ vi.mock("@/db/repositories/homeowner-assessment-repository", () => ({
 }));
 vi.mock("@/modules/reporting/report-renderer", () => ({
   generatePreliminaryReportPdf,
+}));
+vi.mock("@/modules/staff/staff-session", () => ({
+  staffSessionDeniedResponse,
 }));
 
 import { GET } from "@/app/api/internal/assessments/[id]/report/route";
@@ -24,12 +28,34 @@ afterEach(() => {
   getDb.mockClear();
   getSavedPreliminaryReportById.mockReset();
   generatePreliminaryReportPdf.mockReset();
+  staffSessionDeniedResponse.mockReset();
   vi.unstubAllEnvs();
 });
 
 describe("GET saved preliminary report PDF", () => {
+  it("rejects an unauthenticated request before reading a saved report", async () => {
+    staffSessionDeniedResponse.mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: "STAFF_AUTH_REQUIRED" } }), {
+        status: 401,
+      }),
+    );
+
+    const response = await GET(
+      new Request(
+        `https://pool.example/api/internal/assessments/${ASSESSMENT_ID}/report`,
+      ),
+      { params: Promise.resolve({ id: ASSESSMENT_ID }) },
+    );
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "STAFF_AUTH_REQUIRED" },
+    });
+    expect(getDb).not.toHaveBeenCalled();
+  });
+
   it("rejects an invalid reference before opening the database", async () => {
-    vi.stubEnv("NODE_ENV", "development");
+    staffSessionDeniedResponse.mockResolvedValue(null);
 
     const response = await GET(
       new Request(
@@ -43,7 +69,7 @@ describe("GET saved preliminary report PDF", () => {
   });
 
   it("returns the PDF generated from the persisted shared report", async () => {
-    vi.stubEnv("NODE_ENV", "development");
+    staffSessionDeniedResponse.mockResolvedValue(null);
     getSavedPreliminaryReportById.mockResolvedValue(report);
     generatePreliminaryReportPdf.mockResolvedValue(
       Buffer.from("%PDF-persisted"),
@@ -70,7 +96,7 @@ describe("GET saved preliminary report PDF", () => {
   });
 
   it("uses the stable assessment-not-found code when no saved report exists", async () => {
-    vi.stubEnv("NODE_ENV", "development");
+    staffSessionDeniedResponse.mockResolvedValue(null);
     getSavedPreliminaryReportById.mockResolvedValue(null);
 
     const response = await GET(
@@ -87,7 +113,7 @@ describe("GET saved preliminary report PDF", () => {
   });
 
   it("uses the stable report-generation code for renderer failures", async () => {
-    vi.stubEnv("NODE_ENV", "development");
+    staffSessionDeniedResponse.mockResolvedValue(null);
     getSavedPreliminaryReportById.mockResolvedValue(report);
     generatePreliminaryReportPdf.mockRejectedValue(
       new Error("REPORT_RENDERER_TIMEOUT"),

@@ -10,15 +10,15 @@ web
 
 ## Users
 
-The primary users are trained Royal Glass staff performing preliminary residential pool screening for Auckland properties. They need to move quickly from an entered address to an understandable assessment while retaining access to the evidence, limitations, and follow-up work behind that assessment.
+The primary public users are Auckland homeowners exploring a possible pool and pool builders looking for a clearer early property conversation. Royal Glass staff retain development-only access to saved preliminary reports for follow-up and quality review.
 
 ## Product Purpose
 
-The product gives staff a fast, evidence-led first assessment of whether an Auckland property has credible potential for a residential swimming pool. It resolves the property, presents official mapped evidence and deterministic screening results, keeps unknowns explicit, and identifies what still requires onsite investigation or specialist review.
+The product gives Auckland visitors an evidence-led early view of a property's pool-planning context. It resolves the property, presents mapped evidence and preliminary screening signals, keeps unknowns explicit, and identifies what still needs onsite investigation or specialist review.
 
 Success means a staff member can enter an address, understand the preliminary assessment quickly, expand supporting sections when more detail is needed, and download a client-ready PDF report without the product overstating certainty. Provider-assisted address entry should reduce input friction while preserving authoritative property identity; LINZ is the current official source, while any Google integration requires separate accuracy, licensing, privacy, and reconciliation decisions.
 
-The current implementation remains an internal-only, Auckland-only, no-database, session-scoped proof of concept. PDF reporting, expandable result sections, and enhanced address search are intended product direction rather than claims about current capability.
+The launch is Auckland-first. It is a discovery site, not a pool-builder marketplace, quote engine, approval service, survey, or engineering assessment. Pool-builder matching, marketing automation, and public price ranges remain deferred.
 
 ## Positioning
 

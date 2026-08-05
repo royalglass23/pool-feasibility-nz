@@ -1,11 +1,15 @@
+import Link from "next/link";
+import { ArrowRight, MapPinned, ScanSearch, ShieldCheck } from "lucide-react";
+import { AucklandPropertyJourney } from "@/components/auckland-property-journey";
 import { DataAccessInspector } from "./data-access-inspector";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[radial-gradient(circle_at_top_left,_#dff3ef_0,_transparent_38%),linear-gradient(180deg,_#f9fbf8_0%,_#eef4f1_100%)] px-4 py-8 text-[#18322f] sm:px-6 sm:py-14">
+    <main className="min-h-screen bg-[#f4f8f6] px-4 py-5 text-[#18322f] sm:px-6 sm:py-8">
       <div className="mx-auto w-full max-w-7xl">
+        <AucklandPropertyJourney />
         <section
-          className="border-t border-[#d4e0dc] pt-10 sm:pt-12"
+          className="hidden border-t border-[#d4e0dc] pt-10 sm:pt-12"
           aria-labelledby="home-heading"
         >
           <div className="grid items-center gap-10 lg:grid-cols-[0.88fr_1.12fr] lg:gap-16">
@@ -88,37 +92,128 @@ export default function Home() {
 
         <section
           id="property-search"
-          className="mt-16 border-t border-[#d4e0dc] pt-10 sm:mt-20 sm:pt-12"
+          className="mt-16 scroll-mt-24 border-t border-[#d4e0dc] pt-10 sm:mt-20 sm:pt-12"
           aria-labelledby="property-search-heading"
         >
           <div className="mb-6 max-w-2xl">
             <p className="text-sm font-semibold tracking-[0.02em] text-[#5e716a]">
-              Start with your property address
+              Start with your Auckland property
             </p>
             <h2
               id="property-search-heading"
               className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[#18322f] sm:text-3xl"
             >
-              See what the site can support
+              Begin with a practical property check
             </h2>
             <p className="mt-3 hidden text-base leading-7 text-[#526761]">
               We’ll find the address, open the mapped property view, and show
               what needs a closer look before you plan a pool.
             </p>
             <p className="mt-3 text-base leading-7 text-[#526761]">
-              We&apos;ll find the address, open the mapped property view, and
-              show what needs a closer look before you plan a pool.
+              Search the property, try a pool layout, and see the early signals
+              that deserve a closer look. You can request the detailed report
+              once you are ready.
             </p>
           </div>
           <DataAccessInspector />
         </section>
 
+        <section
+          id="how-it-works"
+          className="grid gap-10 border-t border-[#d4e0dc] py-14 sm:py-20 lg:grid-cols-[0.78fr_1.22fr] lg:gap-20"
+          aria-labelledby="how-it-works-heading"
+        >
+          <div>
+            <h2
+              id="how-it-works-heading"
+              className="max-w-sm text-balance text-3xl leading-tight font-semibold tracking-[-0.03em] text-[#18322f] sm:text-4xl"
+            >
+              The useful questions, before the expensive decisions.
+            </h2>
+            <p className="mt-5 max-w-md text-pretty text-base leading-7 text-[#526761]">
+              This is a first look, not a final answer. It helps bring better
+              questions to the people who will later design, quote, inspect, or
+              approve the work.
+            </p>
+            <Link
+              href="/can-my-auckland-property-suit-a-pool"
+              className="mt-7 inline-flex min-h-11 items-center gap-2 font-semibold text-[#0f6258] underline decoration-[#8ebdaf] underline-offset-4 transition hover:text-[#18322f] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700"
+            >
+              Explore property-planning guidance
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
+          </div>
+          <div className="border-t border-[#cbdad5] lg:border-t-0 lg:border-l lg:pl-10">
+            <div className="grid divide-y divide-[#cbdad5]">
+              <Feature
+                icon={<MapPinned aria-hidden="true" className="size-5" />}
+                title="Start with the site"
+                text="Use the property map to explore an indicative pool layout. You can move and rotate it; the tool does not silently choose a location for you."
+              />
+              <Feature
+                icon={<ScanSearch aria-hidden="true" className="size-5" />}
+                title="Make uncertainty visible"
+                text="Space, access, mapped evidence, and any missing information remain clear, so incomplete data is never treated as a green light."
+              />
+              <Feature
+                icon={<ShieldCheck aria-hidden="true" className="size-5" />}
+                title="Take a better next step"
+                text="Save the detailed preliminary report when you are ready to carry the right questions into a builder, designer, engineer, or Council conversation."
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="border-t border-[#d4e0dc] py-12 sm:py-16" aria-labelledby="builder-heading">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-2xl">
+              <h2 id="builder-heading" className="text-balance text-2xl font-semibold tracking-[-0.025em] text-[#18322f] sm:text-3xl">
+                For Auckland pool builders: start the conversation with the property.
+              </h2>
+              <p className="mt-3 text-pretty text-base leading-7 text-[#526761]">
+                Use the same early map and planning context to explain what a
+                homeowner should check next. The tool is public guidance, not a
+                partner programme or a lead-sharing service.
+              </p>
+            </div>
+            <Link
+              href="/auckland-pool-planning-for-builders"
+              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[#a9c6bb] bg-transparent px-4 text-sm font-semibold text-[#18322f] transition hover:border-[#0f6258] hover:bg-[#e4f0eb] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+            >
+              Read builder guidance
+              <ArrowRight aria-hidden="true" className="size-4" />
+            </Link>
+          </div>
+        </section>
+
         <footer className="mt-10 border-t border-[#d4e0dc] pt-6 text-sm leading-6 text-[#5e716a]">
-          Preliminary desktop data inspection only. This tool does not determine
-          pool feasibility, construction safety, consent requirements, title
+          Preliminary property guidance only. This tool does not determine pool
+          feasibility, construction safety, consent requirements, title
           interests, easements, or exact underground service positions.
         </footer>
       </div>
     </main>
+  );
+}
+
+function Feature({
+  icon,
+  title,
+  text,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  text: string;
+}) {
+  return (
+    <div className="grid gap-4 py-6 first:pt-0 last:pb-0 sm:grid-cols-[2.25rem_1fr]">
+      <div className="grid size-9 place-items-center rounded-lg bg-[#dcece5] text-[#0f6258]">
+        {icon}
+      </div>
+      <div>
+        <h3 className="text-lg font-semibold text-[#18322f]">{title}</h3>
+        <p className="mt-2 max-w-2xl text-pretty leading-7 text-[#526761]">{text}</p>
+      </div>
+    </div>
   );
 }

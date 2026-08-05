@@ -183,7 +183,7 @@ test("shows the fast address-to-property stages before detailed checks", async (
       name: "Land Information New Zealand (LINZ), CC BY 4.0",
     }),
   ).toBeVisible();
-  const legend = page.getByLabel("Utility map legend");
+  const legend = page.getByLabel("Map layers");
   await expect(legend).toBeVisible();
   await expect(legend).toContainText("Wastewater");
   await expect(
@@ -196,12 +196,7 @@ test("shows the fast address-to-property stages before detailed checks", async (
   await expect(unavailableStormwater).not.toBeChecked();
   await expect(
     legend.getByText(
-      "Telecommunications: not available in this preliminary map.",
-    ),
-  ).toBeVisible();
-  await expect(
-    legend.getByText(
-      "Building outlines and contours are excluded from the map.",
+      "No contour geometry returned",
     ),
   ).toBeVisible();
   await page

@@ -20,7 +20,9 @@
     "smoke:live-layers": "tsx scripts/verify-live-property-layers.ts",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "staff:bootstrap": "tsx scripts/bootstrap-staff-admin.ts",
+    "staff:reset-password": "tsx scripts/reset-staff-admin-password.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.6.0",

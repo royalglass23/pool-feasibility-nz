@@ -7,10 +7,22 @@ import {
 import { requestCorrelationId } from "@/shared/http/api-response";
 
 export function proxy(request: NextRequest): Response {
+  if (usesStaffSessionBoundary(request.nextUrl.pathname)) {
+    return NextResponse.next();
+  }
   const access = authorizeInternalRequest(request);
   return access.allowed
     ? NextResponse.next()
     : internalAccessDeniedResponse(access, requestCorrelationId(request));
+}
+
+function usesStaffSessionBoundary(pathname: string): boolean {
+  return (
+    pathname === "/staff" ||
+    pathname.startsWith("/staff/") ||
+    pathname === "/api/internal/assessments" ||
+    pathname.startsWith("/api/internal/assessments/")
+  );
 }
 
 export const config = {

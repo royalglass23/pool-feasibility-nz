@@ -135,6 +135,48 @@
   display: none;
 }
 
+@keyframes property-journey-marker {
+  0%, 13% { opacity: 0; transform: translateY(-1rem) scale(0.65); }
+  20%, 100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes property-journey-address {
+  0%, 10% { opacity: 0; transform: translateY(-0.5rem); }
+  17%, 100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes property-journey-pool {
+  0%, 28% { opacity: 0; transform: translate(-1.3rem, 1rem) rotate(-22deg) scale(0.7); }
+  40%, 70% { opacity: 1; transform: translate(0, 0) rotate(-7deg) scale(1); }
+  84%, 100% { opacity: 1; transform: translate(0.5rem, -0.3rem) rotate(5deg) scale(1); }
+}
+@keyframes property-journey-control {
+  0%, 38% { opacity: 0; transform: translateY(0.75rem); }
+  48%, 100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes property-journey-next {
+  0%, 62% { opacity: 0; transform: translateY(1rem); }
+  72%, 100% { opacity: 1; transform: translateY(0); }
+}
+@keyframes property-journey-cta {
+  0%, 74% { box-shadow: none; }
+  84% { box-shadow: 0 0 0 0.35rem rgb(217 240 231 / 45%); }
+  100% { box-shadow: none; }
+}
+.property-journey-marker { animation: property-journey-marker 7s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.property-journey-address { animation: property-journey-address 7s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.property-journey-pool { animation: property-journey-pool 7s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.property-journey-control { animation: property-journey-control 7s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.property-journey-next { animation: property-journey-next 7s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+.property-journey-cta { animation: property-journey-cta 7s cubic-bezier(0.16, 1, 0.3, 1) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .property-journey-marker,
+  .property-journey-address,
+  .property-journey-pool,
+  .property-journey-control,
+  .property-journey-next,
+  .property-journey-cta { animation: none; }
+}
+
 @media print {
   @page {
     size: A4 portrait;

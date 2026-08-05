@@ -29,6 +29,13 @@
       "when": 1785805122587,
       "tag": "0003_curved_george_stacy",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1785887363544,
+      "tag": "0004_nice_magma",
+      "breakpoints": true
     }
   ]
 }

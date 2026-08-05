@@ -131,8 +131,8 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
 
     expect(
-      screen.getByRole("button", { name: "Generate PDF report" }),
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: "Generate PDF report" }),
+    ).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Assessment data" }));
     expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
     expect(clickAnchor).toHaveBeenCalledOnce();

@@ -142,3 +142,47 @@ export const homeownerAssessments = pgTable(
 );
 
 export type HomeownerAssessmentRow = typeof homeownerAssessments.$inferSelect;
+
+export const staffAdminAccounts = pgTable(
+  "staff_admin_accounts",
+  {
+    id: integer("id").primaryKey(),
+    username: text("username").notNull(),
+    passwordHash: text("password_hash").notNull(),
+    failedSignInCount: integer("failed_sign_in_count").notNull().default(0),
+    lockedUntil: timestamp("locked_until", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("staff_admin_accounts_username_uq").on(table.username),
+    check("staff_admin_accounts_singleton_ck", sql`${table.id} = 1`),
+    check(
+      "staff_admin_accounts_failed_sign_in_count_ck",
+      sql`${table.failedSignInCount} >= 0`,
+    ),
+  ],
+);
+
+export const staffSessions = pgTable(
+  "staff_sessions",
+  {
+    id: uuid("id").primaryKey(),
+    adminAccountId: integer("admin_account_id")
+      .notNull()
+      .references(() => staffAdminAccounts.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    uniqueIndex("staff_sessions_token_hash_uq").on(table.tokenHash),
+    index("staff_sessions_expires_at_idx").on(table.expiresAt),
+  ],
+);
