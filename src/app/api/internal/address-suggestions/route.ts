@@ -1,68 +1,18 @@
 import "server-only";
 
-import { z } from "zod";
+import { handleAddressSuggestionsRequest } from "@/modules/data-access-spike/handle-address-suggestions-request";
 import {
   authorizeInternalRequest,
   internalAccessDeniedResponse,
 } from "@/modules/internal-access/authorize-internal-request";
-import { OfficialGisGateway } from "@/modules/providers/official-gis-gateway";
-import {
-  apiErrorResponse,
-  apiJsonResponse,
-  requestCorrelationId,
-} from "@/shared/http/api-response";
-import { providerTimeoutMs } from "@/shared/http/provider-runtime";
+import { requestCorrelationId } from "@/shared/http/api-response";
 
 export const runtime = "nodejs";
 
-const querySchema = z.string().trim().min(3).max(100);
-
-export async function GET(request: Request): Promise<Response> {
-  const correlationId = requestCorrelationId(request);
+export async function POST(request: Request): Promise<Response> {
   const access = authorizeInternalRequest(request);
   if (!access.allowed) {
-    return internalAccessDeniedResponse(access, correlationId);
+    return internalAccessDeniedResponse(access, requestCorrelationId(request));
   }
-
-  const query = querySchema.safeParse(
-    new URL(request.url).searchParams.get("q") ?? "",
-  );
-  if (!query.success) {
-    return apiErrorResponse(
-      {
-        code: "INVALID_QUERY",
-        message: "Enter at least three address characters.",
-      },
-      400,
-      correlationId,
-      { "Cache-Control": "no-store" },
-    );
-  }
-
-  try {
-    const suggestions = await new OfficialGisGateway({
-      timeoutMs: providerTimeoutMs(),
-    }).suggestAddresses(query.data);
-    return apiJsonResponse(
-      {
-        suggestions: suggestions.slice(0, 8).map(({ addressId, fullAddress }) => ({
-          addressId,
-          fullAddress,
-        })),
-      },
-      200,
-      correlationId,
-      { "Cache-Control": "private, max-age=30" },
-    );
-  } catch {
-    return apiErrorResponse(
-      {
-        code: "DATA_PROVIDER_ERROR",
-        message: "The address suggestions are temporarily unavailable.",
-      },
-      502,
-      correlationId,
-      { "Cache-Control": "no-store" },
-    );
-  }
+  return handleAddressSuggestionsRequest(request);
 }

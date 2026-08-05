@@ -129,7 +129,7 @@ Required when the corresponding adapter is enabled:
 | `BLOB_READ_WRITE_TOKEN`                         | Server only            | Durable generated-PDF storage if selected             |
 | `AI_PROVIDER`, `OPENAI_API_KEY`, `OPENAI_MODEL` | Server only, optional  | Constrained narrative enhancement                     |
 | `PROVIDER_TIMEOUT_MS`, `PROVIDER_RETRY_COUNT`   | Server only            | Bounded provider behavior                             |
-| `INTERNAL_ACCESS_USERNAME/PASSWORD`             | Server only            | Required paired credentials for deployed staff UI     |
+| `INTERNAL_ACCESS_USERNAME/PASSWORD`             | Server only            | Legacy `/api/internal/*` diagnostics; never public UI  |
 | `INTERNAL_REPORT_SIGNING_SECRET`                | Server only            | Shared 32+ byte key for short-lived PDF report tokens |
 | `ANALYSIS_VERSION`, `LOG_LEVEL`                 | Server only            | Reproducibility and observability                     |
 

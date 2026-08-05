@@ -30,6 +30,7 @@ vi.mock("@/modules/reporting/deliver-assessment-report", () => ({
 }));
 
 import { POST } from "@/app/api/internal/assessments/route";
+import { POST as POST_PUBLIC } from "@/app/api/public/assessments/route";
 
 const snapshotSigningKey = "test-assessment-snapshot-signing-key-32-bytes";
 const snapshotService = createAssessmentSnapshotService(snapshotSigningKey);
@@ -145,6 +146,21 @@ describe("POST /api/internal/assessments", () => {
     );
 
     expect(response.status).toBe(503);
+    expect(saveHomeownerAssessment).not.toHaveBeenCalled();
+  });
+
+  it("lets an anonymous deployed visitor reach public submission validation", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/assessments", {
+        method: "POST",
+        body: JSON.stringify({ ...validSubmission, homeowner: {} }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(getDb).not.toHaveBeenCalled();
     expect(saveHomeownerAssessment).not.toHaveBeenCalled();
   });
 

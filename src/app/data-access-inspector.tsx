@@ -105,10 +105,12 @@ export function DataAccessInspector() {
       setIsSuggesting(true);
       setSuggestionMessage(null);
       try {
-        const response = await fetch(
-          `/api/internal/address-suggestions?q=${encodeURIComponent(query)}`,
-          { signal: controller.signal },
-        );
+        const response = await fetch("/api/public/address-suggestions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
+          signal: controller.signal,
+        });
         if (!response.ok) {
           throw new Error("Address suggestions are temporarily unavailable.");
         }
@@ -173,7 +175,7 @@ export function DataAccessInspector() {
     setSuggestionMessage(null);
 
     try {
-      const response = await fetch("/api/internal/fast-property-view", {
+      const response = await fetch("/api/public/property-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -247,7 +249,7 @@ export function DataAccessInspector() {
     requestId: number,
   ) {
     try {
-      const response = await fetch("/api/internal/fast-property-view/stages", {
+      const response = await fetch("/api/public/property-check/stages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -311,7 +313,7 @@ export function DataAccessInspector() {
     detailedRequestInFlightRef.current = true;
     setIsLoadingDetailed(true);
     try {
-      const response = await fetch("/api/internal/fast-property-view/stages", {
+      const response = await fetch("/api/public/property-check/stages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

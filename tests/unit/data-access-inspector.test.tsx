@@ -725,7 +725,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       basemapApiKey: "test-key",
     });
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      if (String(input).includes("/fast-property-view/stages")) {
+      if (String(input).includes("/api/public/property-check/stages")) {
         return Response.json({
           data: {
             boundary: fastResult.boundary,
@@ -763,7 +763,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     await user.click(screen.getByRole("button", { name: "Retry fast view" }));
     expect(
       fetchMock.mock.calls.filter(
-        ([input]) => String(input) === "/api/internal/fast-property-view",
+        ([input]) => String(input) === "/api/public/property-check",
       ),
     ).toHaveLength(2);
   });

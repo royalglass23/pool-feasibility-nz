@@ -4,7 +4,7 @@ import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 test("keeps the saved preliminary report visible when homeowner email needs retry", async ({
   page,
 }) => {
-  await page.route("**/api/internal/fast-property-view", async (route) => {
+  await page.route("**/api/public/property-check", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -46,7 +46,7 @@ test("keeps the saved preliminary report visible when homeowner email needs retr
     });
   });
   await page.route(
-    "**/api/internal/fast-property-view/stages",
+    "**/api/public/property-check/stages",
     async (route) => {
       await route.fulfill({
         status: 200,
@@ -89,7 +89,7 @@ test("keeps the saved preliminary report visible when homeowner email needs retr
       });
     },
   );
-  await page.route("**/api/internal/assessments", async (route) => {
+  await page.route("**/api/public/assessments", async (route) => {
     const submission = route.request().postDataJSON();
     expect(submission).toMatchObject({
       assessmentSnapshot: "server-issued-stage-snapshot",

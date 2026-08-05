@@ -53,7 +53,7 @@ export function HomeownerSubmissionForm({
     setError(null);
 
     try {
-      const response = await fetch("/api/internal/assessments", {
+      const response = await fetch("/api/public/assessments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
