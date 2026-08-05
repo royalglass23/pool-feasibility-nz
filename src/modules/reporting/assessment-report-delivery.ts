@@ -1,3 +1,6 @@
+import { getProjectTimingLabel } from "@/modules/assessment/visitor-context";
+import type { PersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
+import { getVisitorTypeLabel } from "@/modules/assessment/visitor-type";
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import { preliminaryReportFilename } from "@/modules/reporting/preliminary-report";
 import {
@@ -10,13 +13,36 @@ import { escapeHtml } from "@/shared/html/escape-html";
 export type AssessmentDeliveryChannel = "homeowner" | "servicem8";
 export type AssessmentDeliveryOutcome = "sent" | "failed" | "unchanged";
 
-export type AssessmentDeliveryClaim = {
-  channel: AssessmentDeliveryChannel;
+type AssessmentDeliveryClaimBase = {
   claimToken: string;
+};
+
+type HomeownerDeliveryClaim = AssessmentDeliveryClaimBase & {
+  channel: "homeowner";
   homeownerName: string;
   homeownerEmail: string;
   report: SavedPreliminaryReport;
 };
+
+export type ServiceM8AssessmentNotification = {
+  reference: string;
+  name: string;
+  phone: string;
+  email: string;
+  checkedAddress: string;
+  visitorType: PersistedAssessmentSubmission["homeowner"]["visitorType"] | null;
+  visitorTypeOtherDetail?: string;
+  desiredTiming: PersistedAssessmentSubmission["homeowner"]["desiredTiming"];
+  desiredTimingOtherDetail?: string;
+};
+
+type ServiceM8DeliveryClaim = AssessmentDeliveryClaimBase & {
+  channel: "servicem8";
+  notification: ServiceM8AssessmentNotification;
+};
+
+export type AssessmentDeliveryClaim =
+  HomeownerDeliveryClaim | ServiceM8DeliveryClaim;
 
 export interface AssessmentDeliveryStore {
   claim(
@@ -64,26 +90,24 @@ export async function deliverAssessmentReport(
     };
   if (activeClaims.length === 0) return outcomes;
 
-  let pdf: Buffer;
-  try {
-    pdf = await dependencies.renderPdf(activeClaims[0].report);
-  } catch {
-    await Promise.all(
-      activeClaims.map(async (claim) => {
-        outcomes[claim.channel] = "failed";
-        await dependencies.store.markFailed(
-          reference,
-          claim.channel,
-          claim.claimToken,
-          "REPORT_PDF_GENERATION_FAILED",
-        );
-      }),
-    );
-    return outcomes;
-  }
-
   await Promise.all(
     activeClaims.map(async (claim) => {
+      let pdf: Buffer | undefined;
+      if (claim.channel === "homeowner") {
+        try {
+          pdf = await dependencies.renderPdf(claim.report);
+        } catch {
+          await dependencies.store.markFailed(
+            reference,
+            claim.channel,
+            claim.claimToken,
+            "REPORT_PDF_GENERATION_FAILED",
+          );
+          outcomes[claim.channel] = "failed";
+          return;
+        }
+      }
+
       try {
         const result = await dependencies.send(
           emailForClaim(claim, pdf, dependencies),
@@ -116,20 +140,43 @@ export async function deliverAssessmentReport(
 
 function emailForClaim(
   claim: AssessmentDeliveryClaim,
-  pdf: Buffer,
+  pdf: Buffer | undefined,
   dependencies: Pick<
     AssessmentReportDeliveryDependencies,
     "from" | "serviceM8Email"
   >,
 ): ReportEmailInput {
   const homeowner = claim.channel === "homeowner";
-  const to = homeowner ? claim.homeownerEmail : dependencies.serviceM8Email;
-  const subject = homeowner
-    ? `Your preliminary pool feasibility report – ${claim.report.reference}`
-    : `New pool feasibility enquiry ${claim.report.reference} – ${claim.report.property.address}`;
-  const greeting = homeowner
-    ? `Kia ora ${claim.homeownerName},`
-    : "Kia ora Royal Glass team,";
+  if (!homeowner) {
+    const notification = claim.notification;
+    const facts = [
+      ["Reference", notification.reference],
+      ["Name", notification.name],
+      ["Phone", notification.phone],
+      ["Email", notification.email],
+      ["Checked Property Address", notification.checkedAddress],
+      ["Visitor type", visitorTypeLabel(notification)],
+      ["Project Timing", desiredTimingLabel(notification)],
+    ] as const;
+    return {
+      from: dependencies.from,
+      to: dependencies.serviceM8Email,
+      subject: `New pool feasibility enquiry ${notification.reference}`,
+      html: `<p>${facts
+        .map(
+          ([label, value]) => `<strong>${label}:</strong> ${escapeHtml(value)}`,
+        )
+        .join("<br>")}</p>`,
+      text: facts.map(([label, value]) => `${label}: ${value}`).join("\n"),
+      idempotencyKey: `assessment-report/${notification.reference}/${claim.channel}`,
+    };
+  }
+
+  if (!pdf) throw new Error("HOMEOWNER_REPORT_PDF_MISSING");
+
+  const to = claim.homeownerEmail;
+  const subject = `Your preliminary pool feasibility report - ${claim.report.reference}`;
+  const greeting = `Kia ora ${claim.homeownerName},`;
   const text = `${greeting}\n\nThe preliminary pool feasibility report for ${claim.report.property.address} is attached.\n\nReference: ${claim.report.reference}\nStatus: ${claim.report.warningState.replaceAll("_", " ")}\n\nThis is a preliminary assessment, not approval or construction advice.`;
   const html = `<p>${escapeHtml(greeting)}</p><p>The preliminary pool feasibility report for <strong>${escapeHtml(claim.report.property.address)}</strong> is attached.</p><p><strong>Reference:</strong> ${escapeHtml(claim.report.reference)}<br><strong>Status:</strong> ${escapeHtml(claim.report.warningState.replaceAll("_", " "))}</p><p>This is a preliminary assessment, not approval or construction advice.</p>`;
 
@@ -143,4 +190,22 @@ function emailForClaim(
     filename: preliminaryReportFilename(claim.report),
     idempotencyKey: `assessment-report/${claim.report.reference}/${claim.channel}`,
   };
+}
+
+function visitorTypeLabel(
+  notification: ServiceM8AssessmentNotification,
+): string {
+  if (notification.visitorType === null) return "Not captured";
+  return notification.visitorType === "other"
+    ? `Other - ${notification.visitorTypeOtherDetail ?? "Not provided"}`
+    : getVisitorTypeLabel(notification.visitorType);
+}
+
+function desiredTimingLabel(
+  notification: ServiceM8AssessmentNotification,
+): string {
+  if (notification.desiredTiming === "other") {
+    return `Other - ${notification.desiredTimingOtherDetail ?? "Not provided"}`;
+  }
+  return getProjectTimingLabel(notification.desiredTiming);
 }

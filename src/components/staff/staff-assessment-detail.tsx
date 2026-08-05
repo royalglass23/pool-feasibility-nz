@@ -1,6 +1,7 @@
 "use client";
 
 import { SavedPreliminaryReportView } from "@/components/saved-preliminary-report-view";
+import { getProjectTimingLabel } from "@/modules/assessment/visitor-context";
 import { getVisitorTypeLabel } from "@/modules/assessment/visitor-type";
 import type { StaffAssessmentDetail as StaffAssessmentDetailModel } from "@/modules/staff/staff-assessment-read-model";
 
@@ -9,17 +10,6 @@ const submittedDate = new Intl.DateTimeFormat("en-NZ", {
   timeStyle: "short",
   timeZone: "Pacific/Auckland",
 });
-
-const timingLabels: Record<
-  StaffAssessmentDetailModel["desiredTiming"],
-  string
-> = {
-  asap: "ASAP",
-  "3_months": "Within 3 months",
-  "6_months": "Within 6 months",
-  "12_months": "Within 12 months",
-  other: "Other",
-};
 
 export function StaffAssessmentDetail({
   assessment,
@@ -76,7 +66,7 @@ export function StaffAssessmentDetail({
             value={
               assessment.desiredTiming === "other"
                 ? (assessment.desiredTimingOtherDetail ?? "Other")
-                : timingLabels[assessment.desiredTiming]
+                : getProjectTimingLabel(assessment.desiredTiming)
             }
           />
           <Fact

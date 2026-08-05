@@ -358,6 +358,32 @@ async function claimAssessmentDelivery(
     )
     .returning();
   if (!assessment) return null;
+  if (channel === "servicem8") {
+    return {
+      channel,
+      claimToken,
+      notification: {
+        reference: assessment.reference,
+        name: assessment.homeownerName,
+        phone: assessment.homeownerPhone,
+        email: assessment.homeownerEmail,
+        checkedAddress: assessment.formattedAddress,
+        visitorType:
+          assessment.visitorType === null
+            ? null
+            : persistedAssessmentSubmissionSchema.shape.homeowner.shape.visitorType.parse(
+                assessment.visitorType,
+              ),
+        visitorTypeOtherDetail: assessment.visitorTypeOtherDetail ?? undefined,
+        desiredTiming:
+          persistedAssessmentSubmissionSchema.shape.homeowner.shape.desiredTiming.parse(
+            assessment.desiredTiming,
+          ),
+        desiredTimingOtherDetail:
+          assessment.desiredTimingOtherDetail ?? undefined,
+      },
+    };
+  }
   if (!assessment.reportMapImageDataUrl) {
     await markAssessmentDeliveryFailed(
       db,
