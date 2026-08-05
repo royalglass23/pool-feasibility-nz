@@ -30,6 +30,12 @@ type UtilityLayerDefinition = {
   kind: "line" | "circle";
 };
 
+const contourLayer = {
+  key: "contours",
+  color: "#475569",
+  kind: "line",
+} as const;
+
 const utilityCategories: {
   id: UtilityCategory;
   label: string;
@@ -120,16 +126,12 @@ export function FastPropertyView({
   onRetry,
   isLoadingDetailed,
   onPlacementChange,
-  onSnapshotReady,
-  onGenerateReport,
 }: {
   result: FastPropertyViewResult;
   onLoadDetailed: () => void;
   onRetry: () => void;
   isLoadingDetailed: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
-  onSnapshotReady?: (dataUrl: string | null) => void;
-  onGenerateReport?: () => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
@@ -152,6 +154,7 @@ export function FastPropertyView({
   const [utilityVisibility, setUtilityVisibility] = useState(
     allUtilityCategoriesVisible,
   );
+  const [contoursVisible, setContoursVisible] = useState(true);
   const [position, setPosition] = useState<[number, number]>(() =>
     defaultPosition(result),
   );
@@ -205,6 +208,22 @@ export function FastPropertyView({
           ? [{ definition, layer }]
           : [];
       }),
+    [result.detailedChecks],
+  );
+  const mappedContours = useMemo(
+    () =>
+      (result.detailedChecks?.layers ?? []).find(
+        (layer) =>
+          layer.key === contourLayer.key &&
+          Boolean(layer.geometry?.features.length),
+      ) ?? null,
+    [result.detailedChecks],
+  );
+  const contourResult = useMemo(
+    () =>
+      (result.detailedChecks?.layers ?? []).find(
+        (layer) => layer.key === contourLayer.key,
+      ) ?? null,
     [result.detailedChecks],
   );
   function toggleUtilityCategory(category: UtilityCategory) {
@@ -346,6 +365,12 @@ export function FastPropertyView({
           data: layer.geometry!,
         };
       }
+      if (mappedContours?.geometry) {
+        sources.contours = {
+          type: "geojson",
+          data: mappedContours.geometry,
+        };
+      }
       const layers: import("maplibre-gl").LayerSpecification[] = [];
       if (result.aerial.state === "ready") {
         sources.aerial = {
@@ -372,6 +397,18 @@ export function FastPropertyView({
             paint: { "line-color": "#0f766e", "line-width": 4 },
           },
         );
+      }
+      if (mappedContours?.geometry) {
+        layers.push({
+          id: "contours",
+          type: "line",
+          source: "contours",
+          paint: {
+            "line-color": contourLayer.color,
+            "line-width": 1.5,
+            "line-dasharray": [2, 1.5],
+          },
+        });
       }
       for (const { definition } of mappedUtilityLayers) {
         const source = `utility-${definition.key}`;
@@ -458,13 +495,6 @@ export function FastPropertyView({
           });
         }
         map.on("error", () => setMapError(true));
-        map.on("idle", () => {
-          try {
-            onSnapshotReady?.(map?.getCanvas().toDataURL("image/png") ?? null);
-          } catch {
-            onSnapshotReady?.(null);
-          }
-        });
         let interaction: "move" | "rotate" | null = null;
         map.on("mousedown", "pool-rotation-handle", (event) => {
           interaction = "rotate";
@@ -506,18 +536,24 @@ export function FastPropertyView({
     });
     return () => {
       disposed = true;
-      onSnapshotReady?.(null);
       map?.remove();
       mapInstanceRef.current = null;
     };
     // MapLibre is initialized once per resolved property. Placement geometry is
     // updated through GeoJSON source sync so pointer interaction is not rebuilt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mappedUtilityLayers, result]);
+  }, [mappedContours, mappedUtilityLayers, result]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
+    if (map.getLayer("contours")) {
+      map.setLayoutProperty(
+        "contours",
+        "visibility",
+        contoursVisible ? "visible" : "none",
+      );
+    }
     for (const { definition } of mappedUtilityLayers) {
       const layerId = `utility-${definition.key}`;
       if (map.getLayer(layerId)) {
@@ -528,7 +564,7 @@ export function FastPropertyView({
         );
       }
     }
-  }, [mappedUtilityLayers, utilityVisibility]);
+  }, [contoursVisible, mappedUtilityLayers, utilityVisibility]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -594,14 +630,40 @@ export function FastPropertyView({
             aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
           />
           <aside
-            aria-label="Utility map legend"
+            aria-label="Map layers"
             className="border-t border-slate-200 bg-white p-4 lg:border-t-0 lg:border-l"
           >
-            <h3 className="font-semibold text-slate-950">Utility legend</h3>
+            <h3 className="font-semibold text-slate-950">Map layers</h3>
             
             {result.detailedChecks ? (
-              <ul className="mt-4 space-y-3 text-sm text-slate-700">
-                {utilityCategories.map((category) => {
+              <>
+                <div className="mt-4 border-b border-slate-200 pb-4 text-sm text-slate-700">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
+                      aria-label="Contours"
+                      checked={Boolean(mappedContours) && contoursVisible}
+                      onChange={() => setContoursVisible((current) => !current)}
+                      disabled={!mappedContours}
+                      className="size-4 accent-slate-950"
+                    />
+                    <span
+                      aria-hidden="true"
+                      className="h-0 w-5 border-t-2 border-dashed"
+                      style={{ borderColor: contourLayer.color }}
+                    />
+                    <span className="font-semibold">Contours</span>
+                  </label>
+                  <p className="mt-1 ml-11 text-xs text-slate-500">
+                    {mappedContours
+                      ? "Terrain contours (2016, indicative only)"
+                      : contourResult
+                        ? "No contour geometry returned"
+                        : "Contour data was not checked"}
+                  </p>
+                </div>
+                <ul className="mt-4 space-y-3 text-sm text-slate-700">
+                  {utilityCategories.map((category) => {
                   const hasGeometry = mappedUtilityLayers.some(
                     ({ definition }) => definition.category === category.id,
                   );
@@ -631,11 +693,12 @@ export function FastPropertyView({
                       </p>
                     </li>
                   );
-                })}
-              </ul>
+                  })}
+                </ul>
+              </>
             ) : (
               <p className="mt-4 text-sm leading-6 text-slate-600">
-                Click &quot;Load detailed official checks&quot; button to see the mapped utility evidence.
+                Load detailed official checks to see contours and mapped utility evidence.
               </p>
             )}
             
@@ -720,15 +783,6 @@ export function FastPropertyView({
         )}
       </div>
       <FastPoolWarning warning={poolWarning} />
-      {onGenerateReport && (
-        <button
-          type="button"
-          onClick={onGenerateReport}
-          className="min-h-11 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-        >
-          Generate PDF report
-        </button>
-      )}
       {mapError && (
         <p role="alert" className="text-sm font-semibold text-red-700">
           The map could not load. Retry the fast view to try again.

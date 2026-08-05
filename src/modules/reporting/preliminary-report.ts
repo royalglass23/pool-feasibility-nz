@@ -71,6 +71,16 @@ export type SavedPreliminaryReport = {
   mapImageDataUrl: string;
 };
 
+export type SavedPreliminaryReportSource = Pick<
+  PersistedAssessmentSubmission,
+  | "addressEvidence"
+  | "poolLayout"
+  | "layerStates"
+  | "warnings"
+  | "recommendations"
+  | "report"
+>;
+
 const FALLBACK_CATEGORIES: SavedPreliminaryReport["categories"] = [
   ["available_space", 25],
   ["underground_services", 20],
@@ -101,7 +111,7 @@ export function buildSavedPreliminaryReport({
   reference,
   createdAt,
 }: {
-  submission: PersistedAssessmentSubmission;
+  submission: SavedPreliminaryReportSource;
   reference: string;
   createdAt: string;
 }): SavedPreliminaryReport {

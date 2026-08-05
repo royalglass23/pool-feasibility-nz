@@ -11,7 +11,10 @@ import type {
   AssessmentDeliveryClaim,
   AssessmentDeliveryStore,
 } from "@/modules/reporting/assessment-report-delivery";
-import { buildSavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
+import {
+  buildSavedPreliminaryReport,
+  type SavedPreliminaryReportSource,
+} from "@/modules/reporting/preliminary-report";
 import {
   parseStaffDeliveryState,
   type StaffAssessmentRecord,
@@ -86,7 +89,10 @@ export async function getHomeownerAssessmentById(
       homeownerPhone: true,
       homeownerEmail: true,
       homeownerAddress: true,
+      visitorType: true,
+      visitorTypeOtherDetail: true,
       desiredTiming: true,
+      desiredTimingOtherDetail: true,
       additionalInfo: true,
       boundaryStatus: true,
       feasibilityState: true,
@@ -111,10 +117,18 @@ export async function getHomeownerAssessmentById(
     homeownerPhone: assessment.homeownerPhone,
     homeownerEmail: assessment.homeownerEmail,
     homeownerAddress: assessment.homeownerAddress,
+    visitorType:
+      assessment.visitorType === null
+        ? null
+        : persistedAssessmentSubmissionSchema.shape.homeowner.shape.visitorType.parse(
+            assessment.visitorType,
+          ),
+    visitorTypeOtherDetail: assessment.visitorTypeOtherDetail,
     desiredTiming:
       persistedAssessmentSubmissionSchema.shape.homeowner.shape.desiredTiming.parse(
         assessment.desiredTiming,
       ),
+    desiredTimingOtherDetail: assessment.desiredTimingOtherDetail,
     additionalInfo: assessment.additionalInfo,
     boundaryStatus:
       persistedAssessmentSubmissionSchema.shape.addressEvidence.shape.boundaryStatus.parse(
@@ -183,7 +197,10 @@ export async function saveHomeownerAssessment(
       homeownerPhone: submission.homeowner.phone,
       homeownerEmail: submission.homeowner.email,
       homeownerAddress: submission.homeowner.address,
+      visitorType: submission.homeowner.visitorType,
+      visitorTypeOtherDetail: submission.homeowner.visitorTypeOtherDetail,
       desiredTiming: submission.homeowner.desiredTiming,
+      desiredTimingOtherDetail: submission.homeowner.desiredTimingOtherDetail,
       additionalInfo: submission.homeowner.additionalInfo,
       consentGiven: submission.homeowner.consentGiven,
       consentVersion: submission.homeowner.consentVersion,
@@ -418,21 +435,8 @@ async function markAssessmentDeliveryFailed(
 function submissionFromRow(
   assessment: schema.HomeownerAssessmentRow,
   mapImageDataUrl: string,
-): PersistedAssessmentSubmission {
+): SavedPreliminaryReportSource {
   return {
-    idempotencyKey: assessment.idempotencyKey,
-    homeowner: {
-      name: assessment.homeownerName,
-      phone: assessment.homeownerPhone,
-      email: assessment.homeownerEmail,
-      address: assessment.homeownerAddress,
-      desiredTiming: assessment.desiredTiming as
-        "asap" | "3_months" | "6_months" | "12_months",
-      additionalInfo: assessment.additionalInfo ?? undefined,
-      consentGiven: true,
-      consentVersion: assessment.consentVersion,
-      consentedAt: assessment.consentedAt.toISOString(),
-    },
     addressEvidence:
       persistedAssessmentSubmissionSchema.shape.addressEvidence.parse(
         assessment.addressEvidence,

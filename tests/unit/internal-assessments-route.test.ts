@@ -82,6 +82,7 @@ const validSubmission = {
     name: "Jane Homeowner",
     phone: "021 555 1234",
     email: "jane@example.com",
+    visitorType: "homeowner",
     desiredTiming: "3_months",
     consentGiven: true,
   },
@@ -155,6 +156,54 @@ describe("POST /api/internal/assessments", () => {
       new Request("http://127.0.0.1:3000/api/internal/assessments", {
         method: "POST",
         body: JSON.stringify({ ...validSubmission, homeowner: {} }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(getDb).not.toHaveBeenCalled();
+    expect(saveHomeownerAssessment).not.toHaveBeenCalled();
+  });
+
+  it("requires details for browser selections marked Other", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("INTERNAL_REPORT_SIGNING_SECRET", snapshotSigningKey);
+
+    const response = await POST(
+      new Request("http://127.0.0.1:3000/api/internal/assessments", {
+        method: "POST",
+        body: JSON.stringify({
+          ...validSubmission,
+          homeowner: {
+            ...validSubmission.homeowner,
+            visitorType: "other",
+            desiredTiming: "other",
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(getDb).not.toHaveBeenCalled();
+    expect(saveHomeownerAssessment).not.toHaveBeenCalled();
+  });
+
+  it("rejects whitespace-only details for browser selections marked Other", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("INTERNAL_REPORT_SIGNING_SECRET", snapshotSigningKey);
+
+    const response = await POST(
+      new Request("http://127.0.0.1:3000/api/internal/assessments", {
+        method: "POST",
+        body: JSON.stringify({
+          ...validSubmission,
+          homeowner: {
+            ...validSubmission.homeowner,
+            visitorType: "other",
+            visitorTypeOtherDetail: " \t ",
+            desiredTiming: "other",
+            desiredTimingOtherDetail: "\n",
+          },
+        }),
       }),
     );
 

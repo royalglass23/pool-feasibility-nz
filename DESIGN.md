@@ -1,6 +1,6 @@
 ---
 name: Pool Feasibility NZ
-description: Evidence-led Auckland property screening for Royal Glass staff.
+description: Evidence-led Auckland property planning guidance for homeowners and pool builders.
 colors:
   evidence-teal: "oklch(51.1% 0.096 186.391)"
   evidence-teal-deep: "oklch(43.7% 0.078 188.216)"
@@ -107,7 +107,7 @@ components:
 
 **Creative North Star: "The Evidence Desk"**
 
-The interface is a calm working surface for property investigation. It should feel like an organized evidence brief laid out for a trained operator: the preliminary decision is easy to locate, the supporting material remains close at hand, and uncertainty is never disguised as polish.
+The interface is a calm working surface for property investigation. The public entry route should feel like a clear invitation into an organised evidence brief: the first action is obvious, the map makes the value tangible, and uncertainty is never disguised as polish.
 
 The system is precise without becoming bureaucratic and responsive without becoming theatrical. Information density is welcome when it supports comparison or provenance, but long results should reveal detail progressively. Motion is reserved for state changes and feedback. The interface explicitly rejects the flashy consumer sales funnel, the generic SaaS dashboard, and any styling that could be mistaken for an official Council approval system.
 

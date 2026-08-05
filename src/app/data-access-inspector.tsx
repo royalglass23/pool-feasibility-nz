@@ -73,7 +73,6 @@ export function DataAccessInspector() {
   >(null);
   const [fastPlacementSnapshot, setFastPlacementSnapshot] =
     useState<FastPoolPlacementSnapshot | null>(null);
-  const [fastMapImage, setFastMapImage] = useState<string | null>(null);
   const fastSavedReport = useSavedAssessmentReport();
   const [error, setError] = useState<string | null>(null);
   const [addressOptions, setAddressOptions] = useState<
@@ -169,7 +168,6 @@ export function DataAccessInspector() {
     setFastResult(null);
     setFastAssessmentSnapshot(null);
     setFastPlacementSnapshot(null);
-    setFastMapImage(null);
     fastSavedReport.resetReport();
     setAddressOptions([]);
     setSuggestionMessage(null);
@@ -387,9 +385,10 @@ export function DataAccessInspector() {
             <MapPin className="size-5" aria-hidden="true" />
           </span>
           <div>
-            <h2 className="font-semibold text-slate-950">Property address</h2>
+            <h2 className="font-semibold text-slate-950">Your property address</h2>
             <p className="text-sm text-slate-500">
-              Search the nationwide LINZ NZ Addresses dataset.
+              Start with an Auckland address. We will match it against official
+              address data before showing the property view.
             </p>
           </div>
         </div>
@@ -519,14 +518,6 @@ export function DataAccessInspector() {
             }
             isLoadingDetailed={isLoadingDetailed}
             onPlacementChange={handleFastPlacementChange}
-            onSnapshotReady={setFastMapImage}
-            onGenerateReport={() => {
-              const reportDetails = document.getElementById(
-                "homeowner-details-heading",
-              );
-              reportDetails?.scrollIntoView({ behavior: "smooth" });
-              reportDetails?.focus();
-            }}
           />
           {fastSavedReport.assessment ? (
             <SavedAssessmentReportPanel

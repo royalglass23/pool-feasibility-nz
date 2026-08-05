@@ -1,0 +1,605 @@
+{
+  "id": "693867ab-96c0-4d59-b831-723c7ccd2109",
+  "prevId": "04c75c22-e184-41d3-a91a-9bf55f7e8dc1",
+  "version": "7",
+  "dialect": "postgresql",
+  "tables": {
+    "public.homeowner_assessments": {
+      "name": "homeowner_assessments",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "reference": {
+          "name": "reference",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "idempotency_key": {
+          "name": "idempotency_key",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "status": {
+          "name": "status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'new_enquiry'"
+        },
+        "homeowner_name": {
+          "name": "homeowner_name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "homeowner_phone": {
+          "name": "homeowner_phone",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "homeowner_email": {
+          "name": "homeowner_email",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "homeowner_address": {
+          "name": "homeowner_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "visitor_type": {
+          "name": "visitor_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "visitor_type_other_detail": {
+          "name": "visitor_type_other_detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "desired_timing": {
+          "name": "desired_timing",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "desired_timing_other_detail": {
+          "name": "desired_timing_other_detail",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "additional_info": {
+          "name": "additional_info",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "consent_given": {
+          "name": "consent_given",
+          "type": "boolean",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consent_version": {
+          "name": "consent_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "consented_at": {
+          "name": "consented_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "selected_address_id": {
+          "name": "selected_address_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "formatted_address": {
+          "name": "formatted_address",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "latitude": {
+          "name": "latitude",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "longitude": {
+          "name": "longitude",
+          "type": "double precision",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "boundary_status": {
+          "name": "boundary_status",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "parcel_identifier": {
+          "name": "parcel_identifier",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "address_evidence": {
+          "name": "address_evidence",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "pool_layout": {
+          "name": "pool_layout",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "layer_states": {
+          "name": "layer_states",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "warnings": {
+          "name": "warnings",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "recommendations": {
+          "name": "recommendations",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "report_data": {
+          "name": "report_data",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "report_title": {
+          "name": "report_title",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "report_summary": {
+          "name": "report_summary",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "report_map_image_data_url": {
+          "name": "report_map_image_data_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "feasibility_state": {
+          "name": "feasibility_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "analysis_version": {
+          "name": "analysis_version",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "email_delivery_state": {
+          "name": "email_delivery_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "email_delivery_attempt_count": {
+          "name": "email_delivery_attempt_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "email_delivery_last_attempted_at": {
+          "name": "email_delivery_last_attempted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_delivery_sent_at": {
+          "name": "email_delivery_sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_delivery_provider_message_id": {
+          "name": "email_delivery_provider_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_delivery_last_error_code": {
+          "name": "email_delivery_last_error_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "email_delivery_claim_token": {
+          "name": "email_delivery_claim_token",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "forwarding_state": {
+          "name": "forwarding_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'pending'"
+        },
+        "forwarding_attempt_count": {
+          "name": "forwarding_attempt_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "forwarding_last_attempted_at": {
+          "name": "forwarding_last_attempted_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "forwarding_sent_at": {
+          "name": "forwarding_sent_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "forwarding_provider_message_id": {
+          "name": "forwarding_provider_message_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "forwarding_last_error_code": {
+          "name": "forwarding_last_error_code",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "forwarding_claim_token": {
+          "name": "forwarding_claim_token",
+          "type": "uuid",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "archived_at": {
+          "name": "archived_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        }
+      },
+      "indexes": {
+        "homeowner_assessments_reference_uq": {
+          "name": "homeowner_assessments_reference_uq",
+          "columns": [
+            {
+              "expression": "reference",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "homeowner_assessments_idempotency_key_uq": {
+          "name": "homeowner_assessments_idempotency_key_uq",
+          "columns": [
+            {
+              "expression": "idempotency_key",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "homeowner_assessments_created_at_idx": {
+          "name": "homeowner_assessments_created_at_idx",
+          "columns": [
+            {
+              "expression": "created_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "homeowner_assessments_status_idx": {
+          "name": "homeowner_assessments_status_idx",
+          "columns": [
+            {
+              "expression": "status",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "homeowner_assessments_status_ck": {
+          "name": "homeowner_assessments_status_ck",
+          "value": "\"homeowner_assessments\".\"status\" in ('new_enquiry', 'archived')"
+        },
+        "homeowner_assessments_timing_ck": {
+          "name": "homeowner_assessments_timing_ck",
+          "value": "\"homeowner_assessments\".\"desired_timing\" in ('asap', '3_months', '6_months', '12_months', 'other')"
+        },
+        "homeowner_assessments_visitor_type_ck": {
+          "name": "homeowner_assessments_visitor_type_ck",
+          "value": "\"homeowner_assessments\".\"visitor_type\" in ('homeowner', 'pool_builder', 'other')"
+        },
+        "homeowner_assessments_other_detail_ck": {
+          "name": "homeowner_assessments_other_detail_ck",
+          "value": "(\"homeowner_assessments\".\"visitor_type\" <> 'other' or length(trim(coalesce(\"homeowner_assessments\".\"visitor_type_other_detail\", ''))) > 0) and (\"homeowner_assessments\".\"desired_timing\" <> 'other' or length(trim(coalesce(\"homeowner_assessments\".\"desired_timing_other_detail\", ''))) > 0)"
+        },
+        "homeowner_assessments_consent_ck": {
+          "name": "homeowner_assessments_consent_ck",
+          "value": "\"homeowner_assessments\".\"consent_given\" = true"
+        },
+        "homeowner_assessments_feasibility_ck": {
+          "name": "homeowner_assessments_feasibility_ck",
+          "value": "\"homeowner_assessments\".\"feasibility_state\" in ('no_warning', 'needs_checking', 'blocked')"
+        },
+        "homeowner_assessments_delivery_ck": {
+          "name": "homeowner_assessments_delivery_ck",
+          "value": "\"homeowner_assessments\".\"email_delivery_state\" in ('pending', 'sending', 'sent', 'failed') and \"homeowner_assessments\".\"forwarding_state\" in ('pending', 'sending', 'sent', 'failed')"
+        },
+        "homeowner_assessments_delivery_attempts_ck": {
+          "name": "homeowner_assessments_delivery_attempts_ck",
+          "value": "\"homeowner_assessments\".\"email_delivery_attempt_count\" >= 0 and \"homeowner_assessments\".\"forwarding_attempt_count\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.staff_admin_accounts": {
+      "name": "staff_admin_accounts",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "username": {
+          "name": "username",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "password_hash": {
+          "name": "password_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "failed_sign_in_count": {
+          "name": "failed_sign_in_count",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "default": 0
+        },
+        "locked_until": {
+          "name": "locked_until",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        },
+        "updated_at": {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "staff_admin_accounts_username_uq": {
+          "name": "staff_admin_accounts_username_uq",
+          "columns": [
+            {
+              "expression": "username",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {},
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {
+        "staff_admin_accounts_singleton_ck": {
+          "name": "staff_admin_accounts_singleton_ck",
+          "value": "\"staff_admin_accounts\".\"id\" = 1"
+        },
+        "staff_admin_accounts_failed_sign_in_count_ck": {
+          "name": "staff_admin_accounts_failed_sign_in_count_ck",
+          "value": "\"staff_admin_accounts\".\"failed_sign_in_count\" >= 0"
+        }
+      },
+      "isRLSEnabled": false
+    },
+    "public.staff_sessions": {
+      "name": "staff_sessions",
+      "schema": "",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "uuid",
+          "primaryKey": true,
+          "notNull": true
+        },
+        "admin_account_id": {
+          "name": "admin_account_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "token_hash": {
+          "name": "token_hash",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "expires_at": {
+          "name": "expires_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "created_at": {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "now()"
+        }
+      },
+      "indexes": {
+        "staff_sessions_token_hash_uq": {
+          "name": "staff_sessions_token_hash_uq",
+          "columns": [
+            {
+              "expression": "token_hash",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": true,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        },
+        "staff_sessions_expires_at_idx": {
+          "name": "staff_sessions_expires_at_idx",
+          "columns": [
+            {
+              "expression": "expires_at",
+              "isExpression": false,
+              "asc": true,
+              "nulls": "last"
+            }
+          ],
+          "isUnique": false,
+          "concurrently": false,
+          "method": "btree",
+          "with": {}
+        }
+      },
+      "foreignKeys": {
+        "staff_sessions_admin_account_id_staff_admin_accounts_id_fk": {
+          "name": "staff_sessions_admin_account_id_staff_admin_accounts_id_fk",
+          "tableFrom": "staff_sessions",
+          "tableTo": "staff_admin_accounts",
+          "columnsFrom": [
+            "admin_account_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {},
+      "uniqueConstraints": {},
+      "policies": {},
+      "checkConstraints": {},
+      "isRLSEnabled": false
+    }
+  },
+  "enums": {},
+  "schemas": {},
+  "sequences": {},
+  "roles": {},
+  "policies": {},
+  "views": {},
+  "_meta": {
+    "columns": {},
+    "schemas": {},
+    "tables": {}
+  }
+}

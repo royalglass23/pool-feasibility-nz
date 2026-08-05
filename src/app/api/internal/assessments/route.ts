@@ -20,7 +20,7 @@ import {
   verifyAssessmentSnapshot,
 } from "@/modules/assessment/assessment-snapshot";
 import { deliverAssessmentReportByReference } from "@/modules/reporting/deliver-assessment-report";
-import { isDevelopmentStaffAccessAllowed } from "@/modules/staff/development-staff-access";
+import { staffSessionDeniedResponse } from "@/modules/staff/staff-session";
 import {
   apiErrorResponse,
   apiJsonResponse,
@@ -34,17 +34,8 @@ export const runtime = "nodejs";
 
 export async function GET(request: Request) {
   const correlationId = requestCorrelationId(request);
-  if (!isDevelopmentStaffAccessAllowed()) {
-    return apiErrorResponse(
-      {
-        code: "ACCESS_CONTROL_MISCONFIGURED",
-        message: "The development-only staff register is unavailable.",
-      },
-      503,
-      correlationId,
-      { "Cache-Control": "no-store" },
-    );
-  }
+  const sessionDenied = await staffSessionDeniedResponse(request, correlationId);
+  if (sessionDenied) return sessionDenied;
 
   const assessments = await listHomeownerAssessments(getDb());
   return apiJsonResponse({ data: { assessments } }, 200, correlationId, {

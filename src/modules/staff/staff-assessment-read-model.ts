@@ -50,7 +50,10 @@ export type StaffAssessmentRecord = {
   homeownerPhone: string;
   homeownerEmail: string;
   homeownerAddress: string;
+  visitorType: PersistedAssessmentSubmission["homeowner"]["visitorType"] | null;
+  visitorTypeOtherDetail: string | null;
   desiredTiming: PersistedAssessmentSubmission["homeowner"]["desiredTiming"];
+  desiredTimingOtherDetail: string | null;
   additionalInfo: string | null;
   boundaryStatus: PersistedAssessmentSubmission["addressEvidence"]["boundaryStatus"];
   feasibilityState: StaffFeasibilityState;

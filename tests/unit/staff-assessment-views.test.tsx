@@ -89,6 +89,54 @@ describe("staff assessment dashboard", () => {
 });
 
 describe("staff assessment detail", () => {
+  it("shows that a legacy visitor type was not captured", () => {
+    render(
+      <StaffAssessmentDetail
+        assessment={{
+          ...staffAssessmentDetail,
+          visitorType: null,
+          visitorTypeOtherDetail: null,
+        }}
+        onBack={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Not captured")).toBeVisible();
+  });
+
+  it("renders saved Other details in plain language", () => {
+    render(
+      <StaffAssessmentDetail
+        assessment={{
+          ...staffAssessmentDetail,
+          visitorType: "other",
+          visitorTypeOtherDetail: "Landscape architect",
+          desiredTiming: "other",
+          desiredTimingOtherDetail: "Next summer",
+        }}
+        onBack={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Landscape architect")).toBeVisible();
+    expect(screen.getByText("Next summer")).toBeVisible();
+  });
+
+  it("renders Pool Builder as the canonical saved visitor type", () => {
+    render(
+      <StaffAssessmentDetail
+        assessment={{
+          ...staffAssessmentDetail,
+          visitorType: "pool_builder",
+          visitorTypeOtherDetail: null,
+        }}
+        onBack={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Pool Builder")).toBeVisible();
+  });
+
   it("renders the complete shared saved report without assessment edit controls", () => {
     const homeownerView = render(
       <SavedPreliminaryReportView
@@ -113,6 +161,8 @@ describe("staff assessment detail", () => {
     expect(
       screen.getByRole("heading", { name: "Jane Homeowner" }),
     ).toBeVisible();
+    expect(screen.getByText("I am a")).toBeVisible();
+    expect(screen.getByText("Homeowner")).toBeVisible();
     expect(screen.getByText(savedPreliminaryReport.summary)).toBeVisible();
     expect(screen.getByAltText("Saved property and pool map")).toHaveAttribute(
       "src",

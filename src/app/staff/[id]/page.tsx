@@ -1,6 +1,9 @@
-import { notFound } from "next/navigation";
+import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { StaffAssessmentDetailClient } from "@/components/staff/staff-assessment-detail-client";
-import { isDevelopmentStaffAccessAllowed } from "@/modules/staff/development-staff-access";
+import { staffSessionConfig } from "@/db/repositories/staff-auth-repository";
+import { hasAuthenticatedStaffSessionToken } from "@/modules/staff/staff-session";
+import { signOutStaffAdmin } from "../sign-in/actions";
 
 export const dynamic = "force-dynamic";
 
@@ -9,15 +12,27 @@ export default async function StaffAssessmentPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  if (!isDevelopmentStaffAccessAllowed()) notFound();
+  const sessionToken = (await cookies()).get(
+    staffSessionConfig.cookieName,
+  )?.value;
+  if (!(await hasAuthenticatedStaffSessionToken(sessionToken))) {
+    redirect("/staff/sign-in");
+  }
   const { id } = await params;
 
   return (
     <main className="min-h-screen bg-[radial-gradient(circle_at_top_right,_#ccfbf1_0,_transparent_30%),linear-gradient(180deg,_#f8fafc_0%,_#eef2f6_100%)] px-4 py-8 sm:px-6 sm:py-12">
       <div className="mx-auto w-full max-w-6xl">
-        <p className="mb-5 inline-flex rounded-full border border-amber-700/20 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-900">
-          Development-only · no staff authentication · read-only detail
-        </p>
+        <div className="mb-5 flex justify-end">
+          <form action={signOutStaffAdmin}>
+            <button
+              className="min-h-10 rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-700 shadow-sm hover:border-teal-700/40 hover:text-teal-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+              type="submit"
+            >
+              Sign out
+            </button>
+          </form>
+        </div>
         <StaffAssessmentDetailClient id={id} />
       </div>
     </main>

@@ -107,6 +107,7 @@ export function buildTestPersistedAssessmentSubmission(
       phone: "021 555 0249",
       email: "mt-249-integration@example.test",
       address: "1 MT-249 Test Street, Auckland",
+      visitorType: "homeowner",
       desiredTiming: "3_months",
       consentGiven: true,
       consentVersion: "mt-249-integration-v1",

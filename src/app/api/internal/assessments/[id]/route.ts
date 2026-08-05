@@ -3,7 +3,7 @@ import {
   getHomeownerAssessmentById,
   getSavedPreliminaryReportById,
 } from "@/db/repositories/homeowner-assessment-repository";
-import { isDevelopmentStaffAccessAllowed } from "@/modules/staff/development-staff-access";
+import { staffSessionDeniedResponse } from "@/modules/staff/staff-session";
 import {
   apiErrorResponse,
   apiJsonResponse,
@@ -17,17 +17,8 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const correlationId = requestCorrelationId(request);
-  if (!isDevelopmentStaffAccessAllowed()) {
-    return apiErrorResponse(
-      {
-        code: "ACCESS_CONTROL_MISCONFIGURED",
-        message: "The development-only staff detail is unavailable.",
-      },
-      503,
-      correlationId,
-      { "Cache-Control": "no-store" },
-    );
-  }
+  const sessionDenied = await staffSessionDeniedResponse(request, correlationId);
+  if (sessionDenied) return sessionDenied;
 
   const { id } = await params;
   const db = getDb();

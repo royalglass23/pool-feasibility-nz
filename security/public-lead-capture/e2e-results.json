@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "feature": "public-lead-capture",
+  "commit": "cc3f9204a772df716852576186c35079aabbed90",
+  "candidateState": "mixed-uncommitted-working-tree",
+  "command": "npx.cmd playwright test tests/e2e/homeowner-report.spec.ts tests/e2e/staff-assessments.spec.ts --workers=1 --retries=0",
+  "retries": 0,
+  "environment": {
+    "name": "blocked-local-diagnostic",
+    "baseUrl": "http://127.0.0.1:3000",
+    "production": false,
+    "fingerprint": "sha256:101cbcb31cadc38941fea0739fb5c1e49b278f9a09537008e50f8e3d5146f330"
+  },
+  "configHash": "sha256:c2644409dd3c08aee17cad696609e000aa64941c94caf1932b2ce0ea123edcb8",
+  "fixtureVersion": "sha256:0692dc1cdbef636765a3096fb977fd605c9ca230ee90fdbb30fa16aa0a974091",
+  "matrixHash": "sha256:02e86146f0a7f5279215b23845b5494ac383747f84d5cf4cec725e577c4b117d",
+  "projects": ["chromium"],
+  "coverage": {
+    "required": 7,
+    "covered": 0
+  },
+  "counts": {
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "flaky": 0
+  },
+  "artifacts": {
+    "report": "not-generated: strict real-boundary security lane is unavailable",
+    "traces": []
+  },
+  "verdict": "BLOCKED"
+}

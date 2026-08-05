@@ -1,13 +1,10 @@
 import "server-only";
 
-import {
-  authorizeInternalRequest,
-  internalAccessDeniedResponse,
-} from "@/modules/internal-access/authorize-internal-request";
 import { getDb } from "@/db/client";
 import { getSavedPreliminaryReportById } from "@/db/repositories/homeowner-assessment-repository";
 import { generatePreliminaryReportPdf } from "@/modules/reporting/report-renderer";
 import { preliminaryReportFilename } from "@/modules/reporting/preliminary-report";
+import { staffSessionDeniedResponse } from "@/modules/staff/staff-session";
 import {
   apiErrorResponse,
   requestCorrelationId,
@@ -22,10 +19,8 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const correlationId = requestCorrelationId(request);
-  const access = authorizeInternalRequest(request);
-  if (!access.allowed) {
-    return internalAccessDeniedResponse(access, correlationId);
-  }
+  const sessionDenied = await staffSessionDeniedResponse(request, correlationId);
+  if (sessionDenied) return sessionDenied;
   const { id } = await context.params;
   if (!ASSESSMENT_ID_PATTERN.test(id)) {
     return apiErrorResponse(
