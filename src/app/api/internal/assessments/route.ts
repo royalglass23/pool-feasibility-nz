@@ -1,161 +1,22 @@
-import { after } from "next/server";
-import pino from "pino";
+import "server-only";
+
+import {
+  GET,
+  POST as handleAssessmentSubmission,
+} from "@/modules/assessment/handle-assessment-requests";
 import {
   authorizeInternalRequest,
   internalAccessDeniedResponse,
 } from "@/modules/internal-access/authorize-internal-request";
-import { getDb } from "@/db/client";
-import {
-  getSavedPreliminaryReportById,
-  listHomeownerAssessments,
-  saveHomeownerAssessment,
-} from "@/db/repositories/homeowner-assessment-repository";
-import {
-  buildServerAssessmentSubmission,
-  parseBrowserAssessmentSaveRequest,
-  ServerAssessmentSubmissionError,
-} from "@/modules/assessment/server-assessment-submission";
-import {
-  AssessmentSnapshotValidationError,
-  verifyAssessmentSnapshot,
-} from "@/modules/assessment/assessment-snapshot";
-import { deliverAssessmentReportByReference } from "@/modules/reporting/deliver-assessment-report";
-import { staffSessionDeniedResponse } from "@/modules/staff/staff-session";
-import {
-  apiErrorResponse,
-  apiJsonResponse,
-  requestCorrelationId,
-} from "@/shared/http/api-response";
-import { ZodError } from "zod";
+import { requestCorrelationId } from "@/shared/http/api-response";
 
-const MAX_BODY_BYTES = 6_500_000;
-const logger = pino({ base: undefined });
+export { GET };
 export const runtime = "nodejs";
 
-export async function GET(request: Request) {
-  const correlationId = requestCorrelationId(request);
-  const sessionDenied = await staffSessionDeniedResponse(request, correlationId);
-  if (sessionDenied) return sessionDenied;
-
-  const assessments = await listHomeownerAssessments(getDb());
-  return apiJsonResponse({ data: { assessments } }, 200, correlationId, {
-    "Cache-Control": "no-store",
-  });
-}
-
-export async function POST(request: Request) {
-  const correlationId = requestCorrelationId(request);
+export async function POST(request: Request): Promise<Response> {
   const access = authorizeInternalRequest(request);
-  if (!access.allowed)
-    return internalAccessDeniedResponse(access, correlationId);
-
-  const body = await request.arrayBuffer();
-  if (body.byteLength > MAX_BODY_BYTES) {
-    return apiErrorResponse(
-      {
-        code: "REQUEST_TOO_LARGE",
-        message: "The submitted assessment is too large.",
-      },
-      413,
-      correlationId,
-      { "Cache-Control": "no-store" },
-    );
+  if (!access.allowed) {
+    return internalAccessDeniedResponse(access, requestCorrelationId(request));
   }
-
-  let input: unknown;
-  try {
-    input = JSON.parse(new TextDecoder().decode(body));
-  } catch {
-    return apiErrorResponse(
-      { code: "INVALID_REQUEST", message: "Submit one valid assessment." },
-      400,
-      correlationId,
-      { "Cache-Control": "no-store" },
-    );
-  }
-
-  let parsed;
-  try {
-    const browserRequest = parseBrowserAssessmentSaveRequest(input);
-    const snapshot = verifyAssessmentSnapshot(
-      browserRequest.assessmentSnapshot,
-    );
-    parsed = await buildServerAssessmentSubmission({
-      request: browserRequest,
-      snapshot,
-    });
-  } catch (error) {
-    if (!(
-      error instanceof ZodError ||
-      error instanceof AssessmentSnapshotValidationError ||
-      error instanceof ServerAssessmentSubmissionError
-    )) {
-      throw error;
-    }
-    return apiErrorResponse(
-      {
-        code: "INVALID_REQUEST",
-        message: "The assessment details are incomplete or invalid.",
-      },
-      400,
-      correlationId,
-      { "Cache-Control": "no-store" },
-    );
-  }
-  const db = getDb();
-  const result = await saveHomeownerAssessment(db, parsed);
-  if (!result.created) {
-    return apiErrorResponse(
-      {
-        code: "ASSESSMENT_SNAPSHOT_ALREADY_USED",
-        message: "This saved assessment has already been submitted.",
-      },
-      409,
-      correlationId,
-      { "Cache-Control": "no-store" },
-    );
-  }
-  const report = await getSavedPreliminaryReportById(db, result.assessment.id);
-  if (!report) {
-    return apiErrorResponse(
-      {
-        code: "REPORT_GENERATION_FAILED",
-        message: "The saved preliminary report is not available.",
-      },
-      500,
-      correlationId,
-      { "Cache-Control": "no-store" },
-    );
-  }
-  after(async () => {
-    try {
-      await deliverAssessmentReportByReference(result.assessment.reference);
-    } catch {
-      logger.error({
-        event: "assessment_report_delivery",
-        outcome: "failed",
-        reference: result.assessment.reference,
-        correlationId,
-      });
-    }
-  });
-
-  return apiJsonResponse(
-    {
-      assessment: {
-        id: result.assessment.id,
-        reference: result.assessment.reference,
-        status: result.assessment.status,
-        created: result.created,
-        report,
-        delivery: {
-          homeowner: result.assessment.emailDeliveryState,
-          servicem8: result.assessment.forwardingState,
-        },
-      },
-    },
-    result.created ? 201 : 200,
-    correlationId,
-    { "Cache-Control": "no-store" },
-  );
+  return handleAssessmentSubmission(request);
 }

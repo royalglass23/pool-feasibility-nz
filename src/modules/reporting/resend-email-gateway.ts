@@ -1,13 +1,17 @@
-export type ReportEmailInput = {
+type EmailMessage = {
   from: string;
   to: string;
   subject: string;
   html: string;
   text: string;
-  attachment: Buffer;
-  filename: string;
   idempotencyKey: string;
 };
+
+export type ReportEmailInput = EmailMessage &
+  (
+    | { attachment: Buffer; filename: string }
+    | { attachment?: never; filename?: never }
+  );
 
 export type ConfiguredResendEmailInput = ReportEmailInput & {
   apiKey: string;
@@ -47,12 +51,16 @@ export async function sendResendEmail(
           subject: input.subject,
           html: input.html,
           text: input.text,
-          attachments: [
-            {
-              content: input.attachment.toString("base64"),
-              filename: input.filename,
-            },
-          ],
+          ...(input.attachment
+            ? {
+                attachments: [
+                  {
+                    content: input.attachment.toString("base64"),
+                    filename: input.filename,
+                  },
+                ],
+              }
+            : {}),
         }),
         signal: controller.signal,
       },

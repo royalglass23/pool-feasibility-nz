@@ -15,6 +15,10 @@ import {
   buildSavedPreliminaryReport,
   type SavedPreliminaryReportSource,
 } from "@/modules/reporting/preliminary-report";
+import type {
+  ReportRequestRetentionRun,
+  ReportRequestRetentionStore,
+} from "@/modules/reporting/report-request-retention";
 import {
   parseStaffDeliveryState,
   type StaffAssessmentRecord,
@@ -22,6 +26,7 @@ import {
 } from "@/modules/staff/staff-assessment-read-model";
 
 type Database = NeonHttpDatabase<typeof schema>;
+const DELIVERY_CLAIM_STALE_MS = 5 * 60 * 1_000;
 
 export async function listHomeownerAssessments(
   db: Database,
@@ -241,7 +246,60 @@ export async function saveHomeownerAssessment(
   return { created: false, assessment: raced };
 }
 
-const DELIVERY_CLAIM_STALE_MS = 5 * 60 * 1_000;
+export function createReportRequestRetentionStore(
+  db: Database,
+): ReportRequestRetentionStore {
+  return {
+    async deleteEligibleAndRecordRun(
+      run: Omit<ReportRequestRetentionRun, "deletedCount">,
+    ) {
+      const activeAfter = new Date(
+        run.ranAt.getTime() - DELIVERY_CLAIM_STALE_MS,
+      );
+      const deleted = sql.identifier("deleted");
+      const recorded = sql.identifier("recorded");
+      const deletedCount = sql.identifier("deleted_count");
+      const result = await db.execute<{ deleted_count: number | string }>(sql`
+        with ${deleted} as (
+          delete from ${schema.homeownerAssessments}
+          where ${schema.homeownerAssessments.createdAt} <= ${run.cutoffAt}
+            and (
+              ${schema.homeownerAssessments.emailDeliveryState} <> ${"sending"}
+              or ${schema.homeownerAssessments.emailDeliveryLastAttemptedAt} is null
+              or ${schema.homeownerAssessments.emailDeliveryLastAttemptedAt} <= ${activeAfter}
+            )
+            and (
+              ${schema.homeownerAssessments.forwardingState} <> ${"sending"}
+              or ${schema.homeownerAssessments.forwardingLastAttemptedAt} is null
+              or ${schema.homeownerAssessments.forwardingLastAttemptedAt} <= ${activeAfter}
+            )
+          returning ${schema.homeownerAssessments.id}
+        ), ${recorded} as (
+          insert into ${schema.reportRequestRetentionRuns} (
+            ${sql.identifier("id")},
+            ${sql.identifier("ran_at")},
+            ${sql.identifier("cutoff_at")},
+            ${deletedCount}
+          )
+          select
+            ${run.runId}::uuid,
+            ${run.ranAt}::timestamptz,
+            ${run.cutoffAt}::timestamptz,
+            count(*)::integer
+          from ${deleted}
+          returning ${deletedCount}
+        )
+        select ${deletedCount} from ${recorded}
+      `);
+      const value = result.rows[0]?.deleted_count;
+      if (value === undefined) {
+        throw new Error("Retention statement returned no audit result.");
+      }
+      return Number(value);
+    },
+  };
+}
+
 const assessmentTable = schema.homeownerAssessments;
 const deliveryChannelConfig = {
   homeowner: {
@@ -358,6 +416,32 @@ async function claimAssessmentDelivery(
     )
     .returning();
   if (!assessment) return null;
+  if (channel === "servicem8") {
+    return {
+      channel,
+      claimToken,
+      notification: {
+        reference: assessment.reference,
+        name: assessment.homeownerName,
+        phone: assessment.homeownerPhone,
+        email: assessment.homeownerEmail,
+        checkedAddress: assessment.formattedAddress,
+        visitorType:
+          assessment.visitorType === null
+            ? null
+            : persistedAssessmentSubmissionSchema.shape.homeowner.shape.visitorType.parse(
+                assessment.visitorType,
+              ),
+        visitorTypeOtherDetail: assessment.visitorTypeOtherDetail ?? undefined,
+        desiredTiming:
+          persistedAssessmentSubmissionSchema.shape.homeowner.shape.desiredTiming.parse(
+            assessment.desiredTiming,
+          ),
+        desiredTimingOtherDetail:
+          assessment.desiredTimingOtherDetail ?? undefined,
+      },
+    };
+  }
   if (!assessment.reportMapImageDataUrl) {
     await markAssessmentDeliveryFailed(
       db,

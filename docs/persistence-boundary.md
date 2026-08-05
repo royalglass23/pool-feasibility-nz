@@ -32,8 +32,9 @@ Report delivery needs these server-only settings:
 - `SERVICEM8_FORWARD_EMAIL`
 
 Missing delivery configuration records a delivery failure; it does not remove the saved assessment
-or browser report. The ServiceM8 destination receives the same generated PDF attachment by email.
-No ServiceM8 API job is created.
+or browser report. The ServiceM8 destination receives a limited contact, property, visitor-type,
+and timing notification through Resend. It does not receive the report PDF, map image, or a
+saved-report link. No ServiceM8 API job is created.
 
 `GET /api/internal/assessments/:id/report` regenerates the PDF only from the saved aggregate and
 map. It uses the same development-only internal access boundary as assessment submission.
@@ -52,3 +53,20 @@ writes and export any rows that use the new fields. Remove the MT-253 detail and
 checks, migrate every `desired_timing = 'other'` row to an explicitly approved legacy value or
 retain it outside the table, restore the previous timing check, and only then drop the three new
 columns. Never discard captured visitor details as an implicit rollback step.
+
+MT-258 adds a 12-month report-request retention boundary. A daily Vercel Cron GET calls
+`/api/cron/report-request-retention` with the configured `CRON_SECRET` bearer token. The operation
+calculates a calendar-accurate 12-month cutoff, deletes eligible `homeowner_assessments` rows, and
+inserts one `report_request_retention_runs` audit row in one atomic PostgreSQL statement. Pending,
+failed, sent, and abandoned delivery claims are eligible at the cutoff. A claim updated to `sending`
+within the delivery system's five-minute active window is skipped, so retention cannot delete a row
+while its email or ServiceM8 delivery is active; the next daily run handles it after the claim
+finishes or becomes stale. A repeat run is safe and records a zero deletion count when nothing
+remains eligible. The audit table contains only the run ID, run time, cutoff time, and deletion
+count; it does not retain contact, address, layout, map, or report data.
+
+The scheduled database operation covers the copy saved in Neon. Resend email data and the
+ServiceM8 notification are separate linked processor copies. Production traffic must not be enabled
+until the provider-retention launch gate in `docs/privacy-request-handling.md` has evidence that each
+enabled path meets the same 12-month requirement. See that runbook for the gate and for verified
+access, correction, and early-deletion requests.

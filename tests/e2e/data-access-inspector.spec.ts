@@ -233,7 +233,7 @@ test("shows explicit provider failure after deterministic candidates are found",
       body: JSON.stringify({ data: { ...dataAccessResult, datasets } }),
     });
   });
-  await page.route("**/api/internal/aerial-conflicts", (route) =>
+  await page.route("**/api/public/aerial-conflicts", (route) =>
     route.abort("failed"),
   );
 
@@ -467,7 +467,7 @@ test("previews all three report pages and downloads the generated PDF", async ({
       }),
     });
   });
-  await page.route("**/api/internal/report/pdf", async (route) => {
+  await page.route("**/api/public/report/pdf", async (route) => {
     const request = route.request().postDataJSON() as {
       reportToken: string;
       mapImageDataUrl: string;
@@ -524,7 +524,7 @@ test("prints all three preview pages when server PDF generation is unavailable",
       }),
     });
   });
-  await page.route("**/api/internal/report/pdf", async (route) => {
+  await page.route("**/api/public/report/pdf", async (route) => {
     await route.fulfill({
       status: 502,
       contentType: "application/json",
@@ -593,7 +593,7 @@ test("downloads the PDF with an API-issued token and browser-captured map", asyn
   });
   await page.getByRole("button", { name: "Generate PDF report" }).click();
 
-  const responsePromise = page.waitForResponse("**/api/internal/report/pdf");
+  const responsePromise = page.waitForResponse("**/api/public/report/pdf");
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download PDF" }).click();
   const response = await responsePromise;
@@ -643,7 +643,12 @@ test("selects an address suggestion and opens the fast property view", async ({
   page,
 }) => {
   const submittedBodies: unknown[] = [];
-  await page.route("**/api/internal/address-suggestions?*", async (route) => {
+  await page.route("**/api/public/address-suggestions", async (route) => {
+    expect(route.request().method()).toBe("POST");
+    expect(route.request().url()).not.toContain(address);
+    expect(route.request().postDataJSON()).toEqual({
+      query: "Bahari Drive, Ranui, Auckland",
+    });
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -652,7 +657,7 @@ test("selects an address suggestion and opens the fast property view", async ({
       }),
     });
   });
-  await page.route("**/api/internal/fast-property-view", async (route) => {
+  await page.route("**/api/public/property-check", async (route) => {
     submittedBodies.push(route.request().postDataJSON());
     await route.fulfill({
       status: 200,
@@ -858,7 +863,7 @@ test("shows the honest no-clear-candidate wording for a controlled screening res
 test("revokes verified imagery and retries when a LINZ tile fails", async ({
   page,
 }) => {
-  await page.route("**/api/internal/aerial/tiles/**", async (route) => {
+  await page.route("**/api/public/aerial/tiles/**", async (route) => {
     await route.fulfill({
       status: 502,
       contentType: "application/json",
@@ -893,7 +898,7 @@ test("revokes verified imagery and retries when a LINZ tile fails", async ({
 });
 
 async function stubAerialTiles(page: import("@playwright/test").Page) {
-  await page.route("**/api/internal/aerial/tiles/**", async (route) => {
+  await page.route("**/api/public/aerial/tiles/**", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "image/png",

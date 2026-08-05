@@ -4,6 +4,10 @@ The Staff Workspace has one individually provisioned Admin account. It uses a
 username and password, not shared Basic authentication, bearer links, email
 magic links, or public account registration.
 
+Public discovery pages and `/api/public/*` Property Check/report-request routes
+do not use this session. `/staff`, `/staff/[id]`, and saved-assessment GET APIs
+remain Admin-only and validate the session before reading a record.
+
 ## Provision the Admin
 
 1. Set `DATABASE_URL` locally for the approved target database. Do not put a
@@ -38,12 +42,19 @@ npm.cmd run staff:reset-password
 Enter and confirm a new 14+ character password. This is the only reset path
 for launch; there is no emailed or self-service reset flow.
 
-## Temporary launch sequencing
+## Route boundaries after MT-255
 
-Until MT-255 deliberately opens the homeowner journey, the existing
-application-wide development access gate continues to protect the non-Staff
-application routes. The proxy deliberately lets the Staff sign-in and
-session-protected saved-assessment routes reach this Admin session boundary.
+The homeowner journey and `/api/public/*` delivery adapters are anonymous.
+They do not accept or depend on Staff credentials. The corresponding legacy
+`/api/internal/*` diagnostics retain the existing Basic-auth boundary, while
+`/staff` and saved-assessment read APIs continue to use the Admin session.
+Each public and internal route selects its access policy explicitly before it
+delegates to shared application logic; shared handlers never infer access from
+the request URL.
+
+Launch abuse controls for the anonymous endpoints are tracked by MT-257 and
+remain a release gate. Strict isolated production-like journey evidence is
+tracked by MT-260.
 
 ## Isolated integration proof
 

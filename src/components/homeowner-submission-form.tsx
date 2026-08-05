@@ -1,6 +1,7 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+import Link from "next/link";
 import type { SessionAssessment } from "@/modules/assessment/build-session-assessment";
 import type { PropertyPoolPlacement } from "@/components/map/property-aerial-map";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
@@ -11,6 +12,7 @@ import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-rep
 import type { ReportDeliveryState } from "@/components/saved-preliminary-report-view";
 import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
 import { visitorTypeOptions } from "@/modules/assessment/visitor-type";
+import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
 
 export type AssessmentSubmissionContext = Omit<
   PersistedAssessmentSubmission,
@@ -45,6 +47,10 @@ export function HomeownerSubmissionForm({
   const [visitorType, setVisitorType] = useState("homeowner");
   const [desiredTiming, setDesiredTiming] = useState("asap");
 
+  useEffect(() => {
+    trackAnonymousFunnelEvent({ name: "report_form_viewed" });
+  }, []);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
@@ -53,7 +59,7 @@ export function HomeownerSubmissionForm({
     setError(null);
 
     try {
-      const response = await fetch("/api/internal/assessments", {
+      const response = await fetch("/api/public/assessments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -88,6 +94,7 @@ export function HomeownerSubmissionForm({
           body?.error?.message ?? "The assessment could not be saved.",
         );
       }
+      trackAnonymousFunnelEvent({ name: "report_request_submitted" });
       onSaved(body.assessment);
     } catch (submissionError) {
       setError(
@@ -176,6 +183,17 @@ export function HomeownerSubmissionForm({
             className="mt-1 block w-full rounded-lg border border-slate-300 bg-white px-3 py-2"
           />
         </label>
+        <p className="text-sm leading-6 text-slate-700 sm:col-span-2">
+          Before submitting, read our{" "}
+          <Link
+            href="/privacy"
+            className="font-semibold text-teal-800 underline decoration-teal-300 underline-offset-4 outline-offset-4 hover:text-teal-950 focus-visible:outline-2 focus-visible:outline-teal-700"
+          >
+            privacy notice
+          </Link>
+          . It explains what we collect, the 12-month retention period, and how
+          to ask for access, correction, or early deletion.
+        </p>
         <label className="flex gap-3 text-sm leading-6 text-slate-800 sm:col-span-2">
           <input
             name="consent"
@@ -185,7 +203,8 @@ export function HomeownerSubmissionForm({
           />
           <span>
             I consent to Royal Glass saving these details and this preliminary
-            assessment so it can be followed up.
+            assessment, sending my report, and following up about this request.
+            This is not marketing consent.
           </span>
         </label>
       </div>

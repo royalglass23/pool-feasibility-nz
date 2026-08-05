@@ -113,7 +113,7 @@ export function AssessmentWorkspace({
     setGenerating(true);
     setPdfError(null);
     try {
-      const response = await fetch("/api/internal/report/pdf", {
+      const response = await fetch("/api/public/report/pdf", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

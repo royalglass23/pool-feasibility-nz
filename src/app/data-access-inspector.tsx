@@ -40,6 +40,7 @@ import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-pr
 import type { FastPropertyViewRequestError } from "@/modules/data-access-spike/execute-fast-property-view-request";
 import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fast-property-details";
 import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
+import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
 
 type DataAccessApiResult = DataAccessSpikeResult & {
   assessmentExplanation?: AssessmentExplanation;
@@ -105,10 +106,12 @@ export function DataAccessInspector() {
       setIsSuggesting(true);
       setSuggestionMessage(null);
       try {
-        const response = await fetch(
-          `/api/internal/address-suggestions?q=${encodeURIComponent(query)}`,
-          { signal: controller.signal },
-        );
+        const response = await fetch("/api/public/address-suggestions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query }),
+          signal: controller.signal,
+        });
         if (!response.ok) {
           throw new Error("Address suggestions are temporarily unavailable.");
         }
@@ -160,6 +163,7 @@ export function DataAccessInspector() {
       return;
     }
 
+    trackAnonymousFunnelEvent({ name: "address_search_started" });
     const requestId = ++fastRequestIdRef.current;
     setIsLoading(true);
     setError(null);
@@ -173,7 +177,7 @@ export function DataAccessInspector() {
     setSuggestionMessage(null);
 
     try {
-      const response = await fetch("/api/internal/fast-property-view", {
+      const response = await fetch("/api/public/property-check", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -222,6 +226,7 @@ export function DataAccessInspector() {
               ? legacyBody.reportToken
               : "legacy-response",
         });
+        trackAnonymousFunnelEvent({ name: "property_check_completed" });
         setCanRetry(false);
         return;
       }
@@ -229,6 +234,7 @@ export function DataAccessInspector() {
       if (fastRequestIdRef.current !== requestId) return;
       setFastResult(body.data);
       setFastAssessmentSnapshot(body.assessmentSnapshot);
+      trackAnonymousFunnelEvent({ name: "property_check_completed" });
       setCanRetry(false);
       void requestFastStages(body.data, body.assessmentSnapshot, requestId);
     } catch {
@@ -247,7 +253,7 @@ export function DataAccessInspector() {
     requestId: number,
   ) {
     try {
-      const response = await fetch("/api/internal/fast-property-view/stages", {
+      const response = await fetch("/api/public/property-check/stages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -311,7 +317,7 @@ export function DataAccessInspector() {
     detailedRequestInFlightRef.current = true;
     setIsLoadingDetailed(true);
     try {
-      const response = await fetch("/api/internal/fast-property-view/stages", {
+      const response = await fetch("/api/public/property-check/stages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -385,7 +391,9 @@ export function DataAccessInspector() {
             <MapPin className="size-5" aria-hidden="true" />
           </span>
           <div>
-            <h2 className="font-semibold text-slate-950">Your property address</h2>
+            <h2 className="font-semibold text-slate-950">
+              Your property address
+            </h2>
             <p className="text-sm text-slate-500">
               Start with an Auckland address. We will match it against official
               address data before showing the property view.

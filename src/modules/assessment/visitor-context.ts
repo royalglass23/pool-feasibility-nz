@@ -10,6 +10,21 @@ export const projectTimingSchema = z.enum([
   "other",
 ]);
 
+export type ProjectTiming = z.infer<typeof projectTimingSchema>;
+
+const projectTimingLabels: Record<Exclude<ProjectTiming, "other">, string> = {
+  asap: "ASAP",
+  "3_months": "Within 3 months",
+  "6_months": "Within 6 months",
+  "12_months": "Within 12 months",
+};
+
+export function getProjectTimingLabel(
+  timing: Exclude<ProjectTiming, "other">,
+): string {
+  return projectTimingLabels[timing];
+}
+
 const otherDetailSchema = z.string().trim().min(1).max(4_000).optional();
 
 export const visitorContextFields = {

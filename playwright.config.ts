@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 
 process.env.INTERNAL_REPORT_SIGNING_SECRET ??=
   "playwright-report-signing-secret-2026-07-22-at-least-32-bytes";
+process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID ??= "G-TEST123";
 
 export default defineConfig({
   testDir: "./tests/e2e",
@@ -25,6 +26,6 @@ export default defineConfig({
     command: "npm run dev",
     url: "http://127.0.0.1:3000",
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 240_000,
   },
 });
