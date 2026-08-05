@@ -40,6 +40,7 @@ import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-pr
 import type { FastPropertyViewRequestError } from "@/modules/data-access-spike/execute-fast-property-view-request";
 import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fast-property-details";
 import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
+import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
 
 type DataAccessApiResult = DataAccessSpikeResult & {
   assessmentExplanation?: AssessmentExplanation;
@@ -162,6 +163,7 @@ export function DataAccessInspector() {
       return;
     }
 
+    trackAnonymousFunnelEvent({ name: "address_search_started" });
     const requestId = ++fastRequestIdRef.current;
     setIsLoading(true);
     setError(null);
@@ -224,6 +226,7 @@ export function DataAccessInspector() {
               ? legacyBody.reportToken
               : "legacy-response",
         });
+        trackAnonymousFunnelEvent({ name: "property_check_completed" });
         setCanRetry(false);
         return;
       }
@@ -231,6 +234,7 @@ export function DataAccessInspector() {
       if (fastRequestIdRef.current !== requestId) return;
       setFastResult(body.data);
       setFastAssessmentSnapshot(body.assessmentSnapshot);
+      trackAnonymousFunnelEvent({ name: "property_check_completed" });
       setCanRetry(false);
       void requestFastStages(body.data, body.assessmentSnapshot, requestId);
     } catch {

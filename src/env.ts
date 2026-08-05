@@ -40,7 +40,12 @@ export const env = createEnv({
     OPENAI_API_KEY: z.string().min(1).optional(),
     OPENAI_MODEL: z.string().min(1).default("gpt-5.6-luna"),
   },
-  client: {},
+  client: {
+    NEXT_PUBLIC_GA4_MEASUREMENT_ID: z
+      .string()
+      .regex(/^G-[A-Z0-9]+$/i)
+      .optional(),
+  },
   runtimeEnv: {
     APP_BASE_URL: process.env.APP_BASE_URL,
     ANALYSIS_VERSION: process.env.ANALYSIS_VERSION,
@@ -62,6 +67,7 @@ export const env = createEnv({
     AI_PROVIDER: process.env.AI_PROVIDER,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     OPENAI_MODEL: process.env.OPENAI_MODEL,
+    NEXT_PUBLIC_GA4_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID,
   },
   emptyStringAsUndefined: true,
   skipValidation: Boolean(process.env.SKIP_ENV_VALIDATION),

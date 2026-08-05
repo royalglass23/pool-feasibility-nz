@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import type { SessionAssessment } from "@/modules/assessment/build-session-assessment";
 import type { PropertyPoolPlacement } from "@/components/map/property-aerial-map";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
@@ -11,6 +11,7 @@ import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-rep
 import type { ReportDeliveryState } from "@/components/saved-preliminary-report-view";
 import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
 import { visitorTypeOptions } from "@/modules/assessment/visitor-type";
+import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
 
 export type AssessmentSubmissionContext = Omit<
   PersistedAssessmentSubmission,
@@ -44,6 +45,10 @@ export function HomeownerSubmissionForm({
   const [error, setError] = useState<string | null>(null);
   const [visitorType, setVisitorType] = useState("homeowner");
   const [desiredTiming, setDesiredTiming] = useState("asap");
+
+  useEffect(() => {
+    trackAnonymousFunnelEvent({ name: "report_form_viewed" });
+  }, []);
 
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -88,6 +93,7 @@ export function HomeownerSubmissionForm({
           body?.error?.message ?? "The assessment could not be saved.",
         );
       }
+      trackAnonymousFunnelEvent({ name: "report_request_submitted" });
       onSaved(body.assessment);
     } catch (submissionError) {
       setError(
