@@ -143,6 +143,23 @@ export const homeownerAssessments = pgTable(
 
 export type HomeownerAssessmentRow = typeof homeownerAssessments.$inferSelect;
 
+export const reportRequestRetentionRuns = pgTable(
+  "report_request_retention_runs",
+  {
+    id: uuid("id").primaryKey(),
+    ranAt: timestamp("ran_at", { withTimezone: true }).notNull(),
+    cutoffAt: timestamp("cutoff_at", { withTimezone: true }).notNull(),
+    deletedCount: integer("deleted_count").notNull(),
+  },
+  (table) => [
+    index("report_request_retention_runs_ran_at_idx").on(table.ranAt),
+    check(
+      "report_request_retention_runs_deleted_count_ck",
+      sql`${table.deletedCount} >= 0`,
+    ),
+  ],
+);
+
 export const staffAdminAccounts = pgTable(
   "staff_admin_accounts",
   {

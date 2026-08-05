@@ -135,6 +135,11 @@ test("keeps the saved preliminary report visible when homeowner email needs retr
       name: "Your details for the preliminary report",
     }),
   ).toBeVisible({ timeout: 15_000 });
+  const privacyNoticeLink = page.getByRole("link", {
+    name: "privacy notice",
+  });
+  await expect(privacyNoticeLink).toBeVisible();
+  await expect(privacyNoticeLink).toHaveAttribute("href", "/privacy");
 
   await page.getByLabel("Name").fill("Jane Homeowner");
   await page.getByLabel("Phone").fill("021 555 1234");
