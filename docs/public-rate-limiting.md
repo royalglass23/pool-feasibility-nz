@@ -6,8 +6,17 @@ This keeps limits consistent across Vercel function instances.
 
 ## Enforced boundaries
 
+- `POST /api/public/address-suggestions`: 60 attempts per client IP in a
+  rolling 5-minute window.
+- `POST /api/public/aerial-conflicts`: 6 attempts per client IP in a rolling
+  15-minute window. This supports the three-candidate assisted-placement pass
+  plus one complete retry.
+- `GET /api/public/aerial/tiles/:z/:x/:y`: 300 attempts per client IP in a
+  rolling 15-minute window.
 - `POST /api/public/property-check`: 10 attempts per client IP in a rolling
   30-minute window.
+- `POST /api/public/report/pdf`: 3 attempts per client IP in a rolling
+  one-hour window.
 - `POST /api/public/assessments`: 3 attempts per client IP in a rolling
   one-hour window.
 - A signed Property Check session receives two stage operations in 15 minutes:
@@ -15,6 +24,10 @@ This keeps limits consistent across Vercel function instances.
   scoped by client IP and signed snapshot ID, so replay cannot create unbounded
   provider work and stage calls do not consume another initial Property Check
   attempt.
+
+Each boundary has a separate action budget. Address suggestions, aerial
+analysis, aerial tiles, and direct PDF retries therefore do not consume the
+initial Property Check or report-request allowances.
 
 The rate-limit check runs before property providers, database writes, PDF work,
 or email fan-out. A denied request receives HTTP `429` with

@@ -7,6 +7,7 @@ import {
   createPublicRateLimitedHandler,
   createUpstashPublicRateLimiter,
   enforcePublicPropertyStageRateLimit,
+  type PublicRateLimitAction,
 } from "@/modules/rate-limit/public-rate-limit";
 
 afterEach(() => {
@@ -110,6 +111,58 @@ describe("public report-request rate limit", () => {
     const afterExpiry = await handler(request("/api/public/assessments"));
     expect(afterExpiry.status).toBe(200);
     expect(next).toHaveBeenCalledTimes(4);
+  });
+});
+
+describe("public provider and PDF rate-limit budgets", () => {
+  it.each([
+    ["address suggestions", "address_suggestion", 60, 5 * 60 * 1_000],
+    ["aerial conflict checks", "aerial_conflict", 6, 15 * 60 * 1_000],
+    ["aerial tiles", "aerial_tile", 300, 15 * 60 * 1_000],
+    ["direct PDF generation", "report_pdf", 3, 60 * 60 * 1_000],
+  ] satisfies ReadonlyArray<
+    readonly [string, PublicRateLimitAction, number, number]
+  >)(
+    "enforces the approved %s budget and reset window",
+    async (_name, action, limit, windowMs) => {
+      let now = Date.parse("2026-08-10T00:00:00.000Z");
+      const limiter = createLocalPublicRateLimiter({ now: () => now });
+
+      for (let attempt = 1; attempt <= limit; attempt += 1) {
+        await expect(limiter.limit(action, "client-a")).resolves.toMatchObject({
+          success: true,
+          remaining: limit - attempt,
+        });
+      }
+      await expect(limiter.limit(action, "client-a")).resolves.toMatchObject({
+        success: false,
+        remaining: 0,
+      });
+
+      now += windowMs;
+      await expect(limiter.limit(action, "client-a")).resolves.toMatchObject({
+        success: true,
+        remaining: limit - 1,
+      });
+    },
+  );
+
+  it("keeps provider and PDF budgets separate from Property Check and report requests", async () => {
+    const limiter = createLocalPublicRateLimiter();
+
+    for (let attempt = 0; attempt < 60; attempt += 1) {
+      await limiter.limit("address_suggestion", "client-a");
+    }
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      await limiter.limit("report_pdf", "client-a");
+    }
+
+    await expect(
+      limiter.limit("property_check", "client-a"),
+    ).resolves.toMatchObject({ success: true, remaining: 9 });
+    await expect(
+      limiter.limit("report_request", "client-a"),
+    ).resolves.toMatchObject({ success: true, remaining: 2 });
   });
 });
 

@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "feature": "mt-260",
+  "commit": "ebed3ef5f61db2bd5bb7a9450145f2d099446f92",
+  "candidateState": "committed-head-with-unrelated-user-owned-pnpm-lock-change",
+  "command": "not-run: tests/e2e/mt-260-security.spec.ts is missing and isolated fixtures are unavailable",
+  "retries": 0,
+  "environment": {
+    "name": "mt-260-blocked-local-inventory",
+    "baseUrl": "http://127.0.0.1:3000",
+    "production": false,
+    "fingerprint": "sha256:ad7c078e8a90ef6d856a83de2e7191e9d01fd0af6022bde17414ac386ef9b922"
+  },
+  "configHash": "sha256:8ed0c77439020b08f24b326db6cf0e4642b3621ed28d9bd0203bbdc6ee371639",
+  "fixtureVersion": "sha256:dd30483e340580455b998af2ee44da46c665c5898124259b60a5754997e5f764",
+  "matrixHash": "sha256:9a3cc3532f362dd22d1fef20c9412577c5ffbe8c09ad60203a5979032a4270d6",
+  "projects": ["chromium"],
+  "coverage": {
+    "required": 8,
+    "covered": 0
+  },
+  "counts": {
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "flaky": 0
+  },
+  "artifacts": {
+    "report": "not-generated: strict MT-260 lane did not execute",
+    "traces": []
+  },
+  "verdict": "BLOCKED"
+}

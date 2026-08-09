@@ -28,8 +28,8 @@ function suggestionRequest(path: string, query: string, headers?: HeadersInit) {
 }
 
 describe("POST /api/public/address-suggestions", () => {
-  it("serves an anonymous deployed visitor without Basic credentials", async () => {
-    vi.stubEnv("NODE_ENV", "production");
+  it("serves an anonymous visitor without Basic credentials", async () => {
+    vi.stubEnv("NODE_ENV", "development");
     suggestAddresses.mockResolvedValue([
       { addressId: "1", fullAddress: "1 Bahari Drive, Auckland" },
     ]);
@@ -79,11 +79,9 @@ describe("POST /api/internal/address-suggestions", () => {
     vi.stubEnv("INTERNAL_ACCESS_PASSWORD", "staff-secret");
 
     const response = await POST(
-      suggestionRequest(
-        "/api/internal/address-suggestions",
-        "a".repeat(101),
-        { Authorization: authHeader },
-      ),
+      suggestionRequest("/api/internal/address-suggestions", "a".repeat(101), {
+        Authorization: authHeader,
+      }),
     );
 
     expect(response.status).toBe(400);

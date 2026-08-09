@@ -11,7 +11,13 @@ import {
 } from "@/shared/http/api-response";
 
 export type PublicRateLimitAction =
-  "property_check" | "property_check_stage" | "report_request";
+  | "address_suggestion"
+  | "aerial_conflict"
+  | "aerial_tile"
+  | "property_check"
+  | "property_check_stage"
+  | "report_pdf"
+  | "report_request";
 
 type PublicRateLimitDecision = {
   success: boolean;
@@ -39,14 +45,54 @@ type PublicRateLimitRuntimeOptions = {
   log?: PublicRateLimitLog;
 };
 
-const policies: Record<
-  PublicRateLimitAction,
-  { limit: number; windowMs: number }
-> = {
-  property_check: { limit: 10, windowMs: 30 * 60 * 1_000 },
-  property_check_stage: { limit: 2, windowMs: 15 * 60 * 1_000 },
-  report_request: { limit: 3, windowMs: 60 * 60 * 1_000 },
+type PublicRateLimitWindow = {
+  value: number;
+  unit: "m" | "h";
 };
+
+type PublicRateLimitPolicy = {
+  limit: number;
+  window: PublicRateLimitWindow;
+  prefix: string;
+};
+
+const policies = {
+  address_suggestion: {
+    limit: 60,
+    window: { value: 5, unit: "m" },
+    prefix: "geomap:public-rate-limit:address-suggestion:v1",
+  },
+  aerial_conflict: {
+    limit: 6,
+    window: { value: 15, unit: "m" },
+    prefix: "geomap:public-rate-limit:aerial-conflict:v1",
+  },
+  aerial_tile: {
+    limit: 300,
+    window: { value: 15, unit: "m" },
+    prefix: "geomap:public-rate-limit:aerial-tile:v1",
+  },
+  property_check: {
+    limit: 10,
+    window: { value: 30, unit: "m" },
+    prefix: "geomap:public-rate-limit:property-check:v1",
+  },
+  property_check_stage: {
+    limit: 2,
+    window: { value: 15, unit: "m" },
+    prefix: "geomap:public-rate-limit:property-check-stage:v1",
+  },
+  report_pdf: {
+    limit: 3,
+    window: { value: 1, unit: "h" },
+    prefix: "geomap:public-rate-limit:report-pdf:v1",
+  },
+  report_request: {
+    limit: 3,
+    window: { value: 1, unit: "h" },
+    prefix: "geomap:public-rate-limit:report-request:v1",
+  },
+} as const satisfies Record<PublicRateLimitAction, PublicRateLimitPolicy>;
 const logger = pino({ base: undefined });
 
 export function createLocalPublicRateLimiter(input?: {
@@ -58,8 +104,9 @@ export function createLocalPublicRateLimiter(input?: {
   return {
     async limit(action, identifier) {
       const policy = policies[action];
+      const windowMs = publicRateLimitWindowMs(policy.window);
       const currentTime = now();
-      const cutoff = currentTime - policy.windowMs;
+      const cutoff = currentTime - windowMs;
       const key = `${action}:${identifier}`;
       const active = (attempts.get(key) ?? []).filter(
         (timestamp) => timestamp > cutoff,
@@ -70,7 +117,7 @@ export function createLocalPublicRateLimiter(input?: {
         return {
           success: false,
           remaining: 0,
-          reset: active[0]! + policy.windowMs,
+          reset: active[0]! + windowMs,
         };
       }
 
@@ -79,7 +126,7 @@ export function createLocalPublicRateLimiter(input?: {
       return {
         success: true,
         remaining: policy.limit - active.length,
-        reset: active[0]! + policy.windowMs,
+        reset: active[0]! + windowMs,
       };
     },
   };
@@ -92,29 +139,20 @@ export function createUpstashPublicRateLimiter(input: {
 }): PublicRateLimiter {
   const redis = new Redis({ url: input.url, token: input.token });
   const timeout = input.timeoutMs ?? 2_000;
-  const limiters: Record<PublicRateLimitAction, Ratelimit> = {
-    property_check: new Ratelimit({
+  const limiters = {} as Record<PublicRateLimitAction, Ratelimit>;
+  for (const action of Object.keys(policies) as PublicRateLimitAction[]) {
+    const policy = policies[action];
+    limiters[action] = new Ratelimit({
       redis,
-      limiter: Ratelimit.slidingWindow(10, "30 m"),
-      prefix: "geomap:public-rate-limit:property-check:v1",
+      limiter: Ratelimit.slidingWindow(
+        policy.limit,
+        publicRateLimitUpstashWindow(policy.window),
+      ),
+      prefix: policy.prefix,
       analytics: false,
       timeout,
-    }),
-    property_check_stage: new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(2, "15 m"),
-      prefix: "geomap:public-rate-limit:property-check-stage:v1",
-      analytics: false,
-      timeout,
-    }),
-    report_request: new Ratelimit({
-      redis,
-      limiter: Ratelimit.slidingWindow(3, "1 h"),
-      prefix: "geomap:public-rate-limit:report-request:v1",
-      analytics: false,
-      timeout,
-    }),
-  };
+    });
+  }
 
   return {
     async limit(action, identifier) {
@@ -131,14 +169,25 @@ export function createUpstashPublicRateLimiter(input: {
   };
 }
 
-export function createPublicRateLimitedHandler(
+function publicRateLimitWindowMs(window: PublicRateLimitWindow): number {
+  const unitMs = window.unit === "h" ? 60 * 60 * 1_000 : 60 * 1_000;
+  return window.value * unitMs;
+}
+
+function publicRateLimitUpstashWindow(
+  window: PublicRateLimitWindow,
+): `${number} ${PublicRateLimitWindow["unit"]}` {
+  return `${window.value} ${window.unit}`;
+}
+
+export function createPublicRateLimitedHandler<TArgs extends unknown[]>(
   action: PublicRateLimitAction,
-  next: (request: Request) => Promise<Response>,
+  next: (request: Request, ...args: TArgs) => Promise<Response>,
   options?: PublicRateLimitRuntimeOptions,
-): (request: Request) => Promise<Response> {
+): (request: Request, ...args: TArgs) => Promise<Response> {
   const log = rateLimitLog(options);
 
-  return async (request) => {
+  return async (request, ...args) => {
     const correlationId = requestCorrelationId(request);
     const denied = await publicRateLimitDeniedResponse(
       { request, action, correlationId },
@@ -146,7 +195,7 @@ export function createPublicRateLimitedHandler(
     );
     if (denied) return denied;
 
-    const response = await next(request);
+    const response = await next(request, ...args);
     log({
       event: "public_rate_limit",
       action,

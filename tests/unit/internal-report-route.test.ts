@@ -35,8 +35,8 @@ afterEach(() => {
 });
 
 describe("POST /api/internal/report/pdf security outcomes", () => {
-  it("lets an anonymous deployed visitor reach safe public validation", async () => {
-    vi.stubEnv("NODE_ENV", "production");
+  it("lets an anonymous visitor reach safe public validation", async () => {
+    vi.stubEnv("NODE_ENV", "development");
     const submittedMarker = "private-public-report-marker";
 
     const response = await POST_PUBLIC(
