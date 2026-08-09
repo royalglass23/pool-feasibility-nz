@@ -1,4 +1,23 @@
 import { describe, expect, it, vi } from "vitest";
+
+const launchBrowser = vi.hoisted(() => vi.fn());
+const resolveChromiumExecutablePath = vi.hoisted(() =>
+  vi.fn(async () => "/opt/chromium"),
+);
+
+vi.mock("puppeteer-core", () => ({
+  default: {
+    defaultArgs: vi.fn(({ args }: { args: string[] }) => args),
+    launch: launchBrowser,
+  },
+}));
+vi.mock("@sparticuz/chromium", () => ({
+  default: {
+    args: ["--disable-dev-shm-usage"],
+    executablePath: resolveChromiumExecutablePath,
+  },
+}));
+
 import type { PersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
 import {
   buildSavedPreliminaryReport,
@@ -398,18 +417,36 @@ describe("saved preliminary report", () => {
     },
   );
 
-  it("keeps production PDF rendering behind the deployment evidence gate", async () => {
+  it("renders through the serverless Puppeteer and Chromium adapter contract", async () => {
     vi.stubEnv("VERCEL", "1");
     try {
+      const pdfFixture = Buffer.from("%PDF-1.4\n%%EOF", "latin1");
+      const page = {
+        emulateMediaType: vi.fn(async () => undefined),
+        on: vi.fn(),
+        pdf: vi.fn(async () => new Uint8Array(pdfFixture)),
+        setContent: vi.fn(async () => undefined),
+        setRequestInterception: vi.fn(async () => undefined),
+      };
+      launchBrowser.mockResolvedValue({
+        close: vi.fn(async () => undefined),
+        newPage: vi.fn(async () => page),
+      });
       const report = buildSavedPreliminaryReport({
         submission,
         reference: "GF-2026-000123",
         createdAt: "2026-07-29T02:03:04.000Z",
       });
 
-      await expect(generatePreliminaryReportPdf(report)).rejects.toThrow(
-        "production PDF runtime is pending its deployment evidence gate",
-      );
+      const pdf = await generatePreliminaryReportPdf(report);
+
+      expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+      expect(resolveChromiumExecutablePath).toHaveBeenCalledOnce();
+      expect(launchBrowser).toHaveBeenCalledWith({
+        args: ["--disable-dev-shm-usage"],
+        executablePath: "/opt/chromium",
+        headless: "shell",
+      });
     } finally {
       vi.unstubAllEnvs();
     }

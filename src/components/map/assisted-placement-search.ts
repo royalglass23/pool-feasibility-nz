@@ -85,7 +85,7 @@ export function useAssistedPlacementSearch({
     const assessments = await Promise.all(
       deterministicResult.candidates.map(async (candidate) => {
         try {
-          const response = await fetch("/api/internal/aerial-conflicts", {
+          const response = await fetch("/api/public/aerial-conflicts", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({

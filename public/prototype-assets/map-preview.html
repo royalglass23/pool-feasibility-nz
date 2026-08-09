@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>135 Fiddlers Hill Road - aerial terrain context</title>
+    <link rel="stylesheet" href="./vendor/maplibre-gl.css" />
+    <script src="./vendor/maplibre-gl.js"></script>
+    <style>
+      html, body, #map { width: 100%; height: 100%; margin: 0; }
+      body { background: #17312e; }
+      .label, .legend {
+        position: fixed; z-index: 2; padding: 10px 12px;
+        border: 1px solid rgb(255 255 255 / 22%); border-radius: 8px;
+        background: rgb(10 35 31 / 88%); color: white;
+      }
+      .label {
+        top: 18px; left: 18px;
+        font: 700 11px/1.4 "Courier New", monospace;
+        letter-spacing: 0.1em; text-transform: uppercase;
+      }
+      .legend { right: 18px; bottom: 18px; font: 600 11px/1.5 Arial, sans-serif; }
+      .swatch {
+        display: inline-block; width: 18px; height: 3px;
+        margin: 0 5px 2px 12px; vertical-align: middle;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="label">135 Fiddlers Hill Road, Puhoi - LINZ aerial terrain</div>
+    <div class="legend">
+      <span class="swatch" style="background:#fff"></span> parcel boundary
+      <span class="swatch" style="background:#39d8ff"></span> illustrative 6.5 x 3.0 m pool
+    </div>
+    <div id="map"></div>
+    <script>
+      const parcel = {
+        type: "Feature", properties: { name: "parcel" },
+        geometry: { type: "Polygon", coordinates: [[
+          [174.645488267, -36.5239597320973],
+          [174.645501683, -36.5239844990973],
+          [174.645561067, -36.5240941820972],
+          [174.6469437, -36.5233323990973],
+          [174.647394117, -36.5231308490973],
+          [174.648177833, -36.5240182320972],
+          [174.648214083, -36.5242026490973],
+          [174.6481121, -36.5244679820973],
+          [174.647099733, -36.5249444320973],
+          [174.6463575, -36.5251137160973],
+          [174.645548817, -36.5247651490972],
+          [174.6452451, -36.5244145660973],
+          [174.64520815, -36.5242923490973],
+          [174.64544445, -36.5241596490973],
+          [174.645376067, -36.5240333990973],
+          [174.64536265, -36.5240086160973],
+          [174.64527485, -36.5238465320973],
+          [174.645118117, -36.5233221320973],
+          [174.645237633, -36.5232423660973],
+          [174.645407417, -36.5238104490973],
+          [174.645488267, -36.5239597320973]
+        ]] }
+      };
+      const topDown = new URLSearchParams(location.search).get("view") === "top";
+      const metresPerDegreeLat = 111320;
+      const metresPerDegreeLng = metresPerDegreeLat * Math.cos((-36.52405 * Math.PI) / 180);
+      const poolCenter = [174.64586, -36.52405];
+      const rotation = (18 * Math.PI) / 180;
+      const poolCorners = [[-3.25,-1.5],[3.25,-1.5],[3.25,1.5],[-3.25,1.5]].map(([x,y]) => {
+        const east = x * Math.cos(rotation) - y * Math.sin(rotation);
+        const north = x * Math.sin(rotation) + y * Math.cos(rotation);
+        return [poolCenter[0] + east / metresPerDegreeLng, poolCenter[1] + north / metresPerDegreeLat];
+      });
+      poolCorners.push(poolCorners[0]);
+      const concepts = { type: "FeatureCollection", features: [
+        { type: "Feature", properties: { kind: "pool" }, geometry: { type: "Polygon", coordinates: [poolCorners] } },
+        { type: "Feature", properties: { kind: "address" }, geometry: { type: "Point", coordinates: [174.645832000004, -36.5242469823948] } }
+      ] };
+      const map = new maplibregl.Map({
+        container: "map", center: [174.64675, -36.52442],
+        zoom: topDown ? 17.25 : 16.8, pitch: topDown ? 0 : 56,
+        bearing: topDown ? 0 : -28, maxPitch: 80,
+        style: {
+          version: 8,
+          sources: {
+            aerial: { type: "raster", tiles: ["./aerial/{z}/{x}/{y}.webp"], tileSize: 256, minzoom: 17, maxzoom: 17 },
+            terrain: { type: "raster-dem", tiles: ["./terrain/{z}/{x}/{y}.png"], tileSize: 256, minzoom: 17, maxzoom: 17, encoding: "mapbox" },
+            parcel: { type: "geojson", data: parcel },
+            concepts: { type: "geojson", data: concepts }
+          },
+          layers: [
+            { id: "aerial", type: "raster", source: "aerial" },
+            { id: "parcel-fill", type: "fill", source: "parcel", paint: { "fill-color": "#79e0c4", "fill-opacity": 0.07 } },
+            { id: "parcel-line", type: "line", source: "parcel", paint: { "line-color": "#ffffff", "line-width": 3 } },
+            { id: "pool-fill", type: "fill", source: "concepts", filter: ["==", ["get", "kind"], "pool"], paint: { "fill-color": "#39d8ff", "fill-opacity": 0.82 } },
+            { id: "pool-line", type: "line", source: "concepts", filter: ["==", ["get", "kind"], "pool"], paint: { "line-color": "#ffffff", "line-width": 2 } },
+            { id: "address-point", type: "circle", source: "concepts", filter: ["==", ["get", "kind"], "address"], paint: { "circle-radius": 6, "circle-color": "#ff674d", "circle-stroke-color": "#ffffff", "circle-stroke-width": 2 } }
+          ],
+          terrain: topDown ? undefined : { source: "terrain", exaggeration: 1 }
+        }
+      });
+      globalThis.__map = map;
+      map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }));
+    </script>
+  </body>
+</html>

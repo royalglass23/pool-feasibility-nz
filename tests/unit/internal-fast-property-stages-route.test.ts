@@ -5,6 +5,7 @@ const executeFastPropertyDetailsRequest = vi.hoisted(() => vi.fn());
 const verifyAssessmentSnapshot = vi.hoisted(() => vi.fn());
 const assertSnapshotAddressMatches = vi.hoisted(() => vi.fn());
 const refreshAssessmentSnapshot = vi.hoisted(() => vi.fn());
+const enforcePublicPropertyStageRateLimit = vi.hoisted(() => vi.fn());
 const AssessmentSnapshotValidationError = vi.hoisted(
   () => class AssessmentSnapshotValidationError extends Error {},
 );
@@ -29,8 +30,12 @@ vi.mock("@/modules/assessment/assessment-snapshot", () => ({
   refreshAssessmentSnapshot,
   verifyAssessmentSnapshot,
 }));
+vi.mock("@/modules/rate-limit/public-rate-limit", () => ({
+  enforcePublicPropertyStageRateLimit,
+}));
 
 import { POST } from "@/app/api/internal/fast-property-view/stages/route";
+import { POST as POST_PUBLIC } from "@/app/api/public/property-check/stages/route";
 
 afterEach(() => {
   loadFastPropertyStages.mockReset();
@@ -38,10 +43,45 @@ afterEach(() => {
   verifyAssessmentSnapshot.mockReset();
   assertSnapshotAddressMatches.mockReset();
   refreshAssessmentSnapshot.mockReset();
+  enforcePublicPropertyStageRateLimit.mockReset();
   vi.unstubAllEnvs();
 });
 
 describe("POST /api/internal/fast-property-view/stages", () => {
+  it("rate-limits a public snapshot replay before starting provider work", async () => {
+    verifyAssessmentSnapshot.mockReturnValue({
+      submissionId: "snapshot-id",
+      fastResult: {},
+      expiresAt: Date.now() + 60_000,
+    });
+    enforcePublicPropertyStageRateLimit.mockResolvedValue(
+      Response.json(
+        {
+          error: { code: "RATE_LIMITED", message: "Please try again shortly." },
+        },
+        { status: 429 },
+      ),
+    );
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/property-check/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...selectedAddressPoint,
+          assessmentSnapshot: "s".repeat(2_000),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(429);
+    expect(enforcePublicPropertyStageRateLimit).toHaveBeenCalledWith(
+      expect.objectContaining({ submissionId: "snapshot-id" }),
+    );
+    expect(loadFastPropertyStages).not.toHaveBeenCalled();
+    expect(executeFastPropertyDetailsRequest).not.toHaveBeenCalled();
+  });
+
   it("identifies malformed stage requests without starting imagery", async () => {
     vi.stubEnv("NODE_ENV", "development");
 

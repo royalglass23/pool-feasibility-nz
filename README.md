@@ -88,10 +88,14 @@ confirmed parcel boundary, and the resolved address point with visible LINZ
 attribution. A server-side tile route keeps the LINZ Basemaps key out of browser
 requests.
 
-Loopback development (`localhost` or `127.0.0.1` under `next dev`) is available
-without staff credentials. Every non-loopback or deployed request fails closed
-unless `INTERNAL_ACCESS_USERNAME` and `INTERNAL_ACCESS_PASSWORD` are both set;
-the browser then uses HTTP Basic authentication for Royal Glass staff access.
+Discovery pages and `/api/public/*` Property Check endpoints are anonymous in
+all environments. The Staff Workspace uses the Admin sign-in documented in
+[`docs/staff-admin-access.md`](docs/staff-admin-access.md), and its saved-record
+pages and APIs validate the database-backed Admin session on the server.
+
+`INTERNAL_ACCESS_USERNAME` and `INTERNAL_ACCESS_PASSWORD` remain only for
+legacy `/api/internal/*` diagnostic endpoints. The public browser flow does not
+send or depend on those shared Basic credentials.
 
 ## Quality commands
 

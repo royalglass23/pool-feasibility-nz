@@ -3,7 +3,7 @@ import { expect, test } from "@playwright/test";
 test("shows the fast address-to-property stages before detailed checks", async ({
   page,
 }) => {
-  await page.route("**/api/internal/fast-property-view", async (route) => {
+  await page.route("**/api/public/property-check", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -72,7 +72,7 @@ test("shows the fast address-to-property stages before detailed checks", async (
     page.getByRole("button", { name: "Load detailed official checks" }),
   ).toBeVisible();
   await page.route(
-    "**/api/internal/fast-property-view/stages",
+    "**/api/public/property-check/stages",
     async (route) => {
       const requestBody = route.request().postDataJSON();
       if (requestBody?.mode !== "detailed") return route.continue();
@@ -210,7 +210,7 @@ test("shows the fast address-to-property stages before detailed checks", async (
 test("supports the pool catalogue and bounded custom input", async ({
   page,
 }) => {
-  await page.route("**/api/internal/fast-property-view", async (route) => {
+  await page.route("**/api/public/property-check", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",

@@ -9,7 +9,8 @@ vi.mock("@/modules/providers/official-gis-gateway", () => ({
   },
 }));
 
-import { GET } from "@/app/api/internal/address-suggestions/route";
+import { POST } from "@/app/api/internal/address-suggestions/route";
+import { POST as POST_PUBLIC } from "@/app/api/public/address-suggestions/route";
 
 const authHeader = `Basic ${Buffer.from("royal-glass:staff-secret").toString("base64")}`;
 
@@ -18,14 +19,39 @@ afterEach(() => {
   vi.unstubAllEnvs();
 });
 
-describe("GET /api/internal/address-suggestions", () => {
+function suggestionRequest(path: string, query: string, headers?: HeadersInit) {
+  return new Request(`https://pool.example${path}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...headers },
+    body: JSON.stringify({ query }),
+  });
+}
+
+describe("POST /api/public/address-suggestions", () => {
+  it("serves an anonymous visitor without Basic credentials", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    suggestAddresses.mockResolvedValue([
+      { addressId: "1", fullAddress: "1 Bahari Drive, Auckland" },
+    ]);
+
+    const response = await POST_PUBLIC(
+      suggestionRequest("/api/public/address-suggestions", "bahari"),
+    );
+
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(suggestAddresses).toHaveBeenCalledWith("bahari");
+  });
+});
+
+describe("POST /api/internal/address-suggestions", () => {
   it("requires the existing login boundary", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("INTERNAL_ACCESS_USERNAME", "royal-glass");
     vi.stubEnv("INTERNAL_ACCESS_PASSWORD", "staff-secret");
 
-    const response = await GET(
-      new Request("https://pool.example/api/internal/address-suggestions?q=42"),
+    const response = await POST(
+      suggestionRequest("/api/internal/address-suggestions", "42"),
     );
 
     expect(response.status).toBe(401);
@@ -37,9 +63,9 @@ describe("GET /api/internal/address-suggestions", () => {
     vi.stubEnv("INTERNAL_ACCESS_USERNAME", "royal-glass");
     vi.stubEnv("INTERNAL_ACCESS_PASSWORD", "staff-secret");
 
-    const response = await GET(
-      new Request("https://pool.example/api/internal/address-suggestions?q=ab", {
-        headers: { Authorization: authHeader },
+    const response = await POST(
+      suggestionRequest("/api/internal/address-suggestions", "ab", {
+        Authorization: authHeader,
       }),
     );
 
@@ -52,11 +78,10 @@ describe("GET /api/internal/address-suggestions", () => {
     vi.stubEnv("INTERNAL_ACCESS_USERNAME", "royal-glass");
     vi.stubEnv("INTERNAL_ACCESS_PASSWORD", "staff-secret");
 
-    const response = await GET(
-      new Request(
-        `https://pool.example/api/internal/address-suggestions?q=${"a".repeat(101)}`,
-        { headers: { Authorization: authHeader } },
-      ),
+    const response = await POST(
+      suggestionRequest("/api/internal/address-suggestions", "a".repeat(101), {
+        Authorization: authHeader,
+      }),
     );
 
     expect(response.status).toBe(400);
@@ -74,9 +99,9 @@ describe("GET /api/internal/address-suggestions", () => {
       })),
     );
 
-    const response = await GET(
-      new Request("https://pool.example/api/internal/address-suggestions?q=bahari", {
-        headers: { Authorization: authHeader },
+    const response = await POST(
+      suggestionRequest("/api/internal/address-suggestions", "bahari", {
+        Authorization: authHeader,
       }),
     );
 
@@ -96,9 +121,9 @@ describe("GET /api/internal/address-suggestions", () => {
     vi.stubEnv("INTERNAL_ACCESS_PASSWORD", "staff-secret");
     suggestAddresses.mockRejectedValue(new Error("secret provider detail"));
 
-    const response = await GET(
-      new Request("https://pool.example/api/internal/address-suggestions?q=bahari", {
-        headers: { Authorization: authHeader },
+    const response = await POST(
+      suggestionRequest("/api/internal/address-suggestions", "bahari", {
+        Authorization: authHeader,
       }),
     );
 

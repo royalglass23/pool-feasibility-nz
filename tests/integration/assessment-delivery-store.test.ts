@@ -68,6 +68,19 @@ describe.skipIf(!databaseUrl)(
           saved.assessment.reference,
           "servicem8",
         );
+        expect(serviceM8Claim).toMatchObject({
+          channel: "servicem8",
+          notification: {
+            reference: saved.assessment.reference,
+            name: submission.homeowner.name,
+            phone: submission.homeowner.phone,
+            email: submission.homeowner.email,
+            checkedAddress: submission.addressEvidence.formattedAddress,
+            visitorType: submission.homeowner.visitorType,
+            desiredTiming: submission.homeowner.desiredTiming,
+          },
+        });
+        expect(serviceM8Claim).not.toHaveProperty("report");
         await expect(
           store.claim(saved.assessment.reference, "servicem8"),
         ).resolves.toBeNull();

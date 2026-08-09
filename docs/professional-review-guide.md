@@ -181,8 +181,8 @@ Download **Assessment data** before closing or refreshing the browser. The JSON 
 
 | Code | Meaning | What to do now |
 |---|---|---|
-| `UNAUTHORIZED` | The request is not authenticated as Royal Glass staff. | On local development use `localhost`; otherwise use the configured staff Basic Auth credentials. |
-| `ACCESS_CONTROL_MISCONFIGURED` | The non-loopback/deployed environment has no paired internal access credentials configured. | Configure both `INTERNAL_ACCESS_USERNAME` and `INTERNAL_ACCESS_PASSWORD`; do not bypass the access check. |
+| `UNAUTHORIZED` | A legacy internal diagnostic request is not authenticated. | Use the public Property Check routes for the homeowner journey. Configure legacy Basic credentials only for an authorised diagnostic client. |
+| `ACCESS_CONTROL_MISCONFIGURED` | A legacy internal diagnostic endpoint has no paired credentials configured. | Do not route public or Admin traffic through the legacy endpoint. Configure both values only if the diagnostic surface is still required. |
 | `DATA_PROVIDER_ERROR` | An official provider failed during address, parcel, or mapped-data retrieval. | Retry once, then check provider availability, server-only credentials, timeout, and correlation ID. Treat affected evidence as unknown. |
 | `PROVIDER_TIMEOUT` | A provider did not answer within the bounded timeout. | Retry later; if repeated, investigate provider latency or timeout settings. Do not convert the timeout to “no feature.” |
 | `PROVIDER_RESPONSE_INVALID` | The provider response did not match the expected schema or geometry shape. | Preserve the error, inspect the provider contract/fixture, and update the adapter only after review. |

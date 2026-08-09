@@ -283,7 +283,7 @@ export function PropertyAerialMap({
       if (aerialConfigured) {
         sources.aerial = {
           type: "raster",
-          tiles: ["/api/internal/aerial/tiles/{z}/{x}/{y}"],
+          tiles: ["/api/public/aerial/tiles/{z}/{x}/{y}"],
           tileSize: 256,
           minzoom: 0,
           maxzoom: 22,

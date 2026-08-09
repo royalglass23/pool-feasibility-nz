@@ -5,6 +5,12 @@ import { HomeownerSubmissionForm } from "@/components/homeowner-submission-form"
 import { SavedAssessmentReportPanel } from "@/components/saved-assessment-report-panel";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 
+const trackAnonymousFunnelEvent = vi.hoisted(() => vi.fn());
+
+vi.mock("@/modules/anonymous-funnel-analytics", () => ({
+  trackAnonymousFunnelEvent,
+}));
+
 const context = {
   addressEvidence: {
     selectedAddressId: "linz-123",
@@ -66,6 +72,7 @@ const report = buildTestPreliminaryReport({
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  trackAnonymousFunnelEvent.mockReset();
 });
 
 describe("homeowner report submission", () => {
@@ -110,6 +117,10 @@ describe("homeowner report submission", () => {
       />,
     );
 
+    expect(trackAnonymousFunnelEvent).toHaveBeenCalledWith({
+      name: "report_form_viewed",
+    });
+
     await user.type(screen.getByLabelText("Name"), "Jane Homeowner");
     await user.type(screen.getByLabelText("Phone"), "021 555 1234");
     await user.type(screen.getByLabelText("Email"), "jane@example.com");
@@ -127,6 +138,12 @@ describe("homeowner report submission", () => {
         report,
         delivery: { homeowner: "pending", servicem8: "pending" },
       }),
+    );
+    expect(trackAnonymousFunnelEvent).toHaveBeenCalledWith({
+      name: "report_request_submitted",
+    });
+    expect(trackAnonymousFunnelEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ name: "report_delivery_outcome" }),
     );
     const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
     expect(body).toMatchObject({

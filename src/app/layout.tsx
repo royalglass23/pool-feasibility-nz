@@ -1,13 +1,21 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ClipboardList, Waves } from "lucide-react";
+import { AnalyticsConsent } from "@/components/analytics-consent";
+import { isSiteIndexingEnabled } from "@/config/site-indexing";
+import { env } from "@/env";
 import "./globals.css";
 import "maplibre-gl/dist/maplibre-gl.css";
+
+const siteIndexingEnabled = isSiteIndexingEnabled();
 
 export const metadata: Metadata = {
   title: "Pool Planning Auckland | Check your property",
   description:
     "Get an early view of your Auckland property's pool-planning context before you take the next step.",
+  robots: siteIndexingEnabled
+    ? { index: true, follow: true }
+    : { index: false, follow: false, noarchive: true },
 };
 
 export default function RootLayout({
@@ -42,6 +50,7 @@ export default function RootLayout({
           </nav>
         </header>
         {children}
+        <AnalyticsConsent measurementId={env.NEXT_PUBLIC_GA4_MEASUREMENT_ID} />
       </body>
     </html>
   );

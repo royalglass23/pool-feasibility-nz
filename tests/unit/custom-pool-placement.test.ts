@@ -232,7 +232,7 @@ describe("custom pool placement assessment", () => {
     );
   });
 
-  it("does not treat an empty mapped layer as proof that no asset exists", () => {
+  it("treats an explicitly available empty mapped layer as verified empty", () => {
     const result = assessCustomPoolPlacement({
       parcel,
       parcelStatus: "confirmed",
@@ -248,14 +248,9 @@ describe("custom pool placement assessment", () => {
       constraints: [],
     });
 
-    expect(result.classification).toBe("unknown");
-    expect(result.confidence).toBeLessThan(80);
-    expect(result.unknownEvidence).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({ evidenceId: "building_footprints" }),
-        expect.objectContaining({ evidenceId: "mapped_services" }),
-      ]),
-    );
+    expect(result.classification).toBe("clear");
+    expect(result.confidence).toBe(100);
+    expect(result.unknownEvidence).toEqual([]);
   });
 
   it("measures the nearest point on a mapped line, not only its vertices", () => {

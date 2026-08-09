@@ -23,6 +23,7 @@ vi.mock("@sparticuz/chromium", () => ({
 }));
 
 import { POST } from "@/app/api/internal/report/pdf/route";
+import { POST as POST_PUBLIC } from "@/app/api/public/report/pdf/route";
 import { buildSessionAssessment } from "@/modules/assessment/build-session-assessment";
 import { runDataAccessSpike } from "@/modules/data-access-spike/run-data-access-spike";
 import { issueSessionReportToken } from "@/modules/reporting/report-token";
@@ -34,6 +35,31 @@ afterEach(() => {
 });
 
 describe("POST /api/internal/report/pdf security outcomes", () => {
+  it("lets an anonymous visitor reach safe public validation", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    const submittedMarker = "private-public-report-marker";
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/report/pdf", {
+        method: "POST",
+        headers: { "X-Correlation-ID": "public-report-validation" },
+        body: JSON.stringify({ submittedMarker }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(await response.text()).not.toContain(submittedMarker);
+    expect(logInfo).toHaveBeenCalledWith({
+      event: "pdf_report_security",
+      outcome: "rejected",
+      category: "invalid_request",
+      principal: "anonymous_public",
+      status: 400,
+      correlationId: "public-report-validation",
+      durationMs: expect.any(Number),
+    });
+  });
+
   it("returns a three-page PDF without a Playwright browser cache", async () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("VERCEL", "1");

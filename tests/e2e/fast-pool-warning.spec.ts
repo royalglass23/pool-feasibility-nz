@@ -66,14 +66,14 @@ function conflictLayer() {
 }
 
 async function openFastView(page: import("@playwright/test").Page) {
-  await page.route("**/api/internal/fast-property-view", async (route) => {
+  await page.route("**/api/public/property-check", async (route) => {
     await route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({ data: baseResult, assessmentSnapshot }),
     });
   });
-  await page.route("**/api/internal/fast-property-view/stages", async (route) => {
+  await page.route("**/api/public/property-check/stages", async (route) => {
     if (route.request().postDataJSON()?.mode === "detailed") return route.continue();
     await route.fulfill({
       status: 200,
@@ -100,7 +100,7 @@ test("shows Needs Checking before detailed evidence, then No Warning after a cle
   await openFastView(page);
   await expect(page.getByRole("heading", { name: "Needs Checking" })).toBeVisible();
 
-  await page.route("**/api/internal/fast-property-view/stages", async (route) => {
+  await page.route("**/api/public/property-check/stages", async (route) => {
     if (route.request().postDataJSON()?.mode !== "detailed") return route.continue();
     await route.fulfill({
       status: 200,
@@ -117,7 +117,7 @@ test("shows Needs Checking before detailed evidence, then No Warning after a cle
 
 test("shows Blocked while leaving the pool warning and recommendation visible", async ({ page }) => {
   await openFastView(page);
-  await page.route("**/api/internal/fast-property-view/stages", async (route) => {
+  await page.route("**/api/public/property-check/stages", async (route) => {
     if (route.request().postDataJSON()?.mode !== "detailed") return route.continue();
     await route.fulfill({
       status: 200,

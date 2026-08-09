@@ -6,12 +6,19 @@ import { DataAccessInspector } from "@/app/data-access-inspector";
 import { runDataAccessSpike } from "@/modules/data-access-spike/run-data-access-spike";
 import { runFastPropertyView } from "@/modules/data-access-spike/fast-property-view";
 
+const trackAnonymousFunnelEvent = vi.hoisted(() => vi.fn());
+
+vi.mock("@/modules/anonymous-funnel-analytics", () => ({
+  trackAnonymousFunnelEvent,
+}));
+
 const requestedAddress = "42A Bahari Drive, Ranui, Auckland";
 
 afterEach(() => {
   cleanup();
   vi.restoreAllMocks();
   vi.unstubAllGlobals();
+  trackAnonymousFunnelEvent.mockReset();
 });
 
 describe("DataAccessInspector", { timeout: 10_000 }, () => {
@@ -41,6 +48,9 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     });
     expect(pendingButton).toBeDisabled();
     expect(screen.getByText("Address found")).toBeVisible();
+    expect(trackAnonymousFunnelEvent).toHaveBeenCalledWith({
+      name: "address_search_started",
+    });
     await user.click(pendingButton);
     expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
 
@@ -51,6 +61,32 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       ),
     );
     expect(await screen.findByText("Stopped")).toBeVisible();
+  });
+
+  it("emits only anonymous funnel names for a completed property check", async () => {
+    const user = userEvent.setup();
+    const result = await createResult();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ data: result }, { status: 200 })),
+    );
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Fetch property data" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: requestedAddress }),
+    ).toBeVisible();
+    expect(trackAnonymousFunnelEvent.mock.calls).toEqual([
+      [{ name: "address_search_started" }],
+      [{ name: "property_check_completed" }],
+    ]);
   });
 
   it("renders normalized results and downloads the session assessment", async () => {
@@ -131,8 +167,8 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
 
     expect(
-      screen.queryByRole("button", { name: "Generate PDF report" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Generate PDF report" }),
+    ).toBeDisabled();
     await user.click(screen.getByRole("button", { name: "Assessment data" }));
     expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
     expect(clickAnchor).toHaveBeenCalledOnce();
@@ -725,7 +761,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       basemapApiKey: "test-key",
     });
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      if (String(input).includes("/fast-property-view/stages")) {
+      if (String(input).includes("/api/public/property-check/stages")) {
         return Response.json({
           data: {
             boundary: fastResult.boundary,
@@ -763,7 +799,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     await user.click(screen.getByRole("button", { name: "Retry fast view" }));
     expect(
       fetchMock.mock.calls.filter(
-        ([input]) => String(input) === "/api/internal/fast-property-view",
+        ([input]) => String(input) === "/api/public/property-check",
       ),
     ).toHaveLength(2);
   });
