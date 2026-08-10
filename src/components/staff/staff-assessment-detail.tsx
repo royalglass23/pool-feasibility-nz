@@ -92,7 +92,7 @@ export function StaffAssessmentDetail({
         report={assessment.report}
         delivery={{
           homeowner: assessment.emailDeliveryState,
-          servicem8: assessment.forwardingState,
+          internal_test_report: assessment.forwardingState,
         }}
         onBack={onBack}
       />

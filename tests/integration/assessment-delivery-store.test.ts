@@ -64,47 +64,43 @@ describe.skipIf(!databaseUrl)(
           "email-homeowner-249",
         );
 
-        const serviceM8Claim = await store.claim(
+        const internalReportClaim = await store.claim(
           saved.assessment.reference,
-          "servicem8",
+          "internal_test_report",
         );
-        expect(serviceM8Claim).toMatchObject({
-          channel: "servicem8",
-          notification: {
+        expect(internalReportClaim).toMatchObject({
+          channel: "internal_test_report",
+          homeownerName: submission.homeowner.name,
+          homeownerEmail: submission.homeowner.email,
+          report: {
             reference: saved.assessment.reference,
-            name: submission.homeowner.name,
-            phone: submission.homeowner.phone,
-            email: submission.homeowner.email,
-            checkedAddress: submission.addressEvidence.formattedAddress,
-            visitorType: submission.homeowner.visitorType,
-            desiredTiming: submission.homeowner.desiredTiming,
+            mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
           },
         });
-        expect(serviceM8Claim).not.toHaveProperty("report");
         await expect(
-          store.claim(saved.assessment.reference, "servicem8"),
+          store.claim(saved.assessment.reference, "internal_test_report"),
         ).resolves.toBeNull();
         now = new Date("2026-07-29T03:07:00.000Z");
-        const recoveredServiceM8Claim = await store.claim(
+        const recoveredInternalReportClaim = await store.claim(
           saved.assessment.reference,
-          "servicem8",
+          "internal_test_report",
         );
-        expect(recoveredServiceM8Claim?.claimToken).not.toBe(
-          serviceM8Claim?.claimToken,
+        expect(recoveredInternalReportClaim?.claimToken).not.toBe(
+          internalReportClaim?.claimToken,
         );
         await expect(
           store.markSent(
             saved.assessment.reference,
-            "servicem8",
-            serviceM8Claim!.claimToken,
+            "internal_test_report",
+            internalReportClaim!.claimToken,
             "email-stale-worker-249",
           ),
         ).rejects.toThrow("ASSESSMENT_DELIVERY_CLAIM_LOST");
         await store.markSent(
           saved.assessment.reference,
-          "servicem8",
-          recoveredServiceM8Claim!.claimToken,
-          "email-servicem8-249",
+          "internal_test_report",
+          recoveredInternalReportClaim!.claimToken,
+          "email-internal-249",
         );
 
         const persisted = await db.query.homeownerAssessments.findFirst({
@@ -117,13 +113,13 @@ describe.skipIf(!databaseUrl)(
           emailDeliveryLastErrorCode: null,
           forwardingState: "sent",
           forwardingAttemptCount: 2,
-          forwardingProviderMessageId: "email-servicem8-249",
+          forwardingProviderMessageId: "email-internal-249",
         });
         await expect(
           store.claim(saved.assessment.reference, "homeowner"),
         ).resolves.toBeNull();
         await expect(
-          store.claim(saved.assessment.reference, "servicem8"),
+          store.claim(saved.assessment.reference, "internal_test_report"),
         ).resolves.toBeNull();
       } finally {
         await db

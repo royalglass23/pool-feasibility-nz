@@ -43,7 +43,7 @@ export function SavedAssessmentReportPanel({
         report={assessment.report}
         delivery={assessment.delivery}
         onBack={onBack}
-        downloadUrl={`/api/internal/assessments/${assessment.id}/report`}
+        downloadAccessToken={assessment.reportAccessToken}
       />
     );
   }

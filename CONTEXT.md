@@ -41,8 +41,16 @@ A short required explanation when a visitor selects Other for Visitor Type or Pr
 _Avoid_: Empty other value, catch-all category
 
 **Report Delivery Consent**:
-The required permission to store the report request and send the preliminary report as a PDF attachment to the visitor by email, while also sending the separate ServiceM8 Lead Notification. It does not include marketing permission.
+The required permission to store a report request and send its PDF to the submitted email address. In the controlled test flow, the same PDF is also sent to the Internal Test Report Email; it does not include marketing permission or authorise ServiceM8 forwarding.
 _Avoid_: Marketing consent, newsletter opt-in
+
+**Test Report Delivery**:
+The controlled non-production delivery that immediately sends the same report PDF to the synthetic test user's submitted email address and the Internal Test Report Email. It has no verification step and must not contain customer or production data.
+_Avoid_: Production report delivery, ServiceM8 test lead, customer-data test
+
+**Internal Test Report Email**:
+The controlled `royalglass666@gmail.com` recipient for the second PDF copy in Test Report Delivery.
+_Avoid_: ServiceM8 forwarding address, customer recipient, production internal mailbox
 
 **Report Request Retention Period**:
 The 12-month period for keeping a submitted report request and its associated personal/property data before deletion.
@@ -56,9 +64,13 @@ _Avoid_: Self-service portal requirement, ignored data request
 A service named in the privacy notice because it stores or receives a report request: Neon for storage, Resend for email delivery, and ServiceM8 only when forwarding is enabled.
 _Avoid_: Undisclosed third party, always-on ServiceM8 forwarding
 
+**Lead Notification**:
+The limited internal follow-up message created after a report request is saved when an approved production integration is enabled. It is separate from Test Report Delivery.
+_Avoid_: Internal test PDF copy, duplicate report email, always-on ServiceM8 forwarding
+
 **ServiceM8 Lead Notification**:
-An email notification sent to ServiceM8 only after a report request is saved in the database. It contains the reference, contact details, checked address, and visitor type/timing, but not a saved-report link, full PDF, or map attachment.
-_Avoid_: ServiceM8 authentication, unsaved lead email, public delivery channel
+An enabled-production Lead Notification sent to ServiceM8 only after a report request is saved and the ServiceM8 privacy gate has passed. It contains the reference, contact details, checked address, and visitor type/timing, but not a saved-report link, full PDF, or map attachment.
+_Avoid_: ServiceM8 test lead, unsaved lead email, public delivery channel
 
 **Anonymous Funnel Analytics**:
 Launch measurement of page and Property Check progression using anonymous event data only, after explicit analytics-cookie consent. It excludes names, phone numbers, email addresses, exact addresses, coordinates, report contents, ad retargeting, and marketing profiles; Search Console operates separately.

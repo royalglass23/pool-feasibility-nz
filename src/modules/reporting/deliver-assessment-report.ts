@@ -14,22 +14,24 @@ import {
 
 export async function deliverAssessmentReportByReference(
   reference: string,
-): Promise<Record<"homeowner" | "servicem8", AssessmentDeliveryOutcome>> {
+): Promise<
+  Record<"homeowner" | "internal_test_report", AssessmentDeliveryOutcome>
+> {
   const apiKey = process.env.RESEND_API_KEY?.trim();
   const from = process.env.REPORT_FROM_EMAIL?.trim();
-  const serviceM8Email = process.env.SERVICEM8_FORWARD_EMAIL?.trim();
 
   return deliverAssessmentReport(reference, {
     store: createAssessmentDeliveryStore(getDb()),
     renderPdf: generatePreliminaryReportPdf,
     from: from || "unconfigured",
-    serviceM8Email: serviceM8Email || "",
+    deliveryEnvironment: {
+      mode: process.env.REPORT_DELIVERY_MODE,
+      vercelEnvironment: process.env.VERCEL_ENV,
+      nodeEnvironment: process.env.NODE_ENV,
+    },
     send: async (input) => {
       if (!apiKey || !from) {
         throw new ReportEmailDeliveryError("EMAIL_CONFIGURATION_MISSING");
-      }
-      if (!input.to) {
-        throw new ReportEmailDeliveryError("SERVICEM8_DESTINATION_MISSING");
       }
       return sendResendEmail({ ...input, apiKey, from });
     },

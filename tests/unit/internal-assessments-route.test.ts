@@ -5,6 +5,8 @@ import {
   buildServerAssessmentSubmission,
   parseBrowserAssessmentSaveRequest,
 } from "@/modules/assessment/server-assessment-submission";
+import { queryableDatasetKeys } from "@/modules/data-access-spike/dataset-catalog";
+import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fast-property-details";
 
 const getDb = vi.hoisted(() => vi.fn(() => ({}) as never));
 const saveHomeownerAssessment = vi.hoisted(() => vi.fn());
@@ -40,6 +42,7 @@ import { POST as POST_PUBLIC } from "@/app/api/public/assessments/route";
 
 const snapshotSigningKey = "test-assessment-snapshot-signing-key-32-bytes";
 const snapshotService = createAssessmentSnapshotService(snapshotSigningKey);
+const ASSESSMENT_ID = "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48";
 const validSubmission = {
   assessmentSnapshot: snapshotService.issue({
     requestedAddress: "1 Test Street, Auckland",
@@ -125,6 +128,126 @@ describe("POST /api/internal/assessments", () => {
       idempotencyKey: snapshot.submissionId,
       addressEvidence: { selectedAddressId: "linz-123" },
     });
+  });
+
+  it("persists a scored report with risks, actions, and missing information", async () => {
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const assessmentSnapshot = snapshotService.issue({
+      ...original.fastResult,
+      detailedChecks: completeDetailedChecks(),
+    });
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+    });
+    const snapshot = snapshotService.verify(request.assessmentSnapshot);
+
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot,
+      now: () => new Date("2026-07-30T00:00:00.000Z"),
+    });
+
+    expect(
+      submission.report.reportData.assessmentSnapshot?.feasibilityAssessment
+        .score,
+    ).toEqual(expect.any(Number));
+    expect(submission.report.reportData.risks.length).toBeGreaterThan(0);
+    expect(submission.report.reportData.actions.length).toBeGreaterThan(0);
+    expect(
+      submission.report.reportData.missingInformation.length,
+    ).toBeGreaterThan(0);
+  });
+
+  it("keeps non-reportable geometry out of the homeowner score", async () => {
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const detailedChecks = completeDetailedChecks();
+    const wastewater = detailedChecks.layers.find(
+      (layer) => layer.key === "wastewater_assets",
+    );
+    if (!wastewater) throw new Error("TEST_WASTEWATER_LAYER_MISSING");
+    wastewater.state = "internal_reference_only";
+    wastewater.evidence = {
+      ...wastewater.evidence,
+      provider: "Watercare",
+      status: "success",
+      licenceStatus: "conditional",
+      evidenceUse: "internal_reference",
+      licence: "CC BY-NC-ND 3.0 NZ",
+      featureCount: 1,
+    };
+    wastewater.geometry = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {},
+          geometry: original.fastResult.boundary.geometry!,
+        },
+      ],
+    };
+    const floodPlain = detailedChecks.layers.find(
+      (layer) => layer.key === "flood_plains",
+    );
+    if (!floodPlain) throw new Error("TEST_FLOOD_LAYER_MISSING");
+    floodPlain.state = "returned";
+    floodPlain.evidence = {
+      ...floodPlain.evidence,
+      provider: "Auckland Council",
+      status: "success",
+      licenceStatus: "conditional",
+      evidenceUse: "spike_only",
+      licence: "Generated-report reuse not approved",
+      featureCount: 1,
+    };
+    floodPlain.geometry = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {},
+          geometry: original.fastResult.boundary.geometry!,
+        },
+      ],
+    };
+    const assessmentSnapshot = snapshotService.issue({
+      ...original.fastResult,
+      detailedChecks,
+    });
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+    });
+    const snapshot = snapshotService.verify(request.assessmentSnapshot);
+
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot,
+      now: () => new Date("2026-07-30T00:00:00.000Z"),
+    });
+    const assessment =
+      submission.report.reportData.assessmentSnapshot?.feasibilityAssessment;
+
+    expect(assessment?.criticalFlags).not.toContainEqual(
+      expect.objectContaining({ id: "major_mapped_infrastructure" }),
+    );
+    expect(assessment?.criticalFlags).not.toContainEqual(
+      expect.objectContaining({ id: "all_candidates_flood_affected" }),
+    );
+    expect(assessment?.categories).toContainEqual(
+      expect.objectContaining({
+        id: "underground_services",
+        awardedPoints: null,
+        status: "unknown",
+      }),
+    );
+    expect(assessment?.categories).toContainEqual(
+      expect.objectContaining({
+        id: "flooding_and_drainage",
+        awardedPoints: null,
+        status: "unknown",
+      }),
+    );
   });
 
   it("rejects a pool position outside the signed property boundary", async () => {
@@ -258,7 +381,7 @@ describe("POST /api/internal/assessments", () => {
     vi.stubEnv("INTERNAL_REPORT_SIGNING_SECRET", snapshotSigningKey);
     saveHomeownerAssessment.mockResolvedValue({
       assessment: {
-        id: "assessment-1",
+        id: ASSESSMENT_ID,
         reference: "GF-2026-000001",
         status: "new_enquiry",
         createdAt: new Date("2026-07-29T02:03:04.000Z"),
@@ -306,7 +429,7 @@ describe("POST /api/internal/assessments", () => {
     expect(response.status).toBe(201);
     await expect(response.json()).resolves.toEqual({
       assessment: {
-        id: "assessment-1",
+        id: ASSESSMENT_ID,
         reference: "GF-2026-000001",
         status: "new_enquiry",
         created: true,
@@ -316,9 +439,10 @@ describe("POST /api/internal/assessments", () => {
           summary: "The original persisted assessment.",
           mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
         }),
+        reportAccessToken: expect.any(String),
         delivery: {
           homeowner: "pending",
-          servicem8: "pending",
+          internal_test_report: "pending",
         },
       },
     });
@@ -326,7 +450,7 @@ describe("POST /api/internal/assessments", () => {
     expect(saveHomeownerAssessment).toHaveBeenCalledOnce();
     expect(getSavedPreliminaryReportById).toHaveBeenCalledWith(
       expect.anything(),
-      "assessment-1",
+      ASSESSMENT_ID,
     );
     expect(saveHomeownerAssessment).toHaveBeenCalledWith(
       expect.anything(),
@@ -373,3 +497,37 @@ describe("POST /api/internal/assessments", () => {
     expect(deliverAssessmentReportByReference).not.toHaveBeenCalled();
   });
 });
+
+function completeDetailedChecks(): FastPropertyDetails {
+  const retrievedAt = "2026-07-29T01:00:00.000Z";
+  return {
+    status: "complete" as const,
+    retrievedAt,
+    durationMs: 10,
+    region: "Auckland",
+    limitations: ["Mapped evidence requires onsite verification."],
+    layers: [...queryableDatasetKeys, "culverts" as const].map((key) => ({
+      key,
+      state: "verified_empty" as const,
+      evidence: {
+        provider: "Official test provider",
+        dataset: key,
+        datasetIdentifier: key,
+        status: "success" as const,
+        licenceStatus: "permitted" as const,
+        evidenceUse: "report_allowed" as const,
+        retrievedAt,
+        datasetDate: null,
+        licence: "Test licence",
+        attribution: null,
+        geometryUsed: "bounded query",
+        attributesUsed: [],
+        evidenceType: "vector",
+        confidence: "limited" as const,
+        featureCount: 0,
+      },
+      geometry: null,
+      message: "The provider verified an empty result.",
+    })),
+  };
+}

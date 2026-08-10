@@ -141,7 +141,7 @@ describe("staff assessment detail", () => {
     const homeownerView = render(
       <SavedPreliminaryReportView
         report={savedPreliminaryReport}
-        delivery={{ homeowner: "sent", servicem8: "pending" }}
+        delivery={{ homeowner: "sent", internal_test_report: "pending" }}
         onBack={() => undefined}
       />,
     );

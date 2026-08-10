@@ -5,7 +5,13 @@ import {
   validateFastCustomDimensions,
 } from "@/modules/data-access-spike/fast-pool-placement";
 import { classifyFastPoolWarning } from "@/modules/data-access-spike/fast-pool-warning";
-import { renderTrustedAssessmentMap } from "@/modules/reporting/trusted-assessment-map";
+import { captureLinzAerialBackground } from "@/modules/providers/linz/capture-linz-aerial-background";
+import {
+  renderTrustedAssessmentMap,
+  trustedAssessmentMapViewport,
+} from "@/modules/reporting/trusted-assessment-map";
+import { buildFastReportAssessment } from "@/modules/reporting/build-fast-report-assessment";
+import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
 import {
   requireOtherDetails,
   visitorContextFields,
@@ -101,11 +107,30 @@ export async function buildServerAssessmentSubmission(input: {
     detailedChecks: snapshot.fastResult.detailedChecks,
   });
   const submittedAt = (input.now?.() ?? new Date()).toISOString();
-  const mapImageDataUrl = await renderTrustedAssessmentMap({
+  const reportAssessment = buildFastReportAssessment(
+    snapshot.fastResult,
+    submittedAt,
+  );
+  const mapInput = {
     boundary: boundary.geometry,
     shell: poolGeometry.geometry,
     constructionEnvelope: constructionEnvelope.geometry,
     warning: warning.status,
+    layers:
+      snapshot.fastResult.detailedChecks?.layers.map((layer) => ({
+        key: layer.key,
+        evidenceUse: layer.evidence.evidenceUse,
+        geometry: layer.geometry,
+      })) ?? [],
+  };
+  const viewport = trustedAssessmentMapViewport(mapInput);
+  const aerialPixels =
+    snapshot.fastResult.aerial.state === "ready"
+      ? await captureLinzAerialBackground(viewport)
+      : null;
+  const mapImageDataUrl = await renderTrustedAssessmentMap(mapInput, {
+    aerialPixels,
+    viewport,
   });
 
   return parsePersistedAssessmentSubmission({
@@ -161,18 +186,10 @@ export async function buildServerAssessmentSubmission(input: {
         message: warning.text,
       },
     ],
-    recommendations: warning.recommendation
-      ? [
-          {
-            phase: "before_concept_design",
-            priority: 1,
-            title: "Resolve the mapped pool warning",
-            reason: warning.recommendation,
-          },
-        ]
-      : [],
+    recommendations: reportRecommendations(warning, reportAssessment),
     report: {
-      analysisVersion: "mt-248-v1",
+      analysisVersion:
+        reportAssessment?.feasibilityAssessment.analysisVersion ?? "mt-248-v1",
       title: "Preliminary pool feasibility assessment",
       summary: warning.text,
       feasibilityState: warning.status,
@@ -180,19 +197,50 @@ export async function buildServerAssessmentSubmission(input: {
       reportData: {
         recommendation:
           warning.recommendation ??
+          reportAssessment?.recommendation ??
           "Review the saved mapped evidence before design.",
-        preliminaryFeasibilityWording: warning.text,
-        risks: [],
-        actions: [],
-        missingInformation: [],
-        limitations: snapshot.fastResult.detailedChecks?.limitations ?? [
-          "Detailed official checks have not been loaded.",
-        ],
-        provenance: { datasets: [] },
-        assessmentSnapshot: null,
+        preliminaryFeasibilityWording:
+          reportAssessment?.preliminaryFeasibilityWording ?? warning.text,
+        risks: reportAssessment?.risks ?? [],
+        actions: reportAssessment?.actions ?? [],
+        missingInformation: reportAssessment?.missingInformation ?? [],
+        limitations: reportAssessment?.limitations ??
+          snapshot.fastResult.detailedChecks?.limitations ?? [
+            "Detailed official checks have not been loaded.",
+          ],
+        provenance: reportAssessment?.provenance ?? { datasets: [] },
+        assessmentSnapshot: reportAssessment
+          ? buildReportAssessmentSnapshot(reportAssessment)
+          : null,
       },
     },
   });
+}
+
+function reportRecommendations(
+  warning: ReturnType<typeof classifyFastPoolWarning>,
+  assessment: ReturnType<typeof buildFastReportAssessment>,
+) {
+  const warningRecommendation = warning.recommendation
+    ? [
+        {
+          phase: "before_concept_design" as const,
+          priority: 1,
+          title: "Resolve the mapped pool warning",
+          reason: warning.recommendation,
+        },
+      ]
+    : [];
+  const assessmentRecommendations =
+    assessment?.actions.flatMap((group, groupIndex) =>
+      group.items.slice(0, 2).map((item, itemIndex) => ({
+        phase: group.phase,
+        priority: warningRecommendation.length + groupIndex * 2 + itemIndex + 1,
+        title: item,
+        reason: item,
+      })),
+    ) ?? [];
+  return [...warningRecommendation, ...assessmentRecommendations];
 }
 
 export class ServerAssessmentSubmissionError extends Error {

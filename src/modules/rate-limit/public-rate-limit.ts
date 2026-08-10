@@ -16,6 +16,7 @@ export type PublicRateLimitAction =
   | "aerial_tile"
   | "property_check"
   | "property_check_stage"
+  | "report_delivery"
   | "report_pdf"
   | "report_request";
 
@@ -81,6 +82,11 @@ const policies = {
     limit: 2,
     window: { value: 15, unit: "m" },
     prefix: "geomap:public-rate-limit:property-check-stage:v1",
+  },
+  report_delivery: {
+    limit: 3,
+    window: { value: 1, unit: "h" },
+    prefix: "geomap:public-rate-limit:report-delivery:v1",
   },
   report_pdf: {
     limit: 3,
