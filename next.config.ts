@@ -21,6 +21,11 @@ const nextConfig: NextConfig = {
   outputFileTracingIncludes: {
     "/api/internal/report/pdf": ["./node_modules/@sparticuz/chromium/bin/**/*"],
     "/api/public/report/pdf": ["./node_modules/@sparticuz/chromium/bin/**/*"],
+    "/api/public/assessments": [
+      "./node_modules/sharp/**/*",
+      "./node_modules/@img/sharp-linux-x64/**/*",
+      "./node_modules/@img/sharp-libvips-linux-x64/**/*",
+    ],
   },
 };
 
