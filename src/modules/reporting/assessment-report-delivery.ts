@@ -1,6 +1,3 @@
-import { getProjectTimingLabel } from "@/modules/assessment/visitor-context";
-import type { PersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
-import { getVisitorTypeLabel } from "@/modules/assessment/visitor-type";
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import { preliminaryReportFilename } from "@/modules/reporting/preliminary-report";
 import {
@@ -10,39 +7,17 @@ import {
 } from "@/modules/reporting/resend-email-gateway";
 import { escapeHtml } from "@/shared/html/escape-html";
 
-export type AssessmentDeliveryChannel = "homeowner" | "servicem8";
+export type AssessmentDeliveryChannel = "homeowner" | "internal_test_report";
 export type AssessmentDeliveryOutcome = "sent" | "failed" | "unchanged";
+const INTERNAL_TEST_REPORT_RECIPIENT = "royalglass666@gmail.com";
 
-type AssessmentDeliveryClaimBase = {
+export type AssessmentDeliveryClaim = {
   claimToken: string;
-};
-
-type HomeownerDeliveryClaim = AssessmentDeliveryClaimBase & {
-  channel: "homeowner";
+  channel: AssessmentDeliveryChannel;
   homeownerName: string;
   homeownerEmail: string;
   report: SavedPreliminaryReport;
 };
-
-export type ServiceM8AssessmentNotification = {
-  reference: string;
-  name: string;
-  phone: string;
-  email: string;
-  checkedAddress: string;
-  visitorType: PersistedAssessmentSubmission["homeowner"]["visitorType"] | null;
-  visitorTypeOtherDetail?: string;
-  desiredTiming: PersistedAssessmentSubmission["homeowner"]["desiredTiming"];
-  desiredTimingOtherDetail?: string;
-};
-
-type ServiceM8DeliveryClaim = AssessmentDeliveryClaimBase & {
-  channel: "servicem8";
-  notification: ServiceM8AssessmentNotification;
-};
-
-export type AssessmentDeliveryClaim =
-  HomeownerDeliveryClaim | ServiceM8DeliveryClaim;
 
 export interface AssessmentDeliveryStore {
   claim(
@@ -68,15 +43,25 @@ export type AssessmentReportDeliveryDependencies = {
   renderPdf: (report: SavedPreliminaryReport) => Promise<Buffer>;
   send: (input: ReportEmailInput) => Promise<ReportEmailResult>;
   from: string;
-  serviceM8Email: string;
+  deliveryEnvironment: {
+    mode?: string;
+    vercelEnvironment?: string;
+    nodeEnvironment?: string;
+  };
 };
 
 export async function deliverAssessmentReport(
   reference: string,
   dependencies: AssessmentReportDeliveryDependencies,
 ): Promise<Record<AssessmentDeliveryChannel, AssessmentDeliveryOutcome>> {
+  if (!isControlledSyntheticTestDelivery(dependencies.deliveryEnvironment)) {
+    throw new ReportEmailDeliveryError(
+      "SYNTHETIC_TEST_REPORT_DELIVERY_DISABLED",
+    );
+  }
+
   const claims = await Promise.all(
-    (["homeowner", "servicem8"] as const).map((channel) =>
+    (["homeowner", "internal_test_report"] as const).map((channel) =>
       dependencies.store.claim(reference, channel),
     ),
   );
@@ -86,28 +71,30 @@ export async function deliverAssessmentReport(
   const outcomes: Record<AssessmentDeliveryChannel, AssessmentDeliveryOutcome> =
     {
       homeowner: "unchanged",
-      servicem8: "unchanged",
+      internal_test_report: "unchanged",
     };
   if (activeClaims.length === 0) return outcomes;
 
+  let pdf: Buffer;
+  try {
+    pdf = await dependencies.renderPdf(activeClaims[0].report);
+  } catch {
+    await Promise.all(
+      activeClaims.map(async (claim) => {
+        await dependencies.store.markFailed(
+          reference,
+          claim.channel,
+          claim.claimToken,
+          "REPORT_PDF_GENERATION_FAILED",
+        );
+        outcomes[claim.channel] = "failed";
+      }),
+    );
+    return outcomes;
+  }
+
   await Promise.all(
     activeClaims.map(async (claim) => {
-      let pdf: Buffer | undefined;
-      if (claim.channel === "homeowner") {
-        try {
-          pdf = await dependencies.renderPdf(claim.report);
-        } catch {
-          await dependencies.store.markFailed(
-            reference,
-            claim.channel,
-            claim.claimToken,
-            "REPORT_PDF_GENERATION_FAILED",
-          );
-          outcomes[claim.channel] = "failed";
-          return;
-        }
-      }
-
       try {
         const result = await dependencies.send(
           emailForClaim(claim, pdf, dependencies),
@@ -138,43 +125,28 @@ export async function deliverAssessmentReport(
   return outcomes;
 }
 
+function isControlledSyntheticTestDelivery(
+  environment: AssessmentReportDeliveryDependencies["deliveryEnvironment"],
+) {
+  if (environment.mode !== "synthetic_test") return false;
+  if (environment.vercelEnvironment) {
+    return environment.vercelEnvironment === "preview";
+  }
+  return (
+    environment.nodeEnvironment === "development" ||
+    environment.nodeEnvironment === "test"
+  );
+}
+
 function emailForClaim(
   claim: AssessmentDeliveryClaim,
-  pdf: Buffer | undefined,
-  dependencies: Pick<
-    AssessmentReportDeliveryDependencies,
-    "from" | "serviceM8Email"
-  >,
+  pdf: Buffer,
+  dependencies: Pick<AssessmentReportDeliveryDependencies, "from">,
 ): ReportEmailInput {
-  const homeowner = claim.channel === "homeowner";
-  if (!homeowner) {
-    const notification = claim.notification;
-    const facts = [
-      ["Reference", notification.reference],
-      ["Name", notification.name],
-      ["Phone", notification.phone],
-      ["Email", notification.email],
-      ["Checked Property Address", notification.checkedAddress],
-      ["Visitor type", visitorTypeLabel(notification)],
-      ["Project Timing", desiredTimingLabel(notification)],
-    ] as const;
-    return {
-      from: dependencies.from,
-      to: dependencies.serviceM8Email,
-      subject: `New pool feasibility enquiry ${notification.reference}`,
-      html: `<p>${facts
-        .map(
-          ([label, value]) => `<strong>${label}:</strong> ${escapeHtml(value)}`,
-        )
-        .join("<br>")}</p>`,
-      text: facts.map(([label, value]) => `${label}: ${value}`).join("\n"),
-      idempotencyKey: `assessment-report/${notification.reference}/${claim.channel}`,
-    };
-  }
-
-  if (!pdf) throw new Error("HOMEOWNER_REPORT_PDF_MISSING");
-
-  const to = claim.homeownerEmail;
+  const to =
+    claim.channel === "homeowner"
+      ? claim.homeownerEmail
+      : INTERNAL_TEST_REPORT_RECIPIENT;
   const subject = `Your preliminary pool feasibility report - ${claim.report.reference}`;
   const greeting = `Kia ora ${claim.homeownerName},`;
   const text = `${greeting}\n\nThe preliminary pool feasibility report for ${claim.report.property.address} is attached.\n\nReference: ${claim.report.reference}\nStatus: ${claim.report.warningState.replaceAll("_", " ")}\n\nThis is a preliminary assessment, not approval or construction advice.`;
@@ -190,22 +162,4 @@ function emailForClaim(
     filename: preliminaryReportFilename(claim.report),
     idempotencyKey: `assessment-report/${claim.report.reference}/${claim.channel}`,
   };
-}
-
-function visitorTypeLabel(
-  notification: ServiceM8AssessmentNotification,
-): string {
-  if (notification.visitorType === null) return "Not captured";
-  return notification.visitorType === "other"
-    ? `Other - ${notification.visitorTypeOtherDetail ?? "Not provided"}`
-    : getVisitorTypeLabel(notification.visitorType);
-}
-
-function desiredTimingLabel(
-  notification: ServiceM8AssessmentNotification,
-): string {
-  if (notification.desiredTiming === "other") {
-    return `Other - ${notification.desiredTimingOtherDetail ?? "Not provided"}`;
-  }
-  return getProjectTimingLabel(notification.desiredTiming);
 }

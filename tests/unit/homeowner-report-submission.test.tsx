@@ -88,7 +88,11 @@ describe("homeowner report submission", () => {
             status: "new_enquiry",
             created: true,
             report,
-            delivery: { homeowner: "pending", servicem8: "pending" },
+            reportAccessToken: "saved-report-access-token",
+            delivery: {
+              homeowner: "pending",
+              internal_test_report: "pending",
+            },
           },
         }),
         { status: 201, headers: { "Content-Type": "application/json" } },
@@ -136,7 +140,11 @@ describe("homeowner report submission", () => {
         status: "new_enquiry",
         created: true,
         report,
-        delivery: { homeowner: "pending", servicem8: "pending" },
+        reportAccessToken: "saved-report-access-token",
+        delivery: {
+          homeowner: "pending",
+          internal_test_report: "pending",
+        },
       }),
     );
     expect(trackAnonymousFunnelEvent).toHaveBeenCalledWith({
@@ -164,7 +172,11 @@ describe("homeowner report submission", () => {
             status: "new_enquiry",
             created: true,
             report,
-            delivery: { homeowner: "pending", servicem8: "pending" },
+            reportAccessToken: "saved-report-access-token",
+            delivery: {
+              homeowner: "pending",
+              internal_test_report: "pending",
+            },
           },
         }),
         { status: 201, headers: { "Content-Type": "application/json" } },
@@ -232,7 +244,31 @@ describe("homeowner report submission", () => {
     });
   });
 
-  it("shows the returned shared report while both deliveries continue independently", () => {
+  it("downloads the saved report through the public token boundary with centered button content", async () => {
+    const user = userEvent.setup();
+    const createObjectUrl = vi.fn(() => "blob:report-pdf");
+    const revokeObjectUrl = vi.fn();
+    Object.defineProperties(URL, {
+      createObjectURL: { configurable: true, value: createObjectUrl },
+      revokeObjectURL: { configurable: true, value: revokeObjectUrl },
+    });
+    const request = vi.fn((url: string) =>
+      Promise.resolve(
+        url.endsWith("/delivery")
+          ? Response.json({
+              delivery: {
+                homeowner: "pending",
+                internal_test_report: "failed",
+              },
+            })
+          : new Response(new Blob(["%PDF-public"]), {
+              status: 200,
+              headers: { "Content-Type": "application/pdf" },
+            }),
+      ),
+    );
+    vi.stubGlobal("fetch", request);
+
     render(
       <SavedAssessmentReportPanel
         assessment={{
@@ -241,7 +277,11 @@ describe("homeowner report submission", () => {
           status: "new_enquiry",
           created: true,
           report,
-          delivery: { homeowner: "pending", servicem8: "failed" },
+          reportAccessToken: "saved-report-access-token",
+          delivery: {
+            homeowner: "pending",
+            internal_test_report: "failed",
+          },
         }}
         showReport
         onOpen={() => undefined}
@@ -263,6 +303,25 @@ describe("homeowner report submission", () => {
     expect(screen.getByText("Generated 29 Jul 2026, 2:03 pm")).toBeVisible();
     expect(screen.getByText("Review access:")).toBeVisible();
     expect(screen.getByText("Homeowner email: Processing")).toBeVisible();
-    expect(screen.getByText("ServiceM8 forwarding: Needs retry")).toBeVisible();
+    expect(
+      screen.getByText("Internal report email: Needs retry"),
+    ).toBeVisible();
+
+    const download = screen.getByRole("button", { name: "Download PDF" });
+    expect(download).toHaveClass("items-center", "justify-center");
+    expect(
+      screen.queryByRole("link", { name: "Download PDF" }),
+    ).not.toBeInTheDocument();
+
+    await user.click(download);
+    await waitFor(() =>
+      expect(request).toHaveBeenCalledWith(
+        "/api/public/assessments/report/pdf",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({ accessToken: "saved-report-access-token" }),
+        }),
+      ),
+    );
   });
 });

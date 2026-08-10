@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "feature": "saved-report-download",
+  "commit": "ea35f9c306fb2bef11ef4011c9883f3bdc51be0d",
+  "candidateState": "uncommitted-working-tree",
+  "command": "npx.cmd playwright test tests/e2e/homeowner-report.spec.ts --project=chromium --workers=1 --retries=0",
+  "retries": 0,
+  "environment": {
+    "name": "blocked-local-dev-diagnostic",
+    "baseUrl": "http://127.0.0.1:3000",
+    "production": false,
+    "fingerprint": "sha256:6a53a74375f5124dddd2597c674f95b82565dc1f0370fd5192a49649740bc653"
+  },
+  "configHash": "sha256:8ed0c77439020b08f24b326db6cf0e4642b3621ed28d9bd0203bbdc6ee371639",
+  "fixtureVersion": "sha256:0692dc1cdbef636765a3096fb977fd605c9ca230ee90fdbb30fa16aa0a974091",
+  "matrixHash": "sha256:ca265a89a6400cdbfa24038e9a4384646d38b40f97f64b3d1af07b5523be89d8",
+  "projects": ["chromium"],
+  "coverage": {
+    "required": 12,
+    "covered": 0
+  },
+  "counts": {
+    "total": 1,
+    "passed": 1,
+    "failed": 0,
+    "skipped": 0,
+    "flaky": 0
+  },
+  "artifacts": {
+    "report": "playwright-report/index.html (local ignored diagnostic only)",
+    "traces": []
+  },
+  "verdict": "BLOCKED"
+}

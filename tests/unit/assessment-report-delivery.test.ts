@@ -5,20 +5,23 @@ import {
   deliverAssessmentReport,
   type AssessmentDeliveryChannel,
   type AssessmentDeliveryStore,
-  type ServiceM8AssessmentNotification,
 } from "@/modules/reporting/assessment-report-delivery";
 import { sendResendEmail } from "@/modules/reporting/resend-email-gateway";
 
 const report = buildTestPreliminaryReport({
   summary: "The selected pool needs checking.",
 });
+const controlledTestDeliveryEnvironment = {
+  mode: "synthetic_test",
+  vercelEnvironment: "preview",
+  nodeEnvironment: "production",
+} as const;
 
 function createDeliveryStore(
   initial: Record<AssessmentDeliveryChannel, string>,
   options: {
     report?: SavedPreliminaryReport;
     homeownerName?: string;
-    notification?: Partial<ServiceM8AssessmentNotification>;
   } = {},
 ) {
   const states: Record<AssessmentDeliveryChannel, string> = { ...initial };
@@ -28,22 +31,13 @@ function createDeliveryStore(
         if (states[channel] === "sent" || states[channel] === "sending")
           return null;
         states[channel] = "sending";
-        if (channel === "servicem8") {
+        if (channel === "internal_test_report") {
           return {
             channel,
             claimToken: `${channel}-claim`,
-            notification: {
-              reference: "GF-2026-000123",
-              name: options.homeownerName ?? "Jane Homeowner",
-              phone: "021 555 1234",
-              email: "jane@example.com",
-              checkedAddress: "1 Test Street, Auckland",
-              visitorType: "homeowner" as const,
-              visitorTypeOtherDetail: undefined,
-              desiredTiming: "3_months" as const,
-              desiredTimingOtherDetail: undefined,
-              ...options.notification,
-            },
+            homeownerName: options.homeownerName ?? "Jane Homeowner",
+            homeownerEmail: "jane@example.com",
+            report: options.report ?? report,
           };
         }
         return {
@@ -70,25 +64,72 @@ function createDeliveryStore(
 }
 
 describe("assessment report delivery", () => {
-  it("sends the PDF only to the homeowner and an allowlisted notification to ServiceM8", async () => {
-    const { states, store } = createDeliveryStore({
+  it.each([
+    [
+      "the explicit mode is missing",
+      {
+        mode: undefined,
+        vercelEnvironment: "preview",
+        nodeEnvironment: "production",
+      },
+    ],
+    [
+      "the deployment is production",
+      {
+        mode: "synthetic_test",
+        vercelEnvironment: "production",
+        nodeEnvironment: "production",
+      },
+    ],
+  ] as const)(
+    "fails closed before claiming reports when %s",
+    async (_reason, deliveryEnvironment) => {
+      const { store } = createDeliveryStore({
+        homeowner: "pending",
+        internal_test_report: "pending",
+      });
+      const renderPdf = vi.fn();
+      const send = vi.fn();
+
+      await expect(
+        deliverAssessmentReport("GF-2026-000123", {
+          store,
+          renderPdf,
+          send,
+          from: "Royal Glass <reports@example.com>",
+          deliveryEnvironment,
+        }),
+      ).rejects.toMatchObject({
+        code: "SYNTHETIC_TEST_REPORT_DELIVERY_DISABLED",
+      });
+      expect(store.claim).not.toHaveBeenCalled();
+      expect(renderPdf).not.toHaveBeenCalled();
+      expect(send).not.toHaveBeenCalled();
+    },
+  );
+
+  it("sends the same saved report PDF to the submitted test email and internal test email", async () => {
+    const { store } = createDeliveryStore({
       homeowner: "pending",
-      servicem8: "pending",
+      internal_test_report: "pending",
     });
-    const renderPdf = vi.fn().mockResolvedValue(Buffer.from("%PDF-shared"));
-    const send = vi.fn(async (input: { to: string }) => {
-      if (input.to === "jane@example.com") {
-        throw new Error("provider unavailable");
-      }
-      return { id: "email-servicem8" };
-    });
+    const pdf = Buffer.from("%PDF-shared");
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({ id: "email-homeowner" })
+      .mockResolvedValueOnce({ id: "email-internal" });
+    const renderPdf = vi.fn().mockResolvedValue(pdf);
 
     const result = await deliverAssessmentReport("GF-2026-000123", {
       store,
       renderPdf,
       send,
       from: "Royal Glass <reports@example.com>",
-      serviceM8Email: "inbox@servicem8.example",
+      deliveryEnvironment: {
+        mode: "synthetic_test",
+        vercelEnvironment: "preview",
+        nodeEnvironment: "production",
+      },
     });
 
     expect(renderPdf).toHaveBeenCalledOnce();
@@ -96,8 +137,54 @@ describe("assessment report delivery", () => {
     const homeownerEmail = send.mock.calls.find(
       ([input]) => input.to === "jane@example.com",
     )?.[0];
-    const serviceM8Email = send.mock.calls.find(
-      ([input]) => input.to === "inbox@servicem8.example",
+    const internalEmail = send.mock.calls.find(
+      ([input]) => input.to === "royalglass666@gmail.com",
+    )?.[0];
+    expect(homeownerEmail).toMatchObject({
+      attachment: pdf,
+      filename: "pool-feasibility-GF-2026-000123.pdf",
+      subject: "Your preliminary pool feasibility report - GF-2026-000123",
+    });
+    expect(internalEmail).toMatchObject({
+      attachment: pdf,
+      filename: "pool-feasibility-GF-2026-000123.pdf",
+      subject: "Your preliminary pool feasibility report - GF-2026-000123",
+      idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
+    });
+    expect(result).toEqual({
+      homeowner: "sent",
+      internal_test_report: "sent",
+    });
+  });
+
+  it("keeps the internal test delivery independent when homeowner email fails", async () => {
+    const { states, store } = createDeliveryStore({
+      homeowner: "pending",
+      internal_test_report: "pending",
+    });
+    const renderPdf = vi.fn().mockResolvedValue(Buffer.from("%PDF-shared"));
+    const send = vi.fn(async (input: { to: string }) => {
+      if (input.to === "jane@example.com") {
+        throw new Error("provider unavailable");
+      }
+      return { id: "email-internal" };
+    });
+
+    const result = await deliverAssessmentReport("GF-2026-000123", {
+      store,
+      renderPdf,
+      send,
+      from: "Royal Glass <reports@example.com>",
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
+    });
+
+    expect(renderPdf).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledTimes(2);
+    const homeownerEmail = send.mock.calls.find(
+      ([input]) => input.to === "jane@example.com",
+    )?.[0];
+    const internalEmail = send.mock.calls.find(
+      ([input]) => input.to === "royalglass666@gmail.com",
     )?.[0];
     expect(homeownerEmail).toMatchObject({
       to: "jane@example.com",
@@ -105,30 +192,27 @@ describe("assessment report delivery", () => {
       idempotencyKey: "assessment-report/GF-2026-000123/homeowner",
       attachment: Buffer.from("%PDF-shared"),
     });
-    expect(serviceM8Email).toEqual({
-      from: "Royal Glass <reports@example.com>",
-      to: "inbox@servicem8.example",
-      subject: "New pool feasibility enquiry GF-2026-000123",
-      html: "<p><strong>Reference:</strong> GF-2026-000123<br><strong>Name:</strong> Jane Homeowner<br><strong>Phone:</strong> 021 555 1234<br><strong>Email:</strong> jane@example.com<br><strong>Checked Property Address:</strong> 1 Test Street, Auckland<br><strong>Visitor type:</strong> Homeowner<br><strong>Project Timing:</strong> Within 3 months</p>",
-      text: [
-        "Reference: GF-2026-000123",
-        "Name: Jane Homeowner",
-        "Phone: 021 555 1234",
-        "Email: jane@example.com",
-        "Checked Property Address: 1 Test Street, Auckland",
-        "Visitor type: Homeowner",
-        "Project Timing: Within 3 months",
-      ].join("\n"),
-      idempotencyKey: "assessment-report/GF-2026-000123/servicem8",
+    expect(internalEmail).toMatchObject({
+      to: "royalglass666@gmail.com",
+      subject: "Your preliminary pool feasibility report - GF-2026-000123",
+      attachment: Buffer.from("%PDF-shared"),
+      filename: "pool-feasibility-GF-2026-000123.pdf",
+      idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
     });
-    expect(states).toEqual({ homeowner: "failed", servicem8: "sent" });
-    expect(result).toEqual({ homeowner: "failed", servicem8: "sent" });
+    expect(states).toEqual({
+      homeowner: "failed",
+      internal_test_report: "sent",
+    });
+    expect(result).toEqual({
+      homeowner: "failed",
+      internal_test_report: "sent",
+    });
   });
 
   it("retries only the failed destination and never resends a completed destination", async () => {
     const { store } = createDeliveryStore({
       homeowner: "failed",
-      servicem8: "sent",
+      internal_test_report: "sent",
     });
     const send = vi.fn().mockResolvedValue({ id: "email-homeowner" });
 
@@ -137,77 +221,85 @@ describe("assessment report delivery", () => {
       renderPdf: vi.fn().mockResolvedValue(Buffer.from("%PDF-shared")),
       send,
       from: "Royal Glass <reports@example.com>",
-      serviceM8Email: "inbox@servicem8.example",
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
     });
 
     expect(send).toHaveBeenCalledOnce();
     expect(send.mock.calls[0]?.[0].to).toBe("jane@example.com");
-    expect(result).toEqual({ homeowner: "sent", servicem8: "unchanged" });
+    expect(result).toEqual({
+      homeowner: "sent",
+      internal_test_report: "unchanged",
+    });
   });
 
-  it("keeps the homeowner retryable and still notifies ServiceM8 when PDF generation fails", async () => {
+  it("keeps both destinations retryable when PDF generation fails", async () => {
     const { states, store } = createDeliveryStore({
       homeowner: "pending",
-      servicem8: "pending",
+      internal_test_report: "pending",
     });
-    const send = vi.fn().mockResolvedValue({ id: "email-servicem8" });
+    const send = vi.fn();
 
     const result = await deliverAssessmentReport("GF-2026-000123", {
       store,
       renderPdf: vi.fn().mockRejectedValue(new Error("renderer unavailable")),
       send,
       from: "Royal Glass <reports@example.com>",
-      serviceM8Email: "inbox@servicem8.example",
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
     });
 
-    expect(send).toHaveBeenCalledOnce();
-    expect(send.mock.calls[0]?.[0]).toMatchObject({
-      to: "inbox@servicem8.example",
-      idempotencyKey: "assessment-report/GF-2026-000123/servicem8",
+    expect(send).not.toHaveBeenCalled();
+    expect(states).toEqual({
+      homeowner: "failed",
+      internal_test_report: "failed",
     });
-    expect(states).toEqual({ homeowner: "failed", servicem8: "sent" });
-    expect(result).toEqual({ homeowner: "failed", servicem8: "sent" });
-    expect(store.markFailed).toHaveBeenCalledOnce();
+    expect(result).toEqual({
+      homeowner: "failed",
+      internal_test_report: "failed",
+    });
+    expect(store.markFailed).toHaveBeenCalledTimes(2);
     expect(store.markFailed).toHaveBeenCalledWith(
       "GF-2026-000123",
       "homeowner",
       "homeowner-claim",
       "REPORT_PDF_GENERATION_FAILED",
     );
+    expect(store.markFailed).toHaveBeenCalledWith(
+      "GF-2026-000123",
+      "internal_test_report",
+      "internal_test_report-claim",
+      "REPORT_PDF_GENERATION_FAILED",
+    );
   });
 
-  it("uses the saved Other details in the ServiceM8 notification without rendering a PDF", async () => {
-    const { store } = createDeliveryStore(
-      { homeowner: "sent", servicem8: "pending" },
-      {
-        notification: {
-          visitorType: "other",
-          visitorTypeOtherDetail: "Landscape architect",
-          desiredTiming: "other",
-          desiredTimingOtherDetail: "Next summer",
-        },
-      },
-    );
-    const renderPdf = vi.fn();
-    const send = vi.fn().mockResolvedValue({ id: "email-servicem8" });
+  it("retries only the internal test destination with the saved PDF", async () => {
+    const { store } = createDeliveryStore({
+      homeowner: "sent",
+      internal_test_report: "pending",
+    });
+    const pdf = Buffer.from("%PDF-shared");
+    const renderPdf = vi.fn().mockResolvedValue(pdf);
+    const send = vi.fn().mockResolvedValue({ id: "email-internal" });
 
-    await deliverAssessmentReport("GF-2026-000123", {
+    const result = await deliverAssessmentReport("GF-2026-000123", {
       store,
       renderPdf,
       send,
       from: "Royal Glass <reports@example.com>",
-      serviceM8Email: "inbox@servicem8.example",
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
     });
 
-    expect(renderPdf).not.toHaveBeenCalled();
+    expect(renderPdf).toHaveBeenCalledOnce();
+    expect(renderPdf).toHaveBeenCalledWith(report);
     expect(send).toHaveBeenCalledOnce();
     expect(send.mock.calls[0]?.[0]).toMatchObject({
-      text: expect.stringContaining(
-        "Visitor type: Other - Landscape architect",
-      ),
-      html: expect.stringContaining(
-        "Project Timing:</strong> Other - Next summer",
-      ),
+      to: "royalglass666@gmail.com",
+      attachment: pdf,
+      filename: "pool-feasibility-GF-2026-000123.pdf",
+      idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
+    });
+    expect(result).toEqual({
+      homeowner: "unchanged",
+      internal_test_report: "sent",
     });
   });
 
@@ -254,9 +346,9 @@ describe("assessment report delivery", () => {
     });
   });
 
-  it("sends the ServiceM8 provider payload without an attachment field", async () => {
+  it("sends the internal test PDF through Resend with its independent idempotency key", async () => {
     const fetchImplementation = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ id: "email-servicem8" }), {
+      new Response(JSON.stringify({ id: "email-internal" }), {
         status: 200,
         headers: { "Content-Type": "application/json" },
       }),
@@ -266,11 +358,13 @@ describe("assessment report delivery", () => {
       {
         apiKey: "re_test",
         from: "Royal Glass <reports@example.com>",
-        to: "inbox@servicem8.example",
-        subject: "New pool feasibility enquiry GF-2026-000123",
-        html: "<p><strong>Reference:</strong> GF-2026-000123</p>",
-        text: "Reference: GF-2026-000123",
-        idempotencyKey: "assessment-report/GF-2026-000123/servicem8",
+        to: "royalglass666@gmail.com",
+        subject: "Your preliminary pool feasibility report - GF-2026-000123",
+        html: "<p>Your report is attached.</p>",
+        text: "Your report is attached.",
+        attachment: Buffer.from("%PDF-shared"),
+        filename: "pool-feasibility-GF-2026-000123.pdf",
+        idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
       },
       fetchImplementation,
     );
@@ -278,16 +372,22 @@ describe("assessment report delivery", () => {
     const [, init] = fetchImplementation.mock.calls[0] ?? [];
     expect(JSON.parse(String(init?.body))).toEqual({
       from: "Royal Glass <reports@example.com>",
-      to: ["inbox@servicem8.example"],
-      subject: "New pool feasibility enquiry GF-2026-000123",
-      html: "<p><strong>Reference:</strong> GF-2026-000123</p>",
-      text: "Reference: GF-2026-000123",
+      to: ["royalglass666@gmail.com"],
+      subject: "Your preliminary pool feasibility report - GF-2026-000123",
+      html: "<p>Your report is attached.</p>",
+      text: "Your report is attached.",
+      attachments: [
+        {
+          content: Buffer.from("%PDF-shared").toString("base64"),
+          filename: "pool-feasibility-GF-2026-000123.pdf",
+        },
+      ],
     });
   });
 
   it("escapes homeowner and property text before placing it in email HTML", async () => {
     const { store } = createDeliveryStore(
-      { homeowner: "pending", servicem8: "sent" },
+      { homeowner: "pending", internal_test_report: "sent" },
       {
         homeownerName: '<img src=x onerror="alert(1)">',
         report: {
@@ -306,7 +406,7 @@ describe("assessment report delivery", () => {
       renderPdf: vi.fn().mockResolvedValue(Buffer.from("%PDF-shared")),
       send,
       from: "Royal Glass <reports@example.com>",
-      serviceM8Email: "inbox@servicem8.example",
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
     });
 
     const html = send.mock.calls[0]?.[0].html as string;

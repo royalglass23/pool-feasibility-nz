@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { useEffect, useState } from "react";
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import {
   formatReportBoundaryArea,
@@ -16,16 +17,80 @@ export function SavedPreliminaryReportView({
   report,
   delivery,
   onBack,
-  downloadUrl,
+  downloadAccessToken,
 }: {
   report: SavedPreliminaryReport;
   delivery: {
     homeowner: ReportDeliveryState;
-    servicem8: ReportDeliveryState;
+    internal_test_report: ReportDeliveryState;
   };
   onBack: () => void;
-  downloadUrl?: string;
+  downloadAccessToken?: string;
 }) {
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [deliveryState, setDeliveryState] = useState(delivery);
+
+  useEffect(() => {
+    if (!downloadAccessToken) return;
+    const controller = new AbortController();
+    void fetch("/api/public/assessments/report/delivery", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ accessToken: downloadAccessToken }),
+      signal: controller.signal,
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return (await response.json()) as {
+          delivery?: {
+            homeowner: ReportDeliveryState;
+            internal_test_report: ReportDeliveryState;
+          };
+        };
+      })
+      .then((body) => {
+        if (body?.delivery) setDeliveryState(body.delivery);
+      })
+      .catch(() => undefined);
+    return () => controller.abort();
+  }, [downloadAccessToken]);
+
+  async function downloadPdf() {
+    if (!downloadAccessToken || downloading) return;
+    setDownloading(true);
+    setDownloadError(null);
+    try {
+      const response = await fetch("/api/public/assessments/report/pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: downloadAccessToken }),
+      });
+      if (!response.ok) {
+        const body = (await response.json().catch(() => null)) as {
+          error?: { message?: string };
+        } | null;
+        throw new Error(
+          body?.error?.message ?? "The PDF could not be downloaded.",
+        );
+      }
+      const url = URL.createObjectURL(await response.blob());
+      const anchor = document.createElement("a");
+      anchor.href = url;
+      anchor.download = `pool-feasibility-${report.reference}.pdf`;
+      anchor.click();
+      URL.revokeObjectURL(url);
+    } catch (error) {
+      setDownloadError(
+        error instanceof Error
+          ? error.message
+          : "The PDF could not be downloaded.",
+      );
+    } finally {
+      setDownloading(false);
+    }
+  }
+
   return (
     <section
       aria-labelledby="saved-report-heading"
@@ -47,7 +112,7 @@ export function SavedPreliminaryReportView({
             Generated {formatReportGeneratedAt(report.generatedAt)}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex w-full flex-wrap justify-center gap-2 sm:w-auto sm:justify-end">
           <button
             type="button"
             onClick={onBack}
@@ -55,22 +120,36 @@ export function SavedPreliminaryReportView({
           >
             Back to assessment
           </button>
-          {downloadUrl && (
-            <a
-              href={downloadUrl}
-              className="min-h-10 rounded-xl bg-slate-950 px-4 font-semibold text-white"
+          {downloadAccessToken && (
+            <button
+              type="button"
+              onClick={() => void downloadPdf()}
+              disabled={downloading}
+              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-slate-950 px-4 font-semibold text-white disabled:bg-slate-500"
             >
-              Download PDF
-            </a>
+              {downloading ? "Preparing PDF…" : "Download PDF"}
+            </button>
           )}
         </div>
       </div>
 
+      {downloadError && (
+        <p
+          role="alert"
+          className="text-center text-sm font-semibold text-red-700"
+        >
+          {downloadError}
+        </p>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2">
-        <DeliveryStatus label="Homeowner email" state={delivery.homeowner} />
         <DeliveryStatus
-          label="ServiceM8 forwarding"
-          state={delivery.servicem8}
+          label="Homeowner email"
+          state={deliveryState.homeowner}
+        />
+        <DeliveryStatus
+          label="Internal report email"
+          state={deliveryState.internal_test_report}
         />
       </div>
 

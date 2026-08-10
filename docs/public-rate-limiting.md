@@ -15,8 +15,11 @@ This keeps limits consistent across Vercel function instances.
   rolling 15-minute window.
 - `POST /api/public/property-check`: 10 attempts per client IP in a rolling
   30-minute window.
-- `POST /api/public/report/pdf`: 3 attempts per client IP in a rolling
-  one-hour window.
+- `POST /api/public/report/pdf` and
+  `POST /api/public/assessments/report/pdf`: 3 combined attempts per client IP
+  in a rolling one-hour window through the shared `report_pdf` budget.
+- `POST /api/public/assessments/report/delivery`: 3 attempts per client IP in a
+  rolling one-hour window through its separate `report_delivery` budget.
 - `POST /api/public/assessments`: 3 attempts per client IP in a rolling
   one-hour window.
 - A signed Property Check session receives two stage operations in 15 minutes:
@@ -25,9 +28,10 @@ This keeps limits consistent across Vercel function instances.
   provider work and stage calls do not consume another initial Property Check
   attempt.
 
-Each boundary has a separate action budget. Address suggestions, aerial
-analysis, aerial tiles, and direct PDF retries therefore do not consume the
-initial Property Check or report-request allowances.
+Each named action has a separate budget. Address suggestions, aerial analysis,
+aerial tiles, saved-report delivery retries, and the shared direct/saved PDF
+budget therefore do not consume the initial Property Check or report-request
+allowances.
 
 The rate-limit check runs before property providers, database writes, PDF work,
 or email fan-out. A denied request receives HTTP `429` with

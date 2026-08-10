@@ -27,9 +27,10 @@ export type SavedAssessmentResponse = {
   status: string;
   created: boolean;
   report: SavedPreliminaryReport;
+  reportAccessToken: string;
   delivery: {
     homeowner: ReportDeliveryState;
-    servicem8: ReportDeliveryState;
+    internal_test_report: ReportDeliveryState;
   };
 };
 

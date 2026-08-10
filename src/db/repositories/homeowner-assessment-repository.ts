@@ -170,6 +170,29 @@ export async function getSavedPreliminaryReportById(db: Database, id: string) {
   });
 }
 
+export async function getAssessmentDeliveryStateById(db: Database, id: string) {
+  const assessment = await db.query.homeownerAssessments.findFirst({
+    columns: {
+      reference: true,
+      emailDeliveryState: true,
+      forwardingState: true,
+      archivedAt: true,
+    },
+    where: and(
+      eq(schema.homeownerAssessments.id, id),
+      isNull(schema.homeownerAssessments.archivedAt),
+    ),
+  });
+  if (!assessment || assessment.archivedAt !== null) return null;
+  return {
+    reference: assessment.reference,
+    delivery: {
+      homeowner: parseStaffDeliveryState(assessment.emailDeliveryState),
+      internal_test_report: parseStaffDeliveryState(assessment.forwardingState),
+    },
+  };
+}
+
 export async function saveHomeownerAssessment(
   db: Database,
   submission: PersistedAssessmentSubmission,
@@ -329,7 +352,7 @@ const deliveryChannelConfig = {
       updatedAt: completedAt,
     }),
   },
-  servicem8: {
+  internal_test_report: {
     state: assessmentTable.forwardingState,
     lastAttemptedAt: assessmentTable.forwardingLastAttemptedAt,
     claimToken: assessmentTable.forwardingClaimToken,
@@ -416,32 +439,6 @@ async function claimAssessmentDelivery(
     )
     .returning();
   if (!assessment) return null;
-  if (channel === "servicem8") {
-    return {
-      channel,
-      claimToken,
-      notification: {
-        reference: assessment.reference,
-        name: assessment.homeownerName,
-        phone: assessment.homeownerPhone,
-        email: assessment.homeownerEmail,
-        checkedAddress: assessment.formattedAddress,
-        visitorType:
-          assessment.visitorType === null
-            ? null
-            : persistedAssessmentSubmissionSchema.shape.homeowner.shape.visitorType.parse(
-                assessment.visitorType,
-              ),
-        visitorTypeOtherDetail: assessment.visitorTypeOtherDetail ?? undefined,
-        desiredTiming:
-          persistedAssessmentSubmissionSchema.shape.homeowner.shape.desiredTiming.parse(
-            assessment.desiredTiming,
-          ),
-        desiredTimingOtherDetail:
-          assessment.desiredTimingOtherDetail ?? undefined,
-      },
-    };
-  }
   if (!assessment.reportMapImageDataUrl) {
     await markAssessmentDeliveryFailed(
       db,

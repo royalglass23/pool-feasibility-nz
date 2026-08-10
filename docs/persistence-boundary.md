@@ -18,9 +18,12 @@ column remains nullable only so pre-MT-249 development rows are not backfilled w
 map; those legacy rows cannot enter report delivery.
 
 After the assessment response is returned, Next.js `after` starts delivery from the persisted
-aggregate. Homeowner and ServiceM8 email destinations are claimed, attempted, and completed
-independently. Each claim records its token, attempt count, timestamp, provider message ID, and
-safe error code. A sent destination is never claimed again. Failed destinations and abandoned
+aggregate. The submitted synthetic test email and internal test email are claimed, attempted, and
+completed independently. The internal test destination temporarily reuses the persisted
+`forwarding_*` database columns behind a repository-only mapping; the application channel is
+`internal_test_report`. These legacy columns do not enable or send to ServiceM8. Each claim records
+its token, attempt count, timestamp, provider message ID, and safe error code. A sent destination is
+never claimed again. Failed destinations and abandoned
 five-minute-old `sending` claims may be retried by repeating the original idempotent submission.
 Resend also receives a deterministic destination-specific `Idempotency-Key`, while the durable
 database `sent` state prevents resends after Resend's provider-side idempotency window expires.
@@ -29,12 +32,13 @@ Report delivery needs these server-only settings:
 
 - `RESEND_API_KEY`
 - `REPORT_FROM_EMAIL`
-- `SERVICEM8_FORWARD_EMAIL`
+- `REPORT_DELIVERY_MODE=synthetic_test`
 
 Missing delivery configuration records a delivery failure; it does not remove the saved assessment
-or browser report. The ServiceM8 destination receives a limited contact, property, visitor-type,
-and timing notification through Resend. It does not receive the report PDF, map image, or a
-saved-report link. No ServiceM8 API job is created.
+or browser report. Both controlled-test destinations receive the same saved report PDF through
+Resend; the internal destination is fixed in the controlled-test boundary as
+`royalglass666@gmail.com`. The mode fails closed in production and when it is not explicitly
+enabled. `SERVICEM8_FORWARD_EMAIL` remains unset, and no ServiceM8 email or API job is created.
 
 `GET /api/internal/assessments/:id/report` regenerates the PDF only from the saved aggregate and
 map. It uses the same development-only internal access boundary as assessment submission.
@@ -60,13 +64,13 @@ calculates a calendar-accurate 12-month cutoff, deletes eligible `homeowner_asse
 inserts one `report_request_retention_runs` audit row in one atomic PostgreSQL statement. Pending,
 failed, sent, and abandoned delivery claims are eligible at the cutoff. A claim updated to `sending`
 within the delivery system's five-minute active window is skipped, so retention cannot delete a row
-while its email or ServiceM8 delivery is active; the next daily run handles it after the claim
+while either email delivery is active; the next daily run handles it after the claim
 finishes or becomes stale. A repeat run is safe and records a zero deletion count when nothing
 remains eligible. The audit table contains only the run ID, run time, cutoff time, and deletion
 count; it does not retain contact, address, layout, map, or report data.
 
-The scheduled database operation covers the copy saved in Neon. Resend email data and the
-ServiceM8 notification are separate linked processor copies. Production traffic must not be enabled
-until the provider-retention launch gate in `docs/privacy-request-handling.md` has evidence that each
-enabled path meets the same 12-month requirement. See that runbook for the gate and for verified
-access, correction, and early-deletion requests.
+The scheduled database operation covers the copy saved in Neon. Resend email data is a separate
+linked processor copy. Production traffic must not be enabled until the provider-retention launch
+gate in `docs/privacy-request-handling.md` has evidence that each enabled path meets the same
+12-month requirement. See that runbook for the gate and for verified access, correction, and
+early-deletion requests.

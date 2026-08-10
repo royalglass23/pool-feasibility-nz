@@ -537,7 +537,8 @@ export function DataAccessInspector() {
           ) : (
             (() => {
               return fastPlacementSnapshot?.dimensions &&
-                fastAssessmentSnapshot ? (
+                fastAssessmentSnapshot &&
+                fastResult.detailedChecks ? (
                 <HomeownerSubmissionForm
                   assessmentSnapshot={fastAssessmentSnapshot}
                   placement={fastPlacementSnapshot}
@@ -545,8 +546,8 @@ export function DataAccessInspector() {
                 />
               ) : (
                 <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">
-                  Choose a valid pool placement and wait for the map capture
-                  before saving the report.
+                  Choose a valid pool placement and load the detailed official
+                  checks before saving the report.
                 </p>
               );
             })()

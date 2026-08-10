@@ -1,6 +1,6 @@
 import "server-only";
 import { deflateSync } from "node:zlib";
-import type { Geometry } from "geojson";
+import type { FeatureCollection, Geometry } from "geojson";
 
 const WIDTH = 900;
 const HEIGHT = 600;
@@ -9,41 +9,84 @@ const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
 type Point = [number, number];
 type Colour = readonly [number, number, number, number];
-
-export async function renderTrustedAssessmentMap(input: {
+type TrustedMapLayer = {
+  key: string;
+  evidenceUse: string;
+  geometry: FeatureCollection<Geometry> | null;
+};
+export type TrustedAssessmentMapInput = {
   boundary: Geometry | null;
   shell: Geometry;
   constructionEnvelope: Geometry;
   warning: "no_warning" | "needs_checking" | "blocked";
-}): Promise<string> {
+  layers?: TrustedMapLayer[];
+};
+
+export type TrustedAssessmentMapViewport = {
+  zoom: number;
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+export function trustedAssessmentMapViewport(
+  input: Pick<
+    TrustedAssessmentMapInput,
+    "boundary" | "shell" | "constructionEnvelope"
+  >,
+): TrustedAssessmentMapViewport {
   const sourcePoints = [input.boundary, input.shell, input.constructionEnvelope]
     .filter((geometry): geometry is Geometry => geometry !== null)
     .flatMap(coordinates);
   if (sourcePoints.length === 0)
     throw new Error("TRUSTED_MAP_GEOMETRY_MISSING");
-  const xs = sourcePoints.map(([x]) => x);
-  const ys = sourcePoints.map(([, y]) => y);
-  const minX = Math.min(...xs);
-  const maxX = Math.max(...xs);
-  const minY = Math.min(...ys);
-  const maxY = Math.max(...ys);
-  const scale = Math.min(
-    (WIDTH - PADDING * 2) / Math.max(maxX - minX, 0.00001),
-    (HEIGHT - PADDING * 2) / Math.max(maxY - minY, 0.00001),
-  );
-  const project = ([x, y]: Point): Point => [
-    Math.round(PADDING + (x - minX) * scale),
-    Math.round(HEIGHT - PADDING - (y - minY) * scale),
-  ];
-  const pixels = new Uint8Array(WIDTH * HEIGHT * 4);
-  fillCanvas(pixels, [248, 250, 252, 255]);
-  drawGrid(pixels);
+  return mapViewport(sourcePoints);
+}
+
+export async function renderTrustedAssessmentMap(
+  input: TrustedAssessmentMapInput,
+  options?: {
+    aerialPixels?: Uint8Array | null;
+    viewport?: TrustedAssessmentMapViewport;
+  },
+): Promise<string> {
+  const viewport = options?.viewport ?? trustedAssessmentMapViewport(input);
+  const project = (coordinate: Point): Point => {
+    const [x, y] = worldPixel(coordinate, viewport.zoom);
+    return [Math.round(x - viewport.left), Math.round(y - viewport.top)];
+  };
+  const aerialPixels = options?.aerialPixels ?? null;
+  if (aerialPixels && aerialPixels.length !== WIDTH * HEIGHT * 4) {
+    throw new Error("TRUSTED_MAP_AERIAL_INVALID");
+  }
+  const pixels = aerialPixels
+    ? new Uint8Array(aerialPixels)
+    : new Uint8Array(WIDTH * HEIGHT * 4);
+  if (!aerialPixels) {
+    fillCanvas(pixels, [248, 250, 252, 255]);
+    drawGrid(pixels);
+  }
   if (input.boundary) {
     const boundaryRings = rings(input.boundary).map((ring) =>
       ring.map(project),
     );
-    fillGeometry(pixels, boundaryRings, [204, 251, 241, 180]);
+    fillGeometry(
+      pixels,
+      boundaryRings,
+      aerialPixels ? [204, 251, 241, 40] : [204, 251, 241, 180],
+    );
     strokeGeometry(pixels, boundaryRings, [15, 118, 110, 255], 3);
+  }
+  for (const layer of input.layers ?? []) {
+    if (
+      layer.evidenceUse !== "report_allowed" ||
+      !layer.geometry ||
+      layer.geometry.features.length === 0
+    ) {
+      continue;
+    }
+    drawReportLayer(pixels, layer, project);
   }
   strokeGeometry(
     pixels,
@@ -63,6 +106,116 @@ export async function renderTrustedAssessmentMap(input: {
   strokeGeometry(pixels, shellRings, [15, 23, 42, 255], 3);
   const png = encodePng(pixels);
   return `data:image/png;base64,${png.toString("base64")}`;
+}
+
+function mapViewport(sourcePoints: Point[]) {
+  let zoom = 20;
+  for (; zoom > 0; zoom -= 1) {
+    const projected = sourcePoints.map((coordinate) =>
+      worldPixel(coordinate, zoom),
+    );
+    const width =
+      Math.max(...projected.map(([x]) => x)) -
+      Math.min(...projected.map(([x]) => x));
+    const height =
+      Math.max(...projected.map(([, y]) => y)) -
+      Math.min(...projected.map(([, y]) => y));
+    if (width <= WIDTH - PADDING * 2 && height <= HEIGHT - PADDING * 2) break;
+  }
+  const projected = sourcePoints.map((coordinate) =>
+    worldPixel(coordinate, zoom),
+  );
+  const minX = Math.min(...projected.map(([x]) => x));
+  const maxX = Math.max(...projected.map(([x]) => x));
+  const minY = Math.min(...projected.map(([, y]) => y));
+  const maxY = Math.max(...projected.map(([, y]) => y));
+  return {
+    zoom,
+    left: Math.floor((minX + maxX) / 2 - WIDTH / 2),
+    top: Math.floor((minY + maxY) / 2 - HEIGHT / 2),
+    width: WIDTH,
+    height: HEIGHT,
+  };
+}
+
+function worldPixel([longitude, latitude]: Point, zoom: number): Point {
+  const worldSize = 256 * 2 ** zoom;
+  const boundedLatitude = Math.max(
+    -85.05112878,
+    Math.min(85.05112878, latitude),
+  );
+  const sin = Math.sin((boundedLatitude * Math.PI) / 180);
+  return [
+    ((longitude + 180) / 360) * worldSize,
+    (0.5 - Math.log((1 + sin) / (1 - sin)) / (4 * Math.PI)) * worldSize,
+  ];
+}
+
+function drawReportLayer(
+  pixels: Uint8Array,
+  layer: TrustedMapLayer,
+  project: (point: Point) => Point,
+) {
+  const colour = reportLayerColour(layer.key);
+  for (const feature of layer.geometry?.features ?? []) {
+    const geometry = feature.geometry;
+    if (geometry.type === "Polygon" || geometry.type === "MultiPolygon") {
+      const projected = rings(geometry).map((ring) => ring.map(project));
+      fillGeometry(pixels, projected, [colour[0], colour[1], colour[2], 60]);
+      strokeGeometry(pixels, projected, colour, 2);
+      continue;
+    }
+    for (const line of geometryLines(geometry)) {
+      const projected = line.map(project);
+      for (let index = 0; index + 1 < projected.length; index += 1) {
+        drawLine(pixels, projected[index], projected[index + 1], colour, 3);
+      }
+    }
+    for (const coordinate of geometryPoints(geometry)) {
+      drawCircle(pixels, project(coordinate), colour, 5);
+    }
+  }
+}
+
+function reportLayerColour(key: string): Colour {
+  if (key === "electricity_feeder_lines") return [202, 138, 4, 255];
+  if (key === "gas_distribution_lines") return [220, 38, 38, 255];
+  if (key.includes("wastewater")) return [124, 58, 237, 255];
+  if (key.includes("water") || key.includes("stormwater") || key === "culverts")
+    return [3, 105, 161, 255];
+  if (key.includes("flood") || key === "overland_flow_paths")
+    return [14, 116, 144, 255];
+  if (key === "contours") return [71, 85, 105, 255];
+  if (key === "building_footprints") return [100, 116, 139, 255];
+  return [126, 34, 206, 255];
+}
+
+function geometryLines(geometry: Geometry): Point[][] {
+  if (geometry.type === "LineString") return [geometry.coordinates as Point[]];
+  if (geometry.type === "MultiLineString")
+    return geometry.coordinates as Point[][];
+  return [];
+}
+
+function geometryPoints(geometry: Geometry): Point[] {
+  if (geometry.type === "Point") return [geometry.coordinates as Point];
+  if (geometry.type === "MultiPoint") return geometry.coordinates as Point[];
+  return [];
+}
+
+function drawCircle(
+  pixels: Uint8Array,
+  [centreX, centreY]: Point,
+  colour: Colour,
+  radius: number,
+) {
+  for (let y = centreY - radius; y <= centreY + radius; y += 1) {
+    for (let x = centreX - radius; x <= centreX + radius; x += 1) {
+      if ((x - centreX) ** 2 + (y - centreY) ** 2 <= radius ** 2) {
+        blendPixel(pixels, x, y, colour);
+      }
+    }
+  }
 }
 
 function coordinates(geometry: Geometry): Point[] {

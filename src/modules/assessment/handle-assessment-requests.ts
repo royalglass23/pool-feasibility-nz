@@ -16,6 +16,7 @@ import {
   verifyAssessmentSnapshot,
 } from "@/modules/assessment/assessment-snapshot";
 import { deliverAssessmentReportByReference } from "@/modules/reporting/deliver-assessment-report";
+import { issueSavedReportAccessToken } from "@/modules/reporting/saved-report-access-token";
 import { staffSessionDeniedResponse } from "@/modules/staff/staff-session";
 import {
   apiErrorResponse,
@@ -29,7 +30,10 @@ const logger = pino({ base: undefined });
 
 export async function GET(request: Request) {
   const correlationId = requestCorrelationId(request);
-  const sessionDenied = await staffSessionDeniedResponse(request, correlationId);
+  const sessionDenied = await staffSessionDeniedResponse(
+    request,
+    correlationId,
+  );
   if (sessionDenied) return sessionDenied;
 
   const assessments = await listHomeownerAssessments(getDb());
@@ -139,9 +143,13 @@ export async function POST(request: Request) {
         status: result.assessment.status,
         created: result.created,
         report,
+        reportAccessToken: issueSavedReportAccessToken({
+          assessmentId: result.assessment.id,
+          reference: result.assessment.reference,
+        }),
         delivery: {
           homeowner: result.assessment.emailDeliveryState,
-          servicem8: result.assessment.forwardingState,
+          internal_test_report: result.assessment.forwardingState,
         },
       },
     },
