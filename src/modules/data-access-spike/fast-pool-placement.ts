@@ -25,6 +25,20 @@ export const FAST_CUSTOM_POOL_LIMITS = {
   step: 0.1,
 } as const;
 
+export const FAST_POOL_CONSTRUCTION_MARGIN_METRES = 1;
+
+export function fastPoolConstructionEnvelopeDimensions(dimensions: {
+  lengthMetres: number;
+  widthMetres: number;
+}): { lengthMetres: number; widthMetres: number } {
+  return {
+    lengthMetres:
+      dimensions.lengthMetres + FAST_POOL_CONSTRUCTION_MARGIN_METRES * 2,
+    widthMetres:
+      dimensions.widthMetres + FAST_POOL_CONSTRUCTION_MARGIN_METRES * 2,
+  };
+}
+
 export function validateFastCustomDimensions(
   lengthMetres: number,
   widthMetres: number,

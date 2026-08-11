@@ -537,6 +537,7 @@ export function DataAccessInspector() {
           ) : (
             (() => {
               return fastPlacementSnapshot?.dimensions &&
+                fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
                 fastAssessmentSnapshot &&
                 fastResult.detailedChecks ? (
                 <HomeownerSubmissionForm

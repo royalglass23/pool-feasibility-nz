@@ -55,6 +55,12 @@ export function HomeownerSubmissionForm({
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
+    if (!placement.constructionEnvelopeWithinMappedArea) {
+      setError(
+        "Move or resize the pool so the full construction envelope stays inside the mapped property before saving.",
+      );
+      return;
+    }
     const form = new FormData(event.currentTarget);
     setSaving(true);
     setError(null);
@@ -307,7 +313,14 @@ export function buildFastSubmissionContext(
   result: FastPropertyViewResult,
   placement: FastPoolPlacementSnapshot,
 ): AssessmentSubmissionContext | null {
-  if (!placement.dimensions || !placement.poolGeometry) return null;
+  if (
+    !placement.dimensions ||
+    !placement.poolGeometry ||
+    !placement.constructionEnvelopeGeometry ||
+    !placement.constructionEnvelopeWithinMappedArea
+  ) {
+    return null;
+  }
   const warning = {
     state: placement.warning.status,
     code: `POOL_${placement.warning.status.toUpperCase()}`,
@@ -334,7 +347,8 @@ export function buildFastSubmissionContext(
       rotationDegrees: placement.rotationDegrees,
       position: placement.position,
       shellGeometry: placement.poolGeometry.geometry,
-      constructionEnvelopeGeometry: placement.poolGeometry.geometry,
+      constructionEnvelopeGeometry:
+        placement.constructionEnvelopeGeometry.geometry,
     },
     layerStates:
       result.detailedChecks?.layers.map((layer) => ({

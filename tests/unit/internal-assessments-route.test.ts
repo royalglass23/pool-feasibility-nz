@@ -262,6 +262,31 @@ describe("POST /api/internal/assessments", () => {
     ).rejects.toThrow("INVALID_ASSESSMENT_SUBMISSION");
   });
 
+  it("rejects a pool position outside a provisional mapped property boundary", async () => {
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const assessmentSnapshot = snapshotService.issue({
+      ...original.fastResult,
+      boundary: {
+        ...original.fastResult.boundary,
+        state: "provisional",
+      },
+      progress: {
+        ...original.fastResult.progress,
+        boundary: "provisional",
+      },
+    });
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+      poolLayout: { ...validSubmission.poolLayout, position: [174.7, -36.8] },
+    });
+    const snapshot = snapshotService.verify(request.assessmentSnapshot);
+
+    await expect(
+      buildServerAssessmentSubmission({ request, snapshot }),
+    ).rejects.toThrow("INVALID_ASSESSMENT_SUBMISSION");
+  });
+
   it("rejects non-loopback requests when internal access is not configured", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("INTERNAL_ACCESS_USERNAME", "");

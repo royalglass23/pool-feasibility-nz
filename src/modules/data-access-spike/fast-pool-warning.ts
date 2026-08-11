@@ -34,6 +34,8 @@ export type FastPoolPlacementSnapshot = {
   rotationDegrees: number;
   dimensions: { lengthMetres: number; widthMetres: number } | null;
   poolGeometry: Feature<Polygon> | null;
+  constructionEnvelopeGeometry: Feature<Polygon> | null;
+  constructionEnvelopeWithinMappedArea: boolean;
   warning: FastPoolWarning;
 };
 
