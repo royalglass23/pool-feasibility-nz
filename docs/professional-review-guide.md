@@ -83,18 +83,18 @@ Use the map for orientation only. It shows the confirmed parcel, address point, 
 
 For each dataset, read these fields together:
 
-| Field | Meaning |
-|---|---|
-| Status | Whether the provider returned usable data for this session. `success`/`available` means data was returned; `unavailable` or `error` means it must not be read as an empty result. |
-| Evidence use | Whether the data may support a generated report: `report_allowed`, `spike_only`, `internal_reference`, or `unavailable`. |
-| Confidence | Confidence in that dataset result, not confidence that the property is feasible. |
-| Feature count | Number returned from the bounded query envelope. It is not automatically the number intersecting the parcel or a pool candidate. |
-| Source/attribution/date | Provenance needed to judge currency, licensing, and whether the evidence is suitable for reuse. |
+| Field                   | Meaning                                                                                                                                                                           |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Status                  | Whether the provider returned usable data for this session. `success`/`available` means data was returned; `unavailable` or `error` means it must not be read as an empty result. |
+| Evidence use            | Whether the data may support a generated report: `report_allowed`, `spike_only`, `internal_reference`, or `unavailable`.                                                          |
+| Confidence              | Confidence in that dataset result, not confidence that the property is feasible.                                                                                                  |
+| Feature count           | Number returned from the bounded query envelope. It is not automatically the number intersecting the parcel or a pool candidate.                                                  |
+| Source/attribution/date | Provenance needed to judge currency, licensing, and whether the evidence is suitable for reuse.                                                                                   |
 
 Evidence-use meanings:
 
 - **Report allowed:** permitted for the current report evidence boundary, subject to its limitations.
-- **Spike only:** technically queried during investigation, but reuse in a generated report is not yet cleared. Current Auckland Council layers are in this category.
+- **Spike only:** technically queried during investigation, but reuse in a generated report is not yet cleared. Auckland Council layers remain in this category unless the exact item has been approved; the current exception is the four CC BY 4.0 stormwater datasets.
 - **Internal reference:** visible for internal context only and not report evidence. Current Watercare layers are in this category because licence restrictions remain unresolved.
 - **Unavailable:** no usable evidence was obtained; this is unknown, not proof of absence.
 
@@ -124,13 +124,13 @@ Do not combine them into one certainty percentage. A high score with low confide
 
 Current score bands:
 
-| Score | Normal band |
-|---:|---|
-| 85–100 | Strong preliminary candidate |
-| 70–84 | Likely feasible with normal investigations |
-| 50–69 | Potentially feasible but constrained |
-| 30–49 | Significant constraints |
-| 0–29 | Low preliminary feasibility |
+|  Score | Normal band                                |
+| -----: | ------------------------------------------ |
+| 85–100 | Strong preliminary candidate               |
+|  70–84 | Likely feasible with normal investigations |
+|  50–69 | Potentially feasible but constrained       |
+|  30–49 | Significant constraints                    |
+|   0–29 | Low preliminary feasibility                |
 
 The score is based on six categories: available space/layout (25), underground services (20), flooding/drainage (20), terrain/slope (15), planning constraints (10), and desktop construction access (10). Critical flags can qualify or override the normal band without changing the recorded arithmetic.
 
@@ -151,57 +151,57 @@ Download **Assessment data** before closing or refreshing the browser. The JSON 
 
 ## 4. How to interpret common outcomes
 
-| Outcome | Correct reading | Immediate action |
-|---|---|---|
-| Strong preliminary candidate + high confidence | Known mapped evidence and tested rules are favourable. | Proceed only to the normal investigation/design gates; do not skip site verification. |
-| Favourable score + low confidence | The visible result is promising but evidence coverage is weak. | Identify unavailable datasets and obtain survey, title, utility, or specialist evidence before relying on it. |
-| Significant constraints | Known evidence materially reduces the tested opportunity. | Review the critical flags and candidate geometry; seek a design response or specialist opinion. |
-| Indeterminate | There is not enough evidence to classify physical feasibility responsibly. | Resolve parcel/core-data issues or stop the assessment. |
-| No clear candidate area | No tested shell/rotation passed the current rules. | Treat as a failed screening configuration, not a universal impossibility finding. |
-| Provider unavailable/error | The dataset could not be used. | Retry, check provider credentials/connectivity, and record the resulting confidence limitation. |
+| Outcome                                        | Correct reading                                                            | Immediate action                                                                                              |
+| ---------------------------------------------- | -------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------- |
+| Strong preliminary candidate + high confidence | Known mapped evidence and tested rules are favourable.                     | Proceed only to the normal investigation/design gates; do not skip site verification.                         |
+| Favourable score + low confidence              | The visible result is promising but evidence coverage is weak.             | Identify unavailable datasets and obtain survey, title, utility, or specialist evidence before relying on it. |
+| Significant constraints                        | Known evidence materially reduces the tested opportunity.                  | Review the critical flags and candidate geometry; seek a design response or specialist opinion.               |
+| Indeterminate                                  | There is not enough evidence to classify physical feasibility responsibly. | Resolve parcel/core-data issues or stop the assessment.                                                       |
+| No clear candidate area                        | No tested shell/rotation passed the current rules.                         | Treat as a failed screening configuration, not a universal impossibility finding.                             |
+| Provider unavailable/error                     | The dataset could not be used.                                             | Retry, check provider credentials/connectivity, and record the resulting confidence limitation.               |
 
 ## 5. Error codes and what to do
 
 ### Address, parcel, and request errors
 
-| Code | Meaning | What to do now |
-|---|---|---|
-| `INVALID_ADDRESS` | The request is missing, too short/long, malformed, or is not a complete address. | Enter a complete Auckland street address, for example `42A Bahari Drive, Ranui, Auckland`. |
-| `ADDRESS_FORMAT_UNSUPPORTED` | The supplied format could not be interpreted by the address resolver. | Use a normal street-address format with number/unit, street, suburb, and Auckland. |
-| `ADDRESS_NOT_FOUND` | No exact Auckland address match was returned. | Check spelling, unit/number, suburb, and postcode; retry with the LINZ-style address. |
-| `ADDRESS_AMBIGUOUS` | Multiple address matches are plausible. | Select the exact address option; do not continue by guessing. |
-| `PARCEL_NOT_FOUND` | The resolved address point did not fall within a returned legal parcel. | Stop and manually review the address/parcel relationship; this may require cadastral or survey review. |
-| `PARCEL_AMBIGUOUS` | More than one parcel contains the address point. | Stop and identify the correct legal parcel manually. |
-| `PARCEL_UNCONFIRMED` | The legal parcel could not be confidently confirmed or distinguished from alternatives. | Do not interpret feasibility. Confirm the parcel using authoritative cadastral/title information. |
-| `OUTSIDE_SUPPORTED_REGION` | The POC currently supports Auckland only. | Do not use the result for another region; a regional expansion needs its own data, rules, licensing, and validation. |
-| `INVALID_REQUEST` | The API body is not valid JSON or is not the expected request shape. | Retry through the application UI. If it persists, capture the correlation ID and browser/server logs for engineering review. |
-| `REQUEST_TOO_LARGE` | The submitted request exceeded the safety limit. | Submit one address only; do not paste large JSON, raw provider data, or map payloads into the request. |
+| Code                         | Meaning                                                                                 | What to do now                                                                                                               |
+| ---------------------------- | --------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------- |
+| `INVALID_ADDRESS`            | The request is missing, too short/long, malformed, or is not a complete address.        | Enter a complete Auckland street address, for example `42A Bahari Drive, Ranui, Auckland`.                                   |
+| `ADDRESS_FORMAT_UNSUPPORTED` | The supplied format could not be interpreted by the address resolver.                   | Use a normal street-address format with number/unit, street, suburb, and Auckland.                                           |
+| `ADDRESS_NOT_FOUND`          | No exact Auckland address match was returned.                                           | Check spelling, unit/number, suburb, and postcode; retry with the LINZ-style address.                                        |
+| `ADDRESS_AMBIGUOUS`          | Multiple address matches are plausible.                                                 | Select the exact address option; do not continue by guessing.                                                                |
+| `PARCEL_NOT_FOUND`           | The resolved address point did not fall within a returned legal parcel.                 | Stop and manually review the address/parcel relationship; this may require cadastral or survey review.                       |
+| `PARCEL_AMBIGUOUS`           | More than one parcel contains the address point.                                        | Stop and identify the correct legal parcel manually.                                                                         |
+| `PARCEL_UNCONFIRMED`         | The legal parcel could not be confidently confirmed or distinguished from alternatives. | Do not interpret feasibility. Confirm the parcel using authoritative cadastral/title information.                            |
+| `OUTSIDE_SUPPORTED_REGION`   | The POC currently supports Auckland only.                                               | Do not use the result for another region; a regional expansion needs its own data, rules, licensing, and validation.         |
+| `INVALID_REQUEST`            | The API body is not valid JSON or is not the expected request shape.                    | Retry through the application UI. If it persists, capture the correlation ID and browser/server logs for engineering review. |
+| `REQUEST_TOO_LARGE`          | The submitted request exceeded the safety limit.                                        | Submit one address only; do not paste large JSON, raw provider data, or map payloads into the request.                       |
 
 ### Access and provider errors
 
-| Code | Meaning | What to do now |
-|---|---|---|
-| `UNAUTHORIZED` | A legacy internal diagnostic request is not authenticated. | Use the public Property Check routes for the homeowner journey. Configure legacy Basic credentials only for an authorised diagnostic client. |
-| `ACCESS_CONTROL_MISCONFIGURED` | A legacy internal diagnostic endpoint has no paired credentials configured. | Do not route public or Admin traffic through the legacy endpoint. Configure both values only if the diagnostic surface is still required. |
-| `DATA_PROVIDER_ERROR` | An official provider failed during address, parcel, or mapped-data retrieval. | Retry once, then check provider availability, server-only credentials, timeout, and correlation ID. Treat affected evidence as unknown. |
-| `PROVIDER_TIMEOUT` | A provider did not answer within the bounded timeout. | Retry later; if repeated, investigate provider latency or timeout settings. Do not convert the timeout to “no feature.” |
-| `PROVIDER_RESPONSE_INVALID` | The provider response did not match the expected schema or geometry shape. | Preserve the error, inspect the provider contract/fixture, and update the adapter only after review. |
-| `PROVIDER_RESPONSE_TOO_LARGE` | The provider returned more data than the safety limit. | Narrow the query envelope or add a bounded server-side pagination/aggregation strategy; do not raise limits casually. |
-| `PROVIDER_HTTP_ERROR` | The provider returned an HTTP failure response. | Check provider status, endpoint, credentials, licence/access changes, and retry policy. |
-| `PROVIDER_REQUEST_FAILED` | The request could not be completed for another provider/network reason. | Retry, then inspect safe server diagnostics using the correlation ID. Never expose keys, URLs with secrets, raw payloads, or stack traces. |
-| `AERIAL_IMAGERY_UNAVAILABLE` | Aerial tiles or their style/attribution could not be loaded. | Check `LINZ_BASEMAPS_API_KEY`, tile-route configuration, network access, and attribution response; use the assessment only with reduced evidence confidence. |
-| `AERIAL_PROVIDER_ERROR` | The aerial provider returned an error while loading imagery. | Check the LINZ Basemaps endpoint/key and retry. Aerial imagery failure must not be read as a site constraint. |
-| `INVALID_TILE` | The tile request path/coordinates are invalid. | Retry from the application map; if reproducible, capture zoom/x/y and correlation ID for engineering. |
+| Code                           | Meaning                                                                       | What to do now                                                                                                                                               |
+| ------------------------------ | ----------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `UNAUTHORIZED`                 | A legacy internal diagnostic request is not authenticated.                    | Use the public Property Check routes for the homeowner journey. Configure legacy Basic credentials only for an authorised diagnostic client.                 |
+| `ACCESS_CONTROL_MISCONFIGURED` | A legacy internal diagnostic endpoint has no paired credentials configured.   | Do not route public or Admin traffic through the legacy endpoint. Configure both values only if the diagnostic surface is still required.                    |
+| `DATA_PROVIDER_ERROR`          | An official provider failed during address, parcel, or mapped-data retrieval. | Retry once, then check provider availability, server-only credentials, timeout, and correlation ID. Treat affected evidence as unknown.                      |
+| `PROVIDER_TIMEOUT`             | A provider did not answer within the bounded timeout.                         | Retry later; if repeated, investigate provider latency or timeout settings. Do not convert the timeout to “no feature.”                                      |
+| `PROVIDER_RESPONSE_INVALID`    | The provider response did not match the expected schema or geometry shape.    | Preserve the error, inspect the provider contract/fixture, and update the adapter only after review.                                                         |
+| `PROVIDER_RESPONSE_TOO_LARGE`  | The provider returned more data than the safety limit.                        | Narrow the query envelope or add a bounded server-side pagination/aggregation strategy; do not raise limits casually.                                        |
+| `PROVIDER_HTTP_ERROR`          | The provider returned an HTTP failure response.                               | Check provider status, endpoint, credentials, licence/access changes, and retry policy.                                                                      |
+| `PROVIDER_REQUEST_FAILED`      | The request could not be completed for another provider/network reason.       | Retry, then inspect safe server diagnostics using the correlation ID. Never expose keys, URLs with secrets, raw payloads, or stack traces.                   |
+| `AERIAL_IMAGERY_UNAVAILABLE`   | Aerial tiles or their style/attribution could not be loaded.                  | Check `LINZ_BASEMAPS_API_KEY`, tile-route configuration, network access, and attribution response; use the assessment only with reduced evidence confidence. |
+| `AERIAL_PROVIDER_ERROR`        | The aerial provider returned an error while loading imagery.                  | Check the LINZ Basemaps endpoint/key and retry. Aerial imagery failure must not be read as a site constraint.                                                |
+| `INVALID_TILE`                 | The tile request path/coordinates are invalid.                                | Retry from the application map; if reproducible, capture zoom/x/y and correlation ID for engineering.                                                        |
 
 ### Analysis and report errors
 
-| Code | Meaning | What to do now |
-|---|---|---|
-| `REQUIRED_DATA_UNAVAILABLE` | Core evidence needed for a responsible analysis is missing. | Stop or treat the result as indeterminate; obtain the missing evidence rather than assuming a negative result. |
-| `ANALYSIS_FAILED` | The assessment orchestration failed unexpectedly. | Retry once. If repeated, download any available evidence, record the correlation ID, address, time, and failing step. |
-| `REPORT_GENERATION_FAILED` | The report data/map image was invalid, or the renderer failed. | Use **Print / save PDF** as the immediate fallback; retain the assessment JSON and report the correlation ID. |
-| `REPORT_RENDERER_BUSY` | The PDF renderer is at capacity. | Wait briefly and retry; the response supplies a short retry interval. |
-| `REPORT_RENDERER_TIMEOUT` | PDF generation exceeded its time limit. | Retry once, then use browser print/save PDF and investigate renderer performance. |
+| Code                        | Meaning                                                        | What to do now                                                                                                        |
+| --------------------------- | -------------------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
+| `REQUIRED_DATA_UNAVAILABLE` | Core evidence needed for a responsible analysis is missing.    | Stop or treat the result as indeterminate; obtain the missing evidence rather than assuming a negative result.        |
+| `ANALYSIS_FAILED`           | The assessment orchestration failed unexpectedly.              | Retry once. If repeated, download any available evidence, record the correlation ID, address, time, and failing step. |
+| `REPORT_GENERATION_FAILED`  | The report data/map image was invalid, or the renderer failed. | Use **Print / save PDF** as the immediate fallback; retain the assessment JSON and report the correlation ID.         |
+| `REPORT_RENDERER_BUSY`      | The PDF renderer is at capacity.                               | Wait briefly and retry; the response supplies a short retry interval.                                                 |
+| `REPORT_RENDERER_TIMEOUT`   | PDF generation exceeded its time limit.                        | Retry once, then use browser print/save PDF and investigate renderer performance.                                     |
 
 Correlation IDs are safe support references. Give the reviewer/engineer the ID, exact address, approximate time, and visible error code. Do not send credentials, raw provider responses, or secrets.
 
@@ -210,7 +210,7 @@ Correlation IDs are safe support references. Give the reviewer/engineer the ID, 
 - LINZ address and parcel data are the identity foundation, but cadastral mapping is not a site survey.
 - LINZ building footprints may be stale or omit later structures.
 - Aerial imagery is orientation evidence, not survey-grade measurement.
-- Auckland Council contours, planning, flooding, flow-path, stormwater, and related layers are currently `spike_only`; successful technical retrieval does not mean generated-report reuse is cleared.
+- Auckland Council stormwater pipes, manholes/chambers, catchpits, and watercourses are `report_allowed` under CC BY 4.0 with attribution, change notice, provider warnings, and bounded property-level output. Contours 2016, planning, flooding, flow-path, and other Council layers remain `spike_only`.
 - Watercare geometry is `internal_reference`; it must not be treated as report evidence or complete utility information.
 - Vector electricity and gas geometry is open reference evidence but can be incomplete or inaccurate. It is not a substitute for BeforeUdig plans, provider confirmation, or onsite locating.
 - Culverts are currently unavailable because no dedicated official endpoint was verified in the spike.

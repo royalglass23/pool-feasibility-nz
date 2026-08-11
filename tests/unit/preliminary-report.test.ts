@@ -24,7 +24,10 @@ import {
   preliminaryReportFilename,
   renderPreliminaryReportHtml,
 } from "@/modules/reporting/preliminary-report";
-import { TEST_MAP_IMAGE_DATA_URL } from "../fixtures/preliminary-report";
+import {
+  buildTestPreliminaryReport,
+  TEST_MAP_IMAGE_DATA_URL,
+} from "../fixtures/preliminary-report";
 import { generatePreliminaryReportPdf } from "@/modules/reporting/report-renderer";
 
 const submission: PersistedAssessmentSubmission = {
@@ -262,6 +265,7 @@ const submission: PersistedAssessmentSubmission = {
               dataset: "Wastewater services",
               status: "available",
               evidenceUse: "report_allowed",
+              retrievedAt: "2026-07-29T01:00:00.000Z",
               licence: "CC BY 4.0",
               attribution: {
                 text: "Watercare Services Limited",
@@ -318,7 +322,9 @@ describe("saved preliminary report", () => {
       attribution: "Watercare Services Limited",
     });
     expect(report.layers[0]).toMatchObject({
+      id: "watercare-wastewater",
       dataset: "Wastewater services",
+      evidenceUse: "report_allowed",
       state: "returned",
     });
   });
@@ -358,6 +364,11 @@ describe("saved preliminary report", () => {
     expect(html).toContain("CC BY 4.0");
     expect(html).toContain("https://example.test/watercare");
     expect(html).toContain("Map attribution");
+    expect(html).toContain("Map key");
+    expect(html).toContain("Mapped property boundary");
+    expect(html).toContain("Selected pool");
+    expect(html).toContain("Indicative investigation buffer");
+    expect(html).toContain("Wastewater");
     const pageThreeStart = html.indexOf("Page 3 of 3");
     expect(pageThreeStart).toBeGreaterThan(-1);
     expect(html.indexOf("Data sources", pageThreeStart)).toBeGreaterThan(
@@ -416,6 +427,176 @@ describe("saved preliminary report", () => {
       );
     },
   );
+
+  it("names live reference layers that the report is not permitted to reproduce", () => {
+    const html = renderPreliminaryReportHtml(
+      buildTestPreliminaryReport({
+        layers: [
+          {
+            id: "wastewater_assets",
+            provider: "Watercare",
+            dataset: "Wastewater Pipes",
+            evidenceUse: "internal_reference",
+            state: "internal_reference_only",
+            confidence: "limited",
+            attribution: "Watercare",
+            sourceUrl: null,
+          },
+        ],
+      }),
+    );
+
+    expect(html).toContain("Not reproduced in this report:");
+    expect(html).toContain("Wastewater Pipes");
+    expect(html).not.toContain(">Wastewater</span>");
+  });
+
+  it("attributes licensed Council stormwater and discloses report map modifications", () => {
+    const sourceUrl =
+      "https://www.arcgis.com/home/item.html?id=cdea334c7ba9498c89b70977569007d7";
+    const precedingSources = Array.from({ length: 7 }, (_, index) => ({
+      provider: "LINZ",
+      dataset: `Report source ${index + 1}`,
+      status: "available",
+      evidenceUse: "report_allowed",
+      licence: "Creative Commons Attribution 4.0 International",
+      attribution: "Land Information New Zealand (LINZ), CC BY 4.0",
+      sourceUrl: "https://www.linz.govt.nz/",
+      retrievedAt: "2026-08-11T00:00:00.000Z",
+    }));
+    const html = renderPreliminaryReportHtml(
+      buildTestPreliminaryReport({
+        layers: [
+          {
+            id: "public_stormwater_assets",
+            provider: "Auckland Council",
+            dataset: "Stormwater Pipe",
+            evidenceUse: "report_allowed",
+            state: "returned",
+            confidence: "high",
+            attribution: "Healthy Waters, Auckland Council, CC BY 4.0",
+            sourceUrl,
+          },
+        ],
+        sources: [
+          ...precedingSources,
+          {
+            provider: "Auckland Council",
+            dataset: "Stormwater Pipe",
+            status: "available",
+            evidenceUse: "report_allowed",
+            licence: "Creative Commons Attribution 4.0 International",
+            attribution: "Healthy Waters, Auckland Council, CC BY 4.0",
+            sourceUrl,
+            retrievedAt: "2026-08-11T00:00:00.000Z",
+          },
+        ],
+      }),
+    );
+    const pageTwo = html.slice(
+      html.indexOf("Page 2 of 3"),
+      html.indexOf("Page 3 of 3"),
+    );
+    const pageOne = html.slice(
+      html.indexOf("Page 1 of 3"),
+      html.indexOf("Page 2 of 3"),
+    );
+
+    expect(html).toContain(">Stormwater</span>");
+    expect(html).toContain("Healthy Waters, Auckland Council, CC BY 4.0");
+    expect(html).toContain(sourceUrl);
+    expect(html).toContain(
+      'href="https://creativecommons.org/licenses/by/4.0/legalcode"',
+    );
+    expect(html).toContain("Retrieved 11 Aug 2026");
+    expect(html).toContain(
+      "Mapped provider geometry was clipped to the property assessment area and restyled for this report.",
+    );
+    expect(html).toContain(
+      "Auckland Council stormwater is indicative only and supplied without accuracy or fitness warranty. Independently verify onsite before design or works. Not for legal disputes. No Auckland Council endorsement is implied.",
+    );
+    expect(pageTwo).not.toContain(
+      "Land Information New Zealand (LINZ), CC BY 4.0",
+    );
+    expect(
+      pageTwo.match(/Healthy Waters, Auckland Council, CC BY 4\.0/g),
+    ).toHaveLength(1);
+    expect(pageOne.indexOf("Map attribution")).toBeGreaterThan(
+      pageOne.indexOf('alt="Saved property and pool map"'),
+    );
+    expect(pageOne.indexOf("Map attribution")).toBeLessThan(
+      pageOne.indexOf("<footer>"),
+    );
+    expect(pageTwo.indexOf("Map attribution")).toBeGreaterThan(
+      pageTwo.indexOf('alt="Saved property and pool map"'),
+    );
+    expect(pageTwo.indexOf("Map attribution")).toBeLessThan(
+      pageTwo.indexOf("Feasibility category status"),
+    );
+  });
+
+  it("preserves every exact source link when the report needs a source appendix", () => {
+    const generalSources = Array.from({ length: 9 }, (_, index) => ({
+      provider: "LINZ",
+      dataset: `Report source ${index + 1}`,
+      status: "available",
+      evidenceUse: "report_allowed",
+      licence: "Creative Commons Attribution 4.0 International",
+      attribution: "Land Information New Zealand (LINZ), CC BY 4.0",
+      sourceUrl: `https://example.test/source-${index + 1}`,
+      retrievedAt: "2026-08-11T00:00:00.000Z",
+    }));
+    const councilSources = [
+      ["Stormwater Pipe", "cdea334c7ba9498c89b70977569007d7"],
+      ["Stormwater Manhole and Chamber", "dab6f385653f4f899715465dcbd6c849"],
+      ["Stormwater Catchpit", "91bc332f958b4b5b97f9e93ee6f9abc1"],
+      ["Stormwater Watercourse", "0ecd434661f74bf980e940cf6f699c99"],
+    ].map(([dataset, itemId]) => ({
+      provider: "Auckland Council",
+      dataset,
+      status: "available",
+      evidenceUse: "report_allowed",
+      licence: "Creative Commons Attribution 4.0 International",
+      attribution: "Healthy Waters, Auckland Council, CC BY 4.0",
+      sourceUrl: `https://www.arcgis.com/home/item.html?id=${itemId}`,
+      retrievedAt: "2026-08-11T00:00:00.000Z",
+    }));
+    const html = renderPreliminaryReportHtml(
+      buildTestPreliminaryReport({
+        layers: [
+          ["public_stormwater_assets", "Stormwater Pipe"],
+          ["manholes", "Stormwater Manhole and Chamber"],
+          ["catchpits", "Stormwater Catchpit"],
+          ["watercourses", "Stormwater Watercourse"],
+        ].map(([id, dataset]) => ({
+          id,
+          provider: "Auckland Council",
+          dataset,
+          evidenceUse: "report_allowed",
+          state: "returned" as const,
+          confidence: "high",
+          attribution: "Healthy Waters, Auckland Council, CC BY 4.0",
+          sourceUrl:
+            councilSources.find((source) => source.dataset === dataset)
+              ?.sourceUrl ?? null,
+        })),
+        sources: [...generalSources, ...councilSources],
+      }),
+    );
+    const pageTwo = html.slice(
+      html.indexOf("Page 2 of 4"),
+      html.indexOf("Page 3 of 4"),
+    );
+    const sourceAppendix = html.slice(html.indexOf("Page 4 of 4"));
+
+    expect(html.match(/<section class="page">/g)).toHaveLength(4);
+    for (const source of councilSources) {
+      expect(pageTwo).toContain(`href="${source.sourceUrl}"`);
+    }
+    expect(pageTwo).not.toContain("Report source 1");
+    expect(sourceAppendix).toContain("Stormwater Watercourse");
+    expect(sourceAppendix).toContain(councilSources.at(-1)?.sourceUrl);
+  });
 
   it("renders through the serverless Puppeteer and Chromium adapter contract", async () => {
     vi.stubEnv("VERCEL", "1");

@@ -15,6 +15,8 @@ export const aucklandCouncilAttribution = {
   text: "Auckland Council geospatial data",
   url: "https://www.aucklandcouncil.govt.nz/geospatial/Pages/geospatial-terms-conditions.aspx",
 } as const;
+export const aucklandCouncilStormwaterLicence =
+  "Creative Commons Attribution 4.0 International";
 export const linzAddressQueryUrl =
   "https://services.arcgis.com/xdsHIIxuCWByZiCB/arcgis/rest/services/LINZ_NZ_Addresses/FeatureServer/0/query";
 export const linzParcelQueryUrl =
@@ -64,6 +66,19 @@ const councilDatasetDefaults = {
   licence: aucklandCouncilLicence,
   attribution: aucklandCouncilAttribution,
 } as const;
+const councilStormwaterDatasetDefaults = {
+  provider: "Auckland Council",
+  licenceStatus: "permitted",
+  licence: aucklandCouncilStormwaterLicence,
+  evidenceUse: "report_allowed",
+  geometryUsed: "mapped_provider_geometry",
+  attributesUsed: ["provider_properties"] as string[],
+  evidenceType: "official_open_reference_geometry",
+} as const;
+const councilStormwaterAttribution = (itemId: string) => ({
+  text: "Healthy Waters, Auckland Council, CC BY 4.0",
+  url: `https://www.arcgis.com/home/item.html?id=${itemId}`,
+});
 const watercareDatasetDefaults = {
   provider: "Watercare",
   licenceStatus: "conditional",
@@ -137,30 +152,42 @@ export const datasetCatalog: Record<QueryableDatasetKey, DatasetCatalogEntry> =
         "https://services1.arcgis.com/n4yPwebTjJCmXB6W/ArcGIS/rest/services/Overland_Flow_Paths/FeatureServer/0/query",
     },
     public_stormwater_assets: {
-      ...councilDatasetDefaults,
+      ...councilStormwaterDatasetDefaults,
       dataset: "Stormwater Pipe",
       datasetDate: null,
+      attribution: councilStormwaterAttribution(
+        "cdea334c7ba9498c89b70977569007d7",
+      ),
       queryUrl:
         "https://services1.arcgis.com/n4yPwebTjJCmXB6W/ArcGIS/rest/services/Stormwater_Pipe/FeatureServer/0/query",
     },
     manholes: {
-      ...councilDatasetDefaults,
+      ...councilStormwaterDatasetDefaults,
       dataset: "Stormwater Manhole and Chamber",
       datasetDate: null,
+      attribution: councilStormwaterAttribution(
+        "dab6f385653f4f899715465dcbd6c849",
+      ),
       queryUrl:
         "https://services1.arcgis.com/n4yPwebTjJCmXB6W/ArcGIS/rest/services/Stormwater_Manhole_And_Chamber/FeatureServer/0/query",
     },
     catchpits: {
-      ...councilDatasetDefaults,
+      ...councilStormwaterDatasetDefaults,
       dataset: "Stormwater Catchpit",
       datasetDate: null,
+      attribution: councilStormwaterAttribution(
+        "91bc332f958b4b5b97f9e93ee6f9abc1",
+      ),
       queryUrl:
         "https://services1.arcgis.com/n4yPwebTjJCmXB6W/ArcGIS/rest/services/Stormwater_Catchpit/FeatureServer/0/query",
     },
     watercourses: {
-      ...councilDatasetDefaults,
+      ...councilStormwaterDatasetDefaults,
       dataset: "Stormwater Watercourse",
       datasetDate: null,
+      attribution: councilStormwaterAttribution(
+        "0ecd434661f74bf980e940cf6f699c99",
+      ),
       queryUrl:
         "https://services1.arcgis.com/n4yPwebTjJCmXB6W/ArcGIS/rest/services/Stormwater_Watercourse/FeatureServer/0/query",
     },

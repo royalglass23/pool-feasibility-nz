@@ -146,6 +146,7 @@ export const reportAssessmentSnapshotSchema = z
                   "internal_reference",
                   "unavailable",
                 ]),
+                retrievedAt: isoDateTime,
                 licence: longText,
                 attribution: z
                   .object({
@@ -234,6 +235,7 @@ export function buildReportAssessmentSnapshot(
           dataset,
           status,
           evidenceUse,
+          retrievedAt,
           licence,
           attribution,
           confidence,
@@ -242,6 +244,7 @@ export function buildReportAssessmentSnapshot(
           dataset,
           status,
           evidenceUse,
+          retrievedAt,
           licence,
           attribution,
           confidence,

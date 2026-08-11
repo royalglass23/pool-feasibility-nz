@@ -12,10 +12,12 @@ npm run smoke:live-layers
 ```
 
 The exact-address, legal-parcel, authenticated real-aerial, and official mapped
-layer gates passed. Full report implementation must not start yet because
-Auckland Council's generated-report reuse position requires review. Watercare's
-official public services are mapped for internal reference only under the
-recorded non-commercial/no-derivatives licence; they are not report evidence.
+layer gates passed. The layer-specific review dated 2026-08-11 clears the exact
+Auckland Council stormwater pipe, manhole/chamber, catchpit, and watercourse
+items for bounded property-level reports under CC BY 4.0. Other Council sources,
+including Contours 2016, remain `spike_only`. Watercare's official public
+services remain `internal_reference` because the exact-service licence evidence
+is conflicting; they are not report evidence.
 
 Mapped features and counts below are bounded parcel-envelope query results, not
 final parcel intersections or feasibility findings. A zero count does not
@@ -28,19 +30,21 @@ establish that a real-world constraint or private asset is absent.
   <https://basemaps.linz.govt.nz/docs/user-guide/technical-documentation/>
 - Auckland Council geospatial terms:
   <https://www.aucklandcouncil.govt.nz/geospatial/Pages/geospatial-terms-conditions.aspx>
+- Auckland Council Open Data user licence:
+  <https://new.aucklandcouncil.govt.nz/en/geospatial/council-open-data/user-licence-auckland-council-open-data.html>
 - Watercare GIS maps and download terms:
   <https://www.watercare.co.nz/builders-and-developers/tools-fees-and-resources/gis-maps>
+- Layer-specific report-reuse research: `docs/map-layer-report-reuse-research.md`
 
 ## Code-enforced evidence-use gate
 
 Technical availability and report eligibility are separate. The spike labels
 each observation `report_allowed`, `spike_only`, `internal_reference`, or
-`unavailable`. Auckland
-Council layers remain `spike_only` even when their bounded API calls succeed;
-they cannot enter `reportEligibleDatasets` until the proposed generated-report
-and static-PDF reuse is approved. Watercare layers remain `internal_reference`
-and require independent verification before action. A public endpoint is not
-treated as a licence.
+`unavailable`. The four exact Council stormwater datasets approved in the
+2026-08-11 review are `report_allowed`; other Council datasets remain
+`spike_only` until their exact reuse rights are cleared. Watercare layers remain
+`internal_reference` and require independent verification before action. A
+public endpoint is not treated as a licence.
 
 ## Dataset records
 
@@ -252,17 +256,18 @@ treated as a licence.
 
 - **Provider:** Auckland Council, Healthy Waters
 - **Metadata / endpoint:** `Stormwater_Pipe/FeatureServer/0`
-- **Licence / attribution:** Auckland Council geospatial terms; copyright Healthy
-  Waters, Auckland Council
+- **Licence / attribution:** CC BY 4.0; Healthy Waters, Auckland Council; exact
+  ArcGIS item `cdea334c7ba9498c89b70977569007d7`
 - **Geometry / CRS:** polyline; EPSG:2193
 - **Relevant attributes:** stormwater asset ID/type, owner, status and available
   material/diameter/level fields
 - **Update status:** live service `editingInfo` inspected 2026-07-16
-- **Usable:** technical access yes; generated-report use conditional
+- **Usable:** `report_allowed` for bounded property-level reports
 - **Limitations:** Council says locations are indicative and cannot be assumed to
   align to cadastral boundaries; private pipes and exact depth/position unknown
-- **Commercial use:** business use appears allowed; redistribution unclear
-- **Additional permission:** yes/unclear
+- **Commercial use:** allowed under CC BY 4.0
+- **Additional permission:** no for bounded reuse, subject to attribution,
+  change notice, provider warnings, and no substantial bulk republication
 - **Live proof:** raw parcel-envelope count `1`
 
 ### 12. Wastewater assets
@@ -305,32 +310,34 @@ treated as a licence.
 
 - **Provider:** Auckland Council, Healthy Waters
 - **Metadata / endpoint:** `Stormwater_Manhole_And_Chamber/FeatureServer/0`
-- **Licence / attribution:** Auckland Council geospatial terms; attribute Council
-  and Healthy Waters
+- **Licence / attribution:** CC BY 4.0; Healthy Waters, Auckland Council; exact
+  ArcGIS item `dab6f385653f4f899715465dcbd6c849`
 - **Geometry / CRS:** point; EPSG:2193
 - **Relevant attributes:** stormwater asset ID/type, owner, status and chamber
   attributes where available
 - **Update status:** live service inspected 2026-07-16
-- **Usable:** technical access yes; generated-report use conditional
+- **Usable:** `report_allowed` for bounded property-level reports
 - **Limitations:** indicative position; wastewater manholes are not represented by
   this Council stormwater layer
-- **Commercial use:** business use appears allowed; redistribution unclear
-- **Additional permission:** yes/unclear
+- **Commercial use:** allowed under CC BY 4.0
+- **Additional permission:** no for bounded reuse, subject to attribution,
+  change notice, provider warnings, and no substantial bulk republication
 - **Live proof:** raw parcel-envelope count `0`
 
 ### 15. Catchpits — Stormwater Catchpit
 
 - **Provider:** Auckland Council, Healthy Waters
 - **Metadata / endpoint:** `Stormwater_Catchpit/FeatureServer/0`
-- **Licence / attribution:** Auckland Council geospatial terms; attribute Council
-  and Healthy Waters
+- **Licence / attribution:** CC BY 4.0; Healthy Waters, Auckland Council; exact
+  ArcGIS item `91bc332f958b4b5b97f9e93ee6f9abc1`
 - **Geometry / CRS:** point; EPSG:2193
 - **Relevant attributes:** stormwater asset ID/type, owner and status
 - **Update status:** live service inspected 2026-07-16
-- **Usable:** technical access yes; generated-report use conditional
+- **Usable:** `report_allowed` for bounded property-level reports
 - **Limitations:** indicative public-asset position; private drainage unknown
-- **Commercial use:** business use appears allowed; redistribution unclear
-- **Additional permission:** yes/unclear
+- **Commercial use:** allowed under CC BY 4.0
+- **Additional permission:** no for bounded reuse, subject to attribution,
+  change notice, provider warnings, and no substantial bulk republication
 - **Live proof:** raw parcel-envelope count `0`
 
 ### 16. Culverts
@@ -350,17 +357,18 @@ treated as a licence.
 
 - **Provider:** Auckland Council, Healthy Waters
 - **Metadata / endpoint:** `Stormwater_Watercourse/FeatureServer/0`
-- **Licence / attribution:** Auckland Council geospatial terms; attribute Council
-  and Healthy Waters
+- **Licence / attribution:** CC BY 4.0; Healthy Waters, Auckland Council; exact
+  ArcGIS item `0ecd434661f74bf980e940cf6f699c99`
 - **Geometry / CRS:** polyline; EPSG:2193
 - **Relevant attributes:** asset/feature identifier, type/classification and status
   where supplied
 - **Update status:** live service inspected 2026-07-16
-- **Usable:** technical access yes; generated-report use conditional
+- **Usable:** `report_allowed` for bounded property-level reports
 - **Limitations:** stormwater asset representation is not a complete regulatory
   watercourse determination
-- **Commercial use:** business use appears allowed; redistribution unclear
-- **Additional permission:** yes/unclear
+- **Commercial use:** allowed under CC BY 4.0
+- **Additional permission:** no for bounded reuse, subject to attribution,
+  change notice, provider warnings, and no substantial bulk republication
 - **Live proof:** raw parcel-envelope count `0`
 
 ### 18. Electricity distribution feeder lines
@@ -428,16 +436,17 @@ valid empty provider results. Culverts remain explicitly unavailable.
 - **Address/parcel:** pass.
 - **Real aerial/map:** pass; authenticated tiles loaded, parcel/address alignment
   passed numerically and visually, and required attribution is visible.
-- **Auckland Council reuse:** conditional; obtain written confirmation for the
-  proposed automated generated-report and static-PDF use.
+- **Auckland Council reuse:** the exact stormwater pipe, manhole/chamber,
+  catchpit, and watercourse items are cleared for bounded report reuse under CC
+  BY 4.0. Other Council sources remain conditional.
 - **Watercare:** official public geometry is available for internal reference
   only; later confidence and actions must still require Watercare review,
   BeforeUdig plans and onsite utility locating.
 - **Address/parcel/map prototype:** unblocked using report-eligible LINZ evidence.
 - **Internal session-only POC:** eligible to proceed only when the release gates
-  in `docs/release-readiness.md` pass. Council evidence must remain labelled
-  `spike_only`, Watercare must remain `internal_reference`, and neither can be
-  promoted to report-eligible evidence.
-- **External/customer report or deployment:** no-go. Council generated-report
-  reuse, Watercare restrictions, access control, rate limiting, retention,
+  in `docs/release-readiness.md` pass. Only the four approved Council stormwater
+  items may be `report_allowed`; other Council evidence remains `spike_only`,
+  and Watercare remains `internal_reference`.
+- **External/customer report or deployment:** no-go until the remaining release
+  gates pass. Watercare restrictions, access control, rate limiting, retention,
   storage, and deployment operations require separate approval and evidence.

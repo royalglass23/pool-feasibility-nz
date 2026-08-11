@@ -28,8 +28,11 @@ Only Auckland is supported in the POC. Inputs outside the supported region retur
   It cannot change geometry, candidates, size range, score, confidence, critical
   flags, risks, actions, or sources. Invalid, unsupported, timed-out, or
   unavailable AI output is replaced with deterministic wording.
-- LINZ evidence may be used only with its recorded attribution. Auckland Council
-  geometry remains `spike_only` pending generated-report reuse confirmation.
+- LINZ evidence may be used only with its recorded attribution. The four exact
+  Auckland Council stormwater datasets approved on 2026-08-11 may be
+  `report_allowed` with CC BY 4.0 attribution, a change notice, provider
+  warnings, and bounded property-level output. Other Council geometry remains
+  `spike_only` pending exact generated-report reuse confirmation.
 - Vector electricity and gas geometry is CC BY 4.0 open reference evidence. It
   may be incomplete or inaccurate and is never a substitute for BeforeUdig
   plans, provider confirmation, or onsite utility locating.

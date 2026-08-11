@@ -175,6 +175,67 @@ describe("renderTrustedAssessmentMap", () => {
     expect(imageData.includes(Buffer.from([124, 58, 237, 255]))).toBe(false);
   });
 
+  it("renders report-allowed contour lines with the report dash pattern", async () => {
+    const map = await renderTrustedAssessmentMap({
+      boundary,
+      shell: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [174.757, -36.854],
+            [174.763, -36.854],
+            [174.763, -36.846],
+            [174.757, -36.846],
+            [174.757, -36.854],
+          ],
+        ],
+      },
+      constructionEnvelope: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [174.756, -36.855],
+            [174.764, -36.855],
+            [174.764, -36.845],
+            [174.756, -36.845],
+            [174.756, -36.855],
+          ],
+        ],
+      },
+      warning: "needs_checking",
+      layers: [
+        {
+          key: "contours",
+          evidenceUse: "report_allowed",
+          geometry: {
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                properties: {},
+                geometry: {
+                  type: "LineString",
+                  coordinates: [
+                    [174.751, -36.842],
+                    [174.769, -36.842],
+                  ],
+                },
+              },
+            ],
+          },
+        },
+      ],
+    });
+
+    const png = Buffer.from(
+      map.slice("data:image/png;base64,".length),
+      "base64",
+    );
+    const imageDataLength = png.readUInt32BE(33);
+    const imageData = inflateSync(png.subarray(41, 41 + imageDataLength));
+    expect(imageData.includes(Buffer.from([71, 85, 105, 255]))).toBe(true);
+  });
+
   it("preserves the aerial report after one transient tile failure", async () => {
     const tile = await sharp({
       create: {

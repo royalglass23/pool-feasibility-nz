@@ -381,6 +381,13 @@ describe("homeowner report submission", () => {
     expect(
       screen.getByText("Internal report email: Needs retry"),
     ).toBeVisible();
+    const mapKey = screen.getByText("Map key").closest("figcaption");
+    expect(mapKey).not.toBeNull();
+    expect(within(mapKey!).getByText("Mapped property boundary")).toBeVisible();
+    expect(within(mapKey!).getByText("Selected pool")).toBeVisible();
+    expect(
+      within(mapKey!).getByText("Indicative investigation buffer"),
+    ).toBeVisible();
 
     const download = screen.getByRole("button", { name: "Download PDF" });
     expect(download).toHaveClass("items-center", "justify-center");
