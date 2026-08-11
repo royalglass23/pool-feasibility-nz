@@ -4,18 +4,26 @@ import { describe, expect, it } from "vitest";
 import nextConfig from "../../next.config";
 
 describe("Vercel native package tracing", () => {
-  it("packages only the Linux Sharp runtime files needed by public assessment saves", () => {
-    const includes =
+  it("packages the native runtimes needed by public assessment saves and saved-report delivery", () => {
+    const assessmentIncludes =
       nextConfig.outputFileTracingIncludes?.["/api/public/assessments"];
+    const savedReportIncludes =
+      nextConfig.outputFileTracingIncludes?.[
+        "/api/public/assessments/report/*"
+      ];
 
-    expect(includes).toEqual([
+    expect(assessmentIncludes).toEqual([
       "./node_modules/@img/sharp-linux-x64/package.json",
       "./node_modules/@img/sharp-linux-x64/index.cjs",
       "./node_modules/@img/sharp-linux-x64/lib/**/*",
       "./node_modules/@img/sharp-libvips-linux-x64/package.json",
       "./node_modules/@img/sharp-libvips-linux-x64/versions.json",
       "./node_modules/@img/sharp-libvips-linux-x64/lib/**/*",
+      "./node_modules/@sparticuz/chromium/bin/**/*",
     ]);
-    expect(includes).not.toContain("./node_modules/sharp/**/*");
+    expect(assessmentIncludes).not.toContain("./node_modules/sharp/**/*");
+    expect(savedReportIncludes).toEqual([
+      "./node_modules/@sparticuz/chromium/bin/**/*",
+    ]);
   });
 });
