@@ -155,7 +155,7 @@ describe("runDataAccessSpike", () => {
     );
   });
 
-  it("keeps technically accessible Council data out of report evidence pending permission", async () => {
+  it("classifies Council datasets by their approved report rights", async () => {
     const result = await runDataAccessSpike({
       requestedAddress,
       gateway: createGateway(),
@@ -168,11 +168,21 @@ describe("runDataAccessSpike", () => {
       status: "success",
       evidenceUse: "spike_only",
     });
+    expect(result.datasets.contours).toMatchObject({
+      status: "success",
+      evidenceUse: "spike_only",
+    });
+    expect(result.datasets.public_stormwater_assets).toMatchObject({
+      status: "success",
+      evidenceUse: "report_allowed",
+    });
     expect(result.datasets.wastewater_assets.evidenceUse).toBe(
       "internal_reference",
     );
     expect(result.reportEligibleDatasets).toContain("building_footprints");
+    expect(result.reportEligibleDatasets).toContain("public_stormwater_assets");
     expect(result.reportEligibleDatasets).not.toContain("planning_zone");
+    expect(result.reportEligibleDatasets).not.toContain("contours");
     expect(result.reportEligibleDatasets).not.toContain("wastewater_assets");
     expect(result.spikeOnlyDatasets).toContain("planning_zone");
     expect(result.spikeOnlyDatasets).not.toContain("wastewater_assets");

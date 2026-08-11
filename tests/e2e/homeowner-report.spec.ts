@@ -211,6 +211,12 @@ test("keeps the saved preliminary report visible when homeowner email needs retr
   await expect(
     page.getByText("Internal report email: Processing"),
   ).toBeVisible();
+  const mapKey = page.locator("figcaption").filter({ hasText: "Map key" });
+  await expect(mapKey.getByText("Mapped property boundary")).toBeVisible();
+  await expect(mapKey.getByText("Selected pool")).toBeVisible();
+  await expect(
+    mapKey.getByText("Indicative investigation buffer"),
+  ).toBeVisible();
   const downloadButton = page.getByRole("button", { name: "Download PDF" });
   await expect(downloadButton).toHaveCSS("align-items", "center");
   await expect(downloadButton).toHaveCSS("justify-content", "center");

@@ -1,5 +1,6 @@
 import type { ReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
 import type { SessionReportRequest } from "@/modules/reporting/report-request";
+import { reportLicenceUrl } from "@/modules/reporting/preliminary-report-presentation";
 import { escapeHtml } from "@/shared/html/escape-html";
 
 export function sessionReportId(assessment: ReportAssessmentSnapshot): string {
@@ -35,24 +36,29 @@ export function renderSessionReportHtml({
   const categories = assessment.feasibilityAssessment.categories;
   const datasets = assessment.provenance.datasets
     .filter((dataset) => dataset.evidenceUse === "report_allowed")
-    .slice(0, 6);
-  const printableSources = [
-    ...new Map(
-      datasets.flatMap((dataset) =>
-        dataset.attribution
-          ? [
-              [
-                `${dataset.attribution.text}|${dataset.licence}`,
-                {
-                  attribution: dataset.attribution.text,
-                  licence: dataset.licence,
-                },
-              ] as const,
-            ]
-          : [],
-      ),
-    ).values(),
-  ];
+    .slice(0, 10);
+  const reportSources = datasets
+    .map((dataset) => {
+      const licenceUrl = reportLicenceUrl(dataset.licence);
+      const licence = licenceUrl
+        ? `<a href="${esc(licenceUrl)}">${esc(dataset.licence)}</a>`
+        : esc(dataset.licence);
+      return `<div><b>${esc(dataset.dataset)}</b> · ${esc(dataset.provider)} · ${esc(dataset.status)}<br>${dataset.attribution ? `${esc(dataset.attribution.text)} · ` : ""}${licence}${dataset.attribution ? ` · <a href="${esc(dataset.attribution.url)}">${esc(dataset.attribution.url)}</a>` : ""} · Retrieved ${esc(formatReportSourceDate(dataset.retrievedAt))}</div>`;
+    })
+    .join("");
+  const includesCouncilStormwater = datasets.some(
+    (dataset) =>
+      dataset.provider === "Auckland Council" &&
+      [
+        "Stormwater Pipe",
+        "Stormwater Manhole and Chamber",
+        "Stormwater Catchpit",
+        "Stormwater Watercourse",
+      ].includes(dataset.dataset),
+  );
+  const councilStormwaterNotices = includesCouncilStormwater
+    ? "<div>Mapped provider geometry was clipped to the property assessment area and restyled for this report.</div><div>Auckland Council stormwater is indicative only and supplied without accuracy or fitness warranty. Independently verify onsite before design or works. Not for legal disputes. No Auckland Council endorsement is implied.</div>"
+    : "";
   const risks = assessment.risks.slice(0, 5);
   const actions = assessment.actions
     .flatMap((group) =>
@@ -90,7 +96,7 @@ export function renderSessionReportHtml({
       .join("")}
     <h2>Property overview</h2><img class="map" style="height:72mm" src="${mapImageDataUrl}" alt="Captured property assessment map">${footer}</section>
   <section class="page">${header("Property constraints", 2)}<h1>Mapped property evidence</h1><p>Official geometry returned during this session. Missing evidence is shown as unavailable and is not inferred.</p><img class="map" src="${mapImageDataUrl}" alt="Captured property assessment map">
-    <h2>Feasibility category status</h2><table class="table"><thead><tr><th>Category</th><th>Status</th><th>Score</th><th>Rationale</th></tr></thead><tbody>${categories.map((category) => `<tr class="category-row"><td>${esc(category.id.replaceAll("_", " "))}</td><td class="status">${esc(category.status)}</td><td>${esc(category.awardedPoints ?? "—")} / ${esc(category.maximumPoints)}</td><td>${esc(category.rationale)}</td></tr>`).join("")}</tbody></table><div class="source-note"><b>Report-eligible evidence and attribution</b>${datasets.map((dataset) => `<div>${esc(dataset.dataset)} · ${esc(dataset.provider)} · ${esc(dataset.status)}</div>`).join("")}${printableSources.map((source) => `<div>${esc(source.attribution)} · ${esc(source.licence)}</div>`).join("")}</div>${footer}</section>
+    <h2>Feasibility category status</h2><table class="table"><thead><tr><th>Category</th><th>Status</th><th>Score</th><th>Rationale</th></tr></thead><tbody>${categories.map((category) => `<tr class="category-row"><td>${esc(category.id.replaceAll("_", " "))}</td><td class="status">${esc(category.status)}</td><td>${esc(category.awardedPoints ?? "—")} / ${esc(category.maximumPoints)}</td><td>${esc(category.rationale)}</td></tr>`).join("")}</tbody></table><div class="source-note"><b>Report-eligible evidence and attribution</b>${reportSources}${councilStormwaterNotices}</div>${footer}</section>
   <section class="page">${header("Risks and actions", 3)}<h1>What needs attention next</h1><div class="columns"><div><h2>Material risks</h2>${risks.map((r) => `<div class="risk ${r.severity}"><h3>${esc(r.title)}</h3><p>${esc(r.evidence)}</p><p><b>Action:</b> ${esc(r.action)}</p></div>`).join("")}</div><div><h2>Prioritised actions</h2>${actions.map((a) => `<div class="action"><b>${esc(a.phase.replaceAll("_", " "))}</b><span>${esc(a.item)}</span></div>`).join("")}
     <h2>Missing information</h2><ul class="small-list">${assessment.missingInformation
       .slice(0, 8)
@@ -98,4 +104,11 @@ export function renderSessionReportHtml({
       .join("")}</ul></div></div>
     <h2>Assumptions and limits</h2><p>${esc(assessment.preliminaryFeasibilityWording)}</p><p style="margin-top:2mm">${esc(assessment.limitations.join(" "))}</p><p style="margin-top:3mm;font-weight:700">This preliminary desktop assessment is not approval, engineering design, a survey, title advice, utility location, or an approved pool position.</p>${footer}</section>
   </body></html>`;
+}
+
+function formatReportSourceDate(value: string): string {
+  return new Intl.DateTimeFormat("en-NZ", {
+    dateStyle: "medium",
+    timeZone: "Pacific/Auckland",
+  }).format(new Date(value));
 }

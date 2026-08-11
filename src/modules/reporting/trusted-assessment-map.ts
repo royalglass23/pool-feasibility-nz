@@ -1,6 +1,7 @@
 import "server-only";
 import { deflateSync } from "node:zlib";
 import type { FeatureCollection, Geometry } from "geojson";
+import { reportMapLayerStyle } from "@/modules/reporting/report-map-style";
 
 const WIDTH = 900;
 const HEIGHT = 600;
@@ -156,7 +157,8 @@ function drawReportLayer(
   layer: TrustedMapLayer,
   project: (point: Point) => Point,
 ) {
-  const colour = reportLayerColour(layer.key);
+  const style = reportMapLayerStyle(layer.key);
+  const colour = style.rgba;
   for (const feature of layer.geometry?.features ?? []) {
     const geometry = feature.geometry;
     if (geometry.type === "Polygon" || geometry.type === "MultiPolygon") {
@@ -168,26 +170,20 @@ function drawReportLayer(
     for (const line of geometryLines(geometry)) {
       const projected = line.map(project);
       for (let index = 0; index + 1 < projected.length; index += 1) {
-        drawLine(pixels, projected[index], projected[index + 1], colour, 3);
+        drawLine(
+          pixels,
+          projected[index],
+          projected[index + 1],
+          colour,
+          3,
+          style.dashed,
+        );
       }
     }
     for (const coordinate of geometryPoints(geometry)) {
       drawCircle(pixels, project(coordinate), colour, 5);
     }
   }
-}
-
-function reportLayerColour(key: string): Colour {
-  if (key === "electricity_feeder_lines") return [202, 138, 4, 255];
-  if (key === "gas_distribution_lines") return [220, 38, 38, 255];
-  if (key.includes("wastewater")) return [124, 58, 237, 255];
-  if (key.includes("water") || key.includes("stormwater") || key === "culverts")
-    return [3, 105, 161, 255];
-  if (key.includes("flood") || key === "overland_flow_paths")
-    return [14, 116, 144, 255];
-  if (key === "contours") return [71, 85, 105, 255];
-  if (key === "building_footprints") return [100, 116, 139, 255];
-  return [126, 34, 206, 255];
 }
 
 function geometryLines(geometry: Geometry): Point[][] {

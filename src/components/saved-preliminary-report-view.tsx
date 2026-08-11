@@ -7,6 +7,7 @@ import {
   formatReportBoundaryArea,
   formatReportGeneratedAt,
   humanizeReportValue,
+  reportMapLegend,
   reportRecommendations,
   reportWarningLabel,
 } from "@/modules/reporting/preliminary-report-presentation";
@@ -30,6 +31,7 @@ export function SavedPreliminaryReportView({
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [deliveryState, setDeliveryState] = useState(delivery);
+  const mapLegend = reportMapLegend(report);
 
   useEffect(() => {
     if (!downloadAccessToken) return;
@@ -197,14 +199,52 @@ export function SavedPreliminaryReportView({
         <Fact label="Rotation" value={`${report.pool.rotationDegrees}°`} />
       </div>
 
-      <Image
-        src={report.mapImageDataUrl}
-        alt="Saved property and pool map"
-        width={1200}
-        height={800}
-        unoptimized
-        className="h-auto w-full rounded-2xl border border-slate-200 object-contain"
-      />
+      <figure>
+        <Image
+          src={report.mapImageDataUrl}
+          alt="Saved property and pool map"
+          width={1200}
+          height={800}
+          unoptimized
+          className="h-auto w-full rounded-2xl border border-slate-200 object-contain"
+        />
+        <figcaption className="mt-3 rounded-xl bg-slate-50 px-4 py-3">
+          <p className="text-sm font-semibold text-slate-950">Map key</p>
+          <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-2" role="list">
+            {mapLegend.entries.map((entry) => (
+              <li
+                key={entry.id}
+                className="flex items-center gap-2 text-sm font-medium text-slate-700"
+              >
+                <span
+                  aria-hidden="true"
+                  className={`inline-block w-8 shrink-0 ${
+                    entry.kind === "area" ? "h-3" : "h-0"
+                  }`}
+                  style={
+                    entry.kind === "area"
+                      ? {
+                          backgroundColor: `${entry.colour}38`,
+                          boxShadow: `inset 0 0 0 2px ${entry.colour}`,
+                        }
+                      : {
+                          borderTop: `3px ${entry.dashed ? "dashed" : "solid"} ${entry.colour}`,
+                        }
+                  }
+                />
+                {entry.label}
+              </li>
+            ))}
+          </ul>
+          {mapLegend.excludedLayers.length > 0 && (
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              <b className="text-slate-800">Not reproduced in this report:</b>{" "}
+              {mapLegend.excludedLayers.join(", ")}. These live reference layers
+              remain excluded until report reuse is cleared.
+            </p>
+          )}
+        </figcaption>
+      </figure>
 
       <section aria-labelledby="saved-report-scenarios-heading">
         <h3

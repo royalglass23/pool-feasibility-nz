@@ -21,19 +21,19 @@ points.
 
 ## Priority roadmap
 
-| Priority | Evidence | Access | Recommended use |
-| --- | --- | --- | --- |
-| 0 | Royal Glass project outcomes | Internal operational data | Calibrate and validate the score |
-| 1 | Selected-pool geometry and pool-barrier feasibility | Existing geometry plus current rules | Deterministic score input |
-| 1 | Vector electricity and gas network | Open ArcGIS services; licence differs by layer | Negative constraint screening; never proof of clearance |
-| 1 | Auckland landslide susceptibility | Public council mapping | Negative constraint and geotechnical referral |
-| 1 | Current title, instruments and survey plans | Paid LINZ order | Human-reviewed legal gate |
-| 1 | beforeUdig owner responses and plans | Free enquiry; owner-specific responses | Utility evidence completeness and action gate |
-| 2 | Auckland property file or LIM | Paid council order | Human-reviewed consent, hazard and prior-report gate |
-| 2 | Nearby NZGD investigations | Public index; records subject to NZGD terms | Confidence and geotechnical referral only |
-| 2 | Groundwater bores and observations | Public council/LAWA services, sparse coverage | Confidence and investigation trigger only |
-| 2 | Construction access measurements | Aerial/LiDAR plus staff site capture | Score only after outcome calibration |
-| 2 | Retaining-wall presence and influence | Property file plus site/engineering review | Verified gate; not automatic adequacy scoring |
+| Priority | Evidence                                            | Access                                         | Recommended use                                         |
+| -------- | --------------------------------------------------- | ---------------------------------------------- | ------------------------------------------------------- |
+| 0        | Royal Glass project outcomes                        | Internal operational data                      | Calibrate and validate the score                        |
+| 1        | Selected-pool geometry and pool-barrier feasibility | Existing geometry plus current rules           | Deterministic score input                               |
+| 1        | Vector electricity and gas network                  | Open ArcGIS services; licence differs by layer | Negative constraint screening; never proof of clearance |
+| 1        | Auckland landslide susceptibility                   | Public council mapping                         | Negative constraint and geotechnical referral           |
+| 1        | Current title, instruments and survey plans         | Paid LINZ order                                | Human-reviewed legal gate                               |
+| 1        | beforeUdig owner responses and plans                | Free enquiry; owner-specific responses         | Utility evidence completeness and action gate           |
+| 2        | Auckland property file or LIM                       | Paid council order                             | Human-reviewed consent, hazard and prior-report gate    |
+| 2        | Nearby NZGD investigations                          | Public index; records subject to NZGD terms    | Confidence and geotechnical referral only               |
+| 2        | Groundwater bores and observations                  | Public council/LAWA services, sparse coverage  | Confidence and investigation trigger only               |
+| 2        | Construction access measurements                    | Aerial/LiDAR plus staff site capture           | Score only after outcome calibration                    |
+| 2        | Retaining-wall presence and influence               | Property file plus site/engineering review     | Verified gate; not automatic adequacy scoring           |
 
 ## 0. Build the calibration dataset first
 
@@ -104,8 +104,11 @@ bounded mapped evidence with the source and model vintage shown.
 [Auckland Council flood-map explanation](https://ourauckland.aucklandcouncil.govt.nz/news/2026/03/understanding-auckland-s-regional-flood-maps/)
 
 Auckland Council geospatial terms restrict substantial copying or republishing
-without prior written permission. Existing council evidence should remain under
-the repository's `spike_only` gate until generated-report reuse is approved.
+without prior written permission. The exact stormwater pipe, manhole/chamber,
+catchpit, and watercourse items reviewed on 2026-08-11 are CC BY 4.0 and may be
+`report_allowed` for bounded property-level reports. Other Council evidence,
+including Contours 2016, remains `spike_only` until its exact generated-report
+reuse rights are approved.
 [Auckland Council geospatial terms](https://www.aucklandcouncil.govt.nz/geospatial/Pages/geospatial-terms-conditions.aspx)
 
 ### Electricity and gas

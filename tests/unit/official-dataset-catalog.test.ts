@@ -15,6 +15,55 @@ describe("officialDatasetEvidence", () => {
     });
   });
 
+  it.each([
+    [
+      "public_stormwater_assets",
+      "Stormwater Pipe",
+      "cdea334c7ba9498c89b70977569007d7",
+    ],
+    [
+      "manholes",
+      "Stormwater Manhole and Chamber",
+      "dab6f385653f4f899715465dcbd6c849",
+    ],
+    ["catchpits", "Stormwater Catchpit", "91bc332f958b4b5b97f9e93ee6f9abc1"],
+    [
+      "watercourses",
+      "Stormwater Watercourse",
+      "0ecd434661f74bf980e940cf6f699c99",
+    ],
+  ])(
+    "catalogues %s as Auckland Council CC BY 4.0 report evidence",
+    (key, dataset, itemId) => {
+      expect(
+        officialDatasetEvidence(key as never, "2026-08-11T00:00:00.000Z"),
+      ).toMatchObject({
+        provider: "Auckland Council",
+        dataset,
+        licenceStatus: "permitted",
+        evidenceUse: "report_allowed",
+        licence: "Creative Commons Attribution 4.0 International",
+        attribution: {
+          text: "Healthy Waters, Auckland Council, CC BY 4.0",
+          url: `https://www.arcgis.com/home/item.html?id=${itemId}`,
+        },
+        geometryUsed: "mapped_provider_geometry",
+        evidenceType: "official_open_reference_geometry",
+      });
+    },
+  );
+
+  it("keeps the legacy Council contours source out of reports", () => {
+    expect(
+      officialDatasetEvidence("contours" as never, "2026-08-11T00:00:00.000Z"),
+    ).toMatchObject({
+      provider: "Auckland Council",
+      dataset: "Contours 2016 - 0.25 metre contours",
+      licenceStatus: "conditional",
+      evidenceUse: "spike_only",
+    });
+  });
+
   it("identifies Watercare wastewater manholes as official internal reference data", () => {
     expect(
       officialDatasetEvidence(

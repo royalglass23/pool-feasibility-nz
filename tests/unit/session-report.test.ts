@@ -54,17 +54,39 @@ describe("session PDF report", () => {
     expect(html).toContain("&lt;img src=x onerror=&quot;alert(1)&quot;&gt;");
   });
 
-  it("prints only report-allowed evidence with its attribution", async () => {
+  it("prints all report-allowed evidence with its attribution", async () => {
     const request = await reportRequest();
 
     const html = renderSessionReportHtml(request);
 
     expect(html).toContain("NZ Building Outlines");
     expect(html).toContain("NZ Addresses");
+    expect(html).toContain("Stormwater Pipe");
+    expect(html).toContain("Healthy Waters, Auckland Council, CC BY 4.0");
     expect(html).toContain("Land Information New Zealand (LINZ), CC BY 4.0");
     expect(html).toContain("Creative Commons Attribution 4.0 International");
-    expect(html).not.toContain("Auckland Council");
+    expect(html).not.toContain("Contours 2016");
     expect(html).not.toContain("Watercare Services Limited");
+  });
+
+  it("prints the required Council stormwater source details and warnings", async () => {
+    const request = await reportRequest();
+
+    const html = renderSessionReportHtml(request);
+
+    expect(html).toContain(
+      "https://www.arcgis.com/home/item.html?id=cdea334c7ba9498c89b70977569007d7",
+    );
+    expect(html).toContain(
+      'href="https://creativecommons.org/licenses/by/4.0/legalcode"',
+    );
+    expect(html).toContain("Retrieved 20 Jul 2026");
+    expect(html).toContain(
+      "Mapped provider geometry was clipped to the property assessment area and restyled for this report.",
+    );
+    expect(html).toContain(
+      "Auckland Council stormwater is indicative only and supplied without accuracy or fitness warranty. Independently verify onsite before design or works. Not for legal disputes. No Auckland Council endorsement is implied.",
+    );
   });
 
   it("renders the six feasibility categories on the constraints page", async () => {
