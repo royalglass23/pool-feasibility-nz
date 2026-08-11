@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   buildFastPoolGeometry,
+  fastPoolConstructionEnvelopeDimensions,
   isFastPoolWithinMappedArea,
   validateFastCustomDimensions,
 } from "@/modules/data-access-spike/fast-pool-placement";
@@ -71,6 +72,8 @@ export async function buildServerAssessmentSubmission(input: {
     request.poolLayout.widthMetres,
   );
   if (!dimensions) throw new ServerAssessmentSubmissionError();
+  const constructionEnvelopeDimensions =
+    fastPoolConstructionEnvelopeDimensions(dimensions);
 
   const poolGeometry = buildFastPoolGeometry(
     request.poolLayout.position,
@@ -80,20 +83,16 @@ export async function buildServerAssessmentSubmission(input: {
   );
   const constructionEnvelope = buildFastPoolGeometry(
     request.poolLayout.position,
-    dimensions.lengthMetres + 2,
-    dimensions.widthMetres + 2,
+    constructionEnvelopeDimensions.lengthMetres,
+    constructionEnvelopeDimensions.widthMetres,
     request.poolLayout.rotationDegrees,
   );
   const boundary = snapshot.fastResult.boundary;
   if (
-    boundary.state === "confirmed" &&
     boundary.geometry &&
     !isFastPoolWithinMappedArea(
       request.poolLayout.position,
-      {
-        lengthMetres: dimensions.lengthMetres + 2,
-        widthMetres: dimensions.widthMetres + 2,
-      },
+      constructionEnvelopeDimensions,
       request.poolLayout.rotationDegrees,
       boundary.geometry,
     )

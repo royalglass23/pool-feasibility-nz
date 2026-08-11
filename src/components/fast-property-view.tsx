@@ -7,6 +7,7 @@ import type { DetailedLayerResult } from "@/modules/data-access-spike/execute-fa
 import {
   buildFastPoolGeometry,
   FAST_POOL_CATALOGUE,
+  fastPoolConstructionEnvelopeDimensions,
   findFastPoolDefaultPosition,
   isFastPoolWithinMappedArea,
   type FastPoolId,
@@ -155,10 +156,13 @@ export function FastPropertyView({
     allUtilityCategoriesVisible,
   );
   const [contoursVisible, setContoursVisible] = useState(true);
-  const [position, setPosition] = useState<[number, number]>(() =>
-    defaultPosition(result),
+  const [initialPlacement] = useState(() => defaultPlacement(result));
+  const [position, setPosition] = useState<[number, number]>(
+    initialPlacement.position,
   );
-  const [placementMessage, setPlacementMessage] = useState<string | null>(null);
+  const [placementMessage, setPlacementMessage] = useState<string | null>(
+    initialPlacement.message,
+  );
   const dimensions = useMemo(() => {
     const preset = FAST_POOL_CATALOGUE.find(
       (pool) => pool.id === selectedPoolId,
@@ -170,16 +174,13 @@ export function FastPropertyView({
       Number(customWidth),
     );
   }, [customLength, customWidth, selectedPoolId]);
+  const constructionEnvelopeDimensions = useMemo(
+    () => dimensions && fastPoolConstructionEnvelopeDimensions(dimensions),
+    [dimensions],
+  );
   const poolGeometry = useMemo(
     () =>
-      dimensions &&
-      (!result.boundary.geometry ||
-        isFastPoolWithinMappedArea(
-          position,
-          dimensions,
-          rotationDegrees,
-          result.boundary.geometry,
-        ))
+      dimensions
         ? buildFastPoolGeometry(
             position,
             dimensions.lengthMetres,
@@ -187,16 +188,47 @@ export function FastPropertyView({
             rotationDegrees,
           )
         : null,
-    [dimensions, position, result.boundary.geometry, rotationDegrees],
+    [dimensions, position, rotationDegrees],
   );
+  const constructionEnvelopeGeometry = useMemo(
+    () =>
+      constructionEnvelopeDimensions
+        ? buildFastPoolGeometry(
+            position,
+            constructionEnvelopeDimensions.lengthMetres,
+            constructionEnvelopeDimensions.widthMetres,
+            rotationDegrees,
+          )
+        : null,
+    [constructionEnvelopeDimensions, position, rotationDegrees],
+  );
+  const constructionEnvelopeWithinMappedArea = useMemo(() => {
+    if (!constructionEnvelopeDimensions) return false;
+    if (!result.boundary.geometry) return true;
+    return isFastPoolWithinMappedArea(
+      position,
+      constructionEnvelopeDimensions,
+      rotationDegrees,
+      result.boundary.geometry,
+    );
+  }, [
+    constructionEnvelopeDimensions,
+    position,
+    result.boundary.geometry,
+    rotationDegrees,
+  ]);
   const poolWarning = useMemo(
     () =>
       classifyFastPoolWarning({
         boundaryState: result.boundary.state,
-        pool: poolGeometry,
+        pool: constructionEnvelopeGeometry,
         detailedChecks: result.detailedChecks,
       }),
-    [poolGeometry, result.boundary.state, result.detailedChecks],
+    [
+      constructionEnvelopeGeometry,
+      result.boundary.state,
+      result.detailedChecks,
+    ],
   );
   const mappedUtilityLayers = useMemo(
     () =>
@@ -239,9 +271,13 @@ export function FastPropertyView({
       rotationDegrees,
       dimensions,
       poolGeometry: poolGeometry ?? null,
+      constructionEnvelopeGeometry,
+      constructionEnvelopeWithinMappedArea,
       warning: poolWarning,
     });
   }, [
+    constructionEnvelopeGeometry,
+    constructionEnvelopeWithinMappedArea,
     dimensions,
     onPlacementChange,
     poolGeometry,
@@ -256,11 +292,11 @@ export function FastPropertyView({
 
   const setCandidatePosition = (candidate: [number, number]) => {
     if (
-      dimensions &&
+      constructionEnvelopeDimensions &&
       result.boundary.geometry &&
       !isFastPoolWithinMappedArea(
         candidate,
-        dimensions,
+        constructionEnvelopeDimensions,
         rotationDegrees,
         result.boundary.geometry,
       )
@@ -277,11 +313,11 @@ export function FastPropertyView({
   const setCandidateRotation = (candidate: number) => {
     const normalized = ((candidate % 360) + 360) % 360;
     if (
-      dimensions &&
+      constructionEnvelopeDimensions &&
       result.boundary.geometry &&
       !isFastPoolWithinMappedArea(
         position,
-        dimensions,
+        constructionEnvelopeDimensions,
         normalized,
         result.boundary.geometry,
       )
@@ -310,11 +346,13 @@ export function FastPropertyView({
             Number(customWidth),
           )
         : pool;
+    const nextEnvelopeDimensions =
+      nextDimensions && fastPoolConstructionEnvelopeDimensions(nextDimensions);
     const nextPosition =
-      nextDimensions && result.boundary.geometry
+      nextEnvelopeDimensions && result.boundary.geometry
         ? findFastPoolDefaultPosition(
             result.boundary.geometry,
-            nextDimensions,
+            nextEnvelopeDimensions,
             0,
           )
         : null;
@@ -965,15 +1003,30 @@ export function returnedGeometry(
   };
 }
 
-function defaultPosition(result: FastPropertyViewResult): [number, number] {
+function defaultPlacement(result: FastPropertyViewResult): {
+  position: [number, number];
+  message: string | null;
+} {
   if (result.boundary.geometry) {
-    return (findFastPoolDefaultPosition(
+    const position = findFastPoolDefaultPosition(
       result.boundary.geometry,
-      { lengthMetres: 6.5, widthMetres: 3 },
+      fastPoolConstructionEnvelopeDimensions({
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      }),
       0,
-    ) ?? result.resolvedAddress.coordinates) as [number, number];
+    );
+    return position
+      ? { position: position as [number, number], message: null }
+      : {
+          position: result.resolvedAddress.coordinates as [number, number],
+          message: "This size does not fit inside the available mapped area.",
+        };
   }
-  return result.resolvedAddress.coordinates as [number, number];
+  return {
+    position: result.resolvedAddress.coordinates as [number, number],
+    message: null,
+  };
 }
 
 function rotationHandleGeometry(

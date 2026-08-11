@@ -10,6 +10,8 @@ const placement = {
   rotationDegrees: 12,
   dimensions: { lengthMetres: 6.5, widthMetres: 3 },
   poolGeometry: null,
+  constructionEnvelopeGeometry: null,
+  constructionEnvelopeWithinMappedArea: true,
   warning: {
     status: "needs_checking" as const,
     label: "Needs Checking" as const,

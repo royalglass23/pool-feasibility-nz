@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HomeownerSubmissionForm } from "@/components/homeowner-submission-form";
@@ -70,7 +76,25 @@ const report = buildTestPreliminaryReport({
   ],
 });
 
+const validPoolGeometry = {
+  type: "Feature" as const,
+  properties: {},
+  geometry: {
+    type: "Polygon" as const,
+    coordinates: [
+      [
+        [174.7599, -36.8501],
+        [174.7601, -36.8501],
+        [174.7601, -36.8499],
+        [174.7599, -36.8499],
+        [174.7599, -36.8501],
+      ],
+    ],
+  },
+};
+
 afterEach(() => {
+  cleanup();
   vi.unstubAllGlobals();
   trackAnonymousFunnelEvent.mockReset();
 });
@@ -107,7 +131,9 @@ describe("homeowner report submission", () => {
           position: [174.76, -36.85],
           rotationDegrees: 12,
           dimensions: { lengthMetres: 6.5, widthMetres: 3 },
-          poolGeometry: null,
+          poolGeometry: validPoolGeometry,
+          constructionEnvelopeGeometry: validPoolGeometry,
+          constructionEnvelopeWithinMappedArea: true,
           warning: {
             status: "needs_checking",
             label: "Needs Checking",
@@ -161,6 +187,53 @@ describe("homeowner report submission", () => {
     expect(body).not.toHaveProperty("report");
   });
 
+  it("does not submit a placement whose construction envelope is outside the mapped property", async () => {
+    const user = userEvent.setup();
+    const request = vi
+      .fn()
+      .mockResolvedValue(
+        Response.json({ assessment: { report } }, { status: 201 }),
+      );
+    vi.stubGlobal("fetch", request);
+
+    render(
+      <HomeownerSubmissionForm
+        assessmentSnapshot="server-issued-assessment-snapshot"
+        placement={{
+          position: [174.76, -36.85],
+          rotationDegrees: 12,
+          dimensions: { lengthMetres: 6.5, widthMetres: 3 },
+          poolGeometry: validPoolGeometry,
+          constructionEnvelopeGeometry: validPoolGeometry,
+          constructionEnvelopeWithinMappedArea: false,
+          warning: {
+            status: "needs_checking",
+            label: "Needs Checking",
+            text: "The construction envelope is outside the mapped property.",
+            recommendation: null,
+            conflictingDatasets: [],
+            checkingDatasets: [],
+          },
+        }}
+        onSaved={() => undefined}
+      />,
+    );
+
+    const form = within(screen.getAllByRole("form").at(-1)!);
+    await user.type(form.getByLabelText("Name"), "Jane Homeowner");
+    await user.type(form.getByLabelText("Phone"), "021 555 1234");
+    await user.type(form.getByLabelText("Email"), "jane@example.com");
+    await user.click(form.getByRole("checkbox"));
+    await user.click(
+      form.getByRole("button", { name: "Save and show my report" }),
+    );
+
+    expect(await form.findByRole("alert")).toHaveTextContent(
+      "Move or resize the pool so the full construction envelope stays inside the mapped property before saving.",
+    );
+    expect(request).not.toHaveBeenCalled();
+  });
+
   it("collects visitor context and explains Other selections before requesting the report", async () => {
     const user = userEvent.setup();
     const request = vi.fn().mockResolvedValue(
@@ -191,7 +264,9 @@ describe("homeowner report submission", () => {
           position: [174.76, -36.85],
           rotationDegrees: 12,
           dimensions: { lengthMetres: 6.5, widthMetres: 3 },
-          poolGeometry: null,
+          poolGeometry: validPoolGeometry,
+          constructionEnvelopeGeometry: validPoolGeometry,
+          constructionEnvelopeWithinMappedArea: true,
           warning: {
             status: "needs_checking",
             label: "Needs Checking",
@@ -205,7 +280,7 @@ describe("homeowner report submission", () => {
       />,
     );
 
-    const form = within(screen.getAllByRole("form")[1]);
+    const form = within(screen.getAllByRole("form").at(-1)!);
     expect(form.getByRole("option", { name: "Homeowner" })).toHaveValue(
       "homeowner",
     );

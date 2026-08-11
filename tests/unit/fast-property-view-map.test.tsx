@@ -193,6 +193,58 @@ it("does not run an aerial existing-pool check when the map becomes ready", asyn
   ).not.toBeInTheDocument();
 });
 
+it("keeps shell geometry separate when its construction envelope does not fit", async () => {
+  const onPlacementChange = vi.fn();
+  const narrowResult = {
+    ...fastResult,
+    resolvedAddress: {
+      ...fastResult.resolvedAddress,
+      coordinates: [174.6082, -36.8603],
+    },
+    boundary: {
+      ...fastResult.boundary,
+      geometry: {
+        type: "Polygon",
+        coordinates: [
+          [
+            [174.60816, -36.86032],
+            [174.60824, -36.86032],
+            [174.60824, -36.86028],
+            [174.60816, -36.86028],
+            [174.60816, -36.86032],
+          ],
+        ],
+      },
+    },
+  } as unknown as FastPropertyViewResult;
+
+  render(
+    <FastPropertyView
+      result={narrowResult}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+      onPlacementChange={onPlacementChange}
+    />,
+  );
+
+  await waitFor(() => expect(onPlacementChange).toHaveBeenCalled());
+  expect(onPlacementChange).toHaveBeenLastCalledWith(
+    expect.objectContaining({
+      poolGeometry: expect.objectContaining({
+        geometry: expect.objectContaining({ type: "Polygon" }),
+      }),
+      constructionEnvelopeGeometry: expect.objectContaining({
+        geometry: expect.objectContaining({ type: "Polygon" }),
+      }),
+      constructionEnvelopeWithinMappedArea: false,
+    }),
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "This size does not fit inside the available mapped area.",
+  );
+});
+
 const fastResult = {
   requestedAddress: "42A Bahari Drive, Ranui, Auckland",
   resolvedAddress: {
