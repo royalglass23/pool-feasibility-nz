@@ -448,7 +448,87 @@ describe("saved preliminary report", () => {
 
     expect(html).toContain("Not reproduced in this report:");
     expect(html).toContain("Wastewater Pipes");
-    expect(html).not.toContain(">Wastewater</span>");
+    expect(html).toContain(">Wastewater<small>Not reproduced</small>");
+  });
+
+  it("shows every detailed-check category in the map legend without reproducing uncleared layers", () => {
+    const html = renderPreliminaryReportHtml(
+      buildTestPreliminaryReport({
+        layers: [
+          {
+            id: "contours",
+            provider: "Auckland Council",
+            dataset: "Contours 2016",
+            evidenceUse: "spike_only",
+            state: "returned",
+            confidence: "limited",
+            attribution: "Auckland Council",
+            sourceUrl: null,
+          },
+          {
+            id: "public_stormwater_assets",
+            provider: "Auckland Council",
+            dataset: "Stormwater Pipe",
+            evidenceUse: "report_allowed",
+            state: "returned",
+            confidence: "limited",
+            attribution: "Healthy Waters, Auckland Council, CC BY 4.0",
+            sourceUrl: null,
+          },
+          {
+            id: "wastewater_assets",
+            provider: "Watercare",
+            dataset: "Wastewater Pipes",
+            evidenceUse: "internal_reference",
+            state: "internal_reference_only",
+            confidence: "limited",
+            attribution: "Watercare",
+            sourceUrl: null,
+          },
+          {
+            id: "public_water_assets",
+            provider: "Watercare",
+            dataset: "Water Pipes",
+            evidenceUse: "internal_reference",
+            state: "internal_reference_only",
+            confidence: "limited",
+            attribution: "Watercare",
+            sourceUrl: null,
+          },
+          {
+            id: "electricity_feeder_lines",
+            provider: "Vector",
+            dataset: "Electricity Distribution Feeder Network",
+            evidenceUse: "spike_only",
+            state: "empty",
+            confidence: "limited",
+            attribution: "Vector",
+            sourceUrl: null,
+          },
+          {
+            id: "gas_distribution_lines",
+            provider: "Vector",
+            dataset: "Gas Distribution Network",
+            evidenceUse: "spike_only",
+            state: "unavailable",
+            confidence: "unavailable",
+            attribution: "Vector",
+            sourceUrl: null,
+          },
+        ],
+      }),
+    );
+
+    expect(html).toContain(">Contours<small>Not reproduced</small>");
+    expect(html).toContain(">Stormwater<small>Mapped</small>");
+    expect(html).toContain(">Wastewater<small>Not reproduced</small>");
+    expect(html).toContain(">Water<small>Not reproduced</small>");
+    expect(html).toContain(">Electricity<small>No mapped evidence</small>");
+    expect(html).toContain(">Gas<small>Unavailable / unknown</small>");
+    expect(html).toContain("Not reproduced in this report:");
+    expect(html).toContain("Contours 2016");
+    expect(html).toContain("Wastewater Pipes");
+    expect(html).toContain("Water Pipes");
   });
 
   it("attributes licensed Council stormwater and discloses report map modifications", () => {
@@ -502,7 +582,7 @@ describe("saved preliminary report", () => {
       html.indexOf("Page 2 of 3"),
     );
 
-    expect(html).toContain(">Stormwater</span>");
+    expect(html).toContain(">Stormwater<small>Mapped</small>");
     expect(html).toContain("Healthy Waters, Auckland Council, CC BY 4.0");
     expect(html).toContain(sourceUrl);
     expect(html).toContain(

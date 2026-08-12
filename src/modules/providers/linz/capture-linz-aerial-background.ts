@@ -61,6 +61,9 @@ export async function captureLinzAerialBackground(
     },
   })
     .composite(tiles)
+    .png()
+    .toBuffer();
+  const cropped = await sharp(mosaic)
     .extract({
       left: viewport.left - firstTileX * 256,
       top: viewport.top - firstTileY * 256,
@@ -70,7 +73,7 @@ export async function captureLinzAerialBackground(
     .ensureAlpha()
     .raw()
     .toBuffer();
-  return new Uint8Array(mosaic.buffer, mosaic.byteOffset, mosaic.byteLength);
+  return new Uint8Array(cropped.buffer, cropped.byteOffset, cropped.byteLength);
 }
 
 async function fetchAerialTileWithRetry(
