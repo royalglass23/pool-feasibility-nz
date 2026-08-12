@@ -520,6 +520,27 @@ describe("saved preliminary report", () => {
             attribution: "Vector",
             sourceUrl: null,
           },
+          {
+            provider: "LINZ",
+            dataset: "NZ Building Outlines",
+            evidenceUse: "report_allowed",
+            state: "returned",
+            confidence: "high",
+            attribution: "Land Information New Zealand (LINZ), CC BY 4.0",
+            sourceUrl: null,
+          },
+        ],
+        sources: [
+          {
+            provider: "LINZ",
+            dataset: "NZ Building Outlines",
+            status: "available",
+            evidenceUse: "report_allowed",
+            licence: "Creative Commons Attribution 4.0 International",
+            attribution: "Land Information New Zealand (LINZ), CC BY 4.0",
+            sourceUrl: "https://data.linz.govt.nz/layer/101290/",
+            retrievedAt: "2026-08-12T00:00:00.000Z",
+          },
         ],
       }),
     );
@@ -530,6 +551,13 @@ describe("saved preliminary report", () => {
     expect(html).toContain(">Water<small>Not reproduced</small>");
     expect(html).toContain(">Electricity<small>No mapped evidence</small>");
     expect(html).toContain(">Gas<small>Unavailable / unknown</small>");
+    expect(html).not.toContain(">Building outlines<");
+    const pageTwo = html.slice(
+      html.indexOf("Property constraints"),
+      html.indexOf("Risks and actions"),
+    );
+    expect(pageTwo).not.toContain("NZ Building Outlines");
+    expect(html).toContain("<td>NZ Building Outlines</td>");
     expect(html).toContain("Not reproduced in this report:");
     expect(html).toContain("Contours 2016");
     expect(html).toContain("Wastewater Pipes");
@@ -617,6 +645,28 @@ describe("saved preliminary report", () => {
     );
     expect(pageTwo.indexOf("Map attribution")).toBeLessThan(
       pageTwo.indexOf("Feasibility category status"),
+    );
+  });
+
+  it("does not claim that hidden building geometry was clipped and restyled", () => {
+    const html = renderPreliminaryReportHtml(
+      buildTestPreliminaryReport({
+        layers: [
+          {
+            provider: "LINZ",
+            dataset: "NZ Building Outlines",
+            evidenceUse: "report_allowed",
+            state: "returned",
+            confidence: "high",
+            attribution: "Land Information New Zealand (LINZ), CC BY 4.0",
+            sourceUrl: "https://data.linz.govt.nz/layer/101290/",
+          },
+        ],
+      }),
+    );
+
+    expect(html).not.toContain(
+      "Mapped provider geometry was clipped to the property assessment area and restyled for this report.",
     );
   });
 

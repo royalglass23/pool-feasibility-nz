@@ -20,7 +20,7 @@ Address, report date/ID, score, classification, confidence, main recommendation,
 
 ### Page 2 — Property constraints
 
-Large attributed map with parcel, buildings, candidates, verified hazards/infrastructure/terrain, plus the six-category status table.
+Large attributed map with parcel, candidates and report-eligible verified hazards/infrastructure/terrain, plus the six-category status table. Building-outline geometry is deliberately omitted from the customer map and legend to keep the aerial readable; it remains available to the assessment and in the Page 3 official-layer status.
 
 ### Page 3 — Risks and actions
 
