@@ -1,8 +1,10 @@
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import {
   REPORT_MAP_BASE_STYLES,
+  reportMapLayerKey,
   reportMapLayerStyle,
   reportMapPoolStyle,
+  shouldReproduceReportMapLayer,
 } from "@/modules/reporting/report-map-style";
 
 export const CC_BY_4_LICENCE_URL =
@@ -109,7 +111,11 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
   }
 
   for (const layer of report.layers) {
-    if (layer.state !== "returned" || layer.evidenceUse !== "report_allowed") {
+    if (
+      layer.state !== "returned" ||
+      layer.evidenceUse !== "report_allowed" ||
+      !shouldReproduceReportMapLayer(reportLayerKey(layer))
+    ) {
       continue;
     }
     const style = reportLayerStyle(layer);
@@ -128,13 +134,11 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
 }
 
 function reportLayerStyle(layer: SavedPreliminaryReport["layers"][number]) {
-  const key =
-    layer.id ??
-    layer.dataset
-      .toLowerCase()
-      .replaceAll(/[^a-z0-9]+/g, "_")
-      .replaceAll(/^_+|_+$/g, "");
-  return reportMapLayerStyle(key);
+  return reportMapLayerStyle(reportLayerKey(layer));
+}
+
+function reportLayerKey(layer: SavedPreliminaryReport["layers"][number]) {
+  return reportMapLayerKey(layer.id, layer.dataset);
 }
 
 export function reportWarningLabel(

@@ -2,7 +2,10 @@ import "server-only";
 import { deflateSync } from "node:zlib";
 import type { FeatureCollection, Geometry } from "geojson";
 import sharp from "sharp";
-import { reportMapLayerStyle } from "@/modules/reporting/report-map-style";
+import {
+  reportMapLayerStyle,
+  shouldReproduceReportMapLayer,
+} from "@/modules/reporting/report-map-style";
 
 const WIDTH = 900;
 const HEIGHT = 600;
@@ -100,6 +103,7 @@ export async function renderTrustedAssessmentMap(
   }
   for (const layer of input.layers ?? []) {
     if (
+      !shouldReproduceReportMapLayer(layer.key) ||
       layer.evidenceUse !== "report_allowed" ||
       !layer.geometry ||
       layer.geometry.features.length === 0

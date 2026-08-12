@@ -17,6 +17,30 @@ export const REPORT_MAP_BASE_STYLES = {
   },
 } as const;
 
+const REPORT_MAP_LAYER_KEY_ALIASES: Readonly<Record<string, string>> = {
+  nz_building_outlines: "building_footprints",
+};
+
+const REPORT_MAP_OMITTED_LAYER_KEYS = new Set(["building_footprints"]);
+
+export function reportMapLayerKey(
+  id: string | undefined,
+  dataset?: string,
+): string {
+  const key =
+    id ??
+    dataset
+      ?.toLowerCase()
+      .replaceAll(/[^a-z0-9]+/g, "_")
+      .replaceAll(/^_+|_+$/g, "") ??
+    "";
+  return REPORT_MAP_LAYER_KEY_ALIASES[key] ?? key;
+}
+
+export function shouldReproduceReportMapLayer(key: string): boolean {
+  return !REPORT_MAP_OMITTED_LAYER_KEYS.has(reportMapLayerKey(key));
+}
+
 export function reportMapPoolStyle(
   warning: "no_warning" | "needs_checking" | "blocked",
 ) {

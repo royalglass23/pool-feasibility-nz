@@ -1,4 +1,8 @@
 import type { PersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
+import {
+  reportMapLayerKey,
+  shouldReproduceReportMapLayer,
+} from "@/modules/reporting/report-map-style";
 import { escapeHtml } from "@/shared/html/escape-html";
 import {
   formatReportBoundaryArea,
@@ -309,15 +313,20 @@ export function renderPreliminaryReportHtml(
     report.layers
       .filter(
         (layer) =>
-          layer.state === "returned" && layer.evidenceUse === "report_allowed",
+          layer.state === "returned" &&
+          layer.evidenceUse === "report_allowed" &&
+          shouldReproduceReportMapLayer(
+            reportMapLayerKey(layer.id, layer.dataset),
+          ),
       )
       .map((layer) => `${layer.provider}|${layer.dataset}`),
   );
   const mapSources = report.sources.filter(
     (source) =>
-      mappedSourceKeys.has(`${source.provider}|${source.dataset}`) ||
-      (source.provider === "LINZ" &&
-        /(?:aerial|parcel|building outline)/i.test(source.dataset)),
+      !/building outline/i.test(source.dataset) &&
+      (mappedSourceKeys.has(`${source.provider}|${source.dataset}`) ||
+        (source.provider === "LINZ" &&
+          /(?:aerial|parcel)/i.test(source.dataset))),
   );
   const mapAttributionGroups = new Map<
     string,
@@ -351,7 +360,9 @@ export function renderPreliminaryReportHtml(
       : "<div>No report-eligible map attribution was recorded.</div>";
   const mapModificationNotice = report.layers.some(
     (layer) =>
-      layer.state === "returned" && layer.evidenceUse === "report_allowed",
+      layer.state === "returned" &&
+      layer.evidenceUse === "report_allowed" &&
+      shouldReproduceReportMapLayer(reportMapLayerKey(layer.id, layer.dataset)),
   )
     ? "<div>Mapped provider geometry was clipped to the property assessment area and restyled for this report.</div>"
     : "";

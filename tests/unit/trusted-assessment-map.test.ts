@@ -213,6 +213,31 @@ describe("renderTrustedAssessmentMap", () => {
             ],
           },
         },
+        {
+          key: "nz_building_outlines",
+          evidenceUse: "report_allowed",
+          geometry: {
+            type: "FeatureCollection",
+            features: [
+              {
+                type: "Feature",
+                properties: {},
+                geometry: {
+                  type: "Polygon",
+                  coordinates: [
+                    [
+                      [174.754, -36.853],
+                      [174.758, -36.853],
+                      [174.758, -36.85],
+                      [174.754, -36.85],
+                      [174.754, -36.853],
+                    ],
+                  ],
+                },
+              },
+            ],
+          },
+        },
       ],
     };
     const viewport = trustedAssessmentMapViewport(input);
@@ -234,6 +259,8 @@ describe("renderTrustedAssessmentMap", () => {
     expect(imageData.includes(Buffer.from([15, 25, 35, 255]))).toBe(true);
     expect(imageData.includes(Buffer.from([202, 138, 4, 255]))).toBe(true);
     expect(imageData.includes(Buffer.from([124, 58, 237, 255]))).toBe(false);
+    expect(imageData.includes(Buffer.from([100, 116, 139, 255]))).toBe(false);
+    expect(imageData.includes(Buffer.from([126, 34, 206, 255]))).toBe(false);
   });
 
   it("antialiases diagonal report geometry over the saved aerial image", async () => {
