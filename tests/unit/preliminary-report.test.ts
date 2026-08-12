@@ -329,6 +329,50 @@ describe("saved preliminary report", () => {
     });
   });
 
+  it("retains provenance for a layer visible in a Fast Property View capture", () => {
+    const capturedSubmission = structuredClone(submission);
+    const visibleSource =
+      capturedSubmission.report.reportData.provenance.datasets[0];
+    if (!visibleSource) throw new Error("TEST_VISIBLE_SOURCE_MISSING");
+    capturedSubmission.layerStates[0] = {
+      ...capturedSubmission.layerStates[0]!,
+      status: "internal_reference_only",
+    };
+    capturedSubmission.report.reportData = {
+      ...capturedSubmission.report.reportData,
+      mapImageSource: "fast_property_view_capture",
+      mapVisibleLayerKeys: ["wastewater_assets"],
+      provenance: {
+        datasets: [
+          {
+            ...visibleSource,
+            id: "wastewater_assets",
+            evidenceUse: "internal_reference",
+          },
+        ],
+      },
+    };
+
+    const report = buildSavedPreliminaryReport({
+      submission: capturedSubmission,
+      reference: "GF-2026-000123",
+      createdAt: "2026-07-29T02:03:04.000Z",
+    });
+
+    expect(report.sources).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          provider: "Watercare",
+          dataset: "Wastewater services",
+          evidenceUse: "internal_reference",
+        }),
+      ]),
+    );
+    expect(renderPreliminaryReportHtml(report)).toContain(
+      "Fast Property View map capture",
+    );
+  });
+
   it("renders the saved reference, map, warning, recommendation, layer status, and limitations into exactly three report pages", () => {
     const report = buildSavedPreliminaryReport({
       submission,
@@ -562,6 +606,90 @@ describe("saved preliminary report", () => {
     expect(html).toContain("Contours 2016");
     expect(html).toContain("Wastewater Pipes");
     expect(html).toContain("Water Pipes");
+  });
+
+  it("marks live layers as mapped when the report uses the captured Fast Property View", () => {
+    const html = renderPreliminaryReportHtml(
+      buildTestPreliminaryReport({
+        mapImageSource: "fast_property_view_capture",
+        mapVisibleLayerKeys: [
+          "contours",
+          "wastewater_assets",
+          "public_water_assets",
+        ],
+        layers: [
+          {
+            id: "contours",
+            provider: "Auckland Council",
+            dataset: "Contours 2016",
+            evidenceUse: "spike_only",
+            state: "returned",
+            confidence: "limited",
+            attribution: "Auckland Council",
+            sourceUrl: null,
+          },
+          {
+            id: "wastewater_assets",
+            provider: "Watercare",
+            dataset: "Wastewater Pipes",
+            evidenceUse: "internal_reference",
+            state: "internal_reference_only",
+            confidence: "limited",
+            attribution: "Watercare",
+            sourceUrl: null,
+          },
+          {
+            id: "public_water_assets",
+            provider: "Watercare",
+            dataset: "Water Pipes",
+            evidenceUse: "internal_reference",
+            state: "internal_reference_only",
+            confidence: "limited",
+            attribution: "Watercare",
+            sourceUrl: null,
+          },
+        ],
+      }),
+    );
+
+    expect(html).toContain(">Contours<small>Mapped</small>");
+    expect(html).toContain(">Wastewater<small>Mapped</small>");
+    expect(html).toContain(">Water<small>Mapped</small>");
+    expect(html).not.toContain("Not reproduced in this report:");
+  });
+
+  it("marks a returned layer as not shown when it was unticked in the Fast Property View capture", () => {
+    const html = renderPreliminaryReportHtml(
+      buildTestPreliminaryReport({
+        mapImageSource: "fast_property_view_capture",
+        mapVisibleLayerKeys: ["wastewater_assets"],
+        layers: [
+          {
+            id: "contours",
+            provider: "Auckland Council",
+            dataset: "Contours 2016",
+            evidenceUse: "spike_only",
+            state: "returned",
+            confidence: "limited",
+            attribution: "Auckland Council",
+            sourceUrl: null,
+          },
+          {
+            id: "wastewater_assets",
+            provider: "Watercare",
+            dataset: "Wastewater Pipes",
+            evidenceUse: "internal_reference",
+            state: "internal_reference_only",
+            confidence: "limited",
+            attribution: "Watercare",
+            sourceUrl: null,
+          },
+        ],
+      }),
+    );
+
+    expect(html).toContain(">Contours<small>Not shown</small>");
+    expect(html).toContain(">Wastewater<small>Mapped</small>");
   });
 
   it("attributes licensed Council stormwater and discloses report map modifications", () => {

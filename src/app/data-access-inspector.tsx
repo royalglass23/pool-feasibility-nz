@@ -30,7 +30,10 @@ import { buildSessionAssessment } from "@/modules/assessment/build-session-asses
 import type { AssessmentExplanation } from "@/modules/recommendations/generate-assessment-explanation";
 import { PropertyAerialMap } from "@/components/map/property-aerial-map";
 import { humanizeIdentifierTitleCase as humanize } from "@/shared/text/humanize-identifier";
-import { FastPropertyView } from "@/components/fast-property-view";
+import {
+  FastPropertyView,
+  type FastPropertyViewMapSnapshot,
+} from "@/components/fast-property-view";
 import { HomeownerSubmissionForm } from "@/components/homeowner-submission-form";
 import {
   SavedAssessmentReportPanel,
@@ -74,6 +77,8 @@ export function DataAccessInspector() {
   >(null);
   const [fastPlacementSnapshot, setFastPlacementSnapshot] =
     useState<FastPoolPlacementSnapshot | null>(null);
+  const [fastMapSnapshot, setFastMapSnapshot] =
+    useState<FastPropertyViewMapSnapshot | null>(null);
   const fastSavedReport = useSavedAssessmentReport();
   const [error, setError] = useState<string | null>(null);
   const [addressOptions, setAddressOptions] = useState<
@@ -91,6 +96,7 @@ export function DataAccessInspector() {
   const handleFastPlacementChange = useCallback(
     (placement: FastPoolPlacementSnapshot) => {
       setFastPlacementSnapshot(placement);
+      setFastMapSnapshot(null);
     },
     [],
   );
@@ -172,6 +178,7 @@ export function DataAccessInspector() {
     setFastResult(null);
     setFastAssessmentSnapshot(null);
     setFastPlacementSnapshot(null);
+    setFastMapSnapshot(null);
     fastSavedReport.resetReport();
     setAddressOptions([]);
     setSuggestionMessage(null);
@@ -316,6 +323,7 @@ export function DataAccessInspector() {
     const requestId = fastRequestIdRef.current;
     detailedRequestInFlightRef.current = true;
     setIsLoadingDetailed(true);
+    setFastMapSnapshot(null);
     try {
       const response = await fetch("/api/public/property-check/stages", {
         method: "POST",
@@ -345,6 +353,7 @@ export function DataAccessInspector() {
         );
         return;
       }
+      setFastMapSnapshot(null);
       setFastResult((current) =>
         current ? { ...current, detailedChecks: body.data } : current,
       );
@@ -526,6 +535,7 @@ export function DataAccessInspector() {
             }
             isLoadingDetailed={isLoadingDetailed}
             onPlacementChange={handleFastPlacementChange}
+            onSnapshotReady={setFastMapSnapshot}
           />
           {fastSavedReport.assessment ? (
             <SavedAssessmentReportPanel
@@ -539,16 +549,19 @@ export function DataAccessInspector() {
               return fastPlacementSnapshot?.dimensions &&
                 fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
                 fastAssessmentSnapshot &&
+                fastMapSnapshot &&
                 fastResult.detailedChecks ? (
                 <HomeownerSubmissionForm
                   assessmentSnapshot={fastAssessmentSnapshot}
+                  mapImageDataUrl={fastMapSnapshot.imageDataUrl}
+                  mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
                   placement={fastPlacementSnapshot}
                   onSaved={fastSavedReport.saveAssessment}
                 />
               ) : (
                 <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">
-                  Choose a valid pool placement and load the detailed official
-                  checks before saving the report.
+                  Choose a valid pool placement, load the detailed official
+                  checks, and wait for the map capture before saving the report.
                 </p>
               );
             })()

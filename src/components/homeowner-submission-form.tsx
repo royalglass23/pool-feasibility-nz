@@ -36,10 +36,14 @@ export type SavedAssessmentResponse = {
 
 export function HomeownerSubmissionForm({
   assessmentSnapshot,
+  mapImageDataUrl,
+  mapVisibleLayerKeys = [],
   placement,
   onSaved,
 }: {
   assessmentSnapshot: string;
+  mapImageDataUrl: string;
+  mapVisibleLayerKeys?: string[];
   placement: FastPoolPlacementSnapshot;
   onSaved: (assessment: SavedAssessmentResponse) => void;
 }) {
@@ -71,6 +75,8 @@ export function HomeownerSubmissionForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assessmentSnapshot,
+          mapImageDataUrl,
+          mapVisibleLayerKeys,
           poolLayout: {
             lengthMetres: placement.dimensions?.lengthMetres,
             widthMetres: placement.dimensions?.widthMetres,

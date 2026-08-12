@@ -9,7 +9,10 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HomeownerSubmissionForm } from "@/components/homeowner-submission-form";
 import { SavedAssessmentReportPanel } from "@/components/saved-assessment-report-panel";
-import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
+import {
+  buildTestPreliminaryReport,
+  TEST_MAP_IMAGE_DATA_URL,
+} from "../fixtures/preliminary-report";
 
 const trackAnonymousFunnelEvent = vi.hoisted(() => vi.fn());
 
@@ -127,6 +130,8 @@ describe("homeowner report submission", () => {
     render(
       <HomeownerSubmissionForm
         assessmentSnapshot="server-issued-assessment-snapshot"
+        mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
+        mapVisibleLayerKeys={["wastewater_assets"]}
         placement={{
           position: [174.76, -36.85],
           rotationDegrees: 12,
@@ -182,6 +187,8 @@ describe("homeowner report submission", () => {
     const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
     expect(body).toMatchObject({
       assessmentSnapshot: "server-issued-assessment-snapshot",
+      mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
+      mapVisibleLayerKeys: ["wastewater_assets"],
       poolLayout: { lengthMetres: 6.5, widthMetres: 3 },
     });
     expect(body).not.toHaveProperty("report");
@@ -199,6 +206,7 @@ describe("homeowner report submission", () => {
     render(
       <HomeownerSubmissionForm
         assessmentSnapshot="server-issued-assessment-snapshot"
+        mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         placement={{
           position: [174.76, -36.85],
           rotationDegrees: 12,
@@ -260,6 +268,7 @@ describe("homeowner report submission", () => {
     render(
       <HomeownerSubmissionForm
         assessmentSnapshot="server-issued-assessment-snapshot"
+        mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         placement={{
           position: [174.76, -36.85],
           rotationDegrees: 12,
