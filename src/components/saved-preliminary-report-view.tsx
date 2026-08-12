@@ -214,7 +214,7 @@ export function SavedPreliminaryReportView({
             {mapLegend.entries.map((entry) => (
               <li
                 key={entry.id}
-                className="flex items-center gap-2 text-sm font-medium text-slate-700"
+                className={`flex items-center gap-2 text-sm font-medium ${entry.statusLabel === "Mapped" || !entry.statusLabel ? "text-slate-700" : "text-slate-500"}`}
               >
                 <span
                   aria-hidden="true"
@@ -232,7 +232,14 @@ export function SavedPreliminaryReportView({
                         }
                   }
                 />
-                {entry.label}
+                <span>
+                  {entry.label}
+                  {entry.statusLabel && (
+                    <small className="block text-xs font-normal text-slate-500">
+                      {entry.statusLabel}
+                    </small>
+                  )}
+                </span>
               </li>
             ))}
           </ul>

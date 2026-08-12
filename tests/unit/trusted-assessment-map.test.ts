@@ -3,6 +3,7 @@ import { inflateSync } from "node:zlib";
 import sharp from "sharp";
 import { isValidPngMapImageDataUrl } from "@/modules/reporting/map-image";
 import { captureLinzAerialBackground } from "@/modules/providers/linz/capture-linz-aerial-background";
+import parcelsFixture from "../fixtures/linz/42-bahari-parcels.json";
 
 vi.mock("server-only", () => ({}));
 
@@ -26,6 +27,66 @@ const boundary = {
 };
 
 describe("renderTrustedAssessmentMap", () => {
+  it("uses the matched 900 by 600 report camera at the live-map projection scale", () => {
+    const bahariBoundary = parcelsFixture["42A"].features[0]
+      .geometry as typeof boundary;
+
+    expect(
+      trustedAssessmentMapViewport({
+        boundary: bahariBoundary,
+        shell: bahariBoundary,
+        constructionEnvelope: bahariBoundary,
+      }),
+    ).toEqual({
+      zoom: 21,
+      left: 528_829_188,
+      top: 327_643_503,
+      width: 900,
+      height: 600,
+    });
+  });
+
+  it("crops the composed aerial mosaic to the requested viewport origin", async () => {
+    const tilePixels = Buffer.alloc(256 * 256 * 4);
+    for (let y = 0; y < 256; y += 1) {
+      for (let x = 0; x < 256; x += 1) {
+        const index = (y * 256 + x) * 4;
+        tilePixels[index] = x;
+        tilePixels[index + 1] = y;
+        tilePixels[index + 2] = (x + y) % 256;
+        tilePixels[index + 3] = 255;
+      }
+    }
+    const tile = await sharp(tilePixels, {
+      raw: { width: 256, height: 256, channels: 4 },
+    })
+      .png()
+      .toBuffer();
+    const viewport = {
+      zoom: 21,
+      left: 528_829_188,
+      top: 327_643_502,
+      width: 900,
+      height: 600,
+    };
+
+    const aerialPixels = await captureLinzAerialBackground(viewport, {
+      aerialTileGateway: {
+        fetchTile: vi.fn(async () => ({
+          bytes: new Uint8Array(tile),
+          contentType: "image/png",
+        })),
+      },
+    });
+
+    expect(Array.from(aerialPixels.subarray(0, 4))).toEqual([
+      viewport.left % 256,
+      viewport.top % 256,
+      (viewport.left + viewport.top) % 256,
+      255,
+    ]);
+  });
+
   it("renders the signed geometry as a valid 900 by 600 PNG", async () => {
     const map = await renderTrustedAssessmentMap({
       boundary,

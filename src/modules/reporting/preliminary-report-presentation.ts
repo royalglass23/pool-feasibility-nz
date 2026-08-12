@@ -20,7 +20,21 @@ export type ReportMapLegendEntry = {
   colour: string;
   kind: "area" | "line";
   dashed?: boolean;
+  statusLabel?:
+    | "Mapped"
+    | "Not reproduced"
+    | "No mapped evidence"
+    | "Unavailable / unknown";
 };
+
+const DETAILED_CHECK_LEGEND_KEYS = [
+  "contours",
+  "public_stormwater_assets",
+  "wastewater_assets",
+  "public_water_assets",
+  "electricity_feeder_lines",
+  "gas_distribution_lines",
+] as const;
 
 export function reportMapLegend(report: SavedPreliminaryReport): {
   entries: ReportMapLegendEntry[];
@@ -49,14 +63,56 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
   for (const layer of report.layers) {
     const hasMappedGeometry =
       layer.state === "returned" || layer.state === "internal_reference_only";
-    if (!hasMappedGeometry) continue;
-    if (layer.evidenceUse !== "report_allowed") {
+    if (hasMappedGeometry && layer.evidenceUse !== "report_allowed") {
       if (!excludedLayers.includes(layer.dataset)) {
         excludedLayers.push(layer.dataset);
       }
+    }
+  }
+
+  for (const key of DETAILED_CHECK_LEGEND_KEYS) {
+    const style = reportMapLayerStyle(key);
+    const categoryLayers = report.layers.filter(
+      (layer) => reportLayerStyle(layer).label === style.label,
+    );
+    const mapped = categoryLayers.some(
+      (layer) =>
+        layer.state === "returned" && layer.evidenceUse === "report_allowed",
+    );
+    const notReproduced = categoryLayers.some(
+      (layer) =>
+        (layer.state === "returned" ||
+          layer.state === "internal_reference_only") &&
+        layer.evidenceUse !== "report_allowed",
+    );
+    const unavailableOrUnknown =
+      categoryLayers.length === 0 ||
+      categoryLayers.some(
+        (layer) =>
+          layer.state === "unavailable" || layer.state === "provider_error",
+      );
+    entries.push({
+      id: key,
+      label: style.label,
+      colour: style.colour,
+      kind: "line",
+      dashed: style.dashed,
+      statusLabel: mapped
+        ? "Mapped"
+        : notReproduced
+          ? "Not reproduced"
+          : unavailableOrUnknown
+            ? "Unavailable / unknown"
+            : "No mapped evidence",
+    });
+    seen.add(style.label);
+  }
+
+  for (const layer of report.layers) {
+    if (layer.state !== "returned" || layer.evidenceUse !== "report_allowed") {
       continue;
     }
-    const style = reportMapLayerStyle(layer.id ?? layer.dataset);
+    const style = reportLayerStyle(layer);
     if (seen.has(style.label)) continue;
     entries.push({
       id: layer.id ?? layer.dataset,
@@ -69,6 +125,16 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
   }
 
   return { entries, excludedLayers };
+}
+
+function reportLayerStyle(layer: SavedPreliminaryReport["layers"][number]) {
+  const key =
+    layer.id ??
+    layer.dataset
+      .toLowerCase()
+      .replaceAll(/[^a-z0-9]+/g, "_")
+      .replaceAll(/^_+|_+$/g, "");
+  return reportMapLayerStyle(key);
 }
 
 export function reportWarningLabel(

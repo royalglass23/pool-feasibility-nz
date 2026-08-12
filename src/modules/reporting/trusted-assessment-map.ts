@@ -110,7 +110,7 @@ export async function renderTrustedAssessmentMap(
 }
 
 function mapViewport(sourcePoints: Point[]) {
-  let zoom = 20;
+  let zoom = 21;
   for (; zoom > 0; zoom -= 1) {
     const projected = sourcePoints.map((coordinate) =>
       worldPixel(coordinate, zoom),
