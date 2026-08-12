@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { HomeownerSubmissionForm } from "@/components/homeowner-submission-form";
 import PrivacyNoticePage from "@/app/privacy/page";
+import { TEST_MAP_IMAGE_DATA_URL } from "../fixtures/preliminary-report";
 
 vi.mock("server-only", () => ({}));
 
@@ -27,6 +28,7 @@ describe("report-request privacy notice", () => {
     render(
       <HomeownerSubmissionForm
         assessmentSnapshot="server-issued-assessment-snapshot"
+        mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         placement={placement}
         onSaved={vi.fn()}
       />,

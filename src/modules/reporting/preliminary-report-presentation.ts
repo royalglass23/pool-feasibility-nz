@@ -24,6 +24,7 @@ export type ReportMapLegendEntry = {
   dashed?: boolean;
   statusLabel?:
     | "Mapped"
+    | "Not shown"
     | "Not reproduced"
     | "No mapped evidence"
     | "Unavailable / unknown";
@@ -61,11 +62,18 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
   ];
   const seen = new Set(entries.map((entry) => entry.label));
   const excludedLayers: string[] = [];
+  const isFastPropertyViewCapture =
+    report.mapImageSource === "fast_property_view_capture";
+  const visibleLayerKeys = new Set(report.mapVisibleLayerKeys ?? []);
 
   for (const layer of report.layers) {
     const hasMappedGeometry =
       layer.state === "returned" || layer.state === "internal_reference_only";
-    if (hasMappedGeometry && layer.evidenceUse !== "report_allowed") {
+    if (
+      !isFastPropertyViewCapture &&
+      hasMappedGeometry &&
+      layer.evidenceUse !== "report_allowed"
+    ) {
       if (!excludedLayers.includes(layer.dataset)) {
         excludedLayers.push(layer.dataset);
       }
@@ -79,10 +87,24 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
     );
     const mapped = categoryLayers.some(
       (layer) =>
-        layer.state === "returned" && layer.evidenceUse === "report_allowed",
+        (layer.state === "returned" ||
+          (isFastPropertyViewCapture &&
+            layer.state === "internal_reference_only")) &&
+        (isFastPropertyViewCapture
+          ? visibleLayerKeys.has(reportLayerKey(layer))
+          : layer.evidenceUse === "report_allowed"),
     );
+    const notShown =
+      isFastPropertyViewCapture &&
+      categoryLayers.some(
+        (layer) =>
+          (layer.state === "returned" ||
+            layer.state === "internal_reference_only") &&
+          !visibleLayerKeys.has(reportLayerKey(layer)),
+      );
     const notReproduced = categoryLayers.some(
       (layer) =>
+        !isFastPropertyViewCapture &&
         (layer.state === "returned" ||
           layer.state === "internal_reference_only") &&
         layer.evidenceUse !== "report_allowed",
@@ -101,11 +123,13 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
       dashed: style.dashed,
       statusLabel: mapped
         ? "Mapped"
-        : notReproduced
-          ? "Not reproduced"
-          : unavailableOrUnknown
-            ? "Unavailable / unknown"
-            : "No mapped evidence",
+        : notShown
+          ? "Not shown"
+          : notReproduced
+            ? "Not reproduced"
+            : unavailableOrUnknown
+              ? "Unavailable / unknown"
+              : "No mapped evidence",
     });
     seen.add(style.label);
   }
@@ -113,7 +137,9 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
   for (const layer of report.layers) {
     if (
       layer.state !== "returned" ||
-      layer.evidenceUse !== "report_allowed" ||
+      (!isFastPropertyViewCapture && layer.evidenceUse !== "report_allowed") ||
+      (isFastPropertyViewCapture &&
+        !visibleLayerKeys.has(reportLayerKey(layer))) ||
       !shouldReproduceReportMapLayer(reportLayerKey(layer))
     ) {
       continue;

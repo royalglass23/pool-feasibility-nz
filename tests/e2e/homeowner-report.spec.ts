@@ -111,6 +111,7 @@ test("keeps the saved preliminary report visible when homeowner email needs retr
       assessmentSnapshot: "server-issued-detailed-snapshot",
       poolLayout: { lengthMetres: 6.5, widthMetres: 3 },
     });
+    expect(submission.mapImageDataUrl).toMatch(/^data:image\/png;base64,/);
     expect(submission).not.toHaveProperty("addressEvidence");
     expect(submission).not.toHaveProperty("warnings");
     expect(submission).not.toHaveProperty("report");
@@ -211,7 +212,7 @@ test("keeps the saved preliminary report visible when homeowner email needs retr
   await expect(
     page.getByText("Internal report email: Processing"),
   ).toBeVisible();
-  const mapKey = page.locator("figcaption").filter({ hasText: "Map key" });
+  const mapKey = page.locator("figcaption").filter({ hasText: "Map layers" });
   await expect(mapKey.getByText("Mapped property boundary")).toBeVisible();
   await expect(mapKey.getByText("Selected pool")).toBeVisible();
   await expect(

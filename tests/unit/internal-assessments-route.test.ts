@@ -88,6 +88,8 @@ const validSubmission = {
     firstUsableViewStartedAt: "2026-07-29T01:00:00.000Z",
     fastPathDurationMs: 10,
   }),
+  mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
+  mapVisibleLayerKeys: ["wastewater_assets"],
   homeowner: {
     name: "Jane Homeowner",
     phone: "021 555 1234",
@@ -127,7 +129,20 @@ describe("POST /api/internal/assessments", () => {
     ).resolves.toMatchObject({
       idempotencyKey: snapshot.submissionId,
       addressEvidence: { selectedAddressId: "linz-123" },
+      report: {
+        mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
+        reportData: { mapImageSource: "fast_property_view_capture" },
+      },
     });
+  });
+
+  it("rejects a browser map capture that is not a valid PNG", () => {
+    expect(() =>
+      parseBrowserAssessmentSaveRequest({
+        ...validSubmission,
+        mapImageDataUrl: "data:image/png;base64,not-a-real-png",
+      }),
+    ).toThrow();
   });
 
   it("persists a scored report with risks, actions, and missing information", async () => {

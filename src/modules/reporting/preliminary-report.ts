@@ -78,6 +78,8 @@ export type SavedPreliminaryReport = {
   assumptions: string[];
   limitations: string[];
   mapImageDataUrl: string;
+  mapImageSource?: PersistedAssessmentSubmission["report"]["reportData"]["mapImageSource"];
+  mapVisibleLayerKeys?: string[];
 };
 
 export type SavedPreliminaryReportSource = Pick<
@@ -197,10 +199,17 @@ export function buildSavedPreliminaryReport({
     actions: reportData.actions,
     missingInformation: reportData.missingInformation,
     layers,
-    sources: reportSources(reportData.provenance.datasets, layers),
+    sources: reportSources(
+      reportData.provenance.datasets,
+      layers,
+      reportData.mapImageSource,
+      reportData.mapVisibleLayerKeys,
+    ),
     assumptions: [reportData.preliminaryFeasibilityWording],
     limitations: reportData.limitations,
     mapImageDataUrl: submission.report.mapImageDataUrl,
+    mapImageSource: reportData.mapImageSource,
+    mapVisibleLayerKeys: reportData.mapVisibleLayerKeys,
   };
 }
 
@@ -309,12 +318,18 @@ export function renderPreliminaryReportHtml(
     primarySources.length > 0
       ? primarySources.map(renderSource).join("")
       : "<div>No report-eligible source attribution was recorded.</div>";
+  const isFastPropertyViewCapture =
+    report.mapImageSource === "fast_property_view_capture";
+  const visibleLayerKeys = new Set(report.mapVisibleLayerKeys ?? []);
   const mappedSourceKeys = new Set(
     report.layers
       .filter(
         (layer) =>
-          layer.state === "returned" &&
-          layer.evidenceUse === "report_allowed" &&
+          (layer.state === "returned" ||
+            layer.state === "internal_reference_only") &&
+          (isFastPropertyViewCapture
+            ? visibleLayerKeys.has(reportMapLayerKey(layer.id, layer.dataset))
+            : layer.evidenceUse === "report_allowed") &&
           shouldReproduceReportMapLayer(
             reportMapLayerKey(layer.id, layer.dataset),
           ),
@@ -357,14 +372,21 @@ export function renderPreliminaryReportHtml(
             return `<div>${source.attribution ? `${esc(source.attribution)} · ` : ""}${licence} · Sources: ${exactSources}${source.retrievedAt ? ` · Retrieved ${esc(formatReportSourceDate(source.retrievedAt))}` : ""}</div>`;
           })
           .join("")
-      : "<div>No report-eligible map attribution was recorded.</div>";
-  const mapModificationNotice = report.layers.some(
-    (layer) =>
-      layer.state === "returned" &&
-      layer.evidenceUse === "report_allowed" &&
-      shouldReproduceReportMapLayer(reportMapLayerKey(layer.id, layer.dataset)),
-  )
-    ? "<div>Mapped provider geometry was clipped to the property assessment area and restyled for this report.</div>"
+      : "<div>No map attribution was recorded.</div>";
+  const mapModificationNotice =
+    !isFastPropertyViewCapture &&
+    report.layers.some(
+      (layer) =>
+        layer.state === "returned" &&
+        layer.evidenceUse === "report_allowed" &&
+        shouldReproduceReportMapLayer(
+          reportMapLayerKey(layer.id, layer.dataset),
+        ),
+    )
+      ? "<div>Mapped provider geometry was clipped to the property assessment area and restyled for this report.</div>"
+      : "";
+  const mapCaptureNotice = isFastPropertyViewCapture
+    ? "<div>This report uses the Fast Property View map capture with the selected layers shown at the time the report was saved.</div>"
     : "";
   const councilStormwaterNotice = report.layers.some(
     (layer) =>
@@ -376,7 +398,7 @@ export function renderPreliminaryReportHtml(
   )
     ? "<div>Auckland Council stormwater is indicative only and supplied without accuracy or fitness warranty. Independently verify onsite before design or works. Not for legal disputes. No Auckland Council endorsement is implied.</div>"
     : "";
-  const mapAttributionHtml = `<div class="source-note"><b>Map attribution</b>${mapAttribution}${mapModificationNotice}${councilStormwaterNotice}</div>`;
+  const mapAttributionHtml = `<div class="source-note"><b>Map attribution</b>${mapAttribution}${mapModificationNotice}${mapCaptureNotice}${councilStormwaterNotice}</div>`;
   const mapLegend = reportMapLegend(report);
   const mapLegendHtml = `<div class="map-key" aria-label="Map key"><b class="map-key-title">Map layers</b>${mapLegend.entries
     .map(
@@ -460,12 +482,25 @@ function chunkSources(
 function reportSources(
   provenance: PersistedAssessmentSubmission["report"]["reportData"]["provenance"]["datasets"],
   layers: SavedPreliminaryReport["layers"],
+  mapImageSource: SavedPreliminaryReport["mapImageSource"],
+  mapVisibleLayerKeys: string[] | undefined,
 ): SavedPreliminaryReport["sources"] {
+  const visibleLayerKeys = new Set(mapVisibleLayerKeys ?? []);
+  const capturedLayerSources = new Set(
+    mapImageSource === "fast_property_view_capture"
+      ? layers
+          .filter((layer) =>
+            visibleLayerKeys.has(reportMapLayerKey(layer.id, layer.dataset)),
+          )
+          .map((layer) => `${layer.provider}|${layer.dataset}`)
+      : [],
+  );
   const sources: SavedPreliminaryReport["sources"] = provenance
     .filter(
       (dataset) =>
         dataset.evidenceUse === "report_allowed" ||
-        dataset.evidenceUse === "unavailable",
+        dataset.evidenceUse === "unavailable" ||
+        capturedLayerSources.has(`${dataset.provider}|${dataset.dataset}`),
     )
     .map((dataset) => ({
       provider: dataset.provider,
@@ -478,7 +513,12 @@ function reportSources(
       retrievedAt: dataset.retrievedAt,
     }));
   for (const layer of layers) {
-    if (layer.state === "internal_reference_only") continue;
+    if (
+      layer.state === "internal_reference_only" &&
+      !capturedLayerSources.has(`${layer.provider}|${layer.dataset}`)
+    ) {
+      continue;
+    }
     if (!layer.attribution && !layer.sourceUrl) continue;
     if (
       sources.some(

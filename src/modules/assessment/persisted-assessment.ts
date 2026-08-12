@@ -142,6 +142,10 @@ const reportDataset = z.object({
 });
 
 const reportData = z.object({
+  mapImageSource: z
+    .enum(["trusted_report_render", "fast_property_view_capture"])
+    .optional(),
+  mapVisibleLayerKeys: z.array(z.string().max(80)).max(50).optional(),
   recommendation: z.string().max(4_000),
   preliminaryFeasibilityWording: z.string().max(4_000),
   risks: z.array(reportRisk).max(50),

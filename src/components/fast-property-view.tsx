@@ -121,18 +121,25 @@ const allUtilityCategoriesVisible: Record<UtilityCategory, boolean> = {
   gas: true,
 };
 
+export type FastPropertyViewMapSnapshot = {
+  imageDataUrl: string;
+  visibleLayerKeys: DatasetKey[];
+};
+
 export function FastPropertyView({
   result,
   onLoadDetailed,
   onRetry,
   isLoadingDetailed,
   onPlacementChange,
+  onSnapshotReady,
 }: {
   result: FastPropertyViewResult;
   onLoadDetailed: () => void;
   onRetry: () => void;
   isLoadingDetailed: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
+  onSnapshotReady?: (snapshot: FastPropertyViewMapSnapshot | null) => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
@@ -147,6 +154,7 @@ export function FastPropertyView({
   const rotationHandlerRef = useRef<(candidate: number) => void>(
     () => undefined,
   );
+  const snapshotHandlerRef = useRef(onSnapshotReady);
   const [mapError, setMapError] = useState(false);
   const [selectedPoolId, setSelectedPoolId] = useState<FastPoolId>("compact");
   const [customLength, setCustomLength] = useState("6.5");
@@ -163,6 +171,10 @@ export function FastPropertyView({
   const [placementMessage, setPlacementMessage] = useState<string | null>(
     initialPlacement.message,
   );
+
+  useEffect(() => {
+    snapshotHandlerRef.current = onSnapshotReady;
+  }, [onSnapshotReady]);
   const dimensions = useMemo(() => {
     const preset = FAST_POOL_CATALOGUE.find(
       (pool) => pool.id === selectedPoolId,
@@ -258,6 +270,20 @@ export function FastPropertyView({
       ) ?? null,
     [result.detailedChecks],
   );
+  const visibleMapLayerKeys = useMemo(
+    () => [
+      ...(contoursVisible && mappedContours ? [contourLayer.key] : []),
+      ...mappedUtilityLayers
+        .filter(({ definition }) => utilityVisibility[definition.category])
+        .map(({ definition }) => definition.key),
+    ],
+    [contoursVisible, mappedContours, mappedUtilityLayers, utilityVisibility],
+  );
+  const visibleMapLayerKeysRef = useRef<DatasetKey[]>(visibleMapLayerKeys);
+
+  useEffect(() => {
+    visibleMapLayerKeysRef.current = visibleMapLayerKeys;
+  }, [visibleMapLayerKeys]);
   function toggleUtilityCategory(category: UtilityCategory) {
     setUtilityVisibility((current) => ({
       ...current,
@@ -533,6 +559,22 @@ export function FastPropertyView({
           });
         }
         map.on("error", () => setMapError(true));
+        map.on("movestart", () => snapshotHandlerRef.current?.(null));
+        map.on("idle", () => {
+          try {
+            const imageDataUrl = map?.getCanvas().toDataURL("image/png");
+            snapshotHandlerRef.current?.(
+              imageDataUrl
+                ? {
+                    imageDataUrl,
+                    visibleLayerKeys: [...visibleMapLayerKeysRef.current],
+                  }
+                : null,
+            );
+          } catch {
+            snapshotHandlerRef.current?.(null);
+          }
+        });
         let interaction: "move" | "rotate" | null = null;
         map.on("mousedown", "pool-rotation-handle", (event) => {
           interaction = "rotate";
@@ -585,6 +627,7 @@ export function FastPropertyView({
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
+    snapshotHandlerRef.current?.(null);
     if (map.getLayer("contours")) {
       map.setLayoutProperty(
         "contours",
@@ -607,6 +650,7 @@ export function FastPropertyView({
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
+    snapshotHandlerRef.current?.(null);
     const emptyGeometry = {
       type: "FeatureCollection" as const,
       features: [],
@@ -640,7 +684,7 @@ export function FastPropertyView({
             {result.resolvedAddress.fullAddress}
           </h2>
           <p className="mt-2 text-sm text-slate-600">
-            A preliminary mapped view is ready. 
+            A preliminary mapped view is ready.
           </p>
         </div>
         <button
@@ -672,7 +716,7 @@ export function FastPropertyView({
             className="border-t border-slate-200 bg-white p-4 lg:border-t-0 lg:border-l"
           >
             <h3 className="font-semibold text-slate-950">Map layers</h3>
-            
+
             {result.detailedChecks ? (
               <>
                 <div className="mt-4 border-b border-slate-200 pb-4 text-sm text-slate-700">
@@ -702,44 +746,46 @@ export function FastPropertyView({
                 </div>
                 <ul className="mt-4 space-y-3 text-sm text-slate-700">
                   {utilityCategories.map((category) => {
-                  const hasGeometry = mappedUtilityLayers.some(
-                    ({ definition }) => definition.category === category.id,
-                  );
-                  return (
-                    <li key={category.id}>
-                      <label className="flex cursor-pointer items-center gap-2">
-                        <input
-                          type="checkbox"
-                          checked={
-                            hasGeometry && utilityVisibility[category.id]
-                          }
-                          onChange={() => toggleUtilityCategory(category.id)}
-                          disabled={!hasGeometry}
-                          className="size-4 accent-slate-950"
-                        />
-                        <span
-                          aria-hidden="true"
-                          className="h-1 w-5 rounded-full"
-                          style={{ backgroundColor: category.color }}
-                        />
-                        <span className="font-semibold">{category.label}</span>
-                      </label>
-                      <p className="mt-1 ml-11 text-xs text-slate-500">
-                        {hasGeometry
-                          ? "Mapped evidence returned"
-                          : "No mapped evidence returned"}
-                      </p>
-                    </li>
-                  );
+                    const hasGeometry = mappedUtilityLayers.some(
+                      ({ definition }) => definition.category === category.id,
+                    );
+                    return (
+                      <li key={category.id}>
+                        <label className="flex cursor-pointer items-center gap-2">
+                          <input
+                            type="checkbox"
+                            checked={
+                              hasGeometry && utilityVisibility[category.id]
+                            }
+                            onChange={() => toggleUtilityCategory(category.id)}
+                            disabled={!hasGeometry}
+                            className="size-4 accent-slate-950"
+                          />
+                          <span
+                            aria-hidden="true"
+                            className="h-1 w-5 rounded-full"
+                            style={{ backgroundColor: category.color }}
+                          />
+                          <span className="font-semibold">
+                            {category.label}
+                          </span>
+                        </label>
+                        <p className="mt-1 ml-11 text-xs text-slate-500">
+                          {hasGeometry
+                            ? "Mapped evidence returned"
+                            : "No mapped evidence returned"}
+                        </p>
+                      </li>
+                    );
                   })}
                 </ul>
               </>
             ) : (
               <p className="mt-4 text-sm leading-6 text-slate-600">
-                Load detailed official checks to see contours and mapped utility evidence.
+                Load detailed official checks to see contours and mapped utility
+                evidence.
               </p>
             )}
-            
           </aside>
         </div>
         <div className="flex justify-end bg-white px-4 py-3 text-sm">

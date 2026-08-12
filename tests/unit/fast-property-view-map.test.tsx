@@ -92,6 +92,26 @@ it("keeps unavailable utilities unchecked and preserves the map when a utility i
   expect(mapCreated).toHaveBeenCalledTimes(1);
 });
 
+it("captures the completed Fast Property View canvas for report reuse", async () => {
+  const onSnapshotReady = vi.fn();
+  render(
+    <FastPropertyView
+      result={fastResult}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+      onSnapshotReady={onSnapshotReady}
+    />,
+  );
+
+  await waitFor(() =>
+    expect(onSnapshotReady).toHaveBeenCalledWith({
+      imageDataUrl: "data:image/png;base64,",
+      visibleLayerKeys: ["wastewater_assets"],
+    }),
+  );
+});
+
 it("draws returned contours and lets the user hide them", async () => {
   const user = userEvent.setup();
   const detailedChecks = fastResult.detailedChecks!;

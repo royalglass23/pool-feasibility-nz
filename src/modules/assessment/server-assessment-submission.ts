@@ -6,13 +6,9 @@ import {
   validateFastCustomDimensions,
 } from "@/modules/data-access-spike/fast-pool-placement";
 import { classifyFastPoolWarning } from "@/modules/data-access-spike/fast-pool-warning";
-import { captureLinzAerialBackground } from "@/modules/providers/linz/capture-linz-aerial-background";
-import {
-  renderTrustedAssessmentMap,
-  trustedAssessmentMapViewport,
-} from "@/modules/reporting/trusted-assessment-map";
 import { buildFastReportAssessment } from "@/modules/reporting/build-fast-report-assessment";
 import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
+import { isValidPngMapImageDataUrl } from "@/modules/reporting/map-image";
 import {
   requireOtherDetails,
   visitorContextFields,
@@ -26,6 +22,15 @@ import {
 const browserSubmissionSchema = z
   .object({
     assessmentSnapshot: z.string().min(32).max(5_500_000),
+    mapImageDataUrl: z
+      .string()
+      .startsWith("data:image/png;base64,")
+      .max(6_000_000)
+      .refine(isValidPngMapImageDataUrl, "Report map must be a valid PNG."),
+    mapVisibleLayerKeys: z
+      .array(z.string().trim().min(1).max(80))
+      .max(50)
+      .default([]),
     homeowner: z
       .object({
         name: z.string().trim().min(1).max(160),
@@ -110,28 +115,6 @@ export async function buildServerAssessmentSubmission(input: {
     snapshot.fastResult,
     submittedAt,
   );
-  const mapInput = {
-    boundary: boundary.geometry,
-    shell: poolGeometry.geometry,
-    constructionEnvelope: constructionEnvelope.geometry,
-    warning: warning.status,
-    layers:
-      snapshot.fastResult.detailedChecks?.layers.map((layer) => ({
-        key: layer.key,
-        evidenceUse: layer.evidence.evidenceUse,
-        geometry: layer.geometry,
-      })) ?? [],
-  };
-  const viewport = trustedAssessmentMapViewport(mapInput);
-  const aerialPixels =
-    snapshot.fastResult.aerial.state === "ready"
-      ? await captureLinzAerialBackground(viewport)
-      : null;
-  const mapImageDataUrl = await renderTrustedAssessmentMap(mapInput, {
-    aerialPixels,
-    viewport,
-  });
-
   return parsePersistedAssessmentSubmission({
     idempotencyKey: snapshot.submissionId,
     homeowner: {
@@ -192,8 +175,10 @@ export async function buildServerAssessmentSubmission(input: {
       title: "Preliminary pool feasibility assessment",
       summary: warning.text,
       feasibilityState: warning.status,
-      mapImageDataUrl,
+      mapImageDataUrl: request.mapImageDataUrl,
       reportData: {
+        mapImageSource: "fast_property_view_capture",
+        mapVisibleLayerKeys: request.mapVisibleLayerKeys,
         recommendation:
           warning.recommendation ??
           reportAssessment?.recommendation ??
