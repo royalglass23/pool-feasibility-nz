@@ -381,8 +381,16 @@ describe("homeowner report submission", () => {
     expect(
       screen.getByText("Internal report email: Needs retry"),
     ).toBeVisible();
-    const mapKey = screen.getByText("Map key").closest("figcaption");
+    const reportMapPanel = screen
+      .getByAltText("Saved property and pool map")
+      .closest("figure");
+    expect(reportMapPanel).toHaveClass(
+      "grid",
+      "lg:grid-cols-[minmax(0,1fr)_20rem]",
+    );
+    const mapKey = screen.getByText("Map layers").closest("figcaption");
     expect(mapKey).not.toBeNull();
+    expect(mapKey).toHaveClass("lg:border-l", "lg:border-t-0");
     expect(within(mapKey!).getByText("Mapped property boundary")).toBeVisible();
     expect(within(mapKey!).getByText("Selected pool")).toBeVisible();
     expect(

@@ -1,10 +1,14 @@
 import "server-only";
 import { deflateSync } from "node:zlib";
 import type { FeatureCollection, Geometry } from "geojson";
+import sharp from "sharp";
 import { reportMapLayerStyle } from "@/modules/reporting/report-map-style";
 
 const WIDTH = 900;
 const HEIGHT = 600;
+const RENDER_SCALE = 2;
+const RENDER_WIDTH = WIDTH * RENDER_SCALE;
+const RENDER_HEIGHT = HEIGHT * RENDER_SCALE;
 const PADDING = 56;
 const PNG_SIGNATURE = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
 
@@ -55,15 +59,25 @@ export async function renderTrustedAssessmentMap(
   const viewport = options?.viewport ?? trustedAssessmentMapViewport(input);
   const project = (coordinate: Point): Point => {
     const [x, y] = worldPixel(coordinate, viewport.zoom);
-    return [Math.round(x - viewport.left), Math.round(y - viewport.top)];
+    return [
+      Math.round((x - viewport.left) * RENDER_SCALE),
+      Math.round((y - viewport.top) * RENDER_SCALE),
+    ];
   };
   const aerialPixels = options?.aerialPixels ?? null;
   if (aerialPixels && aerialPixels.length !== WIDTH * HEIGHT * 4) {
     throw new Error("TRUSTED_MAP_AERIAL_INVALID");
   }
   const pixels = aerialPixels
-    ? new Uint8Array(aerialPixels)
-    : new Uint8Array(WIDTH * HEIGHT * 4);
+    ? new Uint8Array(
+        await sharp(aerialPixels, {
+          raw: { width: WIDTH, height: HEIGHT, channels: 4 },
+        })
+          .resize(RENDER_WIDTH, RENDER_HEIGHT, { kernel: "cubic" })
+          .raw()
+          .toBuffer(),
+      )
+    : new Uint8Array(RENDER_WIDTH * RENDER_HEIGHT * 4);
   if (!aerialPixels) {
     fillCanvas(pixels, [248, 250, 252, 255]);
     drawGrid(pixels);
@@ -77,7 +91,12 @@ export async function renderTrustedAssessmentMap(
       boundaryRings,
       aerialPixels ? [204, 251, 241, 40] : [204, 251, 241, 180],
     );
-    strokeGeometry(pixels, boundaryRings, [15, 118, 110, 255], 3);
+    strokeGeometry(
+      pixels,
+      boundaryRings,
+      [15, 118, 110, 255],
+      3 * RENDER_SCALE,
+    );
   }
   for (const layer of input.layers ?? []) {
     if (
@@ -93,7 +112,7 @@ export async function renderTrustedAssessmentMap(
     pixels,
     rings(input.constructionEnvelope).map((ring) => ring.map(project)),
     [249, 115, 22, 255],
-    3,
+    3 * RENDER_SCALE,
     true,
   );
   const poolColour: Colour =
@@ -104,8 +123,16 @@ export async function renderTrustedAssessmentMap(
         : [22, 163, 74, 180];
   const shellRings = rings(input.shell).map((ring) => ring.map(project));
   fillGeometry(pixels, shellRings, poolColour);
-  strokeGeometry(pixels, shellRings, [15, 23, 42, 255], 3);
-  const png = encodePng(pixels);
+  strokeGeometry(pixels, shellRings, [15, 23, 42, 255], 3 * RENDER_SCALE);
+  const downsampledPixels = new Uint8Array(
+    await sharp(pixels, {
+      raw: { width: RENDER_WIDTH, height: RENDER_HEIGHT, channels: 4 },
+    })
+      .resize(WIDTH, HEIGHT, { kernel: "lanczos3" })
+      .raw()
+      .toBuffer(),
+  );
+  const png = encodePng(downsampledPixels);
   return `data:image/png;base64,${png.toString("base64")}`;
 }
 
@@ -164,7 +191,7 @@ function drawReportLayer(
     if (geometry.type === "Polygon" || geometry.type === "MultiPolygon") {
       const projected = rings(geometry).map((ring) => ring.map(project));
       fillGeometry(pixels, projected, [colour[0], colour[1], colour[2], 60]);
-      strokeGeometry(pixels, projected, colour, 2);
+      strokeGeometry(pixels, projected, colour, 2 * RENDER_SCALE);
       continue;
     }
     for (const line of geometryLines(geometry)) {
@@ -175,13 +202,13 @@ function drawReportLayer(
           projected[index],
           projected[index + 1],
           colour,
-          3,
+          3 * RENDER_SCALE,
           style.dashed,
         );
       }
     }
     for (const coordinate of geometryPoints(geometry)) {
-      drawCircle(pixels, project(coordinate), colour, 5);
+      drawCircle(pixels, project(coordinate), colour, 5 * RENDER_SCALE);
     }
   }
 }
@@ -244,22 +271,30 @@ function fillCanvas(pixels: Uint8Array, colour: Colour) {
 }
 
 function drawGrid(pixels: Uint8Array) {
-  for (let x = PADDING; x <= WIDTH - PADDING; x += 80) {
+  for (
+    let x = PADDING * RENDER_SCALE;
+    x <= RENDER_WIDTH - PADDING * RENDER_SCALE;
+    x += 80 * RENDER_SCALE
+  ) {
     drawLine(
       pixels,
-      [x, PADDING],
-      [x, HEIGHT - PADDING],
+      [x, PADDING * RENDER_SCALE],
+      [x, RENDER_HEIGHT - PADDING * RENDER_SCALE],
       [226, 232, 240, 255],
-      1,
+      RENDER_SCALE,
     );
   }
-  for (let y = PADDING; y <= HEIGHT - PADDING; y += 80) {
+  for (
+    let y = PADDING * RENDER_SCALE;
+    y <= RENDER_HEIGHT - PADDING * RENDER_SCALE;
+    y += 80 * RENDER_SCALE
+  ) {
     drawLine(
       pixels,
-      [PADDING, y],
-      [WIDTH - PADDING, y],
+      [PADDING * RENDER_SCALE, y],
+      [RENDER_WIDTH - PADDING * RENDER_SCALE, y],
       [226, 232, 240, 255],
-      1,
+      RENDER_SCALE,
     );
   }
 }
@@ -269,7 +304,7 @@ function fillGeometry(
   geometryRings: Point[][],
   colour: Colour,
 ) {
-  for (let y = 0; y < HEIGHT; y += 1) {
+  for (let y = 0; y < RENDER_HEIGHT; y += 1) {
     const intersections: number[] = [];
     for (const ring of geometryRings) {
       for (let index = 0; index < ring.length; index += 1) {
@@ -334,7 +369,7 @@ function drawLine(
   let step = 0;
   const radius = Math.floor(width / 2);
   while (true) {
-    if (!dashed || Math.floor(step / 10) % 2 === 0) {
+    if (!dashed || Math.floor(step / (10 * RENDER_SCALE)) % 2 === 0) {
       for (let offsetY = -radius; offsetY <= radius; offsetY += 1) {
         for (let offsetX = -radius; offsetX <= radius; offsetX += 1)
           blendPixel(pixels, x + offsetX, y + offsetY, colour);
@@ -355,8 +390,8 @@ function drawLine(
 }
 
 function blendPixel(pixels: Uint8Array, x: number, y: number, colour: Colour) {
-  if (x < 0 || x >= WIDTH || y < 0 || y >= HEIGHT) return;
-  const offset = (y * WIDTH + x) * 4;
+  if (x < 0 || x >= RENDER_WIDTH || y < 0 || y >= RENDER_HEIGHT) return;
+  const offset = (y * RENDER_WIDTH + x) * 4;
   const alpha = colour[3] / 255;
   pixels[offset] = Math.round(pixels[offset] * (1 - alpha) + colour[0] * alpha);
   pixels[offset + 1] = Math.round(

@@ -365,6 +365,11 @@ describe("saved preliminary report", () => {
     expect(html).toContain("https://example.test/watercare");
     expect(html).toContain("Map attribution");
     expect(html).toContain("Map key");
+    expect(html.match(/class="report-map-panel/g)).toHaveLength(2);
+    expect(html).toContain('class="report-map-panel detail"');
+    expect(html).toContain(
+      'class="map-key" aria-label="Map key"><b class="map-key-title">Map layers</b>',
+    );
     expect(html).toContain("Mapped property boundary");
     expect(html).toContain("Selected pool");
     expect(html).toContain("Indicative investigation buffer");

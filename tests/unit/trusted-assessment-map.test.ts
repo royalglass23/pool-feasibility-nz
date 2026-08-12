@@ -236,6 +236,75 @@ describe("renderTrustedAssessmentMap", () => {
     expect(imageData.includes(Buffer.from([124, 58, 237, 255]))).toBe(false);
   });
 
+  it("antialiases diagonal report geometry over the saved aerial image", async () => {
+    const viewport = trustedAssessmentMapViewport({
+      boundary,
+      shell: boundary,
+      constructionEnvelope: boundary,
+    });
+    const offscreenGeometry = {
+      type: "Polygon" as const,
+      coordinates: [
+        [
+          [0, 0],
+          [0.001, 0],
+          [0.001, 0.001],
+          [0, 0],
+        ],
+      ],
+    };
+    const aerialPixels = new Uint8Array(900 * 600 * 4);
+    for (let offset = 0; offset < aerialPixels.length; offset += 4) {
+      aerialPixels.set([15, 25, 35, 255], offset);
+    }
+
+    const map = await renderTrustedAssessmentMap(
+      {
+        boundary: null,
+        shell: offscreenGeometry,
+        constructionEnvelope: offscreenGeometry,
+        warning: "needs_checking",
+        layers: [
+          {
+            key: "electricity_feeder_lines",
+            evidenceUse: "report_allowed",
+            geometry: {
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  properties: {},
+                  geometry: {
+                    type: "LineString",
+                    coordinates: [
+                      [174.751, -36.851],
+                      [174.769, -36.849],
+                    ],
+                  },
+                },
+              ],
+            },
+          },
+        ],
+      },
+      { aerialPixels, viewport },
+    );
+    const { data } = await sharp(
+      Buffer.from(map.slice("data:image/png;base64,".length), "base64"),
+    )
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    let partiallyBlendedEdgePixels = 0;
+    for (let offset = 0; offset < data.length; offset += 4) {
+      const [red, green, blue] = data.subarray(offset, offset + 3);
+      const isBackground = red === 15 && green === 25 && blue === 35;
+      const isSolidStroke = red === 202 && green === 138 && blue === 4;
+      if (!isBackground && !isSolidStroke) partiallyBlendedEdgePixels += 1;
+    }
+
+    expect(partiallyBlendedEdgePixels).toBeGreaterThan(100);
+  });
+
   it("renders report-allowed contour lines with the report dash pattern", async () => {
     const map = await renderTrustedAssessmentMap({
       boundary,
@@ -294,7 +363,18 @@ describe("renderTrustedAssessmentMap", () => {
     );
     const imageDataLength = png.readUInt32BE(33);
     const imageData = inflateSync(png.subarray(41, 41 + imageDataLength));
-    expect(imageData.includes(Buffer.from([71, 85, 105, 255]))).toBe(true);
+    let visibleContourPixels = 0;
+    for (let offset = 1; offset < imageData.length; offset += 4) {
+      const [red, green, blue] = imageData.subarray(offset, offset + 3);
+      if (
+        Math.abs(red - 71) <= 10 &&
+        Math.abs(green - 85) <= 10 &&
+        Math.abs(blue - 105) <= 10
+      ) {
+        visibleContourPixels += 1;
+      }
+    }
+    expect(visibleContourPixels).toBeGreaterThan(100);
   });
 
   it("preserves the aerial report after one transient tile failure", async () => {
