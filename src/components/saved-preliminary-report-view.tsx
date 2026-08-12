@@ -199,18 +199,21 @@ export function SavedPreliminaryReportView({
         <Fact label="Rotation" value={`${report.pool.rotationDegrees}°`} />
       </div>
 
-      <figure>
+      <figure className="grid overflow-hidden rounded-2xl border border-slate-200 bg-white lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Image
           src={report.mapImageDataUrl}
           alt="Saved property and pool map"
           width={1200}
           height={800}
           unoptimized
-          className="h-auto w-full rounded-2xl border border-slate-200 object-contain"
+          className="h-auto w-full object-contain lg:self-center"
         />
-        <figcaption className="mt-3 rounded-xl bg-slate-50 px-4 py-3">
-          <p className="text-sm font-semibold text-slate-950">Map key</p>
-          <ul className="mt-2 flex flex-wrap gap-x-5 gap-y-2" role="list">
+        <figcaption className="border-t border-slate-200 bg-slate-50 px-4 py-3 lg:border-t-0 lg:border-l lg:px-5 lg:py-5">
+          <p className="text-sm font-semibold text-slate-950">Map layers</p>
+          <ul
+            className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1"
+            role="list"
+          >
             {mapLegend.entries.map((entry) => (
               <li
                 key={entry.id}
