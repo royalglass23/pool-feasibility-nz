@@ -1,0 +1,34 @@
+{
+  "schemaVersion": 1,
+  "feature": "production-report-delivery",
+  "commit": "6c2cac6d376b773d3269c493cc21a2aa66a6d9a6",
+  "candidateState": "dirty-working-tree-recipient-verification-implementation",
+  "command": "Not run: isolated database, email capture, managed limiter, and safe runtime-log fixture are unavailable",
+  "retries": 0,
+  "environment": {
+    "name": "blocked-local-production-shaped-fixture",
+    "baseUrl": "http://127.0.0.1:3000",
+    "production": false,
+    "fingerprint": "sha256:a2c723f6704a4b2e53b99e2e599045388a05f7c1f185d87f0288be0d70bfb60e"
+  },
+  "configHash": "sha256:8ed0c77439020b08f24b326db6cf0e4642b3621ed28d9bd0203bbdc6ee371639",
+  "fixtureVersion": "sha256:f09509b1d584a2fae0bf98ab1efe7e3de10cdc48736bf62713ff43820fef757e",
+  "matrixHash": "sha256:329a9b22a49ef8543287788eb452cdb27677b28c917b0f54bf640c21991fc90b",
+  "projects": ["chromium"],
+  "coverage": {
+    "required": 10,
+    "covered": 0
+  },
+  "counts": {
+    "total": 0,
+    "passed": 0,
+    "failed": 0,
+    "skipped": 0,
+    "flaky": 0
+  },
+  "artifacts": {
+    "report": "Not generated: strict E2E lane is blocked before execution",
+    "traces": []
+  },
+  "verdict": "BLOCKED"
+}

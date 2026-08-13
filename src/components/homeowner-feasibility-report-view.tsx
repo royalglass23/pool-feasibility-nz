@@ -36,6 +36,8 @@ export function HomeownerFeasibilityReportView({
 }) {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
+  const [recipientVerificationRequired, setRecipientVerificationRequired] =
+    useState(false);
 
   useEffect(() => {
     if (
@@ -50,7 +52,19 @@ export function HomeownerFeasibilityReportView({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ accessToken: downloadAccessToken }),
       signal: controller.signal,
-    }).catch(() => undefined);
+    })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        return (await response.json()) as {
+          recipientVerification?: "required";
+        };
+      })
+      .then((body) => {
+        if (body?.recipientVerification === "required") {
+          setRecipientVerificationRequired(true);
+        }
+      })
+      .catch(() => undefined);
     return () => controller.abort();
   }, [delivery.homeowner, downloadAccessToken]);
 
@@ -146,6 +160,11 @@ export function HomeownerFeasibilityReportView({
         {downloadError && (
           <p role="alert" className="mt-4 text-sm font-semibold text-red-700">
             {downloadError}
+          </p>
+        )}
+        {recipientVerificationRequired && (
+          <p className="text-pool-blue-800 mt-4 text-sm font-semibold">
+            Check your email to confirm your address before we send the PDF.
           </p>
         )}
       </header>

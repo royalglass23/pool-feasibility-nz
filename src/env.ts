@@ -35,7 +35,7 @@ export const env = createEnv({
     BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
     RESEND_API_KEY: z.string().min(1).optional(),
     REPORT_FROM_EMAIL: z.string().min(3).max(320).optional(),
-    REPORT_DELIVERY_MODE: z.enum(["synthetic_test"]).optional(),
+    REPORT_DELIVERY_MODE: z.enum(["synthetic_test", "production"]).optional(),
     SERVICEM8_FORWARD_EMAIL: z.email().max(320).optional(),
     CRON_SECRET: z.string().min(16).optional(),
     AI_PROVIDER: z.enum(["none", "openai"]).default("none"),

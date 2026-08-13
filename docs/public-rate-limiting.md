@@ -18,8 +18,9 @@ This keeps limits consistent across Vercel function instances.
 - `POST /api/public/report/pdf` and
   `POST /api/public/assessments/report/pdf`: 3 combined attempts per client IP
   in a rolling one-hour window through the shared `report_pdf` budget.
-- `POST /api/public/assessments/report/delivery`: 3 attempts per client IP in a
-  rolling one-hour window through its separate `report_delivery` budget.
+- `POST /api/public/assessments/report/delivery` and
+  `POST /api/public/assessments/report/verify`: 3 combined attempts per client
+  IP in a rolling one-hour window through the shared `report_delivery` budget.
 - `POST /api/public/assessments`: 3 attempts per client IP in a rolling
   one-hour window.
 - A signed Property Check session receives two stage operations in 15 minutes:

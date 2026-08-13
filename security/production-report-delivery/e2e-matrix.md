@@ -1,0 +1,21 @@
+# Strict E2E matrix - production report delivery
+
+| Requirement or threat | Actor and boundary                               | Journey or abuse case                                                                       | Test                                                       | Expected result                                                                            | Required |
+| --------------------- | ------------------------------------------------ | ------------------------------------------------------------------------------------------- | ---------------------------------------------------------- | ------------------------------------------------------------------------------------------ | -------- |
+| PRD-AC-01 / PRD-01    | Anonymous browser to real public submission      | Submit a victim mailbox without recipient verification                                      | Missing production-like security spec                      | No PDF/Resend delivery; a generic verification-pending state is shown                      | yes      |
+| PRD-AC-02 / PRD-01    | Verified recipient                               | Complete the verification control and request delivery                                      | Missing production-like security spec + disposable mailbox | Exactly one transactional PDF reaches only the verified supplied mailbox                   | yes      |
+| PRD-AC-03 / PRD-03    | Production report route and email capture        | Complete verified Production delivery                                                       | Missing production-like security spec + capture            | No message, PDF, report link, token, or PII reaches `royalglass666@gmail.com` or ServiceM8 | yes      |
+| PRD-AC-04 / PRD-02    | Anonymous API caller                             | Missing, expired, forged, Unicode, cross-purpose and cross-record report capabilities       | Missing isolated API security spec + two records           | Uniform denial before database, renderer, or delivery side effects                         | yes      |
+| PRD-AC-05 / PRD-04    | Verified recipient with real DB/provider capture | Retry and concurrently invoke one delivery capability                                       | Missing concurrency fixture                                | One provider delivery per homeowner channel; durable state and retry are correct           | yes      |
+| PRD-AC-06 / PRD-05    | Automated caller and managed limiter             | Exceed delivery limit and replay a valid capability across instances                        | Missing managed-store fixture                              | 429/503 before renderer or send; no duplicate delivery                                     | yes      |
+| PRD-AC-07 / PRD-06    | Configuration matrix                             | Missing mode, Preview mode in Production, Production mode in Preview, missing Resend config | Missing production-shaped environment fixture              | Every invalid combination fails closed before claim/render/send, with safe status          | yes      |
+| PRD-AC-08 / PRD-07    | Browser/API/log/trace surfaces                   | Complete delivery then inspect request URL, DOM, storage, response, trace and logs          | Missing controlled log capture                             | No token, secret, full PII, PDF bytes, or provider response leaks                          | yes      |
+| PRD-AC-09 / PRD-07    | Renderer and Resend failure adapters             | Force renderer/Resend error after a verified request                                        | Missing real renderer/provider-capture lane                | Safe retryable state, no partial success, no duplicate on recovery                         | yes      |
+| PRD-AC-10 / PRD-08    | Operator/deployment fixture                      | Confirm Production route has ServiceM8 unset and Resend retention evidence current          | Missing operator fixture                                   | Configuration is least-privilege and policy evidence is recorded without secret values     | yes      |
+
+## Gate status
+
+- Required rows: 10
+- Covered rows: 0
+- Verdict: BLOCKED
+- Blockers: no isolated production-like database, email capture, managed limiter, safe runtime-log capture, or dedicated fixture identities are available. Production is forbidden as an E2E target.

@@ -193,6 +193,32 @@ export async function getAssessmentDeliveryStateById(db: Database, id: string) {
   };
 }
 
+export async function getReportRecipientByReference(
+  db: Database,
+  reference: string,
+) {
+  const assessment = await db.query.homeownerAssessments.findFirst({
+    columns: {
+      id: true,
+      reference: true,
+      homeownerName: true,
+      homeownerEmail: true,
+      archivedAt: true,
+    },
+    where: and(
+      eq(schema.homeownerAssessments.reference, reference),
+      isNull(schema.homeownerAssessments.archivedAt),
+    ),
+  });
+  if (!assessment || assessment.archivedAt !== null) return null;
+  return {
+    id: assessment.id,
+    reference: assessment.reference,
+    name: assessment.homeownerName,
+    email: assessment.homeownerEmail,
+  };
+}
+
 export async function saveHomeownerAssessment(
   db: Database,
   submission: PersistedAssessmentSubmission,

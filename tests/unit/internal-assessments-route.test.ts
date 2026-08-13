@@ -12,7 +12,7 @@ import { officialDatasetEvidence } from "@/modules/providers/official-dataset-ca
 const getDb = vi.hoisted(() => vi.fn(() => ({}) as never));
 const saveHomeownerAssessment = vi.hoisted(() => vi.fn());
 const getSavedPreliminaryReportById = vi.hoisted(() => vi.fn());
-const deliverAssessmentReportByReference = vi.hoisted(() => vi.fn());
+const startAssessmentReportDeliveryByReference = vi.hoisted(() => vi.fn());
 const issueSavedReportAccessToken = vi.hoisted(() => vi.fn());
 const scheduledCallbacks = vi.hoisted(
   () => [] as Array<() => void | Promise<void>>,
@@ -36,7 +36,7 @@ vi.mock("@/db/repositories/homeowner-assessment-repository", () => ({
   saveHomeownerAssessment,
 }));
 vi.mock("@/modules/reporting/deliver-assessment-report", () => ({
-  deliverAssessmentReportByReference,
+  startAssessmentReportDeliveryByReference,
 }));
 vi.mock("@/modules/reporting/saved-report-access-token", () => ({
   issueSavedReportAccessToken,
@@ -122,7 +122,7 @@ afterEach(() => {
   getDb.mockClear();
   saveHomeownerAssessment.mockReset();
   getSavedPreliminaryReportById.mockReset();
-  deliverAssessmentReportByReference.mockReset();
+  startAssessmentReportDeliveryByReference.mockReset();
   issueSavedReportAccessToken.mockReset();
   scheduledCallbacks.length = 0;
   vi.unstubAllEnvs();
@@ -476,7 +476,7 @@ describe("POST /api/internal/assessments", () => {
       limitations: [],
       mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
     });
-    deliverAssessmentReportByReference.mockRejectedValue(
+    startAssessmentReportDeliveryByReference.mockRejectedValue(
       new Error("email provider unavailable"),
     );
     issueSavedReportAccessToken.mockReturnValue("saved-report-access-token");
@@ -521,12 +521,12 @@ describe("POST /api/internal/assessments", () => {
         idempotencyKey: expect.any(String),
       }),
     );
-    expect(deliverAssessmentReportByReference).not.toHaveBeenCalled();
+    expect(startAssessmentReportDeliveryByReference).not.toHaveBeenCalled();
     expect(scheduledCallbacks).toHaveLength(1);
 
     await expect(scheduledCallbacks[0]()).resolves.toBeUndefined();
 
-    expect(deliverAssessmentReportByReference).toHaveBeenCalledWith(
+    expect(startAssessmentReportDeliveryByReference).toHaveBeenCalledWith(
       "GF-2026-000001",
     );
   });
@@ -567,7 +567,7 @@ describe("POST /api/internal/assessments", () => {
       expect.anything(),
       "assessment-1",
     );
-    expect(deliverAssessmentReportByReference).not.toHaveBeenCalled();
+    expect(startAssessmentReportDeliveryByReference).not.toHaveBeenCalled();
     expect(scheduledCallbacks).toHaveLength(1);
   });
 
@@ -601,7 +601,8 @@ describe("POST /api/internal/assessments", () => {
     await expect(response.json()).resolves.toEqual({
       error: {
         code: "REPORT_ACCESS_UNAVAILABLE",
-        message: "The saved report is temporarily unavailable. Please try again shortly.",
+        message:
+          "The saved report is temporarily unavailable. Please try again shortly.",
         correlationId: "report-access-unavailable",
       },
     });

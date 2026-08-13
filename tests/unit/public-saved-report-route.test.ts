@@ -4,7 +4,7 @@ import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 const getDb = vi.hoisted(() => vi.fn(() => ({}) as never));
 const getSavedPreliminaryReportById = vi.hoisted(() => vi.fn());
 const getAssessmentDeliveryStateById = vi.hoisted(() => vi.fn());
-const deliverAssessmentReportByReference = vi.hoisted(() => vi.fn());
+const startAssessmentReportDeliveryByReference = vi.hoisted(() => vi.fn());
 const generatePreliminaryReportPdf = vi.hoisted(() => vi.fn());
 const verifySavedReportAccessToken = vi.hoisted(() => vi.fn());
 const ReportRendererBusyError = vi.hoisted(
@@ -35,7 +35,7 @@ vi.mock("@/db/repositories/homeowner-assessment-repository", () => ({
   getSavedPreliminaryReportById,
 }));
 vi.mock("@/modules/reporting/deliver-assessment-report", () => ({
-  deliverAssessmentReportByReference,
+  startAssessmentReportDeliveryByReference,
 }));
 vi.mock("@/modules/reporting/report-renderer", () => ({
   generatePreliminaryReportPdf,
@@ -56,7 +56,7 @@ afterEach(() => {
   getDb.mockClear();
   getSavedPreliminaryReportById.mockReset();
   getAssessmentDeliveryStateById.mockReset();
-  deliverAssessmentReportByReference.mockReset();
+  startAssessmentReportDeliveryByReference.mockReset();
   generatePreliminaryReportPdf.mockReset();
   verifySavedReportAccessToken.mockReset();
 });
@@ -79,10 +79,7 @@ describe("POST public saved report delivery", () => {
         reference: report.reference,
         delivery: { homeowner: "sent", internal_test_report: "sent" },
       });
-    deliverAssessmentReportByReference.mockResolvedValue({
-      homeowner: "sent",
-      internal_test_report: "sent",
-    });
+    startAssessmentReportDeliveryByReference.mockResolvedValue("delivered");
 
     const response = await POST_DELIVERY(
       new Request(
@@ -100,7 +97,7 @@ describe("POST public saved report delivery", () => {
     await expect(response.json()).resolves.toMatchObject({
       delivery: { homeowner: "sent", internal_test_report: "sent" },
     });
-    expect(deliverAssessmentReportByReference).toHaveBeenCalledWith(
+    expect(startAssessmentReportDeliveryByReference).toHaveBeenCalledWith(
       report.reference,
     );
   });
@@ -131,7 +128,39 @@ describe("POST public saved report delivery", () => {
     );
 
     expect(response.status).toBe(404);
-    expect(deliverAssessmentReportByReference).not.toHaveBeenCalled();
+    expect(startAssessmentReportDeliveryByReference).not.toHaveBeenCalled();
+  });
+
+  it("requests recipient verification without exposing the email address", async () => {
+    verifySavedReportAccessToken.mockReturnValue({
+      assessmentId: "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48",
+      reference: report.reference,
+    });
+    getAssessmentDeliveryStateById.mockResolvedValue({
+      reference: report.reference,
+      delivery: { homeowner: "pending", internal_test_report: "pending" },
+    });
+    startAssessmentReportDeliveryByReference.mockResolvedValue(
+      "verification_required",
+    );
+
+    const response = await POST_DELIVERY(
+      new Request(
+        "https://pool.example/api/public/assessments/report/delivery",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            accessToken: "valid-token-that-is-long-enough-for-validation",
+          }),
+        },
+      ),
+    );
+
+    expect(response.status).toBe(202);
+    await expect(response.json()).resolves.toEqual({
+      recipientVerification: "required",
+      delivery: { homeowner: "pending", internal_test_report: "pending" },
+    });
   });
 });
 

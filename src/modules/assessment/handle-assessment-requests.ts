@@ -15,7 +15,7 @@ import {
   AssessmentSnapshotValidationError,
   verifyAssessmentSnapshot,
 } from "@/modules/assessment/assessment-snapshot";
-import { deliverAssessmentReportByReference } from "@/modules/reporting/deliver-assessment-report";
+import { startAssessmentReportDeliveryByReference } from "@/modules/reporting/deliver-assessment-report";
 import { issueSavedReportAccessToken } from "@/modules/reporting/saved-report-access-token";
 import { staffSessionDeniedResponse } from "@/modules/staff/staff-session";
 import {
@@ -122,7 +122,9 @@ export async function POST(request: Request) {
 
     after(async () => {
       try {
-        await deliverAssessmentReportByReference(result.assessment.reference);
+        await startAssessmentReportDeliveryByReference(
+          result.assessment.reference,
+        );
       } catch {
         logger.error({
           event: "assessment_report_delivery",
