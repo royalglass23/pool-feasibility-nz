@@ -389,25 +389,25 @@ describe("homeowner report submission", () => {
     expect(screen.getByText(/Generated 29 Jul 2026, 2:03 pm/)).toBeVisible();
     expect(screen.getByText("Confirm the pool position")).toBeVisible();
     expect(
-      screen.getByText("Emailing the saved report to the client..."),
-    ).toBeVisible();
+      screen.queryByText("Emailing the saved report to the client..."),
+    ).not.toBeInTheDocument();
     const reportMapPanel = screen.getByRole("region", {
-      name: "Interactive assessment map",
+      name: "Saved assessment map",
     });
     expect(reportMapPanel).toHaveClass("rounded-xl", "border-slate-200");
     expect(
-      within(reportMapPanel).getByRole("checkbox", {
-        name: "Mapped property boundary",
-      }),
-    ).toBeChecked();
+      within(reportMapPanel).getByText("Captured map layers"),
+    ).toBeVisible();
     expect(
-      within(reportMapPanel).getByRole("checkbox", { name: "Selected pool" }),
-    ).toBeChecked();
+      within(reportMapPanel).getByText("Mapped property boundary"),
+    ).toBeVisible();
+    expect(within(reportMapPanel).getByText("Selected pool")).toBeVisible();
     expect(
-      within(reportMapPanel).getByRole("checkbox", {
-        name: "Indicative investigation buffer",
-      }),
-    ).toBeChecked();
+      within(reportMapPanel).getByText("Indicative investigation buffer"),
+    ).toBeVisible();
+    expect(
+      within(reportMapPanel).queryByRole("checkbox"),
+    ).not.toBeInTheDocument();
 
     const download = screen.getByRole("button", { name: "Download PDF" });
     expect(download).toHaveClass("items-center", "justify-center");

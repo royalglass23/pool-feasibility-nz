@@ -49,6 +49,7 @@ export type FastPropertyViewResult = {
     attribution: { text: string; url: string } | null;
   };
   datasets: {
+    address_resolution: DatasetEvidence;
     legal_parcel: DatasetEvidence | null;
     aerial_imagery: DatasetEvidence | null;
   };
@@ -108,6 +109,10 @@ export async function resolveFastPropertyAddress(input: {
       attribution: null,
     },
     datasets: {
+      address_resolution: input.gateway.datasetEvidence(
+        "address_resolution",
+        startedAt,
+      ),
       legal_parcel: boundaryData.legalParcelEvidence,
       aerial_imagery: null,
     },
@@ -169,6 +174,10 @@ export async function loadFastPropertyStages(input: {
     "aerial_imagery",
     retrievedAt,
   );
+  const addressEvidence = input.gateway.datasetEvidence(
+    "address_resolution",
+    retrievedAt,
+  );
   const aerialEvidence =
     aerialOutcome.status === "fulfilled"
       ? {
@@ -197,6 +206,7 @@ export async function loadFastPropertyStages(input: {
     boundary: boundaryData.boundary,
     aerial,
     datasets: {
+      address_resolution: addressEvidence,
       legal_parcel: boundaryData.legalParcelEvidence,
       aerial_imagery: aerialEvidence,
     },

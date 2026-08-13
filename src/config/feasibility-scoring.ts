@@ -157,7 +157,7 @@ export const feasibilityScoringRules = {
     coreData: {
       id: "required_core_data_unavailable",
       effect: "override",
-      rationale: "Required core data is unavailable",
+      rationale: "Required property information could not be confirmed",
     },
     restrictedOverlay: {
       id: "known_restricted_overlay",

@@ -34,43 +34,6 @@ export function HomeownerFeasibilityReportView({
 }) {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [deliveryError, setDeliveryError] = useState<string | null>(null);
-  const [deliveryState, setDeliveryState] = useState(delivery);
-  const [sending, setSending] = useState(false);
-
-  async function deliverReport() {
-    if (!downloadAccessToken || sending) return;
-    setSending(true);
-    setDeliveryError(null);
-    try {
-      const response = await fetch("/api/public/assessments/report/delivery", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: downloadAccessToken }),
-      });
-      const body = (await response.json().catch(() => null)) as {
-        delivery?: {
-          homeowner: ReportDeliveryState;
-          internal_test_report: ReportDeliveryState;
-        };
-        error?: { message?: string };
-      } | null;
-      if (!response.ok || !body?.delivery) {
-        throw new Error(
-          body?.error?.message ?? "Email delivery could not complete.",
-        );
-      }
-      setDeliveryState(body.delivery);
-    } catch (error) {
-      setDeliveryError(
-        error instanceof Error
-          ? error.message
-          : "Email delivery could not complete.",
-      );
-    } finally {
-      setSending(false);
-    }
-  }
 
   useEffect(() => {
     if (
@@ -85,31 +48,7 @@ export function HomeownerFeasibilityReportView({
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ accessToken: downloadAccessToken }),
       signal: controller.signal,
-    })
-      .then(async (response) => {
-        const body = (await response.json().catch(() => null)) as {
-          delivery?: {
-            homeowner: ReportDeliveryState;
-            internal_test_report: ReportDeliveryState;
-          };
-          error?: { message?: string };
-        } | null;
-        if (!response.ok || !body?.delivery) {
-          throw new Error(
-            body?.error?.message ?? "Email delivery could not complete.",
-          );
-        }
-        return body.delivery;
-      })
-      .then((nextDelivery) => setDeliveryState(nextDelivery))
-      .catch((error: unknown) => {
-        if (controller.signal.aborted) return;
-        setDeliveryError(
-          error instanceof Error
-            ? error.message
-            : "Email delivery could not complete.",
-        );
-      });
+    }).catch(() => undefined);
     return () => controller.abort();
   }, [delivery.homeowner, downloadAccessToken]);
 
@@ -147,8 +86,6 @@ export function HomeownerFeasibilityReportView({
       setDownloading(false);
     }
   }
-
-  const homeownerDelivery = deliveryState.homeowner;
 
   return (
     <article
@@ -202,32 +139,10 @@ export function HomeownerFeasibilityReportView({
           </div>
         </div>
 
-        {(downloadError || deliveryError) && (
+        {downloadError && (
           <p role="alert" className="mt-4 text-sm font-semibold text-red-700">
-            {downloadError ?? deliveryError}
+            {downloadError}
           </p>
-        )}
-
-        {downloadAccessToken && (
-          <div className="mt-4 flex flex-col gap-2 border-t border-slate-100 pt-4 text-sm sm:flex-row sm:items-center sm:justify-between">
-            <p className={deliveryTextClasses(homeownerDelivery)}>
-              {homeownerDelivery === "sent"
-                ? "Report emailed to the client."
-                : homeownerDelivery === "failed"
-                  ? "Report generated successfully. Email delivery failed."
-                  : "Emailing the saved report to the client..."}
-            </p>
-            {homeownerDelivery === "failed" && (
-              <button
-                type="button"
-                onClick={() => void deliverReport()}
-                disabled={sending}
-                className="min-h-11 self-start rounded-xl border border-slate-300 px-4 font-semibold text-slate-800 hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-wait disabled:text-slate-500"
-              >
-                {sending ? "Retrying..." : "Resend report"}
-              </button>
-            )}
-          </div>
         )}
       </header>
 
@@ -555,12 +470,6 @@ function statusTextClasses(status: AssessmentStatus) {
   if (status === "amber") return "text-amber-800";
   if (status === "red") return "text-red-800";
   return "text-slate-600";
-}
-
-function deliveryTextClasses(state: ReportDeliveryState) {
-  if (state === "sent") return "font-semibold text-teal-800";
-  if (state === "failed") return "font-semibold text-red-700";
-  return "font-semibold text-slate-600";
 }
 
 function providerSummary(report: SavedPreliminaryReport) {

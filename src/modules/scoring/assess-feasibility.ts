@@ -203,7 +203,7 @@ function identifyCriticalFlags(
       ? [
           criticalFlag({
             ...rules.coreData,
-            rationale: `${rules.coreData.rationale}: ${unavailableCoreProviderIds.join(", ")}.`,
+            rationale: `${rules.coreData.rationale}: ${formatCoreEvidenceLabels(unavailableCoreProviderIds)}.`,
           }),
         ]
       : []),
@@ -211,6 +211,19 @@ function identifyCriticalFlags(
       ? [criticalFlag(rules.restrictedOverlay)]
       : []),
   ];
+}
+
+const coreEvidenceLabels: Record<string, string> = {
+  address_resolution: "the property's address",
+  legal_parcel: "the legal property boundary",
+  building_footprints: "building outlines",
+};
+
+function formatCoreEvidenceLabels(ids: string[]): string {
+  const labels = ids.map((id) => coreEvidenceLabels[id] ?? id);
+  if (labels.length < 2) return labels[0] ?? "required property information";
+  if (labels.length === 2) return labels.join(" and ");
+  return `${labels.slice(0, -1).join(", ")}, and ${labels.at(-1)}`;
 }
 
 function criticalFlag(rule: {
