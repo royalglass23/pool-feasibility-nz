@@ -11,6 +11,7 @@ import {
   reportRecommendations,
   reportWarningLabel,
 } from "@/modules/reporting/preliminary-report-presentation";
+import { ActionProgressDialog } from "@/components/action-progress-dialog";
 
 export type ReportDeliveryState = "pending" | "sending" | "sent" | "failed";
 
@@ -98,6 +99,11 @@ export function SavedPreliminaryReportView({
       aria-labelledby="saved-report-heading"
       className="space-y-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"
     >
+      <ActionProgressDialog
+        open={downloading}
+        title="Preparing your PDF"
+        description="Generating your preliminary property assessment report."
+      />
       <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-xs font-bold tracking-[0.16em] text-teal-700 uppercase">
