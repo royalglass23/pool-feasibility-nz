@@ -6,6 +6,7 @@ import {
   AssessmentSnapshotValidationError,
   createAssessmentSnapshotService,
 } from "@/modules/assessment/assessment-snapshot";
+import { officialDatasetEvidence } from "@/modules/providers/official-dataset-catalog";
 
 const signingKey = "test-assessment-snapshot-signing-key-32-bytes";
 
@@ -31,7 +32,14 @@ function fastResult() {
       durationMs: null,
       attribution: null,
     },
-    datasets: { legal_parcel: null, aerial_imagery: null },
+    datasets: {
+      address_resolution: officialDatasetEvidence(
+        "address_resolution",
+        "2026-07-30T00:00:00.000Z",
+      ),
+      legal_parcel: null,
+      aerial_imagery: null,
+    },
     defaultPool: {
       id: "compact" as const,
       label: "Compact",

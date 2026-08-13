@@ -406,6 +406,26 @@ describe("deterministic feasibility assessment", () => {
       expect(result.qualification).toBe(expectedQualification);
     },
   );
+
+  it("uses homeowner-friendly names when core property evidence is unavailable", () => {
+    const result = assessFeasibility(
+      assessmentInput({
+        providers: [
+          { ...unavailableProvider("address_resolution"), required: true },
+          provider("legal_parcel", true),
+          provider("building_footprints", true),
+          provider("contours", true),
+        ],
+      }),
+    );
+
+    expect(result.criticalFlags).toEqual([
+      expect.objectContaining({
+        rationale:
+          "Required property information could not be confirmed: the property's address.",
+      }),
+    ]);
+  });
 });
 
 function assessmentInput(

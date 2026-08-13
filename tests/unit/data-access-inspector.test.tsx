@@ -156,7 +156,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     ).toHaveLength(2);
     expect(
       screen.getAllByText(
-        /Required core data is unavailable: building_footprints/i,
+        /Required property information could not be confirmed: building outlines/i,
       ),
     ).toHaveLength(2);
     expect(

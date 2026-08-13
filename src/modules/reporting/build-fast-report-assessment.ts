@@ -110,7 +110,9 @@ function normalizeFastDatasets(
   return Object.fromEntries(
     datasetKeys.map((key) => {
       const direct =
-        key === "legal_parcel"
+        key === "address_resolution"
+          ? result.datasets.address_resolution
+          : key === "legal_parcel"
           ? (result.datasets.legal_parcel ??
             legalParcelEvidence(result, assessedAt))
           : key === "aerial_imagery"

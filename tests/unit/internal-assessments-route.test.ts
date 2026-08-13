@@ -7,6 +7,7 @@ import {
 } from "@/modules/assessment/server-assessment-submission";
 import { queryableDatasetKeys } from "@/modules/data-access-spike/dataset-catalog";
 import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fast-property-details";
+import { officialDatasetEvidence } from "@/modules/providers/official-dataset-catalog";
 
 const getDb = vi.hoisted(() => vi.fn(() => ({}) as never));
 const saveHomeownerAssessment = vi.hoisted(() => vi.fn());
@@ -76,7 +77,14 @@ const validSubmission = {
       parcelId: "parcel-123",
     },
     aerial: { state: "unavailable", durationMs: null, attribution: null },
-    datasets: { legal_parcel: null, aerial_imagery: null },
+    datasets: {
+      address_resolution: officialDatasetEvidence(
+        "address_resolution",
+        "2026-07-29T01:00:00.000Z",
+      ),
+      legal_parcel: null,
+      aerial_imagery: null,
+    },
     defaultPool: {
       id: "compact",
       label: "Compact",
