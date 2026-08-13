@@ -35,6 +35,7 @@ import {
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
 import type { AssessmentExplanation } from "@/modules/recommendations/generate-assessment-explanation";
 import { humanizeIdentifierTitleCase as humanize } from "@/shared/text/humanize-identifier";
+import { ActionProgressDialog } from "@/components/action-progress-dialog";
 
 export type AssessmentWorkspaceResult = DataAccessSpikeResult & {
   assessmentExplanation?: AssessmentExplanation;
@@ -178,6 +179,11 @@ export function AssessmentWorkspace({
 
   return (
     <section aria-labelledby="assessment-heading" className="space-y-6">
+      <ActionProgressDialog
+        open={generating}
+        title="Preparing your PDF"
+        description="Generating your preliminary property assessment report."
+      />
       <div className="border-b border-slate-200 pb-5">
         <h2
           ref={headingRef}

@@ -13,6 +13,7 @@ import type { ReportDeliveryState } from "@/components/saved-preliminary-report-
 import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
 import { visitorTypeOptions } from "@/modules/assessment/visitor-type";
 import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
+import { ActionProgressDialog } from "@/components/action-progress-dialog";
 
 export type AssessmentSubmissionContext = Omit<
   PersistedAssessmentSubmission,
@@ -126,6 +127,11 @@ export function HomeownerSubmissionForm({
       className="rounded-2xl border border-teal-200 bg-teal-50/60 p-5 sm:p-7"
       aria-labelledby="homeowner-details-heading"
     >
+      <ActionProgressDialog
+        open={saving}
+        title="Saving your assessment"
+        description="Saving your details and preparing your preliminary report."
+      />
       <h3
         id="homeowner-details-heading"
         tabIndex={-1}

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { SavedReportInteractiveMap } from "@/components/saved-report-interactive-map";
 import type { ReportDeliveryState } from "@/components/saved-preliminary-report-view";
+import { ActionProgressDialog } from "@/components/action-progress-dialog";
 import {
   preliminaryReportFilename,
   type SavedPreliminaryReport,
@@ -154,6 +155,11 @@ export function HomeownerFeasibilityReportView({
       aria-labelledby="saved-report-heading"
       className="mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm"
     >
+      <ActionProgressDialog
+        open={downloading}
+        title="Preparing your PDF"
+        description="Generating your preliminary property assessment report."
+      />
       <header className="border-b border-slate-200 px-5 py-5 sm:px-8 lg:px-10">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">

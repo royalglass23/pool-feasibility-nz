@@ -47,7 +47,14 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       name: "Fetching official data…",
     });
     expect(pendingButton).toBeDisabled();
-    expect(screen.getByText("Address found")).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: "Fetching property data" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Retrieving available property information and preparing your property view.",
+      ),
+    ).toBeVisible();
     expect(trackAnonymousFunnelEvent).toHaveBeenCalledWith({
       name: "address_search_started",
     });

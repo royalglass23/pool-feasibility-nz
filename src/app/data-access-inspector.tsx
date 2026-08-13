@@ -35,6 +35,7 @@ import {
   type FastPropertyViewMapSnapshot,
 } from "@/components/fast-property-view";
 import { HomeownerSubmissionForm } from "@/components/homeowner-submission-form";
+import { ActionProgressDialog } from "@/components/action-progress-dialog";
 import {
   SavedAssessmentReportPanel,
   useSavedAssessmentReport,
@@ -391,6 +392,16 @@ export function DataAccessInspector() {
 
   return (
     <div className="space-y-8">
+      <ActionProgressDialog
+        open={isLoading}
+        title="Fetching property data"
+        description="Retrieving available property information and preparing your property view."
+      />
+      <ActionProgressDialog
+        open={isLoadingDetailed}
+        title="Running detailed official checks"
+        description="Reviewing available official datasets and mapped property evidence."
+      />
       <form
         onSubmit={handleSubmit}
         className="rounded-3xl border border-white/70 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.35)] sm:p-7"
@@ -489,17 +500,6 @@ export function DataAccessInspector() {
         </div>
 
         <div className="mt-4 min-h-6" aria-live="polite">
-          {isLoading && (
-            <div className="rounded-2xl border border-teal-100 bg-teal-50/70 p-4">
-              <p className="text-sm font-medium text-teal-950">
-                Opening the fastest useful property view. Detailed checks stay
-                deferred.
-              </p>
-              <ol className="mt-3 text-sm text-teal-900">
-                <li>Address found</li>
-              </ol>
-            </div>
-          )}
           {error && (
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="flex items-start gap-2 text-sm font-medium text-red-700">
