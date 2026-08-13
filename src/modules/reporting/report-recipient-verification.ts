@@ -67,9 +67,13 @@ export async function requestReportRecipientVerificationByReference(
 }
 
 function configuredApplicationBaseUrl(): string | undefined {
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  if (process.env.VERCEL_ENV === "preview" && vercelUrl) {
+    return `https://${vercelUrl}`;
+  }
+
   const configured = process.env.APP_BASE_URL?.trim();
   if (configured) return configured;
-  const vercelUrl = process.env.VERCEL_URL?.trim();
   return vercelUrl ? `https://${vercelUrl}` : undefined;
 }
 

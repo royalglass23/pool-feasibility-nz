@@ -75,4 +75,32 @@ describe("report recipient verification", () => {
       }),
     ).rejects.toMatchObject({ code: "REPORT_VERIFICATION_URL_MISCONFIGURED" });
   });
+
+  it("keeps Preview verification links on the Preview deployment", async () => {
+    const send = vi.fn().mockResolvedValue({ id: "resend-verification" });
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_URL", "preview-id.vercel.app");
+    vi.stubEnv("APP_BASE_URL", "https://pool-feasibility.vercel.app");
+
+    try {
+      await requestReportRecipientVerificationByReference(recipient.reference, {
+        deliveryEnvironment: {
+          mode: "production_test",
+          vercelEnvironment: "preview",
+          nodeEnvironment: "production",
+        },
+        apiKey: "re_test",
+        from: "Royal Glass <reports@example.com>",
+        getRecipient: vi.fn().mockResolvedValue(recipient),
+        issueToken: vi.fn().mockReturnValue("opaque-verification-token"),
+        send,
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    expect(send.mock.calls[0][0].text).toContain(
+      "https://preview-id.vercel.app/report/verify#opaque-verification-token",
+    );
+  });
 });
