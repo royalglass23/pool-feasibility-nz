@@ -12,7 +12,6 @@ import {
   formatReportNumber,
   REPORT_ASSESSMENT_ORDER,
   reportShortStatus,
-  reportStatusName,
   type AssessmentStatus,
   type ReportAssessment,
 } from "@/modules/reporting/pool-feasibility-report";
@@ -232,8 +231,7 @@ export function HomeownerFeasibilityReportView({
           className={`rounded-2xl border p-5 sm:p-6 ${statusPanelClasses(report.overall.status)}`}
         >
           <p className="text-sm font-bold">
-            {reportStatusName(report.overall.status)} -{" "}
-            {report.overall.headline}
+            {assessmentStatusLabel(report.overall.status)}
           </p>
           <h3
             id="overall-result-heading"

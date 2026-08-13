@@ -4,7 +4,6 @@ import {
   formatReportNumber,
   REPORT_ASSESSMENT_ORDER,
   reportShortStatus,
-  type AssessmentStatus,
   type ReportAssessment,
 } from "@/modules/reporting/pool-feasibility-report";
 import { reportMapLegend } from "@/modules/reporting/preliminary-report-presentation";
@@ -183,10 +182,10 @@ export function renderCanonicalPreliminaryReportHtml(
       <p class="report-id">${esc(report.reference)}<br>${esc(generatedDate)}</p>
     </div>
     <section class="overall ${esc(report.overall.status)}" aria-label="Overall assessment">
-      <div class="status-label">${esc(overallStatusLabel(report.overall.status, report.overall.headline))}</div>
+      <div class="status-label">${esc(assessmentStatusLabel(report.overall.status))}</div>
       <p>${esc(report.overall.summary)}</p>
     </section>
-    <div class="section-heading"><h2>At a glance</h2><span>Status is shown in words and colour</span></div>
+    <div class="section-heading"><h2>At a glance</h2><span>Status is shown by colour and description</span></div>
     <div class="glance-grid">${glance}</div>
     <figure class="map-panel">
       <img class="map" src="${report.mapImageDataUrl}" alt="Aerial map showing the mapped property and proposed pool">
@@ -253,13 +252,6 @@ function renderAssessment(
     <p>${esc(item.summary)}</p>
     ${details ? `<ul class="detail-list">${details}</ul>` : ""}
   </article>`;
-}
-
-function overallStatusLabel(
-  status: AssessmentStatus,
-  headline: string,
-): string {
-  return `${status === "unknown" ? "GREY" : status.toUpperCase()} - ${headline}`;
 }
 
 function compactAttribution(report: SavedPreliminaryReport): string {

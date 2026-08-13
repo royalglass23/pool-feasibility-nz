@@ -233,7 +233,7 @@ function buildOverall(
   if (status === "red") {
     return {
       status,
-      headline: "Potential constraint identified",
+      headline: "Potential Constraint",
       summary: lead
         ? `${lead.clientSummary} Review this issue before progressing with the current pool layout.`
         : "A significant mapped constraint may affect the proposed pool location. Review the identified issue before progressing with this layout.",
@@ -675,25 +675,18 @@ function riskSeverity(severity: "low" | "medium" | "high"): AssessmentStatus {
 }
 
 export function assessmentHeadline(status: AssessmentStatus): string {
-  if (status === "green") return "No major mapped issue identified";
+  if (status === "green") return "Appears suitable";
   if (status === "amber") return "Further investigation required";
-  if (status === "red") return "Potential constraint identified";
+  if (status === "red") return "Potential Constraint";
   return "Not assessed";
 }
 
 export function assessmentStatusLabel(status: AssessmentStatus): string {
-  return `${status === "unknown" ? "GREY" : status.toUpperCase()} - ${assessmentHeadline(status)}`;
-}
-
-export function reportStatusName(status: AssessmentStatus): string {
-  return status === "unknown" ? "GREY" : status.toUpperCase();
+  return assessmentHeadline(status);
 }
 
 export function reportShortStatus(status: AssessmentStatus): string {
-  if (status === "green") return "GREEN - Appears suitable";
-  if (status === "amber") return "AMBER - Further investigation";
-  if (status === "red") return "RED - Potential constraint";
-  return "GREY - Not assessed";
+  return assessmentHeadline(status);
 }
 
 export function formatReportNumber(value: number): string {

@@ -78,7 +78,7 @@ export default function Home() {
 
         <header className="mb-10 hidden max-w-3xl sm:mb-14">
           <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-teal-700/15 bg-white/80 px-3 py-1.5 text-xs font-bold tracking-[0.14em] text-teal-800 uppercase shadow-sm backdrop-blur">
-            Pool feasibility NZ · Data access POC
+            Pool Lab · Data access POC
           </div>
           <h1 className="text-4xl leading-tight font-semibold tracking-[-0.035em] text-slate-950 sm:text-6xl">
             Inspect official property data before assessing pool feasibility.
