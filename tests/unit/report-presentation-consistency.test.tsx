@@ -12,6 +12,14 @@ import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 afterEach(cleanup);
 
 describe("web, PDF and email report consistency", () => {
+  it("uses a colour-coded description without naming the colour", () => {
+    expect(assessmentStatusLabel("red")).toBe("Potential Constraint");
+    expect(assessmentStatusLabel("amber")).toBe(
+      "Further investigation required",
+    );
+    expect(assessmentStatusLabel("green")).toBe("Appears suitable");
+  });
+
   it("presents the same saved result without recalculating the assessment", async () => {
     const report = buildTestPreliminaryReport({
       reference: "GF-2026-000019",
