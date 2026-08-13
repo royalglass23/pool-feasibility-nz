@@ -22,24 +22,24 @@ export function StaffAssessmentDetail({
     <div className="space-y-6">
       <section
         aria-labelledby="staff-homeowner-heading"
-        className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"
+        className="rounded-3xl border border-pool-200 bg-white p-5 shadow-sm sm:p-8"
       >
-        <div className="flex flex-col gap-3 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex flex-col gap-3 border-b border-pool-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <p className="font-mono text-xs font-semibold text-teal-700">
+            <p className="font-mono text-xs font-semibold text-pool-blue-700">
               {assessment.reference}
             </p>
             <h1
               id="staff-homeowner-heading"
-              className="mt-2 text-2xl font-semibold tracking-tight text-slate-950"
+              className="mt-2 text-2xl font-semibold tracking-tight text-pool-950"
             >
               {assessment.homeownerName}
             </h1>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="mt-1 text-sm text-pool-600">
               {assessment.homeownerAddress}
             </p>
           </div>
-          <p className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-bold tracking-wide text-slate-700 uppercase">
+          <p className="rounded-full border border-pool-200 bg-pool-50 px-3 py-1.5 text-xs font-bold tracking-wide text-pool-700 uppercase">
             Read-only saved submission
           </p>
         </div>
@@ -77,11 +77,11 @@ export function StaffAssessmentDetail({
         </dl>
 
         {assessment.additionalInfo && (
-          <div className="mt-5 rounded-2xl border border-slate-200 bg-slate-50 p-4">
-            <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+          <div className="mt-5 rounded-2xl border border-pool-200 bg-pool-50 p-4">
+            <p className="text-xs font-bold tracking-wide text-pool-500 uppercase">
               Additional information
             </p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
+            <p className="mt-2 text-sm leading-6 text-pool-700">
               {assessment.additionalInfo}
             </p>
           </div>
@@ -103,10 +103,10 @@ export function StaffAssessmentDetail({
 function Fact({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+      <dt className="text-xs font-bold tracking-wide text-pool-500 uppercase">
         {label}
       </dt>
-      <dd className="mt-1 font-medium break-words text-slate-900">{value}</dd>
+      <dd className="mt-1 font-medium break-words text-pool-900">{value}</dd>
     </div>
   );
 }

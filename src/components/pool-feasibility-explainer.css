@@ -19,7 +19,7 @@
   inset: 0;
   overflow: hidden;
   background: linear-gradient(145deg, #fff 0%, #f2faf6 100%);
-  color: #18322f;
+  color: #062f5d;
   animation: pool-explainer-slide 12s cubic-bezier(0.4, 0, 0.2, 1) infinite;
   animation-delay: var(--pool-explainer-delay);
   will-change: transform, opacity;
@@ -94,7 +94,7 @@
 .pool-explainer-intro-copy p {
   max-width: 240px;
   margin: 15px 0 0;
-  color: #526761;
+  color: #426b87;
   font-size: 14px;
   line-height: 1.55;
 }
@@ -161,7 +161,7 @@
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: #d9f0e7;
+  background: #dff4ff;
 }
 .pool-explainer-lens {
   position: absolute;
@@ -170,7 +170,7 @@
   right: 12%;
   width: 76px;
   height: 76px;
-  border: 7px solid #18322f;
+  border: 7px solid #062f5d;
   border-radius: 50%;
   transform: rotate(-28deg);
   animation: pool-explainer-lens 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
@@ -182,7 +182,7 @@
   width: 42px;
   height: 8px;
   border-radius: 999px;
-  background: #18322f;
+  background: #062f5d;
   content: "";
   transform: rotate(48deg);
   transform-origin: left center;
@@ -202,7 +202,7 @@
   border-radius: 9px;
   background: #fff;
   padding: 8px 11px;
-  color: #18322f;
+  color: #062f5d;
   font-size: 11px;
   font-weight: 700;
   box-shadow: 0 9px 18px -14px rgb(24 50 47 / 60%);
@@ -272,7 +272,7 @@
   left: 37%;
   width: 17px;
   height: 24px;
-  background: #18322f;
+  background: #062f5d;
   clip-path: polygon(0 0, 0 100%, 29% 72%, 49% 100%, 64% 92%, 44% 63%, 82% 63%);
   animation: pool-explainer-cursor 2s cubic-bezier(0.16, 1, 0.3, 1) infinite;
 }
@@ -288,7 +288,7 @@
   border-radius: 10px;
   background: rgb(255 255 255 / 88%);
   padding: 8px;
-  color: #526761;
+  color: #426b87;
   font-size: 10px;
   font-weight: 650;
   box-shadow: 0 8px 18px -15px rgb(24 50 47 / 70%);
@@ -305,7 +305,7 @@
   left: 9%;
   right: 9%;
   margin: 0;
-  color: #526761;
+  color: #426b87;
   font-size: 12px;
 }
 .pool-explainer-layer-stack {
@@ -332,7 +332,7 @@
   position: absolute;
   top: 39px;
   left: 28px;
-  color: #18322f;
+  color: #062f5d;
   font-size: 11px;
   font-weight: 700;
 }
@@ -391,7 +391,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  color: #5e716a;
+  color: #5c7e96;
   font-size: 8px;
   font-weight: 750;
   letter-spacing: 0.1em;
@@ -402,7 +402,7 @@
   height: 21px;
   place-items: center;
   border-radius: 50%;
-  background: #d9f0e7;
+  background: #dff4ff;
   color: #0f766e;
   font-size: 14px;
   font-style: normal;
@@ -416,7 +416,7 @@
   align-items: center;
   margin: 15px 0;
   padding-bottom: 14px;
-  border-bottom: 1px solid #d4e0dc;
+  border-bottom: 1px solid #dbe8f0;
 }
 .pool-explainer-report-map {
   position: relative;
@@ -461,13 +461,13 @@
 }
 .pool-explainer-report-summary strong {
   display: block;
-  color: #18322f;
+  color: #062f5d;
   font-size: 12px;
   line-height: 1.3;
 }
 .pool-explainer-report-summary p {
   margin: 4px 0 0;
-  color: #5e716a;
+  color: #5c7e96;
   font-size: 10px;
   line-height: 1.35;
 }
@@ -477,7 +477,7 @@
   gap: 7px;
   align-items: center;
   min-height: 26px;
-  color: #526761;
+  color: #426b87;
   font-size: 10px;
   animation: pool-explainer-report-rows 2s cubic-bezier(0.16, 1, 0.3, 1)
     infinite;
@@ -523,7 +523,7 @@
   height: 38px;
   place-items: center;
   border-radius: 50%;
-  background: #d9f0e7;
+  background: #dff4ff;
   color: #0f766e;
   font-size: 21px;
   font-weight: 750;
@@ -537,7 +537,7 @@
 }
 .pool-explainer-closing-copy p {
   margin: 7px 0;
-  color: #18322f;
+  color: #062f5d;
   font-size: clamp(27px, 6.8vw, 36px);
   line-height: 1.12;
   letter-spacing: -0.045em;

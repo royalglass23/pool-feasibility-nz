@@ -84,11 +84,11 @@ export function AnalyticsConsent({
         {settingsOpen && (
           <section
             aria-labelledby="analytics-consent-heading"
-            className="w-full rounded-2xl border border-slate-300 bg-white p-5 text-slate-800"
+            className="w-full rounded-2xl border border-pool-300 bg-white p-5 text-pool-800"
           >
             <h2
               id="analytics-consent-heading"
-              className="text-base font-semibold text-slate-950"
+              className="text-base font-semibold text-pool-950"
             >
               Analytics cookies
             </h2>
@@ -101,14 +101,14 @@ export function AnalyticsConsent({
               <button
                 type="button"
                 onClick={() => choose("granted")}
-                className="min-h-11 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                className="min-h-11 rounded-xl bg-pool-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-pool-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
               >
                 Allow analytics
               </button>
               <button
                 type="button"
                 onClick={() => choose("denied")}
-                className="min-h-11 rounded-xl border border-slate-300 px-4 text-sm font-semibold transition-colors hover:border-teal-700 hover:text-teal-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                className="min-h-11 rounded-xl border border-pool-300 px-4 text-sm font-semibold transition-colors hover:border-pool-blue-700 hover:text-pool-blue-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
               >
                 {choice === "granted"
                   ? "Turn analytics off"
@@ -117,7 +117,7 @@ export function AnalyticsConsent({
               <button
                 type="button"
                 onClick={() => setSettingsOverride(false)}
-                className="min-h-11 px-3 text-sm font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+                className="min-h-11 px-3 text-sm font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
               >
                 Not now
               </button>
@@ -128,7 +128,7 @@ export function AnalyticsConsent({
           type="button"
           aria-expanded={settingsOpen}
           onClick={() => setSettingsOverride(!settingsOpen)}
-          className="min-h-11 rounded-full border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm transition-colors hover:border-teal-700 hover:text-teal-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          className="min-h-11 rounded-full border border-pool-300 bg-white px-4 text-sm font-semibold text-pool-800 shadow-sm transition-colors hover:border-pool-blue-700 hover:text-pool-blue-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
         >
           Analytics settings
         </button>

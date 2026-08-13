@@ -2,14 +2,14 @@
 name: Pool Lab
 description: Evidence-led Auckland property planning guidance for homeowners and pool builders.
 colors:
-  evidence-teal: "oklch(51.1% 0.096 186.391)"
-  evidence-teal-deep: "oklch(43.7% 0.078 188.216)"
-  evidence-teal-soft: "oklch(98.4% 0.014 180.72)"
-  survey-ink: "oklch(12.9% 0.042 264.695)"
-  survey-text: "oklch(44.6% 0.043 257.281)"
-  survey-muted: "oklch(55.4% 0.046 257.417)"
-  survey-line: "oklch(92.9% 0.013 255.508)"
-  survey-wash: "oklch(98.4% 0.003 247.858)"
+  pool-blue: "oklch(55.2% 0.149 235)"
+  pool-blue-deep: "oklch(46.8% 0.129 235)"
+  pool-blue-soft: "oklch(97.8% 0.014 235)"
+  pool-ink: "oklch(22.4% 0.06 237)"
+  pool-text: "oklch(42.9% 0.078 237)"
+  pool-muted: "oklch(52.1% 0.072 237)"
+  pool-line: "oklch(91.8% 0.02 237)"
+  pool-wash: "oklch(98.4% 0.007 237)"
   working-surface: "oklch(100% 0 0)"
   caution-amber: "oklch(55.5% 0.163 48.998)"
   caution-soft: "oklch(98.7% 0.022 95.277)"
@@ -59,37 +59,37 @@ spacing:
   3xl: "32px"
 components:
   button-primary:
-    backgroundColor: "{colors.survey-ink}"
+    backgroundColor: "{colors.pool-ink}"
     textColor: "{colors.working-surface}"
     typography: "{typography.label}"
     rounded: "{rounded.panel}"
     padding: "14px 24px"
     height: "52px"
   button-primary-hover:
-    backgroundColor: "{colors.evidence-teal-deep}"
+    backgroundColor: "{colors.pool-blue-deep}"
     textColor: "{colors.working-surface}"
   button-secondary:
     backgroundColor: "{colors.working-surface}"
-    textColor: "{colors.survey-text}"
+    textColor: "{colors.pool-text}"
     typography: "{typography.label}"
     rounded: "{rounded.control}"
     padding: "10px 16px"
     height: "44px"
   input-property:
-    backgroundColor: "{colors.survey-wash}"
-    textColor: "{colors.survey-ink}"
+    backgroundColor: "{colors.pool-wash}"
+    textColor: "{colors.pool-ink}"
     typography: "{typography.body}"
     rounded: "{rounded.panel}"
     padding: "12px 16px"
     height: "52px"
   panel-result:
     backgroundColor: "{colors.working-surface}"
-    textColor: "{colors.survey-ink}"
+    textColor: "{colors.pool-ink}"
     rounded: "{rounded.section}"
     padding: "24px"
   chip-success:
-    backgroundColor: "{colors.evidence-teal-soft}"
-    textColor: "{colors.evidence-teal-deep}"
+    backgroundColor: "{colors.pool-blue-soft}"
+    textColor: "{colors.pool-blue-deep}"
     typography: "{typography.label}"
     rounded: "{rounded.pill}"
     padding: "4px 10px"
@@ -113,7 +113,7 @@ The system is precise without becoming bureaucratic and responsive without becom
 
 **Key Characteristics:**
 
-- Restrained slate neutrals with teal reserved for evidence, interaction, and positive state.
+- Restrained pool-navy neutrals with pool blue reserved for evidence, interaction, and positive state.
 - White working surfaces separated by fine borders, tinted sections, and sparing elevation.
 - Compact, readable Geist typography with strong labels and tabular data where needed.
 - Progressive disclosure for dense evidence, limitations, provenance, and report sections.
@@ -121,13 +121,13 @@ The system is precise without becoming bureaucratic and responsive without becom
 
 ## Colors
 
-Survey Slate carries the document-like working surface; Evidence Teal identifies trusted interaction and validated state; Caution Amber and Blocker Red communicate consequential exceptions.
+Pool Navy carries the document-like working surface; Pool Blue identifies trusted interaction and validated state; Caution Amber and Blocker Red communicate consequential exceptions.
 
 ### Primary
 
-- **Evidence Teal:** Use for focus, selected controls, verified checks, links, and positive evidence states. It is functional, not decorative.
-- **Evidence Teal Deep:** Use for high-contrast hover states and teal text on light teal surfaces.
-- **Evidence Teal Soft:** Use as a quiet background for progress, verified summaries, and explanatory evidence.
+- **Pool Blue:** Use for focus, selected controls, verified checks, links, and positive evidence states. It is functional, not decorative.
+- **Pool Blue Deep:** Use for high-contrast hover states and pool blue text on light pool blue surfaces.
+- **Pool Blue Soft:** Use as a quiet background for progress, verified summaries, and explanatory evidence.
 
 ### Secondary
 
@@ -147,7 +147,7 @@ Survey Slate carries the document-like working surface; Evidence Teal identifies
 
 ### Named Rules
 
-**The Evidence Colour Rule.** Teal means evidence, interaction, selection, or verified state. It must never become ambient decoration across a whole screen.
+**The Pool Blue Colour Rule.** Pool Blue means evidence, interaction, selection, or verified state. It must never become ambient decoration across a whole screen.
 
 **The Honest State Rule.** Amber means incomplete, cautionary, or unknown; red means failed or blocked. Never soften a blocker into amber merely to make the page look calmer.
 
@@ -176,7 +176,7 @@ Survey Slate carries the document-like working surface; Evidence Teal identifies
 
 ## Elevation
 
-The system is layered but restrained. Fine slate borders and background shifts organize most content. A low shadow may separate a major white working surface from the page or protect map legibility; subordinate cards remain border-led and nearly flat.
+The system is layered but restrained. Fine pool-navy borders and background shifts organize most content. A low shadow may separate a major white working surface from the page or protect map legibility; subordinate cards remain border-led and nearly flat.
 
 ### Shadow Vocabulary
 
@@ -197,13 +197,13 @@ Components are direct, sturdy, and quietly responsive. Every interactive pattern
 
 - **Shape:** Primary workflow buttons use gently rounded corners (18px); compact library and map actions use tighter corners (8–14px).
 - **Primary:** Survey Ink background, white text, semibold label, 52px minimum height, and 24px horizontal padding.
-- **Hover / Focus:** Hover shifts to Evidence Teal Deep. Keyboard focus uses a clearly separated teal outline or ring; pressed state may move by one pixel. Disabled buttons remain legible and visibly inactive.
+- **Hover / Focus:** Hover shifts to Pool Blue Deep. Keyboard focus uses a clearly separated pool blue outline or ring; pressed state may move by one pixel. Disabled buttons remain legible and visibly inactive.
 - **Secondary:** White working surface, Survey Text, a Survey Line border, 44px minimum height, and no decorative glow.
 
 ### Chips
 
 - **Style:** Full-pill status badges pair a soft state background with the darker state colour and a subtle inset ring.
-- **State:** Teal communicates success or verified evidence, amber communicates caution or partial evidence, slate communicates unavailable or neutral state, and red communicates failure.
+- **State:** Pool Blue communicates success or verified evidence, amber communicates caution or partial evidence, pool-navy communicates unavailable or neutral state, and red communicates failure.
 
 ### Cards / Containers
 
@@ -216,12 +216,12 @@ Components are direct, sturdy, and quietly responsive. Every interactive pattern
 ### Inputs / Fields
 
 - **Style:** Survey Wash background, Survey Line border, Survey Ink text, and 14–18px corners. Primary address entry is 52px high; selects are at least 44px high.
-- **Focus:** Shift to a white background with an Evidence Teal border and a low-opacity four-pixel teal ring.
+- **Focus:** Shift to a white background with an Pool Blue border and a low-opacity four-pixel pool blue ring.
 - **Error / Disabled:** Errors use Blocker Red with text explanation. Disabled controls retain readable text and make their inactive state explicit.
 
 ### Navigation
 
-The current POC is a single-task surface and has no persistent navigation. If navigation is introduced, keep it compact and workflow-led; use Survey Slate for structure and Evidence Teal only for the current location.
+The current POC is a single-task surface and has no persistent navigation. If navigation is introduced, keep it compact and workflow-led; use Pool Navy for structure and Pool Blue only for the current location.
 
 ### Expandable Evidence Sections
 
@@ -237,7 +237,7 @@ The map is an evidence surface, not a decorative hero. A Survey Ink header and f
 
 - **Do** lead with the preliminary decision and make its evidence available through progressive disclosure.
 - **Do** preserve clear distinctions between verified, unavailable, unknown, warning, and failed states.
-- **Do** use Evidence Teal only for interaction, selection, evidence, and positive state.
+- **Do** use Pool Blue only for interaction, selection, evidence, and positive state.
 - **Do** keep controls at least 44px high for primary staff workflows and provide visible keyboard focus.
 - **Do** use native disclosure semantics for expandable report sections and keep meaningful summaries visible when collapsed.
 - **Do** keep attribution, property identity, uncertainty, and screening limitations visible in downloadable and on-screen reports.

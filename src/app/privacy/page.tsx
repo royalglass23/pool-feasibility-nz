@@ -9,15 +9,15 @@ export const metadata: Metadata = {
 
 export default function PrivacyNoticePage() {
   return (
-    <main className="min-h-screen bg-[#f4f8f6] px-4 py-10 text-[#18322f] sm:px-6 sm:py-16">
-      <article className="mx-auto w-full max-w-3xl rounded-[1.75rem] border border-[#d4e0dc] bg-white p-6 shadow-[0_24px_70px_-48px_rgba(24,50,47,0.55)] sm:p-10">
-        <p className="text-sm font-semibold tracking-[0.02em] text-[#5e716a]">
+    <main className="min-h-screen bg-[#f5faff] px-4 py-10 text-[#062f5d] sm:px-6 sm:py-16">
+      <article className="mx-auto w-full max-w-3xl rounded-[1.75rem] border border-[#dbe8f0] bg-white p-6 shadow-[0_24px_70px_-48px_rgba(24,50,47,0.55)] sm:p-10">
+        <p className="text-sm font-semibold tracking-[0.02em] text-[#5c7e96]">
           Royal Glass preliminary reports
         </p>
-        <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-[#18322f] sm:text-5xl">
+        <h1 className="mt-3 text-4xl font-semibold tracking-[-0.04em] text-[#062f5d] sm:text-5xl">
           Privacy notice
         </h1>
-        <p className="mt-5 text-base leading-7 text-[#526761]">
+        <p className="mt-5 text-base leading-7 text-[#426b87]">
           This notice applies when you ask Royal Glass for a preliminary pool
           feasibility report. The report is early planning guidance, not an
           approval, construction design, or quote.
@@ -57,11 +57,11 @@ export default function PrivacyNoticePage() {
         <NoticeSection title="Services that process a request">
           <ul className="grid gap-3">
             <li>
-              <strong className="text-[#18322f]">Neon</strong> stores the saved
+              <strong className="text-[#062f5d]">Neon</strong> stores the saved
               report request for Royal Glass.
             </li>
             <li>
-              <strong className="text-[#18322f]">Resend</strong> receives the
+              <strong className="text-[#062f5d]">Resend</strong> receives the
               data needed to send both the homeowner report email and the
               ServiceM8 notification when those deliveries are enabled. The
               homeowner email includes the visitor email address and report PDF.
@@ -69,7 +69,7 @@ export default function PrivacyNoticePage() {
               details, checked address, visitor type, and project timing.
             </li>
             <li>
-              <strong className="text-[#18322f]">ServiceM8</strong> receives a
+              <strong className="text-[#062f5d]">ServiceM8</strong> receives a
               limited follow-up notification only when forwarding is enabled.
               That notification contains the report reference, contact details,
               checked address, visitor type, and project timing. It does not
@@ -89,7 +89,7 @@ export default function PrivacyNoticePage() {
             Email{" "}
             <a
               href="mailto:support@royalglass.co.nz"
-              className="font-semibold text-teal-800 underline decoration-teal-300 underline-offset-4 outline-offset-4 hover:text-teal-950 focus-visible:outline-2 focus-visible:outline-teal-700"
+              className="font-semibold text-pool-blue-800 underline decoration-pool-blue-300 underline-offset-4 outline-offset-4 hover:text-pool-blue-950 focus-visible:outline-2 focus-visible:outline-pool-blue-700"
             >
               support@royalglass.co.nz
             </a>{" "}
@@ -103,7 +103,7 @@ export default function PrivacyNoticePage() {
 
         <Link
           href="/"
-          className="mt-10 inline-flex min-h-11 items-center rounded-xl border border-[#a9c6bb] px-4 text-sm font-semibold text-[#18322f] outline-offset-4 transition hover:border-[#0f6258] hover:bg-[#e4f0eb] focus-visible:outline-2 focus-visible:outline-teal-700"
+          className="mt-10 inline-flex min-h-11 items-center rounded-xl border border-[#9fc8df] px-4 text-sm font-semibold text-[#062f5d] outline-offset-4 transition hover:border-[#0077bd] hover:bg-[#e9f7ff] focus-visible:outline-2 focus-visible:outline-pool-blue-700"
         >
           Return to the Property Check
         </Link>
@@ -120,11 +120,11 @@ function NoticeSection({
   children: React.ReactNode;
 }) {
   return (
-    <section className="mt-9 border-t border-[#d4e0dc] pt-7">
-      <h2 className="text-xl font-semibold tracking-[-0.02em] text-[#18322f]">
+    <section className="mt-9 border-t border-[#dbe8f0] pt-7">
+      <h2 className="text-xl font-semibold tracking-[-0.02em] text-[#062f5d]">
         {title}
       </h2>
-      <div className="mt-3 text-base leading-7 text-[#526761]">{children}</div>
+      <div className="mt-3 text-base leading-7 text-[#426b87]">{children}</div>
     </section>
   );
 }

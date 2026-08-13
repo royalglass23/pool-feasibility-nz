@@ -184,41 +184,41 @@ export function AssessmentWorkspace({
         title="Preparing your PDF"
         description="Generating your preliminary property assessment report."
       />
-      <div className="border-b border-slate-200 pb-5">
+      <div className="border-b border-pool-200 pb-5">
         <h2
           ref={headingRef}
           id="assessment-heading"
           tabIndex={-1}
-          className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-4xl"
+          className="text-2xl font-semibold tracking-tight text-pool-950 sm:text-4xl"
         >
           {result.resolvedAddress.fullAddress}
         </h2>
-        <p className="mt-2 font-mono text-sm text-slate-600">
+        <p className="mt-2 font-mono text-sm text-pool-600">
           Retrieved {formatDate(result.generatedAt)} · LINZ address ID{" "}
           {result.resolvedAddress.addressId}
         </p>
       </div>
 
       <div role="status" className={parcelStatus.className}>
-        <p className="text-sm font-semibold text-slate-950">
+        <p className="text-sm font-semibold text-pool-950">
           {parcelStatus.heading}
         </p>
-        <p className="mt-1 text-sm text-slate-700">{parcelStatus.detail}</p>
+        <p className="mt-1 text-sm text-pool-700">{parcelStatus.detail}</p>
       </div>
 
-      <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/5%)]">
-        <div className="grid gap-5 bg-teal-50/70 p-5 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-7">
-          <div className="grid size-20 place-items-center rounded-full bg-slate-950 text-2xl font-semibold text-white sm:size-24 sm:text-3xl">
+      <div className="overflow-hidden rounded-2xl border border-pool-200 bg-white shadow-[0_1px_2px_0_rgb(0_0_0/5%)]">
+        <div className="grid gap-5 bg-pool-blue-50/70 p-5 sm:grid-cols-[auto_1fr_auto] sm:items-center sm:p-7">
+          <div className="grid size-20 place-items-center rounded-full bg-pool-950 text-2xl font-semibold text-white sm:size-24 sm:text-3xl">
             {result.feasibilityAssessment.score ?? "—"}
           </div>
           <div>
-            <p className="text-xs font-semibold tracking-[0.12em] text-teal-800 uppercase">
+            <p className="text-xs font-semibold tracking-[0.12em] text-pool-blue-800 uppercase">
               Screening recommendation
             </p>
-            <h3 className="mt-1 text-xl leading-snug font-semibold text-slate-950 sm:text-2xl">
+            <h3 className="mt-1 text-xl leading-snug font-semibold text-pool-950 sm:text-2xl">
               {result.feasibilityAssessment.finalRecommendation}
             </h3>
-            <p className="mt-2 text-sm leading-6 text-slate-700">
+            <p className="mt-2 text-sm leading-6 text-pool-700">
               {result.feasibilityAssessment.band
                 ? humanize(result.feasibilityAssessment.band)
                 : "Indeterminate"}{" "}
@@ -226,8 +226,8 @@ export function AssessmentWorkspace({
               confidence
             </p>
           </div>
-          <div className="rounded-xl border border-teal-200 bg-white/80 p-4 text-sm text-slate-700 sm:max-w-56">
-            <p className="font-semibold text-slate-950">What happens next</p>
+          <div className="rounded-xl border border-pool-blue-200 bg-white/80 p-4 text-sm text-pool-700 sm:max-w-56">
+            <p className="font-semibold text-pool-950">What happens next</p>
             <p className="mt-1 leading-5">
               Review the proposed layout, then ask a builder to verify the site
               before design or construction decisions.
@@ -235,8 +235,8 @@ export function AssessmentWorkspace({
           </div>
         </div>
         {result.feasibilityAssessment.criticalFlags.length > 0 && (
-          <div className="border-t border-teal-100 px-5 py-4 sm:px-7">
-            <p className="text-sm font-semibold text-slate-900">
+          <div className="border-t border-pool-blue-100 px-5 py-4 sm:px-7">
+            <p className="text-sm font-semibold text-pool-900">
               Critical flags
             </p>
             <div className="mt-2 flex flex-wrap gap-2">
@@ -266,12 +266,12 @@ export function AssessmentWorkspace({
         )}
       </div>
 
-      <div className="flex flex-col gap-4 rounded-2xl border border-slate-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-4 rounded-2xl border border-pool-200 bg-white p-5 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <p className="font-semibold text-slate-950">
+          <p className="font-semibold text-pool-950">
             Ready for a preliminary report?
           </p>
-          <p className="text-sm text-slate-600">
+          <p className="text-sm text-pool-600">
             The report includes the selected property, pool concept, mapped
             evidence, warnings, and recommended follow-up.
           </p>
@@ -285,7 +285,7 @@ export function AssessmentWorkspace({
                 .getElementById("homeowner-details-heading")
                 ?.scrollIntoView({ behavior: "smooth" })
             }
-            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-slate-950 px-5 font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-pool-950 px-5 font-semibold text-white transition-colors hover:bg-pool-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700 disabled:cursor-not-allowed disabled:bg-pool-400"
           >
             <FileText className="size-4" aria-hidden="true" />
             Get my preliminary report
@@ -294,14 +294,14 @@ export function AssessmentWorkspace({
             type="button"
             disabled={!mapImage}
             onClick={() => setPreview(true)}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 px-4 font-semibold text-slate-800 transition-colors hover:border-teal-600 hover:text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-pool-300 px-4 font-semibold text-pool-800 transition-colors hover:border-pool-blue-600 hover:text-pool-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700 disabled:cursor-not-allowed disabled:bg-pool-100 disabled:text-pool-400"
           >
             Generate PDF report
           </button>
           <button
             type="button"
             onClick={onDownloadData}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-slate-300 px-4 font-semibold text-slate-800 hover:border-teal-600 hover:text-teal-800"
+            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-pool-300 px-4 font-semibold text-pool-800 hover:border-pool-blue-600 hover:text-pool-blue-800"
           >
             <Download className="size-4" aria-hidden="true" />
             Assessment data
@@ -311,16 +311,16 @@ export function AssessmentWorkspace({
 
       <section aria-labelledby="map-workspace-heading" className="space-y-4">
         <div>
-          <p className="text-xs font-semibold tracking-[0.12em] text-teal-800 uppercase">
+          <p className="text-xs font-semibold tracking-[0.12em] text-pool-blue-800 uppercase">
             Property workspace
           </p>
           <h3
             id="map-workspace-heading"
-            className="mt-1 text-xl font-semibold text-slate-950"
+            className="mt-1 text-xl font-semibold text-pool-950"
           >
             Place a pool concept on the selected property
           </h3>
-          <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-600">
+          <p className="mt-1 max-w-3xl text-sm leading-6 text-pool-600">
             The map is the working surface. Choose a size, drag the pool, and
             rotate it to explore the mapped evidence. Warnings are screening
             signals, not building approval.
@@ -352,25 +352,25 @@ export function AssessmentWorkspace({
         </p>
       )}
 
-      <div className="flex items-center justify-between gap-3 border-t border-slate-200 pt-5">
-        <h3 className="text-lg font-semibold text-slate-950">
+      <div className="flex items-center justify-between gap-3 border-t border-pool-200 pt-5">
+        <h3 className="text-lg font-semibold text-pool-950">
           Assessment details
         </h3>
         <div className="flex gap-2 text-sm">
           <button
             type="button"
             onClick={() => setOpenSections(new Set(sectionIds))}
-            className="font-semibold text-teal-800 hover:underline"
+            className="font-semibold text-pool-blue-800 hover:underline"
           >
             Expand all
           </button>
-          <span className="text-slate-300" aria-hidden="true">
+          <span className="text-pool-300" aria-hidden="true">
             /
           </span>
           <button
             type="button"
             onClick={() => setOpenSections(new Set())}
-            className="font-semibold text-slate-700 hover:underline"
+            className="font-semibold text-pool-700 hover:underline"
           >
             Collapse all
           </button>
@@ -443,9 +443,9 @@ export function AssessmentWorkspace({
         open={openSections.has("sources")}
         onToggle={toggle}
       >
-        <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white">
+        <div className="overflow-x-auto rounded-2xl border border-pool-200 bg-white">
           <table className="w-full min-w-160 text-left text-sm">
-            <thead className="bg-slate-50 text-slate-600">
+            <thead className="bg-pool-50 text-pool-600">
               <tr>
                 <th className="p-3">Dataset</th>
                 <th className="p-3">Provider</th>
@@ -455,15 +455,15 @@ export function AssessmentWorkspace({
             </thead>
             <tbody>
               {datasets.map(([key, item]) => (
-                <tr key={key} className="border-t border-slate-100">
-                  <td className="p-3 font-medium text-slate-900">
+                <tr key={key} className="border-t border-pool-100">
+                  <td className="p-3 font-medium text-pool-900">
                     {item.dataset}
                   </td>
-                  <td className="p-3 text-slate-700">{item.provider}</td>
-                  <td className="p-3 text-slate-700">
+                  <td className="p-3 text-pool-700">{item.provider}</td>
+                  <td className="p-3 text-pool-700">
                     {humanize(item.status)}
                   </td>
-                  <td className="p-3 text-slate-700">
+                  <td className="p-3 text-pool-700">
                     {humanize(item.evidenceUse)}
                   </td>
                 </tr>
@@ -513,7 +513,7 @@ function parcelStatusPresentation(result: DataAccessSpikeResult): {
     result.identityCheck.distinctFromAlternatives
   ) {
     return {
-      className: "rounded-2xl border border-teal-200 bg-teal-50 px-4 py-3",
+      className: "rounded-2xl border border-pool-blue-200 bg-pool-blue-50 px-4 py-3",
       heading: "Legal parcel confirmed",
       detail: `Parcel ${result.parcel.parcelId} is the confirmed parcel for this selected address.`,
     };
@@ -546,19 +546,19 @@ function Disclosure({
     <details
       open={open}
       onToggle={(event) => onToggle(id, event.currentTarget.open)}
-      className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm"
+      className="group overflow-hidden rounded-2xl border border-pool-200 bg-white shadow-sm"
     >
-      <summary className="flex min-h-18 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-700">
+      <summary className="flex min-h-18 cursor-pointer list-none items-center justify-between gap-4 px-5 py-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-pool-blue-700">
         <span>
-          <span className="block font-semibold text-slate-950">{title}</span>
-          <span className="mt-1 block text-sm text-slate-600">{summary}</span>
+          <span className="block font-semibold text-pool-950">{title}</span>
+          <span className="mt-1 block text-sm text-pool-600">{summary}</span>
         </span>
         <ChevronDown
-          className="size-5 shrink-0 text-slate-500 transition group-open:rotate-180"
+          className="size-5 shrink-0 text-pool-500 transition group-open:rotate-180"
           aria-hidden="true"
         />
       </summary>
-      <div className="border-t border-slate-200 bg-slate-50/60 p-4 sm:p-5">
+      <div className="border-t border-pool-200 bg-pool-50/60 p-4 sm:p-5">
         {children}
       </div>
     </details>
@@ -567,9 +567,9 @@ function Disclosure({
 
 function Info({ title, items }: { title: string; items: string[] }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
-      <h4 className="font-semibold text-slate-950">{title}</h4>
-      <ul className="mt-3 space-y-2 text-sm text-slate-700">
+    <div className="rounded-2xl border border-pool-200 bg-white p-5">
+      <h4 className="font-semibold text-pool-950">{title}</h4>
+      <ul className="mt-3 space-y-2 text-sm text-pool-700">
         {items.map((item) => (
           <li key={item}>{item}</li>
         ))}
@@ -603,11 +603,11 @@ function ReportPreview({
 }) {
   return (
     <section aria-labelledby="report-preview-heading" className="space-y-4">
-      <div className="flex flex-col gap-3 rounded-2xl border border-slate-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-3 rounded-2xl border border-pool-200 bg-white p-4 sm:flex-row sm:items-center sm:justify-between">
         <button
           type="button"
           onClick={onBack}
-          className="inline-flex min-h-11 items-center gap-2 font-semibold text-slate-800"
+          className="inline-flex min-h-11 items-center gap-2 font-semibold text-pool-800"
         >
           <ArrowLeft className="size-4" aria-hidden="true" />
           Back to assessment
@@ -615,18 +615,18 @@ function ReportPreview({
         <div className="sm:text-center">
           <h2
             id="report-preview-heading"
-            className="font-semibold text-slate-950"
+            className="font-semibold text-pool-950"
           >
             PDF report preview
           </h2>
-          <p className="text-sm text-slate-600">Page {page} of 3 · A4</p>
+          <p className="text-sm text-pool-600">Page {page} of 3 · A4</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
           <button
             type="button"
             disabled={!mapImage}
             onClick={onPrint}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 font-semibold text-slate-800 disabled:cursor-not-allowed disabled:bg-slate-100 disabled:text-slate-400"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-pool-300 bg-white px-4 font-semibold text-pool-800 disabled:cursor-not-allowed disabled:bg-pool-100 disabled:text-pool-400"
           >
             <Printer className="size-4" aria-hidden="true" />
             Print / save PDF
@@ -635,7 +635,7 @@ function ReportPreview({
             type="button"
             disabled={!mapImage || generating}
             onClick={onDownload}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-slate-950 px-4 font-semibold text-white disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-pool-950 px-4 font-semibold text-white disabled:cursor-not-allowed disabled:bg-pool-400"
           >
             {generating ? (
               <LoaderCircle
@@ -663,7 +663,7 @@ function ReportPreview({
           {error}
         </p>
       )}
-      <div className="overflow-auto rounded-3xl bg-slate-200 p-3 sm:p-8">
+      <div className="overflow-auto rounded-3xl bg-pool-200 p-3 sm:p-8">
         <div className="mx-auto aspect-[210/297] w-full max-w-190 overflow-hidden bg-white p-[5%] shadow-xl">
           <PreviewPage
             assessment={assessment}
@@ -680,7 +680,7 @@ function ReportPreview({
             type="button"
             aria-current={page === number ? "page" : undefined}
             onClick={() => onPage(number)}
-            className={`size-11 rounded-xl border font-semibold ${page === number ? "border-teal-700 bg-teal-700 text-white" : "border-slate-300 bg-white text-slate-700"}`}
+            className={`size-11 rounded-xl border font-semibold ${page === number ? "border-pool-blue-700 bg-pool-blue-700 text-white" : "border-pool-300 bg-white text-pool-700"}`}
           >
             {number}
           </button>
@@ -727,15 +727,15 @@ function PreviewPage({
       className="mt-4 h-auto max-h-[42%] w-full rounded-lg object-contain"
     />
   ) : (
-    <div className="mt-4 grid h-[42%] place-items-center rounded-lg bg-slate-200 text-sm text-slate-600">
+    <div className="mt-4 grid h-[42%] place-items-center rounded-lg bg-pool-200 text-sm text-pool-600">
       Map capture pending
     </div>
   );
   return (
-    <article className="flex h-full flex-col text-[clamp(0.5rem,1.2vw,0.85rem)] text-slate-700">
-      <header className="flex justify-between border-b border-slate-300 pb-3">
+    <article className="flex h-full flex-col text-[clamp(0.5rem,1.2vw,0.85rem)] text-pool-700">
+      <header className="flex justify-between border-b border-pool-300 pb-3">
         <div>
-          <b className="text-slate-950">Pool feasibility assessment</b>
+          <b className="text-pool-950">Pool feasibility assessment</b>
           <span className="block">
             {page === 1
               ? "Executive summary"
@@ -748,19 +748,19 @@ function PreviewPage({
       </header>
       {page === 1 && (
         <>
-          <h3 className="mt-6 text-[2em] leading-tight font-semibold text-slate-950">
+          <h3 className="mt-6 text-[2em] leading-tight font-semibold text-pool-950">
             {assessment.property.address}
           </h3>
           <p>{assessment.property.appellation}</p>
-          <div className="mt-5 grid grid-cols-[auto_1fr] gap-4 rounded-xl border border-teal-200 bg-teal-50 p-4">
-            <span className="grid size-16 place-items-center rounded-full bg-teal-800 text-xl font-bold text-white">
+          <div className="mt-5 grid grid-cols-[auto_1fr] gap-4 rounded-xl border border-pool-blue-200 bg-pool-blue-50 p-4">
+            <span className="grid size-16 place-items-center rounded-full bg-pool-blue-800 text-xl font-bold text-white">
               {assessment.feasibilityAssessment.score ?? "—"}
             </span>
             <div>
-              <b className="text-[1.2em] text-slate-950">
+              <b className="text-[1.2em] text-pool-950">
                 {assessment.recommendation}
               </b>
-              <p className="mt-1 font-semibold text-teal-900">
+              <p className="mt-1 font-semibold text-pool-blue-900">
                 Recommended screened size:{" "}
                 {assessment.scenarioComparison.recommendedShell
                   ? `${assessment.scenarioComparison.recommendedShell.label} · ${assessment.scenarioComparison.recommendedShell.lengthMetres}m × ${assessment.scenarioComparison.recommendedShell.widthMetres}m`
@@ -775,7 +775,7 @@ function PreviewPage({
               </p>
             </div>
           </div>
-          <h4 className="mt-5 font-semibold text-slate-950">Priority risks</h4>
+          <h4 className="mt-5 font-semibold text-pool-950">Priority risks</h4>
           <ul className="mt-2 space-y-2">
             {assessment.risks.slice(0, 3).map((risk) => (
               <li key={risk.id} className="border-l-2 border-amber-600 pl-3">
@@ -789,7 +789,7 @@ function PreviewPage({
       )}
       {page === 2 && (
         <>
-          <h3 className="mt-6 text-[2em] font-semibold text-slate-950">
+          <h3 className="mt-6 text-[2em] font-semibold text-pool-950">
             Mapped property evidence
           </h3>
           <p>Official geometry returned during this session.</p>
@@ -798,7 +798,7 @@ function PreviewPage({
             {assessment.provenance.datasets.slice(0, 6).map((item) => (
               <div
                 key={item.id}
-                className="rounded border border-slate-200 p-2"
+                className="rounded border border-pool-200 p-2"
               >
                 <b>{item.dataset}</b>
                 <span className="block">
@@ -811,12 +811,12 @@ function PreviewPage({
       )}
       {page === 3 && (
         <>
-          <h3 className="mt-6 text-[2em] font-semibold text-slate-950">
+          <h3 className="mt-6 text-[2em] font-semibold text-pool-950">
             What needs attention next
           </h3>
           <div className="mt-5 grid grid-cols-2 gap-5">
             <div>
-              <h4 className="font-semibold text-slate-950">Material risks</h4>
+              <h4 className="font-semibold text-pool-950">Material risks</h4>
               <ul className="mt-2 space-y-2">
                 {assessment.risks.slice(0, 5).map((risk) => (
                   <li
@@ -830,7 +830,7 @@ function PreviewPage({
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold text-slate-950">
+              <h4 className="font-semibold text-pool-950">
                 Prioritised actions
               </h4>
               <ul className="mt-2 list-disc space-y-2 pl-4">
@@ -841,7 +841,7 @@ function PreviewPage({
                     <li key={item}>{item}</li>
                   ))}
               </ul>
-              <h4 className="mt-4 font-semibold text-slate-950">
+              <h4 className="mt-4 font-semibold text-pool-950">
                 Missing information
               </h4>
               <ul className="mt-2 list-disc pl-4">
@@ -851,12 +851,12 @@ function PreviewPage({
               </ul>
             </div>
           </div>
-          <p className="mt-5 border-t border-slate-300 pt-3">
+          <p className="mt-5 border-t border-pool-300 pt-3">
             <b>Limit:</b> {assessment.limitations.join(" ")}
           </p>
         </>
       )}
-      <footer className="mt-auto border-t border-slate-300 pt-2 text-slate-500">
+      <footer className="mt-auto border-t border-pool-300 pt-2 text-pool-500">
         {savedReference
           ? `Saved assessment ${savedReference}`
           : "Internal preliminary assessment · No durable report history"}

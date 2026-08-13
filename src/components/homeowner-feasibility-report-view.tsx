@@ -92,29 +92,29 @@ export function HomeownerFeasibilityReportView({
   return (
     <article
       aria-labelledby="saved-report-heading"
-      className="mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border border-slate-200 bg-white text-slate-900 shadow-sm"
+      className="border-pool-200 text-pool-900 mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border bg-white shadow-sm"
     >
       <ActionProgressDialog
         open={downloading}
         title="Preparing your PDF"
         description="Generating your preliminary property assessment report."
       />
-      <header className="border-b border-slate-200 px-5 py-5 sm:px-8 lg:px-10">
+      <header className="border-pool-200 border-b px-5 py-5 sm:px-8 lg:px-10">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
-            <p className="font-mono text-xs font-semibold text-slate-500">
+            <p className="text-pool-500 font-mono text-xs font-semibold">
               {report.reference}
             </p>
             <h2
               id="saved-report-heading"
-              className="mt-2 text-2xl font-semibold tracking-[-0.025em] text-slate-950 sm:text-3xl"
+              className="text-pool-950 mt-2 text-2xl font-semibold tracking-[-0.025em] sm:text-3xl"
             >
               Preliminary Pool Feasibility Report
             </h2>
-            <p className="mt-2 text-base font-medium text-slate-800">
+            <p className="text-pool-800 mt-2 text-base font-medium">
               {report.property.address}
             </p>
-            <p className="mt-1 text-sm text-slate-600">
+            <p className="text-pool-600 mt-1 text-sm">
               Proposed pool: {formatReportNumber(report.pool.lengthMetres)} x{" "}
               {formatReportNumber(report.pool.widthMetres)} m · Generated{" "}
               {formatReportGeneratedAt(report.generatedAt)}
@@ -122,20 +122,20 @@ export function HomeownerFeasibilityReportView({
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row lg:justify-end">
             {showBackAction && (
-            <button
-              type="button"
-              onClick={onBack}
-              className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 font-semibold text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
-            >
-              Back to assessment
-            </button>
+              <button
+                type="button"
+                onClick={onBack}
+                className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl border bg-white px-4 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                Back to assessment
+              </button>
             )}
             {downloadAccessToken && (
               <button
                 type="button"
                 onClick={() => void downloadPdf()}
                 disabled={downloading}
-                className="inline-flex min-h-11 items-center justify-center rounded-xl bg-slate-950 px-5 font-semibold text-white transition-colors hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-wait disabled:bg-slate-500"
+                className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-500 inline-flex min-h-11 items-center justify-center rounded-xl px-5 font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-wait"
               >
                 {downloading ? "Preparing PDF..." : "Download PDF"}
               </button>
@@ -176,23 +176,23 @@ export function HomeownerFeasibilityReportView({
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
             <h3
               id="at-a-glance-heading"
-              className="text-xl font-semibold tracking-[-0.02em] text-slate-950"
+              className="text-pool-950 text-xl font-semibold tracking-[-0.02em]"
             >
               At a glance
             </h3>
-            <p className="text-sm text-slate-600">
+            <p className="text-pool-600 text-sm">
               Status is always shown in words as well as colour.
             </p>
           </div>
-          <dl className="mt-4 overflow-hidden rounded-xl border border-slate-200 sm:grid sm:grid-cols-2">
+          <dl className="border-pool-200 mt-4 overflow-hidden rounded-xl border sm:grid sm:grid-cols-2">
             {REPORT_ASSESSMENT_ORDER.map((id) => {
               const item = report.assessments[id];
               return (
                 <div
                   key={id}
-                  className="flex min-h-14 items-center justify-between gap-4 border-b border-slate-200 px-4 py-3 last:border-b-0 sm:[&:nth-child(odd)]:border-r sm:[&:nth-last-child(-n+2)]:border-b-0"
+                  className="border-pool-200 flex min-h-14 items-center justify-between gap-4 border-b px-4 py-3 last:border-b-0 sm:[&:nth-child(odd)]:border-r sm:[&:nth-last-child(-n+2)]:border-b-0"
                 >
-                  <dt className="font-semibold text-slate-900">{item.title}</dt>
+                  <dt className="text-pool-900 font-semibold">{item.title}</dt>
                   <dd
                     className={`text-right text-sm font-bold ${statusTextClasses(item.status)}`}
                   >
@@ -209,11 +209,11 @@ export function HomeownerFeasibilityReportView({
             <div>
               <h3
                 id="report-map-heading"
-                className="text-xl font-semibold tracking-[-0.02em] text-slate-950"
+                className="text-pool-950 text-xl font-semibold tracking-[-0.02em]"
               >
                 Assessment map
               </h3>
-              <p className="mt-1 text-sm text-slate-600">
+              <p className="text-pool-600 mt-1 text-sm">
                 The saved map reflects the layers visible when this report was
                 generated.
               </p>
@@ -228,11 +228,11 @@ export function HomeownerFeasibilityReportView({
         <section aria-labelledby="key-findings-heading">
           <h3
             id="key-findings-heading"
-            className="text-xl font-semibold tracking-[-0.02em] text-slate-950"
+            className="text-pool-950 text-xl font-semibold tracking-[-0.02em]"
           >
             Key findings
           </h3>
-          <div className="mt-4 divide-y divide-slate-200 border-y border-slate-200">
+          <div className="divide-pool-200 border-pool-200 mt-4 divide-y border-y">
             {report.keyFindings.map((finding) => (
               <article
                 key={finding.id}
@@ -244,10 +244,10 @@ export function HomeownerFeasibilityReportView({
                   {reportShortStatus(finding.severity)}
                 </p>
                 <div>
-                  <h4 className="font-semibold text-slate-950">
+                  <h4 className="text-pool-950 font-semibold">
                     {finding.title}
                   </h4>
-                  <p className="mt-1 max-w-3xl text-sm leading-6 text-slate-700">
+                  <p className="text-pool-700 mt-1 max-w-3xl text-sm leading-6">
                     {finding.clientSummary}
                   </p>
                 </div>
@@ -259,15 +259,15 @@ export function HomeownerFeasibilityReportView({
         <section aria-labelledby="site-assessment-heading">
           <h3
             id="site-assessment-heading"
-            className="text-xl font-semibold tracking-[-0.02em] text-slate-950"
+            className="text-pool-950 text-xl font-semibold tracking-[-0.02em]"
           >
             Site assessment
           </h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          <p className="text-pool-600 mt-2 max-w-3xl text-sm leading-6">
             Approximate mapped information supports early planning only. Open
             technical details only when you need the saved source context.
           </p>
-          <div className="mt-5 divide-y divide-slate-200 border-y border-slate-200">
+          <div className="divide-pool-200 border-pool-200 mt-5 divide-y border-y">
             {REPORT_ASSESSMENT_ORDER.map((id) => (
               <AssessmentSection key={id} assessment={report.assessments[id]} />
             ))}
@@ -276,22 +276,22 @@ export function HomeownerFeasibilityReportView({
 
         <section
           aria-labelledby="later-verification-heading"
-          className="rounded-xl bg-slate-50 p-5 sm:p-6"
+          className="bg-pool-50 rounded-xl p-5 sm:p-6"
         >
           <h3
             id="later-verification-heading"
-            className="text-lg font-semibold text-slate-950"
+            className="text-pool-950 text-lg font-semibold"
           >
             Requires later verification
           </h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+          <p className="text-pool-700 mt-2 max-w-3xl text-sm leading-6">
             These normal later-stage checks do not make the desktop assessment
             incomplete.
           </p>
-          <ul className="mt-4 grid gap-x-8 gap-y-2 text-sm text-slate-700 sm:grid-cols-2">
+          <ul className="text-pool-700 mt-4 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
             {report.laterVerification.map((item) => (
               <li key={item} className="flex gap-2">
-                <span aria-hidden="true" className="text-slate-400">
+                <span aria-hidden="true" className="text-pool-400">
                   •
                 </span>
                 <span>{item}</span>
@@ -304,23 +304,23 @@ export function HomeownerFeasibilityReportView({
           <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
             <h3
               id="next-steps-heading"
-              className="text-xl font-semibold tracking-[-0.02em] text-slate-950"
+              className="text-pool-950 text-xl font-semibold tracking-[-0.02em]"
             >
               Recommended next steps
             </h3>
-            <p className="text-sm font-semibold text-teal-800">
+            <p className="text-pool-blue-800 text-sm font-semibold">
               Next stage: {report.overall.recommendedStage}
             </p>
           </div>
           <ol className="mt-5 grid gap-x-8 gap-y-5 sm:grid-cols-2">
             {report.nextSteps.map((step, index) => (
               <li key={step.id} className="flex gap-3">
-                <span className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-teal-50 text-sm font-bold text-teal-800">
+                <span className="bg-pool-blue-50 text-pool-blue-800 grid h-8 w-8 shrink-0 place-items-center rounded-full text-sm font-bold">
                   {index + 1}
                 </span>
                 <div>
-                  <h4 className="font-semibold text-slate-950">{step.title}</h4>
-                  <p className="mt-1 text-sm leading-6 text-slate-700">
+                  <h4 className="text-pool-950 font-semibold">{step.title}</h4>
+                  <p className="text-pool-700 mt-1 text-sm leading-6">
                     {step.summary}
                   </p>
                 </div>
@@ -332,24 +332,24 @@ export function HomeownerFeasibilityReportView({
         <section aria-labelledby="mapping-information-heading">
           <h3
             id="mapping-information-heading"
-            className="text-lg font-semibold text-slate-950"
+            className="text-pool-950 text-lg font-semibold"
           >
             Mapping & data information
           </h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-700">
+          <p className="text-pool-700 mt-2 max-w-3xl text-sm leading-6">
             This saved assessment uses mapped information from{" "}
             {providerSummary(report)}. Mapped information is indicative and may
             differ from site conditions.
           </p>
-          <details className="mt-4 rounded-xl border border-slate-200 bg-white open:bg-slate-50">
-            <summary className="min-h-11 cursor-pointer px-4 py-3 font-semibold text-slate-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
+          <details className="border-pool-200 open:bg-pool-50 mt-4 rounded-xl border bg-white">
+            <summary className="text-pool-900 focus-visible:outline-pool-blue-700 min-h-11 cursor-pointer px-4 py-3 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2">
               View detailed sources
             </summary>
-            <div className="border-t border-slate-200 px-4 py-4">
-              <ul className="space-y-4 text-sm text-slate-700">
+            <div className="border-pool-200 border-t px-4 py-4">
+              <ul className="text-pool-700 space-y-4 text-sm">
                 {report.sources.map((source) => (
                   <li key={`${source.provider}-${source.dataset}`}>
-                    <p className="font-semibold text-slate-950">
+                    <p className="text-pool-950 font-semibold">
                       {source.dataset}
                     </p>
                     <p>
@@ -368,7 +368,7 @@ export function HomeownerFeasibilityReportView({
                         href={source.sourceUrl}
                         target="_blank"
                         rel="noreferrer"
-                        className="font-medium break-all text-teal-800 underline underline-offset-2"
+                        className="text-pool-blue-800 font-medium break-all underline underline-offset-2"
                       >
                         Source information
                       </a>
@@ -382,11 +382,11 @@ export function HomeownerFeasibilityReportView({
 
         <section
           aria-labelledby="preliminary-assessment-heading"
-          className="border-t border-slate-200 pt-6 text-sm leading-6 text-slate-600"
+          className="border-pool-200 text-pool-600 border-t pt-6 text-sm leading-6"
         >
           <h3
             id="preliminary-assessment-heading"
-            className="font-semibold text-slate-900"
+            className="text-pool-900 font-semibold"
           >
             Preliminary assessment
           </h3>
@@ -413,7 +413,7 @@ function AssessmentSection({ assessment }: { assessment: ReportAssessment }) {
   return (
     <article className="grid gap-3 py-5 lg:grid-cols-[12rem_minmax(0,1fr)] lg:gap-8">
       <div>
-        <h4 className="font-semibold text-slate-950">{assessment.title}</h4>
+        <h4 className="text-pool-950 font-semibold">{assessment.title}</h4>
         <p
           className={`mt-1 text-sm font-bold ${statusTextClasses(assessment.status)}`}
         >
@@ -421,7 +421,7 @@ function AssessmentSection({ assessment }: { assessment: ReportAssessment }) {
         </p>
       </div>
       <div>
-        <p className="max-w-3xl text-sm leading-6 text-slate-700">
+        <p className="text-pool-700 max-w-3xl text-sm leading-6">
           {assessment.summary}
         </p>
         {assessment.details.length > 0 && (
@@ -429,10 +429,10 @@ function AssessmentSection({ assessment }: { assessment: ReportAssessment }) {
             {assessment.details.map((detail) => (
               <div
                 key={detail.label}
-                className="flex justify-between gap-4 border-t border-slate-200 pt-2"
+                className="border-pool-200 flex justify-between gap-4 border-t pt-2"
               >
-                <dt className="text-slate-600">{detail.label}</dt>
-                <dd className="text-right font-semibold text-slate-900">
+                <dt className="text-pool-600">{detail.label}</dt>
+                <dd className="text-pool-900 text-right font-semibold">
                   {detail.value}
                 </dd>
               </div>
@@ -441,17 +441,17 @@ function AssessmentSection({ assessment }: { assessment: ReportAssessment }) {
         )}
         {assessment.technicalDetails.length > 0 && (
           <details className="mt-3 max-w-2xl">
-            <summary className="min-h-11 cursor-pointer py-3 text-sm font-semibold text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700">
+            <summary className="text-pool-blue-800 focus-visible:outline-pool-blue-700 min-h-11 cursor-pointer py-3 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2">
               View technical details
             </summary>
-            <dl className="grid gap-2 rounded-lg bg-slate-50 p-4 text-sm">
+            <dl className="bg-pool-50 grid gap-2 rounded-lg p-4 text-sm">
               {assessment.technicalDetails.map((detail) => (
                 <div
                   key={`${detail.label}-${detail.value}`}
                   className="grid gap-1 sm:grid-cols-[12rem_minmax(0,1fr)]"
                 >
-                  <dt className="font-medium text-slate-600">{detail.label}</dt>
-                  <dd className="text-slate-800">{detail.value}</dd>
+                  <dt className="text-pool-600 font-medium">{detail.label}</dt>
+                  <dd className="text-pool-800">{detail.value}</dd>
                 </div>
               ))}
             </dl>
@@ -463,17 +463,18 @@ function AssessmentSection({ assessment }: { assessment: ReportAssessment }) {
 }
 
 function statusPanelClasses(status: AssessmentStatus) {
-  if (status === "green") return "border-teal-200 bg-teal-50 text-teal-950";
+  if (status === "green")
+    return "border-pool-blue-200 bg-pool-blue-50 text-pool-blue-950";
   if (status === "amber") return "border-amber-200 bg-amber-50 text-amber-950";
   if (status === "red") return "border-red-200 bg-red-50 text-red-950";
-  return "border-slate-300 bg-slate-100 text-slate-900";
+  return "border-pool-300 bg-pool-100 text-pool-900";
 }
 
 function statusTextClasses(status: AssessmentStatus) {
-  if (status === "green") return "text-teal-800";
+  if (status === "green") return "text-pool-blue-800";
   if (status === "amber") return "text-amber-800";
   if (status === "red") return "text-red-800";
-  return "text-slate-600";
+  return "text-pool-600";
 }
 
 function providerSummary(report: SavedPreliminaryReport) {

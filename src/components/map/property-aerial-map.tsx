@@ -548,20 +548,20 @@ export function PropertyAerialMap({
   return (
     <section
       aria-label={`Aerial map for ${result.resolvedAddress.fullAddress}`}
-      className="overflow-hidden rounded-2xl border border-slate-200 bg-slate-900 shadow-[0_1px_2px_0_rgb(0_0_0/5%)]"
+      className="overflow-hidden rounded-2xl border border-pool-200 bg-pool-900 shadow-[0_1px_2px_0_rgb(0_0_0/5%)]"
     >
-      <div className="flex flex-col gap-2 border-b border-white/10 bg-slate-950 px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 border-b border-white/10 bg-pool-950 px-5 py-4 text-white sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="font-semibold">
             Confirmed parcel on LINZ aerial imagery
           </h3>
-          <p className="mt-1 text-sm text-slate-300">
+          <p className="mt-1 text-sm text-pool-300">
             Teal shows parcel {result.parcel.parcelId}; orange marks the
             resolved address point.
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <span className="text-xs font-semibold tracking-wide text-teal-200 uppercase">
+          <span className="text-xs font-semibold tracking-wide text-pool-blue-200 uppercase">
             {aerialFailed
               ? "Imagery unavailable"
               : aerialVerified
@@ -572,30 +572,30 @@ export function PropertyAerialMap({
             <button
               type="button"
               onClick={onRetry}
-              className="rounded-lg border border-teal-300/40 px-3 py-2 text-xs font-semibold text-white transition hover:border-teal-200 hover:bg-white/10"
+              className="rounded-lg border border-pool-blue-300/40 px-3 py-2 text-xs font-semibold text-white transition hover:border-pool-blue-200 hover:bg-white/10"
             >
               Try imagery again
             </button>
           )}
         </div>
       </div>
-      <div className="grid border-b border-slate-200 bg-white lg:grid-cols-[minmax(0,1fr)_17rem]">
+      <div className="grid border-b border-pool-200 bg-white lg:grid-cols-[minmax(0,1fr)_17rem]">
         <div
           ref={containerRef}
-          className="h-[min(62vw,600px)] min-h-[420px] w-full bg-slate-800"
+          className="h-[min(62vw,600px)] min-h-[420px] w-full bg-pool-800"
           aria-label="Interactive property map showing the confirmed parcel, pool concept, and mapped utility evidence"
         />
         <aside
           aria-label="Map legend"
-          className="border-t border-slate-200 p-5 lg:border-t-0 lg:border-l"
+          className="border-t border-pool-200 p-5 lg:border-t-0 lg:border-l"
         >
-          <h4 className="font-semibold text-slate-950">Utility legend</h4>
-          <p className="mt-1 text-xs leading-5 text-slate-500">
+          <h4 className="font-semibold text-pool-950">Utility legend</h4>
+          <p className="mt-1 text-xs leading-5 text-pool-500">
             Returned services only. Building outlines, contours, and planning
             layers are kept out of this view.
           </p>
           {availableMappedLayers.length ? (
-            <ul className="mt-4 space-y-3 text-sm text-slate-700">
+            <ul className="mt-4 space-y-3 text-sm text-pool-700">
               {availableMappedLayers.map(({ definition, evidence }) => (
                 <li key={definition.key}>
                   <label className="flex cursor-pointer gap-2">
@@ -609,7 +609,7 @@ export function PropertyAerialMap({
                           [definition.key]: event.target.checked,
                         }))
                       }
-                      className="mt-1 size-4 shrink-0 accent-teal-700"
+                      className="mt-1 size-4 shrink-0 accent-pool-blue-700"
                     />
                     <span
                       aria-hidden="true"
@@ -621,10 +621,10 @@ export function PropertyAerialMap({
                       style={{ backgroundColor: definition.color }}
                     />
                     <span>
-                      <span className="block font-medium text-slate-900">
+                      <span className="block font-medium text-pool-900">
                         {evidence.dataset}
                       </span>
-                      <span className="block text-xs text-slate-500">
+                      <span className="block text-xs text-pool-500">
                         {evidence.featureCount ?? 0} mapped
                       </span>
                       {evidence.evidenceUse === "internal_reference" && (
@@ -638,11 +638,11 @@ export function PropertyAerialMap({
               ))}
             </ul>
           ) : (
-            <p className="mt-4 text-sm leading-6 text-slate-600">
+            <p className="mt-4 text-sm leading-6 text-pool-600">
               No mapped utility geometry was returned for this property.
             </p>
           )}
-          <div className="mt-5 space-y-2 text-xs leading-5 text-slate-500">
+          <div className="mt-5 space-y-2 text-xs leading-5 text-pool-500">
             {uniqueMappedAttributions(mappedLayers).map((attribution) => (
               <a
                 key={attribution.url}
@@ -676,7 +676,7 @@ export function PropertyAerialMap({
           confirmed. No placement recommendation is exposed.
         </div>
       )}
-      <div className="flex flex-col gap-2 bg-white px-5 py-3 text-xs leading-5 text-slate-600 sm:flex-row sm:items-center sm:justify-between">
+      <div className="flex flex-col gap-2 bg-white px-5 py-3 text-xs leading-5 text-pool-600 sm:flex-row sm:items-center sm:justify-between">
         <p>
           {mapError
             ? "The interactive imagery could not be loaded. Retry the property request or check the LINZ key."
@@ -769,15 +769,15 @@ function PlacementControls({
 }) {
   return (
     <div
-      className="border-t border-slate-200 bg-white px-5 py-6"
+      className="border-t border-pool-200 bg-white px-5 py-6"
       aria-label="Manual pool placement workspace"
     >
       <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
         <div>
-          <h4 className="text-lg font-semibold text-slate-950">
+          <h4 className="text-lg font-semibold text-pool-950">
             Manual pool placement
           </h4>
-          <p className="mt-1 text-sm text-slate-600">
+          <p className="mt-1 text-sm text-pool-600">
             Choose a pool size, then drag the blue pool within the parcel. Drag
             the handle above it to rotate the layout.
           </p>
@@ -793,7 +793,7 @@ function PlacementControls({
               type="button"
               aria-pressed={placementPreset === id}
               onClick={() => onPreset(id)}
-              className="min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold transition-colors hover:border-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50"
+              className="min-h-11 rounded-lg border border-pool-300 px-3 py-2 text-sm font-semibold transition-colors hover:border-pool-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700 aria-pressed:border-pool-blue-700 aria-pressed:bg-pool-blue-50"
             >
               {formatPlacementPresetLabel(id)}
             </button>
@@ -802,7 +802,7 @@ function PlacementControls({
             type="button"
             aria-pressed={placementPreset === "custom"}
             onClick={() => onPreset("custom")}
-            className="min-h-11 rounded-lg border border-slate-300 px-3 py-2 text-sm font-semibold transition-colors hover:border-teal-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50"
+            className="min-h-11 rounded-lg border border-pool-300 px-3 py-2 text-sm font-semibold transition-colors hover:border-pool-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700 aria-pressed:border-pool-blue-700 aria-pressed:bg-pool-blue-50"
           >
             Custom size
           </button>
@@ -810,7 +810,7 @@ function PlacementControls({
       </div>
       {placementPreset === "custom" && (
         <div className="mt-4 grid max-w-xl gap-3 sm:grid-cols-2">
-          <label className="text-sm font-medium text-slate-800">
+          <label className="text-sm font-medium text-pool-800">
             Length (m)
             <input
               inputMode="decimal"
@@ -820,10 +820,10 @@ function PlacementControls({
               step="0.1"
               value={customLength}
               onChange={(event) => onCustomLength(event.target.value)}
-              className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 focus:border-teal-700 focus:bg-white focus:outline-2 focus:outline-teal-700"
+              className="mt-1 block min-h-11 w-full rounded-lg border border-pool-300 bg-pool-50 px-3 focus:border-pool-blue-700 focus:bg-white focus:outline-2 focus:outline-pool-blue-700"
             />
           </label>
-          <label className="text-sm font-medium text-slate-800">
+          <label className="text-sm font-medium text-pool-800">
             Width (m)
             <input
               inputMode="decimal"
@@ -833,7 +833,7 @@ function PlacementControls({
               step="0.1"
               value={customWidth}
               onChange={(event) => onCustomWidth(event.target.value)}
-              className="mt-1 block min-h-11 w-full rounded-lg border border-slate-300 bg-slate-50 px-3 focus:border-teal-700 focus:bg-white focus:outline-2 focus:outline-teal-700"
+              className="mt-1 block min-h-11 w-full rounded-lg border border-pool-300 bg-pool-50 px-3 focus:border-pool-blue-700 focus:bg-white focus:outline-2 focus:outline-pool-blue-700"
             />
           </label>
         </div>
@@ -844,14 +844,14 @@ function PlacementControls({
         </p>
       )}
       {dimensions && (
-        <p className="mt-3 text-sm text-slate-700">
+        <p className="mt-3 text-sm text-pool-700">
           Selected shell: {dimensions.lengthMetres} m × {dimensions.widthMetres}{" "}
           m.
         </p>
       )}
       {assessment && <PlacementStatus assessment={assessment} />}
       <div
-        className="mt-4 grid gap-2 text-xs text-slate-700 sm:grid-cols-3"
+        className="mt-4 grid gap-2 text-xs text-pool-700 sm:grid-cols-3"
         aria-label="Placement overlay legend"
       >
         <span>
@@ -893,7 +893,7 @@ function PlacementStatus({
             ? "rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-950"
             : assessment.classification === "unknown"
               ? "rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950"
-              : "rounded-xl border border-teal-200 bg-teal-50 p-3 text-sm text-teal-950"
+              : "rounded-xl border border-pool-blue-200 bg-pool-blue-50 p-3 text-sm text-pool-blue-950"
         }
       >
         <strong className="text-base">
@@ -921,9 +921,9 @@ function PlacementStatus({
           </p>
         )}
       </div>
-      <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 text-sm text-slate-900">
+      <div className="rounded-xl border border-pool-200 bg-pool-50 p-4 text-sm text-pool-900">
         <strong className="text-base">Measurements from mapped evidence</strong>
-        <p className="mt-1 text-xs leading-5 text-slate-600">
+        <p className="mt-1 text-xs leading-5 text-pool-600">
           Distances are indicative and only available where a reliable layer was
           returned.
         </p>
@@ -968,7 +968,7 @@ function PlacementStatus({
 function Distance({ label, value }: { label: string; value: number | null }) {
   return (
     <div>
-      <dt className="text-slate-500">{label}</dt>
+      <dt className="text-pool-500">{label}</dt>
       <dd className="font-semibold">
         {value === null ? "Not mapped" : `${value.toFixed(1)} m`}
       </dd>
