@@ -37,4 +37,20 @@ describe("saved report access token", () => {
       "INVALID_SAVED_REPORT_ACCESS_TOKEN",
     );
   });
+
+  it("uses the existing Resend key when no dedicated report-token key is set", async () => {
+    vi.stubEnv("INTERNAL_REPORT_SIGNING_SECRET", "");
+    vi.stubEnv("RESEND_API_KEY", "re_test_existing_delivery_key_1234567890");
+    vi.resetModules();
+    const { issueSavedReportAccessToken, verifySavedReportAccessToken } =
+      await import("@/modules/reporting/saved-report-access-token");
+    const access = {
+      assessmentId: "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48",
+      reference: "GF-2026-000123",
+    };
+
+    expect(verifySavedReportAccessToken(issueSavedReportAccessToken(access))).toEqual(
+      access,
+    );
+  });
 });

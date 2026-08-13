@@ -1,6 +1,6 @@
 import "server-only";
 
-import { createHmac, timingSafeEqual } from "node:crypto";
+import { createHash, createHmac, timingSafeEqual } from "node:crypto";
 
 const TOKEN_TTL_MS = 60 * 60 * 1_000;
 const UUID_PATTERN =
@@ -85,11 +85,21 @@ export function createSavedReportAccessTokenService(
 
 function defaultService() {
   if (!configuredService) {
-    const signingKey = process.env.INTERNAL_REPORT_SIGNING_SECRET;
+    const signingKey =
+      process.env.INTERNAL_REPORT_SIGNING_SECRET ||
+      signingKeyFromResendApiKey(process.env.RESEND_API_KEY);
     if (!signingKey) throw new Error("INTERNAL_REPORT_SIGNING_SECRET_REQUIRED");
     configuredService = createSavedReportAccessTokenService(signingKey);
   }
   return configuredService;
+}
+
+function signingKeyFromResendApiKey(apiKey: string | undefined) {
+  if (!apiKey) return undefined;
+  return createHash("sha256")
+    .update("royal-glass/saved-report-access-token/v1\0", "utf8")
+    .update(apiKey, "utf8")
+    .digest("base64url");
 }
 
 function validAccess(

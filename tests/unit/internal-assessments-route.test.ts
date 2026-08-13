@@ -12,6 +12,7 @@ const getDb = vi.hoisted(() => vi.fn(() => ({}) as never));
 const saveHomeownerAssessment = vi.hoisted(() => vi.fn());
 const getSavedPreliminaryReportById = vi.hoisted(() => vi.fn());
 const deliverAssessmentReportByReference = vi.hoisted(() => vi.fn());
+const issueSavedReportAccessToken = vi.hoisted(() => vi.fn());
 const scheduledCallbacks = vi.hoisted(
   () => [] as Array<() => void | Promise<void>>,
 );
@@ -35,6 +36,9 @@ vi.mock("@/db/repositories/homeowner-assessment-repository", () => ({
 }));
 vi.mock("@/modules/reporting/deliver-assessment-report", () => ({
   deliverAssessmentReportByReference,
+}));
+vi.mock("@/modules/reporting/saved-report-access-token", () => ({
+  issueSavedReportAccessToken,
 }));
 
 import { POST } from "@/app/api/internal/assessments/route";
@@ -111,6 +115,7 @@ afterEach(() => {
   saveHomeownerAssessment.mockReset();
   getSavedPreliminaryReportById.mockReset();
   deliverAssessmentReportByReference.mockReset();
+  issueSavedReportAccessToken.mockReset();
   scheduledCallbacks.length = 0;
   vi.unstubAllEnvs();
 });
@@ -466,6 +471,7 @@ describe("POST /api/internal/assessments", () => {
     deliverAssessmentReportByReference.mockRejectedValue(
       new Error("email provider unavailable"),
     );
+    issueSavedReportAccessToken.mockReturnValue("saved-report-access-token");
 
     const response = await POST(
       new Request("http://127.0.0.1:3000/api/internal/assessments", {
@@ -517,7 +523,7 @@ describe("POST /api/internal/assessments", () => {
     );
   });
 
-  it("rejects a replayed server snapshot", async () => {
+  it("returns an already-saved assessment and retries its pending delivery", async () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("INTERNAL_REPORT_SIGNING_SECRET", snapshotSigningKey);
     saveHomeownerAssessment.mockResolvedValue({
@@ -530,6 +536,8 @@ describe("POST /api/internal/assessments", () => {
       },
       created: false,
     });
+    getSavedPreliminaryReportById.mockResolvedValue({} as never);
+    issueSavedReportAccessToken.mockReturnValue("saved-report-access-token");
 
     const response = await POST(
       new Request("http://127.0.0.1:3000/api/internal/assessments", {
@@ -538,12 +546,58 @@ describe("POST /api/internal/assessments", () => {
       }),
     );
 
-    expect(response.status).toBe(409);
+    expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      error: { code: "ASSESSMENT_SNAPSHOT_ALREADY_USED" },
+      assessment: {
+        id: "assessment-1",
+        reference: "GF-2026-000001",
+        created: false,
+        reportAccessToken: "saved-report-access-token",
+      },
     });
-    expect(getSavedPreliminaryReportById).not.toHaveBeenCalled();
+    expect(getSavedPreliminaryReportById).toHaveBeenCalledWith(
+      expect.anything(),
+      "assessment-1",
+    );
     expect(deliverAssessmentReportByReference).not.toHaveBeenCalled();
+    expect(scheduledCallbacks).toHaveLength(1);
+  });
+
+  it("returns a retryable response when saved-report access is not configured", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("INTERNAL_REPORT_SIGNING_SECRET", "");
+    saveHomeownerAssessment.mockResolvedValue({
+      assessment: {
+        id: ASSESSMENT_ID,
+        reference: "GF-2026-000001",
+        status: "new_enquiry",
+        emailDeliveryState: "pending",
+        forwardingState: "pending",
+      },
+      created: true,
+    });
+    getSavedPreliminaryReportById.mockResolvedValue({} as never);
+    issueSavedReportAccessToken.mockImplementation(() => {
+      throw new Error("INTERNAL_REPORT_SIGNING_SECRET_REQUIRED");
+    });
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/assessments", {
+        method: "POST",
+        headers: { "x-correlation-id": "report-access-unavailable" },
+        body: JSON.stringify(validSubmission),
+      }),
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "REPORT_ACCESS_UNAVAILABLE",
+        message: "The saved report is temporarily unavailable. Please try again shortly.",
+        correlationId: "report-access-unavailable",
+      },
+    });
+    expect(scheduledCallbacks).toHaveLength(0);
   });
 });
 

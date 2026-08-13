@@ -39,6 +39,10 @@ or browser report. Both controlled-test destinations receive the same saved repo
 Resend; the internal destination is fixed in the controlled-test boundary as
 `royalglass666@gmail.com`. The mode fails closed in production and when it is not explicitly
 enabled. `SERVICEM8_FORWARD_EMAIL` remains unset, and no ServiceM8 email or API job is created.
+Saved-report access tokens derive a domain-scoped signing key from `RESEND_API_KEY` when
+`INTERNAL_REPORT_SIGNING_SECRET` is not configured, so test delivery does not require an additional
+Vercel variable. The separate `INTERNAL_REPORT_SIGNING_SECRET` remains the preferred key for signed
+Property Check snapshots when that feature is enabled.
 
 `GET /api/internal/assessments/:id/report` regenerates the PDF only from the saved aggregate and
 map. It uses the same development-only internal access boundary as assessment submission.
