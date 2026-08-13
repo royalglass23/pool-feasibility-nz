@@ -15,6 +15,31 @@ export const savedPreliminaryReport = buildTestPreliminaryReport({
   title: "Preliminary pool feasibility assessment",
   summary: "A blocked saved assessment.",
   warningState: "blocked",
+  overall: {
+    status: "red",
+    headline: "Potential constraint identified",
+    summary:
+      "Mapped wastewater infrastructure may affect the proposed pool position. Review this issue before progressing with the current layout.",
+    recommendedStage: "Review pool position",
+  },
+  keyFindings: [
+    {
+      id: "wastewater_conflict",
+      category: "wastewater",
+      severity: "red",
+      title: "Wastewater infrastructure near the proposed pool",
+      clientSummary:
+        "Mapped wastewater infrastructure may affect the proposed pool position and should be checked before the layout is finalised.",
+    },
+  ],
+  nextSteps: [
+    {
+      id: "verify_wastewater",
+      title: "Verify water and wastewater infrastructure",
+      summary:
+        "Confirm the wastewater asset location before the position is finalised.",
+    },
+  ],
   property: {
     address: "1 Test Street, Auckland",
     boundaryStatus: "provisional",

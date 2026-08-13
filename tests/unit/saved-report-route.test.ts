@@ -86,7 +86,7 @@ describe("GET saved preliminary report PDF", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("content-type")).toBe("application/pdf");
     expect(response.headers.get("content-disposition")).toContain(
-      "pool-feasibility-GF-2026-000123.pdf",
+      "preliminary-pool-feasibility-1-test-street.pdf",
     );
     expect(response.headers.get("x-correlation-id")).toBe("mt-249-pdf");
     expect(Buffer.from(await response.arrayBuffer()).toString()).toBe(

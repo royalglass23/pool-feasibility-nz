@@ -3,10 +3,8 @@ import {
   ReportRendererTimeoutError,
 } from "@/modules/reporting/report-errors";
 import type { SessionReportRequest } from "@/modules/reporting/report-request";
-import {
-  renderPreliminaryReportHtml,
-  type SavedPreliminaryReport,
-} from "@/modules/reporting/preliminary-report";
+import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
+import { renderCanonicalPreliminaryReportHtml } from "@/modules/reporting/preliminary-report-html";
 import { renderSessionReportHtml } from "@/modules/reporting/session-report";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -36,7 +34,7 @@ export async function generatePreliminaryReportPdf(
   renderer: PdfRenderer = defaultPdfRenderer(),
 ): Promise<Buffer> {
   const pdf = await generateReportHtmlPdf(
-    renderPreliminaryReportHtml(report),
+    renderCanonicalPreliminaryReportHtml(report),
     renderer,
   );
   return canonicalizePdfMetadata(pdf, report.generatedAt);

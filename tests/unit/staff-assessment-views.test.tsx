@@ -1,6 +1,7 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
-import { SavedPreliminaryReportView } from "@/components/saved-preliminary-report-view";
+import { HomeownerFeasibilityReportView } from "@/components/homeowner-feasibility-report-view";
 import { StaffAssessmentDashboard } from "@/components/staff/staff-assessment-dashboard";
 import { StaffAssessmentDetail } from "@/components/staff/staff-assessment-detail";
 import type { StaffAssessmentSummary } from "@/modules/staff/staff-assessment-read-model";
@@ -139,16 +140,17 @@ describe("staff assessment detail", () => {
 
   it("renders the complete shared saved report without assessment edit controls", () => {
     const homeownerView = render(
-      <SavedPreliminaryReportView
+      <HomeownerFeasibilityReportView
         report={savedPreliminaryReport}
         delivery={{ homeowner: "sent", internal_test_report: "pending" }}
         onBack={() => undefined}
       />,
     );
-    expect(screen.getByAltText("Saved property and pool map")).toHaveAttribute(
-      "src",
-      SAVED_MAP_IMAGE_DATA_URL,
-    );
+    expect(
+      screen.getByAltText(
+        "Saved aerial assessment map showing the mapped property and proposed pool",
+      ),
+    ).toHaveAttribute("src", SAVED_MAP_IMAGE_DATA_URL);
     homeownerView.unmount();
 
     render(
@@ -163,28 +165,80 @@ describe("staff assessment detail", () => {
     ).toBeVisible();
     expect(screen.getByText("I am a")).toBeVisible();
     expect(screen.getByText("Homeowner")).toBeVisible();
-    expect(screen.getByText(savedPreliminaryReport.summary)).toBeVisible();
-    expect(screen.getByAltText("Saved property and pool map")).toHaveAttribute(
-      "src",
-      savedPreliminaryReport.mapImageDataUrl,
-    );
-    expect(screen.getByText("6.5 m × 3 m")).toBeVisible();
-    expect(screen.getByText("24°")).toBeVisible();
-    expect(screen.getByText("Mapped wastewater conflict")).toBeVisible();
-    expect(screen.getByText(/Move the pool:/)).toBeVisible();
-    expect(screen.getByText("Wastewater assets")).toBeVisible();
-    expect(screen.getByText(/Auckland Council.*returned.*high/i)).toBeVisible();
+    expect(
+      screen.getByText(savedPreliminaryReport.overall.summary),
+    ).toBeVisible();
+    expect(
+      screen.getByAltText(
+        "Saved aerial assessment map showing the mapped property and proposed pool",
+      ),
+    ).toHaveAttribute("src", savedPreliminaryReport.mapImageDataUrl);
+    expect(screen.getByText(/Proposed pool: 6.5 x 3 m/)).toBeVisible();
+    expect(
+      screen.getByText("Wastewater infrastructure near the proposed pool"),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Verify water and wastewater infrastructure"),
+    ).toBeVisible();
     expect(
       screen.getByRole("heading", {
-        name: "Preliminary pool feasibility report",
+        name: "Preliminary Pool Feasibility Report",
       }),
     ).toBeVisible();
     expect(
-      screen.getByText("Preliminary desktop assessment only."),
+      screen.getByRole("heading", { name: "Preliminary assessment" }),
     ).toBeVisible();
+    expect(screen.queryByText("24°")).not.toBeInTheDocument();
+    expect(screen.queryByText(/feasibility score/i)).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: /move|rotate|save|edit/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+  });
+
+  it("lets a homeowner toggle relevant persisted evidence on the report map", async () => {
+    const user = userEvent.setup();
+    const report = structuredClone(savedPreliminaryReport);
+    report.layers = [
+      {
+        id: "wastewater_assets",
+        provider: "Watercare",
+        dataset: "Wastewater Pipes",
+        evidenceUse: "report_allowed",
+        state: "returned",
+        confidence: "limited",
+        attribution: "Watercare",
+        sourceUrl: null,
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [174.7599, -36.85],
+            [174.7601, -36.85],
+          ],
+        },
+      },
+    ];
+    report.mapVisibleLayerKeys = ["wastewater_assets"];
+
+    render(
+      <HomeownerFeasibilityReportView
+        report={report}
+        delivery={{ homeowner: "sent", internal_test_report: "pending" }}
+        onBack={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByRole("region", { name: "Interactive assessment map" }),
+    ).toBeVisible();
+    const wastewaterToggle = screen.getByRole("checkbox", {
+      name: "Wastewater",
+    });
+    expect(wastewaterToggle).toBeChecked();
+
+    await user.click(wastewaterToggle);
+
+    expect(wastewaterToggle).not.toBeChecked();
+    expect(screen.getByText("Wastewater hidden")).toBeVisible();
   });
 });

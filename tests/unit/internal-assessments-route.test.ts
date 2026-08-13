@@ -243,6 +243,15 @@ describe("POST /api/internal/assessments", () => {
     const assessment =
       submission.report.reportData.assessmentSnapshot?.feasibilityAssessment;
 
+    expect(
+      submission.layerStates.find(
+        (layer) => layer.datasetId === "wastewater_assets",
+      )?.geometry,
+    ).toMatchObject({
+      type: "GeometryCollection",
+      geometries: [expect.objectContaining({ type: "Polygon" })],
+    });
+
     expect(assessment?.criticalFlags).not.toContainEqual(
       expect.objectContaining({ id: "major_mapped_infrastructure" }),
     );

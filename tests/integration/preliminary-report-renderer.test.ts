@@ -24,6 +24,7 @@ const report = buildTestPreliminaryReport({
       licence: "Creative Commons Attribution 4.0 International",
       attribution: "Land Information New Zealand (LINZ), CC BY 4.0",
       sourceUrl: "https://data.linz.govt.nz/",
+      retrievedAt: "2026-08-13T02:00:00.000Z",
     },
   ],
 });
@@ -45,7 +46,7 @@ describe("persisted preliminary report renderer", () => {
     expect(second.equals(first)).toBe(true);
   }, 60_000);
 
-  it("keeps the attached six-state map key inside the rendered three-page A4 report", async () => {
+  it("keeps the saved map and relevant legend inside the fixed three-page A4 report", async () => {
     const sixStateReport = buildTestPreliminaryReport({
       layers: [
         {
@@ -114,9 +115,8 @@ describe("persisted preliminary report renderer", () => {
       | {
           pageCount: number;
           pageOverflowPixels: number[];
-          detailPanelHorizontal: boolean;
-          detailPanelContained: boolean;
-          legendItemsContained: boolean;
+          mapCount: number;
+          mapPanelContained: boolean;
           legendText: string;
         }
       | undefined;
@@ -136,43 +136,25 @@ describe("persisted preliminary report renderer", () => {
             const pages = Array.from(
               document.querySelectorAll<HTMLElement>(".page"),
             );
-            const detailPanel = document.querySelector<HTMLElement>(
-              ".report-map-panel.detail",
-            );
-            const map = detailPanel?.querySelector<HTMLElement>(".map");
-            const key = detailPanel?.querySelector<HTMLElement>(".map-key");
-            const detailPage = detailPanel?.closest<HTMLElement>(".page");
-            if (!detailPanel || !map || !key || !detailPage) {
+            const mapPanel = document.querySelector<HTMLElement>(".map-panel");
+            const legend = mapPanel?.querySelector<HTMLElement>(".legend");
+            const mapPage = mapPanel?.closest<HTMLElement>(".page");
+            if (!mapPanel || !legend || !mapPage) {
               throw new Error("REPORT_MAP_PANEL_MISSING");
             }
-            const panelRect = detailPanel.getBoundingClientRect();
-            const mapRect = map.getBoundingClientRect();
-            const keyRect = key.getBoundingClientRect();
-            const pageRect = detailPage.getBoundingClientRect();
-            const legendItems = Array.from(
-              key.querySelectorAll<HTMLElement>(".map-key-item"),
-            );
+            const panelRect = mapPanel.getBoundingClientRect();
+            const pageRect = mapPage.getBoundingClientRect();
             return {
               pageCount: pages.length,
               pageOverflowPixels: pages.map((reportPage) =>
                 Math.max(0, reportPage.scrollHeight - reportPage.clientHeight),
               ),
-              detailPanelHorizontal:
-                Math.abs(mapRect.top - keyRect.top) <= 1 &&
-                mapRect.right <= keyRect.left + 1,
-              detailPanelContained:
+              mapCount: document.querySelectorAll("img.map").length,
+              mapPanelContained:
                 panelRect.left >= pageRect.left &&
                 panelRect.right <= pageRect.right &&
                 panelRect.bottom <= pageRect.bottom,
-              legendItemsContained: legendItems.every((item) => {
-                const itemRect = item.getBoundingClientRect();
-                return (
-                  itemRect.left >= keyRect.left &&
-                  itemRect.right <= keyRect.right &&
-                  itemRect.bottom <= keyRect.bottom
-                );
-              }),
-              legendText: key.innerText,
+              legendText: legend.innerText,
             };
           });
           return Buffer.from(
@@ -189,16 +171,14 @@ describe("persisted preliminary report renderer", () => {
     expect(layout).toMatchObject({
       pageCount: 3,
       pageOverflowPixels: [0, 0, 0],
-      detailPanelHorizontal: true,
-      detailPanelContained: true,
-      legendItemsContained: true,
+      mapCount: 1,
+      mapPanelContained: true,
     });
-    expect(layout?.legendText).toContain("Contours\nNot reproduced");
-    expect(layout?.legendText).toContain("Stormwater\nMapped");
-    expect(layout?.legendText).toContain("Wastewater\nNot reproduced");
-    expect(layout?.legendText).toContain("Water\nNot reproduced");
-    expect(layout?.legendText).toContain("Electricity\nNo mapped evidence");
-    expect(layout?.legendText).toContain("Gas\nUnavailable / unknown");
+    expect(layout?.legendText).toContain("Mapped property boundary");
+    expect(layout?.legendText).toContain("Selected pool");
+    expect(layout?.legendText).toContain("Indicative investigation buffer");
+    expect(layout?.legendText).toContain("Stormwater");
+    expect(layout?.legendText).not.toContain("Gas");
   }, 60_000);
 });
 
