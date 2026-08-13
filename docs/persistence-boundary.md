@@ -32,6 +32,7 @@ Report delivery needs these server-only settings:
 
 - `RESEND_API_KEY`
 - `REPORT_FROM_EMAIL`
+- `DATABASE_URL_DEV` for the dedicated Vercel Preview database when `DATABASE_URL` is Production-only
 - `REPORT_DELIVERY_MODE=synthetic_test` for local development/test or Vercel Preview,
   `REPORT_DELIVERY_MODE=production_test` for recipient-confirmation testing in Vercel Preview, or
   `REPORT_DELIVERY_MODE=production` only in Vercel Production
