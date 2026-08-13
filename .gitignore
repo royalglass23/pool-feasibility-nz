@@ -51,4 +51,15 @@ next-env.d.ts
 .impeccable
 .secure-sdlc
 .famiglia
-/.codex-spreadsheet-analysis/node_modules/
+.codex-spreadsheet-analysis
+.impecabble
+.secure-sdlc
+.playwright-mcp
+.pnpm-store
+/security
+
+AGENTS.md
+CLAUDE.md
+CONTEXT.md
+DESIGN.md
+PRODUCT.md
