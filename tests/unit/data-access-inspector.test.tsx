@@ -836,7 +836,19 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<DataAccessInspector />);
+    render(
+      <>
+        <div id="property-search-intro">
+          <h2>Begin with a practical property check</h2>
+        </div>
+        <DataAccessInspector />
+      </>,
+    );
+    expect(
+      screen.getByRole("heading", {
+        name: "Begin with a practical property check",
+      }),
+    ).toBeVisible();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -851,10 +863,20 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(
       screen.queryByLabelText("Auckland property address"),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", {
+        name: "Begin with a practical property check",
+      }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Start again" }));
 
     expect(screen.getByLabelText("Auckland property address")).toBeVisible();
+    expect(
+      screen.getByRole("heading", {
+        name: "Begin with a practical property check",
+      }),
+    ).toBeVisible();
     expect(screen.queryByText("Fast property view")).not.toBeInTheDocument();
   });
 

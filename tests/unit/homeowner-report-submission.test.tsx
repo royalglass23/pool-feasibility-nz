@@ -426,4 +426,34 @@ describe("homeowner report submission", () => {
       ),
     );
   });
+
+  it("offers Start again at the end of the saved report", async () => {
+    const user = userEvent.setup();
+    const onStartAgain = vi.fn();
+
+    render(
+      <SavedAssessmentReportPanel
+        assessment={{
+          id: "assessment-1",
+          reference: report.reference,
+          status: "new_enquiry",
+          created: true,
+          report,
+          reportAccessToken: "saved-report-access-token",
+          delivery: {
+            homeowner: "pending",
+            internal_test_report: "pending",
+          },
+        }}
+        showReport
+        onOpen={() => undefined}
+        onBack={() => undefined}
+        onStartAgain={onStartAgain}
+      />,
+    );
+
+    await user.click(screen.getByRole("button", { name: "Start again" }));
+
+    expect(onStartAgain).toHaveBeenCalledOnce();
+  });
 });

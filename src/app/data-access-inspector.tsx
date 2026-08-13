@@ -94,6 +94,8 @@ export function DataAccessInspector() {
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(
     null,
   );
+  const isEnteringAddress =
+    !fastResult && !result && !fastSavedReport.assessment;
   const handleFastPlacementChange = useCallback(
     (placement: FastPoolPlacementSnapshot) => {
       setFastPlacementSnapshot(placement);
@@ -149,6 +151,11 @@ export function DataAccessInspector() {
       window.clearTimeout(timeout);
     };
   }, [address, isLoading, result, selectedAddressId]);
+
+  useEffect(() => {
+    const intro = document.getElementById("property-search-intro");
+    if (intro) intro.hidden = !isEnteringAddress;
+  }, [isEnteringAddress]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -419,128 +426,128 @@ export function DataAccessInspector() {
         description="Reviewing available official datasets and mapped property evidence."
       />
       {!fastResult && !result && !fastSavedReport.assessment && (
-      <form
-        onSubmit={handleSubmit}
-        className="rounded-3xl border border-white/70 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.35)] sm:p-7"
-      >
-        <div className="mb-4 flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-2xl bg-pool-blue-50 text-pool-blue-700">
-            <MapPin className="size-5" aria-hidden="true" />
-          </span>
-          <div>
-            <h2 className="font-semibold text-pool-950">
-              Your property address
-            </h2>
-            <p className="text-sm text-pool-500">
-              Start with an Auckland address. We will match it against official
-              address data before showing the property view.
-            </p>
+        <form
+          onSubmit={handleSubmit}
+          className="rounded-3xl border border-white/70 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.35)] sm:p-7"
+        >
+          <div className="mb-4 flex items-center gap-3">
+            <span className="bg-pool-blue-50 text-pool-blue-700 grid size-10 place-items-center rounded-2xl">
+              <MapPin className="size-5" aria-hidden="true" />
+            </span>
+            <div>
+              <h2 className="text-pool-950 font-semibold">
+                Your property address
+              </h2>
+              <p className="text-pool-500 text-sm">
+                Start with an Auckland address. We will match it against
+                official address data before showing the property view.
+              </p>
+            </div>
           </div>
-        </div>
 
-        <label htmlFor="property-address" className="sr-only">
-          Auckland property address
-        </label>
-        <div className="flex flex-col gap-3 sm:flex-row">
-          <div className="relative flex-1">
-            <input
-              id="property-address"
-              name="address"
-              value={address}
-              onChange={(event) => {
-                setAddress(event.target.value);
-                setSelectedAddressId(null);
-                setAddressOptions([]);
-                setSuggestionMessage(null);
-              }}
-              required
-              minLength={8}
-              maxLength={200}
-              autoComplete="street-address"
-              placeholder="e.g. 42A Bahari Drive, Ranui, Auckland"
-              className="min-h-13 w-full rounded-2xl border border-pool-200 bg-pool-50 px-4 text-base text-pool-950 transition outline-none placeholder:text-pool-400 focus:border-pool-blue-600 focus:bg-white focus:ring-4 focus:ring-pool-blue-600/10"
-              aria-autocomplete="list"
-              aria-controls="address-suggestions"
-            />
-            {addressOptions.length > 0 && !selectedAddressId && !result && (
-              <div
-                id="address-suggestions"
-                role="listbox"
-                aria-label="Address suggestions"
-                className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-pool-200 bg-white p-2 shadow-xl"
-              >
-                {addressOptions.map((option) => (
-                  <button
-                    key={option.addressId}
-                    type="button"
-                    role="option"
-                    aria-selected="false"
-                    onClick={() => {
-                      setAddress(option.fullAddress);
-                      setSelectedAddressId(option.addressId);
-                      setAddressOptions([]);
-                      void requestPropertyData(option.addressId);
-                    }}
-                    className="w-full rounded-xl px-3 py-3 text-left text-sm font-semibold text-pool-900 hover:bg-pool-blue-50 hover:text-pool-blue-800"
-                  >
-                    {option.fullAddress}
-                  </button>
-                ))}
-              </div>
-            )}
-            {isSuggesting && (
-              <p className="mt-1 text-xs text-pool-500">
-                Searching LINZ addresses…
-              </p>
-            )}
-            {!isSuggesting && suggestionMessage && !selectedAddressId && (
-              <p className="mt-1 text-xs text-pool-600" role="status">
-                {suggestionMessage}
-              </p>
-            )}
-          </div>
-          <button
-            type="submit"
-            disabled={isLoading}
-            className="inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-pool-950 px-6 font-semibold text-white transition hover:bg-pool-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700 disabled:cursor-not-allowed disabled:bg-pool-400"
-          >
-            {isLoading ? (
-              <LoaderCircle
-                className="size-5 animate-spin"
-                aria-hidden="true"
+          <label htmlFor="property-address" className="sr-only">
+            Auckland property address
+          </label>
+          <div className="flex flex-col gap-3 sm:flex-row">
+            <div className="relative flex-1">
+              <input
+                id="property-address"
+                name="address"
+                value={address}
+                onChange={(event) => {
+                  setAddress(event.target.value);
+                  setSelectedAddressId(null);
+                  setAddressOptions([]);
+                  setSuggestionMessage(null);
+                }}
+                required
+                minLength={8}
+                maxLength={200}
+                autoComplete="street-address"
+                placeholder="e.g. 42A Bahari Drive, Ranui, Auckland"
+                className="border-pool-200 bg-pool-50 text-pool-950 placeholder:text-pool-400 focus:border-pool-blue-600 focus:ring-pool-blue-600/10 min-h-13 w-full rounded-2xl border px-4 text-base transition outline-none focus:bg-white focus:ring-4"
+                aria-autocomplete="list"
+                aria-controls="address-suggestions"
               />
-            ) : (
-              <Search className="size-5" aria-hidden="true" />
-            )}
-            {isLoading ? "Fetching official data…" : "Fetch property data"}
-          </button>
-        </div>
-
-        <div className="mt-4 min-h-6" aria-live="polite">
-          {error && (
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="flex items-start gap-2 text-sm font-medium text-red-700">
-                <AlertTriangle
-                  className="mt-0.5 size-4 shrink-0"
-                  aria-hidden="true"
-                />
-                {error}
-              </p>
-              {canRetry && (
-                <button
-                  type="button"
-                  disabled={isLoading}
-                  onClick={() => void requestPropertyData()}
-                  className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-800 transition hover:border-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+              {addressOptions.length > 0 && !selectedAddressId && !result && (
+                <div
+                  id="address-suggestions"
+                  role="listbox"
+                  aria-label="Address suggestions"
+                  className="border-pool-200 absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border bg-white p-2 shadow-xl"
                 >
-                  <RefreshCw className="size-4" aria-hidden="true" />
-                  Try again
-                </button>
+                  {addressOptions.map((option) => (
+                    <button
+                      key={option.addressId}
+                      type="button"
+                      role="option"
+                      aria-selected="false"
+                      onClick={() => {
+                        setAddress(option.fullAddress);
+                        setSelectedAddressId(option.addressId);
+                        setAddressOptions([]);
+                        void requestPropertyData(option.addressId);
+                      }}
+                      className="text-pool-900 hover:bg-pool-blue-50 hover:text-pool-blue-800 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold"
+                    >
+                      {option.fullAddress}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {isSuggesting && (
+                <p className="text-pool-500 mt-1 text-xs">
+                  Searching LINZ addresses…
+                </p>
+              )}
+              {!isSuggesting && suggestionMessage && !selectedAddressId && (
+                <p className="text-pool-600 mt-1 text-xs" role="status">
+                  {suggestionMessage}
+                </p>
               )}
             </div>
-          )}
-        </div>
-      </form>
+            <button
+              type="submit"
+              disabled={isLoading}
+              className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-400 inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl px-6 font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
+            >
+              {isLoading ? (
+                <LoaderCircle
+                  className="size-5 animate-spin"
+                  aria-hidden="true"
+                />
+              ) : (
+                <Search className="size-5" aria-hidden="true" />
+              )}
+              {isLoading ? "Fetching official data…" : "Fetch property data"}
+            </button>
+          </div>
+
+          <div className="mt-4 min-h-6" aria-live="polite">
+            {error && (
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <p className="flex items-start gap-2 text-sm font-medium text-red-700">
+                  <AlertTriangle
+                    className="mt-0.5 size-4 shrink-0"
+                    aria-hidden="true"
+                  />
+                  {error}
+                </p>
+                {canRetry && (
+                  <button
+                    type="button"
+                    disabled={isLoading}
+                    onClick={() => void requestPropertyData()}
+                    className="inline-flex min-h-10 shrink-0 items-center justify-center gap-2 rounded-xl border border-red-200 bg-white px-4 text-sm font-semibold text-red-800 transition hover:border-red-400 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    <RefreshCw className="size-4" aria-hidden="true" />
+                    Try again
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        </form>
       )}
 
       {fastResult && !result && !fastSavedReport.assessment && (
@@ -570,8 +577,8 @@ export function DataAccessInspector() {
             />
           ) : (
             <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">
-              Choose a valid pool placement, load the detailed official
-              checks, and wait for the map capture before saving the report.
+              Choose a valid pool placement, load the detailed official checks,
+              and wait for the map capture before saving the report.
             </p>
           )}
         </>
@@ -583,6 +590,7 @@ export function DataAccessInspector() {
           showReport={fastSavedReport.showReport}
           onOpen={fastSavedReport.openReport}
           onBack={fastSavedReport.closeReport}
+          onStartAgain={() => window.location.reload()}
         />
       )}
 
@@ -624,18 +632,18 @@ export function PropertyDataResult({
     <section aria-labelledby="result-heading" className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mb-2 text-xs font-bold tracking-[0.18em] text-pool-blue-700 uppercase">
+          <p className="text-pool-blue-700 mb-2 text-xs font-bold tracking-[0.18em] uppercase">
             Official data result
           </p>
           <h2
             ref={headingRef}
             id="result-heading"
             tabIndex={-1}
-            className="text-2xl font-semibold tracking-tight text-pool-950 sm:text-3xl"
+            className="text-pool-950 text-2xl font-semibold tracking-tight sm:text-3xl"
           >
             {result.resolvedAddress.fullAddress}
           </h2>
-          <p className="mt-2 text-sm text-pool-500">
+          <p className="text-pool-500 mt-2 text-sm">
             Retrieved {formatDate(result.generatedAt)} · LINZ address ID{" "}
             {result.resolvedAddress.addressId}
           </p>
@@ -643,7 +651,7 @@ export function PropertyDataResult({
         <button
           type="button"
           onClick={onDownload}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-pool-300 bg-white px-4 font-semibold text-pool-800 shadow-sm transition hover:border-pool-blue-600 hover:text-pool-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
+          className="border-pool-300 text-pool-800 hover:border-pool-blue-600 hover:text-pool-blue-800 focus-visible:outline-pool-blue-700 inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border bg-white px-4 font-semibold shadow-sm transition focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           <Download className="size-4" aria-hidden="true" />
           Download session assessment
@@ -718,7 +726,7 @@ export function PropertyDataResult({
           </ResultPanel>
 
           <ResultPanel title="Identity checks">
-            <ul className="space-y-3 text-sm text-pool-700">
+            <ul className="text-pool-700 space-y-3 text-sm">
               <CheckItem
                 passed={result.identityCheck.exactAddressMatched}
                 text="Exact supplied address matched"
@@ -749,20 +757,20 @@ export function PropertyDataResult({
           <div className="overflow-x-auto">
             <table className="w-full min-w-170 border-separate border-spacing-0 text-left text-sm">
               <thead>
-                <tr className="text-xs tracking-wide text-pool-500 uppercase">
-                  <th className="border-b border-pool-200 px-3 py-3 font-semibold">
+                <tr className="text-pool-500 text-xs tracking-wide uppercase">
+                  <th className="border-pool-200 border-b px-3 py-3 font-semibold">
                     Dataset
                   </th>
-                  <th className="border-b border-pool-200 px-3 py-3 font-semibold">
+                  <th className="border-pool-200 border-b px-3 py-3 font-semibold">
                     Provider
                   </th>
-                  <th className="border-b border-pool-200 px-3 py-3 font-semibold">
+                  <th className="border-pool-200 border-b px-3 py-3 font-semibold">
                     Status
                   </th>
-                  <th className="border-b border-pool-200 px-3 py-3 font-semibold">
+                  <th className="border-pool-200 border-b px-3 py-3 font-semibold">
                     Features
                   </th>
-                  <th className="border-b border-pool-200 px-3 py-3 font-semibold">
+                  <th className="border-pool-200 border-b px-3 py-3 font-semibold">
                     Evidence use
                   </th>
                 </tr>
@@ -770,26 +778,26 @@ export function PropertyDataResult({
               <tbody>
                 {datasets.map(([key, dataset]) => (
                   <tr key={key} className="align-top">
-                    <td className="border-b border-pool-100 px-3 py-3.5">
-                      <p className="font-medium text-pool-900">
+                    <td className="border-pool-100 border-b px-3 py-3.5">
+                      <p className="text-pool-900 font-medium">
                         {dataset.dataset}
                       </p>
                       {(dataset.reason || dataset.errorCode) && (
-                        <p className="mt-1 max-w-80 text-xs leading-5 text-pool-500">
+                        <p className="text-pool-500 mt-1 max-w-80 text-xs leading-5">
                           {dataset.reason ?? dataset.errorCode}
                         </p>
                       )}
                     </td>
-                    <td className="border-b border-pool-100 px-3 py-3.5 text-pool-600">
+                    <td className="border-pool-100 text-pool-600 border-b px-3 py-3.5">
                       {dataset.provider}
                     </td>
-                    <td className="border-b border-pool-100 px-3 py-3.5">
+                    <td className="border-pool-100 border-b px-3 py-3.5">
                       <StatusBadge status={dataset.status} />
                     </td>
-                    <td className="border-b border-pool-100 px-3 py-3.5 text-pool-600 tabular-nums">
+                    <td className="border-pool-100 text-pool-600 border-b px-3 py-3.5 tabular-nums">
                       {dataset.featureCount ?? "—"}
                     </td>
-                    <td className="border-b border-pool-100 px-3 py-3.5 text-pool-600">
+                    <td className="border-pool-100 text-pool-600 border-b px-3 py-3.5">
                       {humanize(dataset.evidenceUse)}
                     </td>
                   </tr>
@@ -834,15 +842,15 @@ function SummaryCard({
   detail: string;
 }) {
   return (
-    <div className="rounded-2xl border border-pool-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex size-10 items-center justify-center rounded-xl bg-pool-100 text-pool-700">
+    <div className="border-pool-200 rounded-2xl border bg-white p-5 shadow-sm">
+      <div className="bg-pool-100 text-pool-700 mb-4 flex size-10 items-center justify-center rounded-xl">
         {icon}
       </div>
-      <p className="text-xs font-semibold tracking-wide text-pool-500 uppercase">
+      <p className="text-pool-500 text-xs font-semibold tracking-wide uppercase">
         {label}
       </p>
-      <p className="mt-2 font-semibold text-pool-950">{value}</p>
-      <p className="mt-1 text-sm text-pool-500">{detail}</p>
+      <p className="text-pool-950 mt-2 font-semibold">{value}</p>
+      <p className="text-pool-500 mt-1 text-sm">{detail}</p>
     </div>
   );
 }
@@ -855,8 +863,8 @@ function ResultPanel({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-3xl border border-pool-200 bg-white p-5 shadow-sm sm:p-6">
-      <h3 className="mb-5 font-semibold text-pool-950">{title}</h3>
+    <div className="border-pool-200 rounded-3xl border bg-white p-5 shadow-sm sm:p-6">
+      <h3 className="text-pool-950 mb-5 font-semibold">{title}</h3>
       {children}
     </div>
   );
@@ -864,11 +872,11 @@ function ResultPanel({
 
 function DescriptionList({ items }: { items: Array<[string, string]> }) {
   return (
-    <dl className="divide-y divide-pool-100">
+    <dl className="divide-pool-100 divide-y">
       {items.map(([label, value]) => (
         <div key={label} className="grid gap-1 py-3 first:pt-0 sm:grid-cols-2">
-          <dt className="text-sm text-pool-500">{label}</dt>
-          <dd className="text-sm font-medium break-words text-pool-800 sm:text-right">
+          <dt className="text-pool-500 text-sm">{label}</dt>
+          <dd className="text-pool-800 text-sm font-medium break-words sm:text-right">
             {value}
           </dd>
         </div>
@@ -882,7 +890,7 @@ function CheckItem({ passed, text }: { passed: boolean; text: string }) {
     <li className="flex items-start gap-2.5">
       {passed ? (
         <CheckCircle2
-          className="mt-0.5 size-4 shrink-0 text-pool-blue-700"
+          className="text-pool-blue-700 mt-0.5 size-4 shrink-0"
           aria-hidden="true"
         />
       ) : (

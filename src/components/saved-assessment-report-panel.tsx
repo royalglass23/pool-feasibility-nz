@@ -31,11 +31,13 @@ export function SavedAssessmentReportPanel({
   showReport,
   onOpen,
   onBack,
+  onStartAgain,
 }: {
   assessment: SavedAssessmentResponse;
   showReport: boolean;
   onOpen: () => void;
   onBack: () => void;
+  onStartAgain?: () => void;
 }) {
   if (showReport) {
     return (
@@ -45,6 +47,7 @@ export function SavedAssessmentReportPanel({
         onBack={onBack}
         showBackAction={false}
         downloadAccessToken={assessment.reportAccessToken}
+        onStartAgain={onStartAgain}
       />
     );
   }

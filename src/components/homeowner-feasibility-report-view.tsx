@@ -24,6 +24,7 @@ export function HomeownerFeasibilityReportView({
   onBack,
   showBackAction = true,
   downloadAccessToken,
+  onStartAgain,
 }: {
   report: SavedPreliminaryReport;
   delivery: {
@@ -33,6 +34,7 @@ export function HomeownerFeasibilityReportView({
   onBack: () => void;
   showBackAction?: boolean;
   downloadAccessToken?: string;
+  onStartAgain?: () => void;
 }) {
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -423,6 +425,18 @@ export function HomeownerFeasibilityReportView({
             excavation or construction.
           </p>
         </section>
+
+        {onStartAgain && (
+          <div className="border-pool-200 flex justify-center border-t pt-6">
+            <button
+              type="button"
+              onClick={onStartAgain}
+              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl border bg-white px-5 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Start again
+            </button>
+          </div>
+        )}
       </div>
     </article>
   );
