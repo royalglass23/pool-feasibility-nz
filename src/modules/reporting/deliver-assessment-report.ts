@@ -24,7 +24,7 @@ export async function deliverAssessmentReportByReference(
   Record<"homeowner" | "internal_test_report", AssessmentDeliveryOutcome>
 > {
   const apiKey = process.env.RESEND_API_KEY?.trim();
-  const from = process.env.REPORT_FROM_EMAIL?.trim();
+  const from = configuredReportFromEmail();
 
   return deliverAssessmentReport(reference, {
     store: createAssessmentDeliveryStore(getDb()),
@@ -64,4 +64,12 @@ export function reportDeliveryEnvironment(): ReportDeliveryEnvironment {
     previewRecipientVerificationEnabled:
       process.env.PREVIEW_REPORT_DELIVERY_TEST === "true",
   };
+}
+
+function configuredReportFromEmail(): string | undefined {
+  if (process.env.VERCEL_ENV === "preview") {
+    const previewFrom = process.env.PREVIEW_REPORT_FROM_EMAIL?.trim();
+    if (previewFrom) return previewFrom;
+  }
+  return process.env.REPORT_FROM_EMAIL?.trim();
 }

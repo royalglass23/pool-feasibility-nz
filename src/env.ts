@@ -35,6 +35,7 @@ export const env = createEnv({
     BLOB_READ_WRITE_TOKEN: z.string().min(1).optional(),
     RESEND_API_KEY: z.string().min(1).optional(),
     REPORT_FROM_EMAIL: z.string().min(3).max(320).optional(),
+    PREVIEW_REPORT_FROM_EMAIL: z.string().min(3).max(320).optional(),
     REPORT_DELIVERY_MODE: z
       .enum(["synthetic_test", "production_test", "production"])
       .optional(),
@@ -68,6 +69,7 @@ export const env = createEnv({
     BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     REPORT_FROM_EMAIL: process.env.REPORT_FROM_EMAIL,
+    PREVIEW_REPORT_FROM_EMAIL: process.env.PREVIEW_REPORT_FROM_EMAIL,
     REPORT_DELIVERY_MODE: process.env.REPORT_DELIVERY_MODE,
     PREVIEW_REPORT_DELIVERY_TEST: process.env.PREVIEW_REPORT_DELIVERY_TEST,
     SERVICEM8_FORWARD_EMAIL: process.env.SERVICEM8_FORWARD_EMAIL,

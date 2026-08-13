@@ -44,7 +44,7 @@ export async function requestReportRecipientVerificationByReference(
   }
 
   const apiKey = dependencies.apiKey ?? process.env.RESEND_API_KEY?.trim();
-  const from = dependencies.from ?? process.env.REPORT_FROM_EMAIL?.trim();
+  const from = dependencies.from ?? configuredReportFromEmail();
   if (!apiKey || !from) {
     throw new ReportEmailDeliveryError("EMAIL_CONFIGURATION_MISSING");
   }
@@ -75,6 +75,14 @@ function configuredApplicationBaseUrl(): string | undefined {
   const configured = process.env.APP_BASE_URL?.trim();
   if (configured) return configured;
   return vercelUrl ? `https://${vercelUrl}` : undefined;
+}
+
+function configuredReportFromEmail(): string | undefined {
+  if (process.env.VERCEL_ENV === "preview") {
+    const previewFrom = process.env.PREVIEW_REPORT_FROM_EMAIL?.trim();
+    if (previewFrom) return previewFrom;
+  }
+  return process.env.REPORT_FROM_EMAIL?.trim();
 }
 
 async function defaultRecipient(

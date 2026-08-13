@@ -103,4 +103,30 @@ describe("report recipient verification", () => {
       "https://preview-id.vercel.app/report/verify#opaque-verification-token",
     );
   });
+
+  it("uses a Preview-only sender override for verification", async () => {
+    const send = vi.fn().mockResolvedValue({ id: "resend-verification" });
+    vi.stubEnv("VERCEL_ENV", "preview");
+    vi.stubEnv("VERCEL_URL", "preview-id.vercel.app");
+    vi.stubEnv("PREVIEW_REPORT_FROM_EMAIL", "Pool Lab <reports@example.com>");
+    vi.stubEnv("REPORT_FROM_EMAIL", "Legacy <legacy@example.com>");
+
+    try {
+      await requestReportRecipientVerificationByReference(recipient.reference, {
+        deliveryEnvironment: {
+          mode: "production_test",
+          vercelEnvironment: "preview",
+          nodeEnvironment: "production",
+        },
+        apiKey: "re_test",
+        getRecipient: vi.fn().mockResolvedValue(recipient),
+        issueToken: vi.fn().mockReturnValue("opaque-verification-token"),
+        send,
+      });
+    } finally {
+      vi.unstubAllEnvs();
+    }
+
+    expect(send.mock.calls[0][0].from).toBe("Pool Lab <reports@example.com>");
+  });
 });
