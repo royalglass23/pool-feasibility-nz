@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { PoolLabLogo } from "@/components/pool-lab-logo";
 import { signInStaffAdmin } from "./actions";
 
 export const dynamic = "force-dynamic";
@@ -15,9 +16,10 @@ export default async function StaffSignInPage({
       <section className="w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl sm:p-8">
         <Link
           href="/"
-          className="text-sm font-semibold text-teal-800 underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700"
+          aria-label="Pool Lab home"
+          className="inline-flex rounded-xl focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-teal-700"
         >
-          Pool Feasibility NZ
+          <PoolLabLogo />
         </Link>
         <p className="mt-8 text-xs font-bold tracking-[0.18em] text-teal-700 uppercase">
           Royal Glass staff

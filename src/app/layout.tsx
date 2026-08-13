@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { Waves } from "lucide-react";
 import { AnalyticsConsent } from "@/components/analytics-consent";
+import { PoolLabLogo } from "@/components/pool-lab-logo";
 import { isSiteIndexingEnabled } from "@/config/site-indexing";
 import { env } from "@/env";
 import "./globals.css";
@@ -33,12 +33,10 @@ export default function RootLayout({
           >
             <Link
               href="/"
-              className="inline-flex min-h-11 items-center gap-2 rounded-full pr-3 text-sm font-semibold text-slate-950 outline-offset-4 focus-visible:outline-2 focus-visible:outline-teal-700"
+              aria-label="Pool Lab home"
+              className="inline-flex min-h-11 items-center rounded-xl outline-offset-4 focus-visible:outline-2 focus-visible:outline-teal-700"
             >
-              <span className="grid size-9 place-items-center rounded-full bg-teal-800 text-white">
-                <Waves aria-hidden="true" className="size-4" />
-              </span>
-              Pool Feasibility NZ
+              <PoolLabLogo />
             </Link>
           </nav>
         </header>

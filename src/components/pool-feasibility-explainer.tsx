@@ -58,7 +58,7 @@ function IntroSlide() {
         />
       </svg>
       <div className="pool-explainer-intro-copy">
-        <span className="pool-explainer-kicker">Pool Feasibility NZ</span>
+        <span className="pool-explainer-kicker">Pool Lab</span>
         <h3>How it works</h3>
         <p>A simple 4-step process for pool feasibility</p>
       </div>
@@ -297,7 +297,7 @@ export function PoolFeasibilityExplainer() {
       aria-labelledby="pool-explainer-title"
     >
       <div className="sr-only">
-        <h2 id="pool-explainer-title">How Pool Feasibility works</h2>
+        <h2 id="pool-explainer-title">How Pool Lab works</h2>
         <p>
           Search your property, position your pool, review mapped checks, and
           receive a preliminary report. Smart analysis. Local insights.

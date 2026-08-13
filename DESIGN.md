@@ -1,5 +1,5 @@
 ---
-name: Pool Feasibility NZ
+name: Pool Lab
 description: Evidence-led Auckland property planning guidance for homeowners and pool builders.
 colors:
   evidence-teal: "oklch(51.1% 0.096 186.391)"
@@ -101,7 +101,7 @@ components:
     padding: "4px 10px"
 ---
 
-# Design System: Pool Feasibility NZ
+# Design System: Pool Lab
 
 ## Overview
 
