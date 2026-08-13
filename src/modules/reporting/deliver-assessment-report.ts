@@ -61,5 +61,7 @@ export function reportDeliveryEnvironment(): ReportDeliveryEnvironment {
     mode: process.env.REPORT_DELIVERY_MODE,
     vercelEnvironment: process.env.VERCEL_ENV,
     nodeEnvironment: process.env.NODE_ENV,
+    previewRecipientVerificationEnabled:
+      process.env.PREVIEW_REPORT_DELIVERY_TEST === "true",
   };
 }

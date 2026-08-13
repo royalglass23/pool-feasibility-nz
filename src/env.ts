@@ -38,6 +38,7 @@ export const env = createEnv({
     REPORT_DELIVERY_MODE: z
       .enum(["synthetic_test", "production_test", "production"])
       .optional(),
+    PREVIEW_REPORT_DELIVERY_TEST: z.literal("true").optional(),
     SERVICEM8_FORWARD_EMAIL: z.email().max(320).optional(),
     CRON_SECRET: z.string().min(16).optional(),
     AI_PROVIDER: z.enum(["none", "openai"]).default("none"),
@@ -68,6 +69,7 @@ export const env = createEnv({
     RESEND_API_KEY: process.env.RESEND_API_KEY,
     REPORT_FROM_EMAIL: process.env.REPORT_FROM_EMAIL,
     REPORT_DELIVERY_MODE: process.env.REPORT_DELIVERY_MODE,
+    PREVIEW_REPORT_DELIVERY_TEST: process.env.PREVIEW_REPORT_DELIVERY_TEST,
     SERVICEM8_FORWARD_EMAIL: process.env.SERVICEM8_FORWARD_EMAIL,
     CRON_SECRET: process.env.CRON_SECRET,
     AI_PROVIDER: process.env.AI_PROVIDER,

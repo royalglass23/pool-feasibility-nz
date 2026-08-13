@@ -4,6 +4,7 @@ export type ReportDeliveryEnvironment = {
   mode?: string;
   vercelEnvironment?: string;
   nodeEnvironment?: string;
+  previewRecipientVerificationEnabled?: boolean;
 };
 
 export type ReportDeliveryPolicy =
@@ -26,6 +27,17 @@ export type ReportDeliveryPolicy =
 export function resolveReportDeliveryPolicy(
   environment: ReportDeliveryEnvironment,
 ): ReportDeliveryPolicy {
+  if (
+    environment.previewRecipientVerificationEnabled &&
+    environment.vercelEnvironment === "preview"
+  ) {
+    return {
+      mode: "production_test",
+      channels: ["homeowner"],
+      requiresRecipientVerification: true,
+    };
+  }
+
   if (environment.mode === "synthetic_test") {
     if (environment.vercelEnvironment === "preview") {
       return {

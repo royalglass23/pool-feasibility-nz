@@ -44,11 +44,31 @@ describe("report delivery policy", () => {
     });
   });
 
+  it("uses the dedicated Preview verification-test flag without changing the shared delivery mode", () => {
+    expect(
+      resolveReportDeliveryPolicy({
+        mode: "synthetic_test",
+        vercelEnvironment: "preview",
+        nodeEnvironment: "production",
+        previewRecipientVerificationEnabled: true,
+      }),
+    ).toEqual({
+      mode: "production_test",
+      channels: ["homeowner"],
+      requiresRecipientVerification: true,
+    });
+  });
+
   it.each([
     { mode: undefined, vercelEnvironment: "production" },
     { mode: "synthetic_test", vercelEnvironment: "production" },
     { mode: "production", vercelEnvironment: "preview" },
     { mode: "production_test", vercelEnvironment: "production" },
+    {
+      mode: "synthetic_test",
+      vercelEnvironment: "production",
+      previewRecipientVerificationEnabled: true,
+    },
     { mode: "production", nodeEnvironment: "production" },
   ])("fails closed for %#", (environment) => {
     expect(() => resolveReportDeliveryPolicy(environment)).toThrow(
