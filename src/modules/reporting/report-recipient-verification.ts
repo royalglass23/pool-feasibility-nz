@@ -54,7 +54,7 @@ export async function requestReportRecipientVerificationByReference(
   if (!recipient) throw new ReportEmailDeliveryError("ASSESSMENT_NOT_FOUND");
 
   const verificationUrl = verificationUrlFor(
-    dependencies.baseUrl ?? process.env.APP_BASE_URL,
+    dependencies.baseUrl ?? configuredApplicationBaseUrl(),
     (dependencies.issueToken ?? issueReportRecipientVerificationToken)(
       recipient,
     ),
@@ -64,6 +64,13 @@ export async function requestReportRecipientVerificationByReference(
     dependencies.send ?? ((input) => sendResendEmail(input));
   await send({ ...message, apiKey });
   return "verification_required";
+}
+
+function configuredApplicationBaseUrl(): string | undefined {
+  const configured = process.env.APP_BASE_URL?.trim();
+  if (configured) return configured;
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  return vercelUrl ? `https://${vercelUrl}` : undefined;
 }
 
 async function defaultRecipient(

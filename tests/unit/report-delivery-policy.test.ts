@@ -30,10 +30,25 @@ describe("report delivery policy", () => {
     });
   });
 
+  it("permits the verified-recipient test path only in Vercel Preview", () => {
+    expect(
+      resolveReportDeliveryPolicy({
+        mode: "production_test",
+        vercelEnvironment: "preview",
+        nodeEnvironment: "production",
+      }),
+    ).toEqual({
+      mode: "production_test",
+      channels: ["homeowner"],
+      requiresRecipientVerification: true,
+    });
+  });
+
   it.each([
     { mode: undefined, vercelEnvironment: "production" },
     { mode: "synthetic_test", vercelEnvironment: "production" },
     { mode: "production", vercelEnvironment: "preview" },
+    { mode: "production_test", vercelEnvironment: "production" },
     { mode: "production", nodeEnvironment: "production" },
   ])("fails closed for %#", (environment) => {
     expect(() => resolveReportDeliveryPolicy(environment)).toThrow(

@@ -13,6 +13,11 @@ export type ReportDeliveryPolicy =
       requiresRecipientVerification: false;
     }
   | {
+      mode: "production_test";
+      channels: readonly ["homeowner"];
+      requiresRecipientVerification: true;
+    }
+  | {
       mode: "production";
       channels: readonly ["homeowner"];
       requiresRecipientVerification: true;
@@ -40,6 +45,17 @@ export function resolveReportDeliveryPolicy(
         requiresRecipientVerification: false,
       };
     }
+  }
+
+  if (
+    environment.mode === "production_test" &&
+    environment.vercelEnvironment === "preview"
+  ) {
+    return {
+      mode: "production_test",
+      channels: ["homeowner"],
+      requiresRecipientVerification: true,
+    };
   }
 
   if (

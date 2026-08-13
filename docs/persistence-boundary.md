@@ -32,13 +32,14 @@ Report delivery needs these server-only settings:
 
 - `RESEND_API_KEY`
 - `REPORT_FROM_EMAIL`
-- `REPORT_DELIVERY_MODE=synthetic_test` for local development/test or Vercel Preview, or
+- `REPORT_DELIVERY_MODE=synthetic_test` for local development/test or Vercel Preview,
+  `REPORT_DELIVERY_MODE=production_test` for recipient-confirmation testing in Vercel Preview, or
   `REPORT_DELIVERY_MODE=production` only in Vercel Production
 
 Missing delivery configuration records a delivery failure; it does not remove the saved assessment
 or browser report. In `synthetic_test`, both controlled-test destinations receive the same saved
 report PDF through Resend; the internal destination is fixed in the controlled-test boundary as
-`royalglass666@gmail.com`. In Production, the initial request sends a one-hour confirmation link
+`royalglass666@gmail.com`. In `production_test` and Production, the initial request sends a one-hour confirmation link
 only to the submitted recipient. Its signed token is kept in the URL fragment, so it is not sent in
 the page request or referrer; confirmation is required before the saved PDF is sent. Production
 does not claim or send the internal-test channel. The mode fails closed outside its explicit
