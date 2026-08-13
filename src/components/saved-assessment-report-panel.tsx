@@ -43,6 +43,7 @@ export function SavedAssessmentReportPanel({
         report={assessment.report}
         delivery={assessment.delivery}
         onBack={onBack}
+        showBackAction={false}
         downloadAccessToken={assessment.reportAccessToken}
       />
     );

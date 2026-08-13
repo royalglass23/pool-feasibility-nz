@@ -22,6 +22,7 @@ export function HomeownerFeasibilityReportView({
   report,
   delivery,
   onBack,
+  showBackAction = true,
   downloadAccessToken,
 }: {
   report: SavedPreliminaryReport;
@@ -30,6 +31,7 @@ export function HomeownerFeasibilityReportView({
     internal_test_report: ReportDeliveryState;
   };
   onBack: () => void;
+  showBackAction?: boolean;
   downloadAccessToken?: string;
 }) {
   const [downloading, setDownloading] = useState(false);
@@ -119,6 +121,7 @@ export function HomeownerFeasibilityReportView({
             </p>
           </div>
           <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row lg:justify-end">
+            {showBackAction && (
             <button
               type="button"
               onClick={onBack}
@@ -126,6 +129,7 @@ export function HomeownerFeasibilityReportView({
             >
               Back to assessment
             </button>
+            )}
             {downloadAccessToken && (
               <button
                 type="button"

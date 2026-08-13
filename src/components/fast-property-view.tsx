@@ -130,6 +130,7 @@ export function FastPropertyView({
   result,
   onLoadDetailed,
   onRetry,
+  onStartAgain,
   isLoadingDetailed,
   onPlacementChange,
   onSnapshotReady,
@@ -137,6 +138,7 @@ export function FastPropertyView({
   result: FastPropertyViewResult;
   onLoadDetailed: () => void;
   onRetry: () => void;
+  onStartAgain?: () => void;
   isLoadingDetailed: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
   onSnapshotReady?: (snapshot: FastPropertyViewMapSnapshot | null) => void;
@@ -687,6 +689,17 @@ export function FastPropertyView({
             A preliminary mapped view is ready.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+          {onStartAgain && (
+            <button
+              type="button"
+              onClick={onStartAgain}
+              disabled={isLoadingDetailed}
+              className="min-h-11 rounded-xl border border-slate-300 bg-white px-4 text-sm font-semibold text-slate-800 transition-colors hover:bg-slate-50 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Start again
+            </button>
+          )}
         <button
           type="button"
           onClick={onLoadDetailed}
@@ -697,6 +710,7 @@ export function FastPropertyView({
             ? "Loading detailed checks…"
             : "Load detailed official checks"}
         </button>
+        </div>
       </div>
       <ol
         aria-label="Fast view progress"

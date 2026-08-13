@@ -811,6 +811,53 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     ).toHaveLength(2);
   });
 
+  it("hides the address search after a fast view opens and restores it from Start again", async () => {
+    const user = userEvent.setup();
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      gateway: createDataAccessGateway(),
+      basemapApiKey: "test-key",
+    });
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/api/public/property-check/stages")) {
+        return Response.json({
+          data: {
+            boundary: fastResult.boundary,
+            aerial: fastResult.aerial,
+            progress: fastResult.progress,
+          },
+          assessmentSnapshot: "server-issued-stage-snapshot",
+        });
+      }
+      return Response.json({
+        data: fastResult,
+        assessmentSnapshot: "server-issued-initial-snapshot",
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Fetch property data" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: requestedAddress }),
+    ).toBeVisible();
+    expect(
+      screen.queryByLabelText("Auckland property address"),
+    ).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Start again" }));
+
+    expect(screen.getByLabelText("Auckland property address")).toBeVisible();
+    expect(screen.queryByText("Fast property view")).not.toBeInTheDocument();
+  });
+
   it("shows a stage validation error instead of leaving the boundary pending", async () => {
     const user = userEvent.setup();
     const fastResult = await runFastPropertyView({

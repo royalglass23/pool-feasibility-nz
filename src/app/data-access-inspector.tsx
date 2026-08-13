@@ -390,6 +390,22 @@ export function DataAccessInspector() {
     URL.revokeObjectURL(objectUrl);
   }
 
+  function startAgain() {
+    fastRequestIdRef.current += 1;
+    setAddress("");
+    setSelectedAddressId(null);
+    setResult(null);
+    setFastResult(null);
+    setFastAssessmentSnapshot(null);
+    setFastPlacementSnapshot(null);
+    setFastMapSnapshot(null);
+    setError(null);
+    setCanRetry(false);
+    setAddressOptions([]);
+    setSuggestionMessage(null);
+    fastSavedReport.resetReport();
+  }
+
   return (
     <div className="space-y-8">
       <ActionProgressDialog
@@ -402,6 +418,7 @@ export function DataAccessInspector() {
         title="Running detailed official checks"
         description="Reviewing available official datasets and mapped property evidence."
       />
+      {!fastResult && !result && !fastSavedReport.assessment && (
       <form
         onSubmit={handleSubmit}
         className="rounded-3xl border border-white/70 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.35)] sm:p-7"
@@ -524,8 +541,9 @@ export function DataAccessInspector() {
           )}
         </div>
       </form>
+      )}
 
-      {fastResult && !result && (
+      {fastResult && !result && !fastSavedReport.assessment && (
         <>
           <FastPropertyView
             result={fastResult}
@@ -533,40 +551,39 @@ export function DataAccessInspector() {
             onRetry={() =>
               void requestPropertyData(fastResult.resolvedAddress.addressId)
             }
+            onStartAgain={startAgain}
             isLoadingDetailed={isLoadingDetailed}
             onPlacementChange={handleFastPlacementChange}
             onSnapshotReady={setFastMapSnapshot}
           />
-          {fastSavedReport.assessment ? (
-            <SavedAssessmentReportPanel
-              assessment={fastSavedReport.assessment}
-              showReport={fastSavedReport.showReport}
-              onOpen={fastSavedReport.openReport}
-              onBack={fastSavedReport.closeReport}
+          {fastPlacementSnapshot?.dimensions &&
+          fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
+          fastAssessmentSnapshot &&
+          fastMapSnapshot &&
+          fastResult.detailedChecks ? (
+            <HomeownerSubmissionForm
+              assessmentSnapshot={fastAssessmentSnapshot}
+              mapImageDataUrl={fastMapSnapshot.imageDataUrl}
+              mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
+              placement={fastPlacementSnapshot}
+              onSaved={fastSavedReport.saveAssessment}
             />
           ) : (
-            (() => {
-              return fastPlacementSnapshot?.dimensions &&
-                fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
-                fastAssessmentSnapshot &&
-                fastMapSnapshot &&
-                fastResult.detailedChecks ? (
-                <HomeownerSubmissionForm
-                  assessmentSnapshot={fastAssessmentSnapshot}
-                  mapImageDataUrl={fastMapSnapshot.imageDataUrl}
-                  mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
-                  placement={fastPlacementSnapshot}
-                  onSaved={fastSavedReport.saveAssessment}
-                />
-              ) : (
-                <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">
-                  Choose a valid pool placement, load the detailed official
-                  checks, and wait for the map capture before saving the report.
-                </p>
-              );
-            })()
+            <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">
+              Choose a valid pool placement, load the detailed official
+              checks, and wait for the map capture before saving the report.
+            </p>
           )}
         </>
+      )}
+
+      {fastSavedReport.assessment && (
+        <SavedAssessmentReportPanel
+          assessment={fastSavedReport.assessment}
+          showReport={fastSavedReport.showReport}
+          onOpen={fastSavedReport.openReport}
+          onBack={fastSavedReport.closeReport}
+        />
       )}
 
       {result && (
