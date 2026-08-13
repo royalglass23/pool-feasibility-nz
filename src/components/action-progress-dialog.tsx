@@ -54,7 +54,7 @@ export function ActionProgressDialog({
       aria-modal="true"
       onCancel={(event) => event.preventDefault()}
       tabIndex={-1}
-      className="w-[min(calc(100%-2rem),28rem)] rounded-2xl border border-slate-200 bg-white p-0 text-slate-950 shadow-xl backdrop:bg-slate-950/45"
+      className="fixed top-1/2 left-1/2 w-[min(calc(100%-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border border-slate-200 bg-white p-0 text-slate-950 shadow-xl backdrop:bg-slate-950/45"
     >
       <div className="flex items-start gap-4 p-6">
         <span className="grid size-11 shrink-0 place-items-center rounded-full bg-teal-50 text-teal-800">
