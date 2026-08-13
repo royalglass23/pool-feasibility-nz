@@ -44,7 +44,7 @@ export async function requestReportRecipientVerificationByReference(
   }
 
   const apiKey = dependencies.apiKey ?? process.env.RESEND_API_KEY?.trim();
-  const from = dependencies.from ?? process.env.REPORT_FROM_EMAIL?.trim();
+  const from = dependencies.from ?? configuredReportFromEmail();
   if (!apiKey || !from) {
     throw new ReportEmailDeliveryError("EMAIL_CONFIGURATION_MISSING");
   }
@@ -54,7 +54,7 @@ export async function requestReportRecipientVerificationByReference(
   if (!recipient) throw new ReportEmailDeliveryError("ASSESSMENT_NOT_FOUND");
 
   const verificationUrl = verificationUrlFor(
-    dependencies.baseUrl ?? process.env.APP_BASE_URL,
+    dependencies.baseUrl ?? configuredApplicationBaseUrl(),
     (dependencies.issueToken ?? issueReportRecipientVerificationToken)(
       recipient,
     ),
@@ -64,6 +64,25 @@ export async function requestReportRecipientVerificationByReference(
     dependencies.send ?? ((input) => sendResendEmail(input));
   await send({ ...message, apiKey });
   return "verification_required";
+}
+
+function configuredApplicationBaseUrl(): string | undefined {
+  const vercelUrl = process.env.VERCEL_URL?.trim();
+  if (process.env.VERCEL_ENV === "preview" && vercelUrl) {
+    return `https://${vercelUrl}`;
+  }
+
+  const configured = process.env.APP_BASE_URL?.trim();
+  if (configured) return configured;
+  return vercelUrl ? `https://${vercelUrl}` : undefined;
+}
+
+function configuredReportFromEmail(): string | undefined {
+  if (process.env.VERCEL_ENV === "preview") {
+    const previewFrom = process.env.PREVIEW_REPORT_FROM_EMAIL?.trim();
+    if (previewFrom) return previewFrom;
+  }
+  return process.env.REPORT_FROM_EMAIL?.trim();
 }
 
 async function defaultRecipient(

@@ -1,4 +1,3 @@
-import { after } from "next/server";
 import pino from "pino";
 import { getDb } from "@/db/client";
 import {
@@ -15,7 +14,6 @@ import {
   AssessmentSnapshotValidationError,
   verifyAssessmentSnapshot,
 } from "@/modules/assessment/assessment-snapshot";
-import { startAssessmentReportDeliveryByReference } from "@/modules/reporting/deliver-assessment-report";
 import { issueSavedReportAccessToken } from "@/modules/reporting/saved-report-access-token";
 import { staffSessionDeniedResponse } from "@/modules/staff/staff-session";
 import {
@@ -118,21 +116,6 @@ export async function POST(request: Request) {
     const reportAccessToken = issueSavedReportAccessToken({
       assessmentId: result.assessment.id,
       reference: result.assessment.reference,
-    });
-
-    after(async () => {
-      try {
-        await startAssessmentReportDeliveryByReference(
-          result.assessment.reference,
-        );
-      } catch {
-        logger.error({
-          event: "assessment_report_delivery",
-          outcome: "failed",
-          reference: result.assessment.reference,
-          correlationId,
-        });
-      }
     });
 
     return apiJsonResponse(

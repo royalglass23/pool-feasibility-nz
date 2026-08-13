@@ -4,6 +4,7 @@ export type ReportDeliveryEnvironment = {
   mode?: string;
   vercelEnvironment?: string;
   nodeEnvironment?: string;
+  previewRecipientVerificationEnabled?: boolean;
 };
 
 export type ReportDeliveryPolicy =
@@ -11,6 +12,11 @@ export type ReportDeliveryPolicy =
       mode: "synthetic_test";
       channels: readonly ["homeowner", "internal_test_report"];
       requiresRecipientVerification: false;
+    }
+  | {
+      mode: "production_test";
+      channels: readonly ["homeowner"];
+      requiresRecipientVerification: true;
     }
   | {
       mode: "production";
@@ -21,6 +27,17 @@ export type ReportDeliveryPolicy =
 export function resolveReportDeliveryPolicy(
   environment: ReportDeliveryEnvironment,
 ): ReportDeliveryPolicy {
+  if (
+    environment.previewRecipientVerificationEnabled &&
+    environment.vercelEnvironment === "preview"
+  ) {
+    return {
+      mode: "production_test",
+      channels: ["homeowner"],
+      requiresRecipientVerification: true,
+    };
+  }
+
   if (environment.mode === "synthetic_test") {
     if (environment.vercelEnvironment === "preview") {
       return {
@@ -40,6 +57,17 @@ export function resolveReportDeliveryPolicy(
         requiresRecipientVerification: false,
       };
     }
+  }
+
+  if (
+    environment.mode === "production_test" &&
+    environment.vercelEnvironment === "preview"
+  ) {
+    return {
+      mode: "production_test",
+      channels: ["homeowner"],
+      requiresRecipientVerification: true,
+    };
   }
 
   if (

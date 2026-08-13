@@ -77,13 +77,13 @@ export default function Home() {
         </section>
 
         <header className="mb-10 hidden max-w-3xl sm:mb-14">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-pool-blue-700/15 bg-white/80 px-3 py-1.5 text-xs font-bold tracking-[0.14em] text-pool-blue-800 uppercase shadow-sm backdrop-blur">
+          <div className="border-pool-blue-700/15 text-pool-blue-800 mb-6 inline-flex items-center gap-2 rounded-full border bg-white/80 px-3 py-1.5 text-xs font-bold tracking-[0.14em] uppercase shadow-sm backdrop-blur">
             Pool Lab · Data access POC
           </div>
-          <h1 className="text-4xl leading-tight font-semibold tracking-[-0.035em] text-pool-950 sm:text-6xl">
+          <h1 className="text-pool-950 text-4xl leading-tight font-semibold tracking-[-0.035em] sm:text-6xl">
             Inspect official property data before assessing pool feasibility.
           </h1>
-          <p className="mt-5 max-w-2xl text-base leading-7 text-pool-600 sm:text-lg sm:leading-8">
+          <p className="text-pool-600 mt-5 max-w-2xl text-base leading-7 sm:text-lg sm:leading-8">
             Enter a New Zealand address to resolve its LINZ address point, match
             the mapped property boundary, and check the current official dataset
             catalogue.
@@ -93,9 +93,9 @@ export default function Home() {
         <section
           id="property-search"
           className="mt-16 scroll-mt-24 border-t border-[#dbe8f0] pt-10 sm:mt-20 sm:pt-12"
-          aria-labelledby="property-search-heading"
+          aria-label="Property check"
         >
-          <div className="mb-6 max-w-2xl">
+          <div id="property-search-intro" className="mb-6 max-w-2xl">
             <p className="text-sm font-semibold tracking-[0.02em] text-[#5c7e96]">
               Start with your Auckland property
             </p>
@@ -126,18 +126,18 @@ export default function Home() {
           <div>
             <h2
               id="how-it-works-heading"
-              className="max-w-sm text-balance text-3xl leading-tight font-semibold tracking-[-0.03em] text-[#062f5d] sm:text-4xl"
+              className="max-w-sm text-3xl leading-tight font-semibold tracking-[-0.03em] text-balance text-[#062f5d] sm:text-4xl"
             >
               The useful questions, before the expensive decisions.
             </h2>
-            <p className="mt-5 max-w-md text-pretty text-base leading-7 text-[#426b87]">
+            <p className="mt-5 max-w-md text-base leading-7 text-pretty text-[#426b87]">
               This is a first look, not a final answer. It helps bring better
               questions to the people who will later design, quote, inspect, or
               approve the work.
             </p>
             <Link
               href="/can-my-auckland-property-suit-a-pool"
-              className="mt-7 inline-flex min-h-11 items-center gap-2 font-semibold text-[#0077bd] underline decoration-[#7fc4eb] underline-offset-4 transition hover:text-[#062f5d] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pool-blue-700"
+              className="focus-visible:outline-pool-blue-700 mt-7 inline-flex min-h-11 items-center gap-2 font-semibold text-[#0077bd] underline decoration-[#7fc4eb] underline-offset-4 transition hover:text-[#062f5d] focus-visible:outline-2 focus-visible:outline-offset-4"
             >
               Explore property-planning guidance
               <ArrowRight aria-hidden="true" className="size-4" />
@@ -164,13 +164,20 @@ export default function Home() {
           </div>
         </section>
 
-        <section className="border-t border-[#dbe8f0] py-12 sm:py-16" aria-labelledby="builder-heading">
+        <section
+          className="border-t border-[#dbe8f0] py-12 sm:py-16"
+          aria-labelledby="builder-heading"
+        >
           <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
             <div className="max-w-2xl">
-              <h2 id="builder-heading" className="text-balance text-2xl font-semibold tracking-[-0.025em] text-[#062f5d] sm:text-3xl">
-                For Auckland pool builders: start the conversation with the property.
+              <h2
+                id="builder-heading"
+                className="text-2xl font-semibold tracking-[-0.025em] text-balance text-[#062f5d] sm:text-3xl"
+              >
+                For Auckland pool builders: start the conversation with the
+                property.
               </h2>
-              <p className="mt-3 text-pretty text-base leading-7 text-[#426b87]">
+              <p className="mt-3 text-base leading-7 text-pretty text-[#426b87]">
                 Use the same early map and planning context to explain what a
                 homeowner should check next. The tool is public guidance, not a
                 partner programme or a lead-sharing service.
@@ -178,7 +185,7 @@ export default function Home() {
             </div>
             <Link
               href="/auckland-pool-planning-for-builders"
-              className="inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[#9fc8df] bg-transparent px-4 text-sm font-semibold text-[#062f5d] transition hover:border-[#0077bd] hover:bg-[#e9f7ff] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
+              className="focus-visible:outline-pool-blue-700 inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[#9fc8df] bg-transparent px-4 text-sm font-semibold text-[#062f5d] transition hover:border-[#0077bd] hover:bg-[#e9f7ff] focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               Read builder guidance
               <ArrowRight aria-hidden="true" className="size-4" />
@@ -212,7 +219,9 @@ function Feature({
       </div>
       <div>
         <h3 className="text-lg font-semibold text-[#062f5d]">{title}</h3>
-        <p className="mt-2 max-w-2xl text-pretty leading-7 text-[#426b87]">{text}</p>
+        <p className="mt-2 max-w-2xl leading-7 text-pretty text-[#426b87]">
+          {text}
+        </p>
       </div>
     </div>
   );
