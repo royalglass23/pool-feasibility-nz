@@ -24,6 +24,12 @@
   animation-delay: var(--pool-explainer-delay);
   will-change: transform, opacity;
 }
+.pool-explainer-intro {
+  animation-name: pool-explainer-intro-slide;
+}
+.pool-explainer-closing {
+  animation-name: pool-explainer-closing-slide;
+}
 .pool-explainer-step-heading {
   position: absolute;
   z-index: 3;
@@ -560,6 +566,49 @@
   83.33% {
     opacity: 0;
     transform: translateX(-100%);
+  }
+  97.083% {
+    opacity: 0;
+    transform: translateX(100%);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes pool-explainer-intro-slide {
+  0% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  3%,
+  13.75% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  16.67% {
+    opacity: 0;
+    transform: translateX(-100%);
+  }
+  97.083% {
+    opacity: 0;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+@keyframes pool-explainer-closing-slide {
+  0%,
+  13.75% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  16.67%,
+  83.33% {
+    opacity: 0;
+    transform: translateX(0);
   }
   97.083% {
     opacity: 0;
