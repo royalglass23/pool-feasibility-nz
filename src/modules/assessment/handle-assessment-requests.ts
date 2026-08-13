@@ -97,64 +97,86 @@ export async function POST(request: Request) {
       { "Cache-Control": "no-store" },
     );
   }
-  const db = getDb();
-  const result = await saveHomeownerAssessment(db, parsed);
-  if (!result.created) {
-    return apiErrorResponse(
-      {
-        code: "ASSESSMENT_SNAPSHOT_ALREADY_USED",
-        message: "This saved assessment has already been submitted.",
-      },
-      409,
-      correlationId,
-      { "Cache-Control": "no-store" },
+  try {
+    const db = getDb();
+    const result = await saveHomeownerAssessment(db, parsed);
+    const report = await getSavedPreliminaryReportById(
+      db,
+      result.assessment.id,
     );
-  }
-  const report = await getSavedPreliminaryReportById(db, result.assessment.id);
-  if (!report) {
-    return apiErrorResponse(
-      {
-        code: "REPORT_GENERATION_FAILED",
-        message: "The saved preliminary report is not available.",
-      },
-      500,
-      correlationId,
-      { "Cache-Control": "no-store" },
-    );
-  }
-  after(async () => {
-    try {
-      await deliverAssessmentReportByReference(result.assessment.reference);
-    } catch {
-      logger.error({
-        event: "assessment_report_delivery",
-        outcome: "failed",
-        reference: result.assessment.reference,
+    if (!report) {
+      return apiErrorResponse(
+        {
+          code: "REPORT_GENERATION_FAILED",
+          message: "The saved preliminary report is not available.",
+        },
+        500,
         correlationId,
-      });
+        { "Cache-Control": "no-store" },
+      );
     }
-  });
+    const reportAccessToken = issueSavedReportAccessToken({
+      assessmentId: result.assessment.id,
+      reference: result.assessment.reference,
+    });
 
-  return apiJsonResponse(
-    {
-      assessment: {
-        id: result.assessment.id,
-        reference: result.assessment.reference,
-        status: result.assessment.status,
-        created: result.created,
-        report,
-        reportAccessToken: issueSavedReportAccessToken({
-          assessmentId: result.assessment.id,
+    after(async () => {
+      try {
+        await deliverAssessmentReportByReference(result.assessment.reference);
+      } catch {
+        logger.error({
+          event: "assessment_report_delivery",
+          outcome: "failed",
           reference: result.assessment.reference,
-        }),
-        delivery: {
-          homeowner: result.assessment.emailDeliveryState,
-          internal_test_report: result.assessment.forwardingState,
+          correlationId,
+        });
+      }
+    });
+
+    return apiJsonResponse(
+      {
+        assessment: {
+          id: result.assessment.id,
+          reference: result.assessment.reference,
+          status: result.assessment.status,
+          created: result.created,
+          report,
+          reportAccessToken,
+          delivery: {
+            homeowner: result.assessment.emailDeliveryState,
+            internal_test_report: result.assessment.forwardingState,
+          },
         },
       },
-    },
-    result.created ? 201 : 200,
-    correlationId,
-    { "Cache-Control": "no-store" },
-  );
+      result.created ? 201 : 200,
+      correlationId,
+      { "Cache-Control": "no-store" },
+    );
+  } catch (error) {
+    const reportAccessUnavailable =
+      error instanceof Error &&
+      (error.message === "INTERNAL_REPORT_SIGNING_SECRET_REQUIRED" ||
+        error.message === "SAVED_REPORT_SIGNING_KEY_TOO_SHORT");
+    logger.error({
+      event: "assessment_submission",
+      outcome: "failed",
+      reason: reportAccessUnavailable
+        ? "report_access_unavailable"
+        : "persistence_or_report_failure",
+      correlationId,
+    });
+    return apiErrorResponse(
+      {
+        code: reportAccessUnavailable
+          ? "REPORT_ACCESS_UNAVAILABLE"
+          : "ASSESSMENT_SAVE_FAILED",
+        message: reportAccessUnavailable
+          ? "The saved report is temporarily unavailable. Please try again shortly."
+          : "The assessment could not be saved. Please try again shortly.",
+      },
+      reportAccessUnavailable ? 503 : 500,
+      correlationId,
+      { "Cache-Control": "no-store" },
+    );
+  }
 }
