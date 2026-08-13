@@ -142,13 +142,13 @@ describe("assessment report delivery", () => {
     )?.[0];
     expect(homeownerEmail).toMatchObject({
       attachment: pdf,
-      filename: "pool-feasibility-GF-2026-000123.pdf",
-      subject: "Your preliminary pool feasibility report - GF-2026-000123",
+      filename: "preliminary-pool-feasibility-1-test-street.pdf",
+      subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
     });
     expect(internalEmail).toMatchObject({
       attachment: pdf,
-      filename: "pool-feasibility-GF-2026-000123.pdf",
-      subject: "Your preliminary pool feasibility report - GF-2026-000123",
+      filename: "preliminary-pool-feasibility-1-test-street.pdf",
+      subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
       idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
     });
     expect(result).toEqual({
@@ -188,15 +188,15 @@ describe("assessment report delivery", () => {
     )?.[0];
     expect(homeownerEmail).toMatchObject({
       to: "jane@example.com",
-      filename: "pool-feasibility-GF-2026-000123.pdf",
+      filename: "preliminary-pool-feasibility-1-test-street.pdf",
       idempotencyKey: "assessment-report/GF-2026-000123/homeowner",
       attachment: Buffer.from("%PDF-shared"),
     });
     expect(internalEmail).toMatchObject({
       to: "royalglass666@gmail.com",
-      subject: "Your preliminary pool feasibility report - GF-2026-000123",
+      subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
       attachment: Buffer.from("%PDF-shared"),
-      filename: "pool-feasibility-GF-2026-000123.pdf",
+      filename: "preliminary-pool-feasibility-1-test-street.pdf",
       idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
     });
     expect(states).toEqual({
@@ -294,7 +294,7 @@ describe("assessment report delivery", () => {
     expect(send.mock.calls[0]?.[0]).toMatchObject({
       to: "royalglass666@gmail.com",
       attachment: pdf,
-      filename: "pool-feasibility-GF-2026-000123.pdf",
+      filename: "preliminary-pool-feasibility-1-test-street.pdf",
       idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
     });
     expect(result).toEqual({
@@ -359,11 +359,11 @@ describe("assessment report delivery", () => {
         apiKey: "re_test",
         from: "Royal Glass <reports@example.com>",
         to: "royalglass666@gmail.com",
-        subject: "Your preliminary pool feasibility report - GF-2026-000123",
+        subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
         html: "<p>Your report is attached.</p>",
         text: "Your report is attached.",
         attachment: Buffer.from("%PDF-shared"),
-        filename: "pool-feasibility-GF-2026-000123.pdf",
+        filename: "preliminary-pool-feasibility-1-test-street.pdf",
         idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
       },
       fetchImplementation,
@@ -373,13 +373,13 @@ describe("assessment report delivery", () => {
     expect(JSON.parse(String(init?.body))).toEqual({
       from: "Royal Glass <reports@example.com>",
       to: ["royalglass666@gmail.com"],
-      subject: "Your preliminary pool feasibility report - GF-2026-000123",
+      subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
       html: "<p>Your report is attached.</p>",
       text: "Your report is attached.",
       attachments: [
         {
           content: Buffer.from("%PDF-shared").toString("base64"),
-          filename: "pool-feasibility-GF-2026-000123.pdf",
+          filename: "preliminary-pool-feasibility-1-test-street.pdf",
         },
       ],
     });

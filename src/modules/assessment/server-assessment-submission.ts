@@ -1,4 +1,5 @@
 import { z } from "zod";
+import type { Geometry } from "geojson";
 import {
   buildFastPoolGeometry,
   fastPoolConstructionEnvelopeDimensions,
@@ -159,6 +160,7 @@ export async function buildServerAssessmentSubmission(input: {
         sourceUrl: layer.evidence.attribution?.url,
         retrievedAt: layer.evidence.retrievedAt,
         featureCount: layer.evidence.featureCount,
+        geometry: persistedLayerGeometry(layer.geometry),
       })) ?? [],
     warnings: [
       {
@@ -199,6 +201,28 @@ export async function buildServerAssessmentSubmission(input: {
       },
     },
   });
+}
+
+function persistedLayerGeometry(
+  collection: NonNullable<
+    TrustedAssessmentSnapshot["fastResult"]["detailedChecks"]
+  >["layers"][number]["geometry"],
+): PersistedAssessmentSubmission["layerStates"][number]["geometry"] {
+  if (!collection) return undefined;
+  const geometries = collection.features.flatMap((feature) =>
+    flattenGeometryCollection(feature.geometry),
+  );
+  if (geometries.length === 0) return undefined;
+  return {
+    type: "GeometryCollection",
+    geometries,
+  } as PersistedAssessmentSubmission["layerStates"][number]["geometry"];
+}
+
+function flattenGeometryCollection(geometry: Geometry): Geometry[] {
+  return geometry.type === "GeometryCollection"
+    ? geometry.geometries.flatMap(flattenGeometryCollection)
+    : [geometry];
 }
 
 function reportRecommendations(

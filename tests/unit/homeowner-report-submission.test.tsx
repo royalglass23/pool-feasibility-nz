@@ -375,36 +375,39 @@ describe("homeowner report submission", () => {
 
     expect(
       screen.getByRole("heading", {
-        name: "Preliminary pool feasibility report",
+        name: "Preliminary Pool Feasibility Report",
       }),
     ).toBeVisible();
     expect(screen.getByText("GF-2026-000123")).toBeVisible();
     expect(screen.getByText("1 Test Street, Auckland")).toBeVisible();
-    expect(screen.getByText("Pool placement needs checking")).toBeVisible();
+    expect(screen.getByText("Pool position requires checking")).toBeVisible();
     expect(
-      screen.getByText("Confirm the saved evidence before concept design."),
+      screen.getByText(
+        "The proposed pool appears worth progressing, but some mapped evidence requires checking.",
+      ),
     ).toBeVisible();
-    expect(screen.getByText("Generated 29 Jul 2026, 2:03 pm")).toBeVisible();
-    expect(screen.getByText("Review access:")).toBeVisible();
-    expect(screen.getByText("Homeowner email: Processing")).toBeVisible();
+    expect(screen.getByText(/Generated 29 Jul 2026, 2:03 pm/)).toBeVisible();
+    expect(screen.getByText("Confirm the pool position")).toBeVisible();
     expect(
-      screen.getByText("Internal report email: Needs retry"),
+      screen.getByText("Emailing the saved report to the client..."),
     ).toBeVisible();
-    const reportMapPanel = screen
-      .getByAltText("Saved property and pool map")
-      .closest("figure");
-    expect(reportMapPanel).toHaveClass(
-      "grid",
-      "lg:grid-cols-[minmax(0,1fr)_20rem]",
-    );
-    const mapKey = screen.getByText("Map layers").closest("figcaption");
-    expect(mapKey).not.toBeNull();
-    expect(mapKey).toHaveClass("lg:border-l", "lg:border-t-0");
-    expect(within(mapKey!).getByText("Mapped property boundary")).toBeVisible();
-    expect(within(mapKey!).getByText("Selected pool")).toBeVisible();
+    const reportMapPanel = screen.getByRole("region", {
+      name: "Interactive assessment map",
+    });
+    expect(reportMapPanel).toHaveClass("rounded-xl", "border-slate-200");
     expect(
-      within(mapKey!).getByText("Indicative investigation buffer"),
-    ).toBeVisible();
+      within(reportMapPanel).getByRole("checkbox", {
+        name: "Mapped property boundary",
+      }),
+    ).toBeChecked();
+    expect(
+      within(reportMapPanel).getByRole("checkbox", { name: "Selected pool" }),
+    ).toBeChecked();
+    expect(
+      within(reportMapPanel).getByRole("checkbox", {
+        name: "Indicative investigation buffer",
+      }),
+    ).toBeChecked();
 
     const download = screen.getByRole("button", { name: "Download PDF" });
     expect(download).toHaveClass("items-center", "justify-center");

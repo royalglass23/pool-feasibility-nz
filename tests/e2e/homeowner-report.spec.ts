@@ -208,16 +208,31 @@ test("keeps the saved preliminary report visible when homeowner email needs retr
     }),
   ).toBeVisible();
   await expect(page.getByText("GF-2026-000123")).toBeVisible();
-  await expect(page.getByText("Homeowner email: Needs retry")).toBeVisible();
   await expect(
-    page.getByText("Internal report email: Processing"),
+    page.getByText("Report generated successfully. Email delivery failed."),
   ).toBeVisible();
-  const mapKey = page.locator("figcaption").filter({ hasText: "Map layers" });
-  await expect(mapKey.getByText("Mapped property boundary")).toBeVisible();
-  await expect(mapKey.getByText("Selected pool")).toBeVisible();
   await expect(
-    mapKey.getByText("Indicative investigation buffer"),
+    page.getByRole("button", { name: "Resend report" }),
   ).toBeVisible();
+  await expect(page.getByText(/Internal report email/i)).toHaveCount(0);
+  const assessmentMap = page.getByRole("region", {
+    name: "Interactive assessment map",
+  });
+  await expect(assessmentMap).toBeVisible();
+  await expect(
+    assessmentMap.getByRole("checkbox", { name: "Mapped property boundary" }),
+  ).toBeChecked();
+  const poolToggle = assessmentMap.getByRole("checkbox", {
+    name: "Selected pool",
+  });
+  await expect(poolToggle).toBeChecked();
+  await expect(
+    assessmentMap.getByRole("checkbox", {
+      name: "Indicative investigation buffer",
+    }),
+  ).toBeChecked();
+  await poolToggle.uncheck();
+  await expect(assessmentMap.getByText("Selected pool hidden")).toBeVisible();
   const downloadButton = page.getByRole("button", { name: "Download PDF" });
   await expect(downloadButton).toHaveCSS("align-items", "center");
   await expect(downloadButton).toHaveCSS("justify-content", "center");
@@ -225,7 +240,7 @@ test("keeps the saved preliminary report visible when homeowner email needs retr
   await downloadButton.click();
   const download = await downloadPromise;
   expect(download.suggestedFilename()).toBe(
-    "pool-feasibility-GF-2026-000123.pdf",
+    "preliminary-pool-feasibility-42a-bahari-drive.pdf",
   );
   await download.delete();
 });

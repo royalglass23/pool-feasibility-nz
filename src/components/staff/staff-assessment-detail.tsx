@@ -1,6 +1,6 @@
 "use client";
 
-import { SavedPreliminaryReportView } from "@/components/saved-preliminary-report-view";
+import { HomeownerFeasibilityReportView } from "@/components/homeowner-feasibility-report-view";
 import { getProjectTimingLabel } from "@/modules/assessment/visitor-context";
 import { getVisitorTypeLabel } from "@/modules/assessment/visitor-type";
 import type { StaffAssessmentDetail as StaffAssessmentDetailModel } from "@/modules/staff/staff-assessment-read-model";
@@ -88,7 +88,7 @@ export function StaffAssessmentDetail({
         )}
       </section>
 
-      <SavedPreliminaryReportView
+      <HomeownerFeasibilityReportView
         report={assessment.report}
         delivery={{
           homeowner: assessment.emailDeliveryState,

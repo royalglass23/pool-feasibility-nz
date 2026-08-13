@@ -6,6 +6,7 @@ import {
   type ReportEmailResult,
 } from "@/modules/reporting/resend-email-gateway";
 import { escapeHtml } from "@/shared/html/escape-html";
+import { assessmentStatusLabel } from "@/modules/reporting/pool-feasibility-report";
 
 export type AssessmentDeliveryChannel = "homeowner" | "internal_test_report";
 export type AssessmentDeliveryOutcome = "sent" | "failed" | "unchanged";
@@ -147,10 +148,16 @@ function emailForClaim(
     claim.channel === "homeowner"
       ? claim.homeownerEmail
       : INTERNAL_TEST_REPORT_RECIPIENT;
-  const subject = `Your preliminary pool feasibility report - ${claim.report.reference}`;
+  const shortAddress = claim.report.property.address.split(",")[0]?.trim();
+  const subject = `Your Preliminary Pool Feasibility Report - ${shortAddress || claim.report.property.address}`;
   const greeting = `Kia ora ${claim.homeownerName},`;
-  const text = `${greeting}\n\nThe preliminary pool feasibility report for ${claim.report.property.address} is attached.\n\nReference: ${claim.report.reference}\nStatus: ${claim.report.warningState.replaceAll("_", " ")}\n\nThis is a preliminary assessment, not approval or construction advice.`;
-  const html = `<p>${escapeHtml(greeting)}</p><p>The preliminary pool feasibility report for <strong>${escapeHtml(claim.report.property.address)}</strong> is attached.</p><p><strong>Reference:</strong> ${escapeHtml(claim.report.reference)}<br><strong>Status:</strong> ${escapeHtml(claim.report.warningState.replaceAll("_", " "))}</p><p>This is a preliminary assessment, not approval or construction advice.</p>`;
+  const overallStatus = assessmentStatusLabel(claim.report.overall.status);
+  const mainFinding = claim.report.keyFindings[0];
+  const mainFindingText = mainFinding
+    ? `${mainFinding.title}: ${mainFinding.clientSummary}`
+    : "No additional material mapped finding was identified.";
+  const text = `${greeting}\n\nPreliminary Pool Feasibility Report\n${claim.report.property.address}\n\nOverall result:\n${overallStatus}\n\n${claim.report.overall.summary}\n\nMain finding:\n${mainFindingText}\n\nRecommended next step:\n${claim.report.overall.recommendedStage}\n\nA PDF copy of the saved report is attached.\nReference: ${claim.report.reference}\n\nThis is a preliminary desktop assessment, not surveying, engineering advice, consent or approval to undertake construction.`;
+  const html = `<p>${escapeHtml(greeting)}</p><h1 style="font-size:20px;line-height:1.3;margin:20px 0 4px">Preliminary Pool Feasibility Report</h1><p style="margin-top:0"><strong>${escapeHtml(claim.report.property.address)}</strong></p><p><strong>Overall result:</strong><br>${escapeHtml(overallStatus)}</p><p>${escapeHtml(claim.report.overall.summary)}</p><p><strong>Main finding:</strong><br>${escapeHtml(mainFindingText)}</p><p><strong>Recommended next step:</strong><br>${escapeHtml(claim.report.overall.recommendedStage)}</p><p>A PDF copy of the saved report is attached.</p><p><small>Reference: ${escapeHtml(claim.report.reference)}. This is a preliminary desktop assessment, not surveying, engineering advice, consent or approval to undertake construction.</small></p>`;
 
   return {
     from: dependencies.from,

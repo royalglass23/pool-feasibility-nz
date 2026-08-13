@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from "react";
 import type { SavedAssessmentResponse } from "@/components/homeowner-submission-form";
-import { SavedPreliminaryReportView } from "@/components/saved-preliminary-report-view";
+import { HomeownerFeasibilityReportView } from "@/components/homeowner-feasibility-report-view";
 
 export function useSavedAssessmentReport() {
   const [assessment, setAssessment] = useState<SavedAssessmentResponse | null>(
@@ -39,7 +39,7 @@ export function SavedAssessmentReportPanel({
 }) {
   if (showReport) {
     return (
-      <SavedPreliminaryReportView
+      <HomeownerFeasibilityReportView
         report={assessment.report}
         delivery={assessment.delivery}
         onBack={onBack}

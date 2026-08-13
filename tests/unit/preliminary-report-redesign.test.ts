@@ -1,0 +1,220 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildSavedPreliminaryReport,
+  preliminaryReportFilename,
+} from "@/modules/reporting/preliminary-report";
+import { renderCanonicalPreliminaryReportHtml } from "@/modules/reporting/preliminary-report-html";
+import { buildTestPersistedAssessmentSubmission } from "../fixtures/preliminary-report";
+
+const createdAt = "2026-08-13T02:00:00.000Z";
+
+function buildReport(
+  mutate?: (
+    submission: ReturnType<typeof buildTestPersistedAssessmentSubmission>,
+  ) => void,
+) {
+  const submission = buildTestPersistedAssessmentSubmission(
+    `redesign-${Math.random().toString(16).slice(2)}`,
+  );
+  mutate?.(submission);
+  return buildSavedPreliminaryReport({
+    submission,
+    reference: "GF-2026-000019",
+    createdAt,
+  });
+}
+
+describe("canonical homeowner feasibility report", () => {
+  it("keeps normal later-stage verification separate from a green overall result", () => {
+    const report = buildReport((submission) => {
+      submission.report.feasibilityState = "no_warning";
+      submission.report.summary = "No mapped conflict was identified.";
+      submission.warnings = [];
+      submission.report.reportData.risks = [
+        {
+          id: "unverified_legal_and_site_information",
+          category: "Legal and site due diligence",
+          title: "Legal interests and site conditions remain unverified",
+          severity: "high",
+          evidence: "Title, geotechnical and utility information is not known.",
+          source: "Saved desktop assessment",
+          confidence: "unavailable",
+          impact: "Later checks may change the design.",
+          action: "Complete the later checks.",
+          specialistReviewRequired: true,
+        },
+      ];
+    });
+
+    expect(report.overall.status).toBe("green");
+    expect(report.keyFindings[0]?.severity).toBe("green");
+    expect(report.laterVerification).toContain(
+      "Current title and registered easements",
+    );
+    expect(report.laterVerification).toContain(
+      "Geotechnical and groundwater conditions",
+    );
+  });
+
+  it("makes missing critical property information incomplete and never green", () => {
+    const report = buildReport((submission) => {
+      submission.addressEvidence.boundaryStatus = "unavailable";
+      submission.report.feasibilityState = "no_warning";
+      submission.warnings = [];
+    });
+
+    expect(report.overall).toMatchObject({
+      status: "unknown",
+      headline: "Assessment incomplete",
+      recommendedStage: "Confirm property information",
+    });
+    expect(report.assessments.pool_fit.status).toBe("unknown");
+  });
+
+  it("makes invalid saved pool geometry incomplete and never green", () => {
+    const report = buildReport((submission) => {
+      submission.report.feasibilityState = "no_warning";
+      submission.warnings = [];
+      submission.poolLayout.shellGeometry = {
+        type: "Polygon",
+        coordinates: [],
+      };
+    });
+
+    expect(report.overall).toMatchObject({
+      status: "unknown",
+      headline: "Assessment incomplete",
+      recommendedStage: "Confirm property information",
+    });
+    expect(report.assessments.pool_fit.status).toBe("unknown");
+  });
+
+  it("allows a red utility category to produce an amber overall result when the proposal remains worth investigating", () => {
+    const report = buildReport((submission) => {
+      submission.report.reportData.risks = [
+        {
+          id: "major_mapped_infrastructure",
+          category: "Underground services",
+          title: "Major mapped infrastructure affects apparent usable areas",
+          severity: "high",
+          evidence: "A mapped wastewater pipe is close to the proposed pool.",
+          source: "Watercare / Wastewater assets",
+          confidence: "limited",
+          impact: "The position may need to move.",
+          action:
+            "Confirm the mapped wastewater asset location and applicable requirements.",
+          specialistReviewRequired: true,
+        },
+      ];
+      submission.layerStates = [
+        {
+          provider: "Watercare",
+          dataset: "Wastewater assets",
+          datasetId: "wastewater_assets",
+          status: "returned",
+          confidence: "medium",
+        },
+      ];
+    });
+
+    expect(report.overall.status).toBe("amber");
+    expect(report.assessments.water_wastewater.status).toBe("red");
+    expect(report.keyFindings[0]).toMatchObject({
+      severity: "red",
+      category: "water",
+    });
+    expect(report.nextSteps[0]?.title).toBe(
+      "Verify water and wastewater infrastructure",
+    );
+  });
+
+  it("uses red overall only for a blocked current layout", () => {
+    const report = buildReport((submission) => {
+      submission.report.feasibilityState = "blocked";
+      submission.report.summary =
+        "The current construction envelope conflicts with mapped evidence.";
+      submission.warnings = [
+        {
+          state: "blocked",
+          code: "POOL_BLOCKED",
+          title: "Pool position blocked",
+          message:
+            "The current construction envelope conflicts with mapped evidence.",
+        },
+      ];
+    });
+
+    expect(report.overall).toMatchObject({
+      status: "red",
+      headline: "Potential constraint identified",
+      recommendedStage: "Review pool position",
+    });
+  });
+
+  it("does not expose internal-reference vector geometry in the homeowner report", () => {
+    const report = buildReport((submission) => {
+      submission.layerStates = [
+        {
+          provider: "Internal provider",
+          dataset: "Internal utility reference",
+          datasetId: "internal_utility_reference",
+          status: "internal_reference_only",
+          geometry: {
+            type: "LineString",
+            coordinates: [
+              [174.7599, -36.85],
+              [174.7601, -36.85],
+            ],
+          },
+        },
+      ];
+      submission.report.reportData.provenance.datasets = [
+        {
+          id: "internal_utility_reference",
+          provider: "Internal provider",
+          dataset: "Internal utility reference",
+          datasetIdentifier: "internal_utility_reference",
+          status: "success",
+          evidenceUse: "internal_reference",
+          retrievedAt: createdAt,
+          datasetDate: null,
+          licence: "Internal reference only",
+          attribution: null,
+          confidence: "limited",
+          availabilityNote: null,
+        },
+      ];
+    });
+
+    expect(report.layers[0]).toMatchObject({
+      evidenceUse: "internal_reference",
+      geometry: null,
+    });
+  });
+
+  it("renders exactly three fixed PDF pages without scoring, scenarios, diagnostics or duplicated maps", () => {
+    const report = buildReport();
+    const html = renderCanonicalPreliminaryReportHtml(report);
+
+    expect(html.match(/<section class="page(?: page-two)?">/g)).toHaveLength(3);
+    expect(html.match(/<img class="map"/g)).toHaveLength(1);
+    expect(html).toContain("Page 1 of 3");
+    expect(html).toContain("Page 2 of 3");
+    expect(html).toContain("Page 3 of 3");
+    expect(html).toContain(report.overall.summary);
+    expect(html).toContain(report.overall.recommendedStage);
+    expect(html).toContain("Mapping information");
+    expect(html).toContain("Preliminary assessment");
+    expect(html).not.toMatch(/Feasibility score|\/ 100|confidence percentage/i);
+    expect(html).not.toMatch(/Compact Plus|Scenario results|rotation/i);
+    expect(html).not.toMatch(/provider error|query status|returned|ArcGIS/i);
+    expect(html).not.toContain("Page 4");
+  });
+
+  it("uses a human-readable address-based PDF filename", () => {
+    const report = buildReport();
+    expect(preliminaryReportFilename(report)).toBe(
+      "preliminary-pool-feasibility-1-mt-249-test-street.pdf",
+    );
+  });
+});
