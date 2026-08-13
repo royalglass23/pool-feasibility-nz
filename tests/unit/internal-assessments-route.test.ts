@@ -12,11 +12,7 @@ import { officialDatasetEvidence } from "@/modules/providers/official-dataset-ca
 const getDb = vi.hoisted(() => vi.fn(() => ({}) as never));
 const saveHomeownerAssessment = vi.hoisted(() => vi.fn());
 const getSavedPreliminaryReportById = vi.hoisted(() => vi.fn());
-const startAssessmentReportDeliveryByReference = vi.hoisted(() => vi.fn());
 const issueSavedReportAccessToken = vi.hoisted(() => vi.fn());
-const scheduledCallbacks = vi.hoisted(
-  () => [] as Array<() => void | Promise<void>>,
-);
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/modules/rate-limit/public-rate-limit", () => ({
@@ -25,18 +21,10 @@ vi.mock("@/modules/rate-limit/public-rate-limit", () => ({
     next: (request: Request) => Promise<Response>,
   ) => next,
 }));
-vi.mock("next/server", () => ({
-  after: (callback: () => void | Promise<void>) => {
-    scheduledCallbacks.push(callback);
-  },
-}));
 vi.mock("@/db/client", () => ({ getDb }));
 vi.mock("@/db/repositories/homeowner-assessment-repository", () => ({
   getSavedPreliminaryReportById,
   saveHomeownerAssessment,
-}));
-vi.mock("@/modules/reporting/deliver-assessment-report", () => ({
-  startAssessmentReportDeliveryByReference,
 }));
 vi.mock("@/modules/reporting/saved-report-access-token", () => ({
   issueSavedReportAccessToken,
@@ -122,9 +110,7 @@ afterEach(() => {
   getDb.mockClear();
   saveHomeownerAssessment.mockReset();
   getSavedPreliminaryReportById.mockReset();
-  startAssessmentReportDeliveryByReference.mockReset();
   issueSavedReportAccessToken.mockReset();
-  scheduledCallbacks.length = 0;
   vi.unstubAllEnvs();
 });
 
@@ -476,9 +462,6 @@ describe("POST /api/internal/assessments", () => {
       limitations: [],
       mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
     });
-    startAssessmentReportDeliveryByReference.mockRejectedValue(
-      new Error("email provider unavailable"),
-    );
     issueSavedReportAccessToken.mockReturnValue("saved-report-access-token");
 
     const response = await POST(
@@ -521,17 +504,9 @@ describe("POST /api/internal/assessments", () => {
         idempotencyKey: expect.any(String),
       }),
     );
-    expect(startAssessmentReportDeliveryByReference).not.toHaveBeenCalled();
-    expect(scheduledCallbacks).toHaveLength(1);
-
-    await expect(scheduledCallbacks[0]()).resolves.toBeUndefined();
-
-    expect(startAssessmentReportDeliveryByReference).toHaveBeenCalledWith(
-      "GF-2026-000001",
-    );
   });
 
-  it("returns an already-saved assessment and retries its pending delivery", async () => {
+  it("returns an already-saved assessment", async () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("INTERNAL_REPORT_SIGNING_SECRET", snapshotSigningKey);
     saveHomeownerAssessment.mockResolvedValue({
@@ -567,8 +542,6 @@ describe("POST /api/internal/assessments", () => {
       expect.anything(),
       "assessment-1",
     );
-    expect(startAssessmentReportDeliveryByReference).not.toHaveBeenCalled();
-    expect(scheduledCallbacks).toHaveLength(1);
   });
 
   it("returns a retryable response when saved-report access is not configured", async () => {
@@ -606,7 +579,6 @@ describe("POST /api/internal/assessments", () => {
         correlationId: "report-access-unavailable",
       },
     });
-    expect(scheduledCallbacks).toHaveLength(0);
   });
 });
 

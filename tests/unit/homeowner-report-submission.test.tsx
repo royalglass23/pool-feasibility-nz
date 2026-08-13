@@ -427,6 +427,57 @@ describe("homeowner report submission", () => {
     );
   });
 
+  it("requests recipient verification once after the saved report opens", async () => {
+    const request = vi.fn().mockResolvedValue(
+      Response.json(
+        {
+          delivery: {
+            homeowner: "pending",
+            internal_test_report: "pending",
+          },
+          recipientVerification: "required",
+        },
+        { status: 202 },
+      ),
+    );
+    vi.stubGlobal("fetch", request);
+
+    render(
+      <SavedAssessmentReportPanel
+        assessment={{
+          id: "assessment-1",
+          reference: report.reference,
+          status: "new_enquiry",
+          created: true,
+          report,
+          reportAccessToken: "saved-report-access-token",
+          delivery: {
+            homeowner: "pending",
+            internal_test_report: "pending",
+          },
+        }}
+        showReport
+        onOpen={() => undefined}
+        onBack={() => undefined}
+      />,
+    );
+
+    expect(
+      await screen.findByText(
+        "Check your email to confirm your address before we send the PDF.",
+      ),
+    ).toBeVisible();
+    expect(request).toHaveBeenCalledTimes(1);
+    expect(request).toHaveBeenCalledWith(
+      "/api/public/assessments/report/delivery",
+      expect.objectContaining({
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accessToken: "saved-report-access-token" }),
+      }),
+    );
+  });
+
   it("offers Start again at the end of the saved report", async () => {
     const user = userEvent.setup();
     const onStartAgain = vi.fn();
