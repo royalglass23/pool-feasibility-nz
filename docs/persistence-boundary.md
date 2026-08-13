@@ -18,8 +18,8 @@ column remains nullable only so pre-MT-249 development rows are not backfilled w
 map; those legacy rows cannot enter report delivery.
 
 After the assessment response is returned, Next.js `after` starts delivery from the persisted
-aggregate. The submitted synthetic test email and internal test email are claimed, attempted, and
-completed independently. The internal test destination temporarily reuses the persisted
+aggregate. In local development/test and Vercel Preview, the submitted synthetic test email and
+internal test email are claimed, attempted, and completed independently. The internal test destination temporarily reuses the persisted
 `forwarding_*` database columns behind a repository-only mapping; the application channel is
 `internal_test_report`. These legacy columns do not enable or send to ServiceM8. Each claim records
 its token, attempt count, timestamp, provider message ID, and safe error code. A sent destination is
@@ -32,13 +32,17 @@ Report delivery needs these server-only settings:
 
 - `RESEND_API_KEY`
 - `REPORT_FROM_EMAIL`
-- `REPORT_DELIVERY_MODE=synthetic_test`
+- `REPORT_DELIVERY_MODE=synthetic_test` for local development/test or Vercel Preview, or
+  `REPORT_DELIVERY_MODE=production` only in Vercel Production
 
 Missing delivery configuration records a delivery failure; it does not remove the saved assessment
-or browser report. Both controlled-test destinations receive the same saved report PDF through
-Resend; the internal destination is fixed in the controlled-test boundary as
-`royalglass666@gmail.com`. The mode fails closed in production and when it is not explicitly
-enabled. `SERVICEM8_FORWARD_EMAIL` remains unset, and no ServiceM8 email or API job is created.
+or browser report. In `synthetic_test`, both controlled-test destinations receive the same saved
+report PDF through Resend; the internal destination is fixed in the controlled-test boundary as
+`royalglass666@gmail.com`. In Production, the initial request sends a one-hour confirmation link
+only to the submitted recipient. Its signed token is kept in the URL fragment, so it is not sent in
+the page request or referrer; confirmation is required before the saved PDF is sent. Production
+does not claim or send the internal-test channel. The mode fails closed outside its explicit
+environment. `SERVICEM8_FORWARD_EMAIL` remains unset, and no ServiceM8 email or API job is created.
 Saved-report access tokens derive a domain-scoped signing key from `RESEND_API_KEY` when
 `INTERNAL_REPORT_SIGNING_SECRET` is not configured, so test delivery does not require an additional
 Vercel variable. The separate `INTERNAL_REPORT_SIGNING_SECRET` remains the preferred key for signed

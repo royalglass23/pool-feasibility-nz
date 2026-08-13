@@ -99,14 +99,68 @@ describe("assessment report delivery", () => {
           from: "Royal Glass <reports@example.com>",
           deliveryEnvironment,
         }),
-      ).rejects.toMatchObject({
-        code: "SYNTHETIC_TEST_REPORT_DELIVERY_DISABLED",
-      });
+      ).rejects.toMatchObject({ code: "REPORT_DELIVERY_MODE_DISABLED" });
       expect(store.claim).not.toHaveBeenCalled();
       expect(renderPdf).not.toHaveBeenCalled();
       expect(send).not.toHaveBeenCalled();
     },
   );
+
+  it("sends only the confirmed homeowner in Production", async () => {
+    const { store } = createDeliveryStore({
+      homeowner: "pending",
+      internal_test_report: "pending",
+    });
+    const send = vi.fn().mockResolvedValue({ id: "email-homeowner" });
+
+    const result = await deliverAssessmentReport("GF-2026-000123", {
+      store,
+      renderPdf: vi.fn().mockResolvedValue(Buffer.from("%PDF-shared")),
+      send,
+      from: "Royal Glass <reports@example.com>",
+      recipientVerified: true,
+      deliveryEnvironment: {
+        mode: "production",
+        vercelEnvironment: "production",
+        nodeEnvironment: "production",
+      },
+    });
+
+    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({ to: "jane@example.com" }),
+    );
+    expect(store.claim).toHaveBeenCalledWith("GF-2026-000123", "homeowner");
+    expect(store.claim).not.toHaveBeenCalledWith(
+      "GF-2026-000123",
+      "internal_test_report",
+    );
+    expect(result).toEqual({
+      homeowner: "sent",
+      internal_test_report: "unchanged",
+    });
+  });
+
+  it("requires recipient verification in Production before claiming the report", async () => {
+    const { store } = createDeliveryStore({
+      homeowner: "pending",
+      internal_test_report: "pending",
+    });
+    await expect(
+      deliverAssessmentReport("GF-2026-000123", {
+        store,
+        renderPdf: vi.fn(),
+        send: vi.fn(),
+        from: "Royal Glass <reports@example.com>",
+        deliveryEnvironment: {
+          mode: "production",
+          vercelEnvironment: "production",
+          nodeEnvironment: "production",
+        },
+      }),
+    ).rejects.toMatchObject({ code: "REPORT_RECIPIENT_VERIFICATION_REQUIRED" });
+    expect(store.claim).not.toHaveBeenCalled();
+  });
 
   it("sends the same saved report PDF to the submitted test email and internal test email", async () => {
     const { store } = createDeliveryStore({

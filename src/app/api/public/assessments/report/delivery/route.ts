@@ -1,10 +1,11 @@
 import "server-only";
 
+import pino from "pino";
 import { z } from "zod";
 import { getDb } from "@/db/client";
 import { getAssessmentDeliveryStateById } from "@/db/repositories/homeowner-assessment-repository";
 import { createPublicRateLimitedHandler } from "@/modules/rate-limit/public-rate-limit";
-import { deliverAssessmentReportByReference } from "@/modules/reporting/deliver-assessment-report";
+import { startAssessmentReportDeliveryByReference } from "@/modules/reporting/deliver-assessment-report";
 import {
   SavedReportAccessTokenError,
   verifySavedReportAccessToken,
@@ -23,6 +24,7 @@ const MAX_REQUEST_BYTES = 16_000;
 const requestSchema = z
   .object({ accessToken: z.string().min(32).max(4_096) })
   .strict();
+const logger = pino({ base: undefined });
 
 async function handlePublicReportDelivery(request: Request): Promise<Response> {
   const correlationId = requestCorrelationId(request);
@@ -47,7 +49,20 @@ async function handlePublicReportDelivery(request: Request): Promise<Response> {
         { "Cache-Control": "no-store" },
       );
     }
-    await deliverAssessmentReportByReference(access.reference);
+    const started = await startAssessmentReportDeliveryByReference(
+      access.reference,
+    );
+    if (started === "verification_required") {
+      return apiJsonResponse(
+        {
+          delivery: initialState.delivery,
+          recipientVerification: "required",
+        },
+        202,
+        correlationId,
+        { "Cache-Control": "no-store" },
+      );
+    }
     const state =
       (await getAssessmentDeliveryStateById(getDb(), access.assessmentId)) ??
       initialState;
@@ -75,6 +90,17 @@ async function handlePublicReportDelivery(request: Request): Promise<Response> {
       );
     }
     const invalid = error instanceof SyntaxError || error instanceof z.ZodError;
+    if (!invalid) {
+      logger.error({
+        event: "public_report_delivery",
+        outcome: "failed",
+        reason:
+          error instanceof Error && "code" in error
+            ? String(error.code)
+            : "unexpected_error",
+        correlationId,
+      });
+    }
     return apiErrorResponse(
       {
         code: invalid ? "INVALID_REQUEST" : "DELIVERY_FAILED",

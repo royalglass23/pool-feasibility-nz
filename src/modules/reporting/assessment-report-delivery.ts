@@ -5,6 +5,10 @@ import {
   type ReportEmailInput,
   type ReportEmailResult,
 } from "@/modules/reporting/resend-email-gateway";
+import {
+  resolveReportDeliveryPolicy,
+  type ReportDeliveryEnvironment,
+} from "@/modules/reporting/report-delivery-policy";
 import { escapeHtml } from "@/shared/html/escape-html";
 import { assessmentStatusLabel } from "@/modules/reporting/pool-feasibility-report";
 
@@ -44,25 +48,23 @@ export type AssessmentReportDeliveryDependencies = {
   renderPdf: (report: SavedPreliminaryReport) => Promise<Buffer>;
   send: (input: ReportEmailInput) => Promise<ReportEmailResult>;
   from: string;
-  deliveryEnvironment: {
-    mode?: string;
-    vercelEnvironment?: string;
-    nodeEnvironment?: string;
-  };
+  deliveryEnvironment: ReportDeliveryEnvironment;
+  recipientVerified?: boolean;
 };
 
 export async function deliverAssessmentReport(
   reference: string,
   dependencies: AssessmentReportDeliveryDependencies,
 ): Promise<Record<AssessmentDeliveryChannel, AssessmentDeliveryOutcome>> {
-  if (!isControlledSyntheticTestDelivery(dependencies.deliveryEnvironment)) {
+  const policy = resolveReportDeliveryPolicy(dependencies.deliveryEnvironment);
+  if (policy.requiresRecipientVerification && !dependencies.recipientVerified) {
     throw new ReportEmailDeliveryError(
-      "SYNTHETIC_TEST_REPORT_DELIVERY_DISABLED",
+      "REPORT_RECIPIENT_VERIFICATION_REQUIRED",
     );
   }
 
   const claims = await Promise.all(
-    (["homeowner", "internal_test_report"] as const).map((channel) =>
+    policy.channels.map((channel) =>
       dependencies.store.claim(reference, channel),
     ),
   );
@@ -124,19 +126,6 @@ export async function deliverAssessmentReport(
   );
 
   return outcomes;
-}
-
-function isControlledSyntheticTestDelivery(
-  environment: AssessmentReportDeliveryDependencies["deliveryEnvironment"],
-) {
-  if (environment.mode !== "synthetic_test") return false;
-  if (environment.vercelEnvironment) {
-    return environment.vercelEnvironment === "preview";
-  }
-  return (
-    environment.nodeEnvironment === "development" ||
-    environment.nodeEnvironment === "test"
-  );
 }
 
 function emailForClaim(

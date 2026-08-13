@@ -32,6 +32,8 @@ export function SavedPreliminaryReportView({
   const [downloading, setDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
   const [deliveryState, setDeliveryState] = useState(delivery);
+  const [recipientVerificationRequired, setRecipientVerificationRequired] =
+    useState(false);
   const mapLegend = reportMapLegend(report);
 
   useEffect(() => {
@@ -50,10 +52,14 @@ export function SavedPreliminaryReportView({
             homeowner: ReportDeliveryState;
             internal_test_report: ReportDeliveryState;
           };
+          recipientVerification?: "required";
         };
       })
       .then((body) => {
         if (body?.delivery) setDeliveryState(body.delivery);
+        if (body?.recipientVerification === "required") {
+          setRecipientVerificationRequired(true);
+        }
       })
       .catch(() => undefined);
     return () => controller.abort();
@@ -97,26 +103,26 @@ export function SavedPreliminaryReportView({
   return (
     <section
       aria-labelledby="saved-report-heading"
-      className="space-y-6 rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-8"
+      className="border-pool-200 space-y-6 rounded-3xl border bg-white p-5 shadow-sm sm:p-8"
     >
       <ActionProgressDialog
         open={downloading}
         title="Preparing your PDF"
         description="Generating your preliminary property assessment report."
       />
-      <div className="flex flex-col gap-4 border-b border-slate-200 pb-5 sm:flex-row sm:items-start sm:justify-between">
+      <div className="border-pool-200 flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-bold tracking-[0.16em] text-teal-700 uppercase">
+          <p className="text-pool-blue-700 text-xs font-bold tracking-[0.16em] uppercase">
             {report.reference}
           </p>
           <h2
             id="saved-report-heading"
-            className="mt-2 text-2xl font-semibold text-slate-950 sm:text-3xl"
+            className="text-pool-950 mt-2 text-2xl font-semibold sm:text-3xl"
           >
             Preliminary pool feasibility report
           </h2>
-          <p className="mt-2 text-slate-700">{report.property.address}</p>
-          <p className="mt-1 text-sm text-slate-500">
+          <p className="text-pool-700 mt-2">{report.property.address}</p>
+          <p className="text-pool-500 mt-1 text-sm">
             Generated {formatReportGeneratedAt(report.generatedAt)}
           </p>
         </div>
@@ -124,7 +130,7 @@ export function SavedPreliminaryReportView({
           <button
             type="button"
             onClick={onBack}
-            className="min-h-10 rounded-xl border border-slate-300 px-4 font-semibold text-slate-800"
+            className="border-pool-300 text-pool-800 min-h-10 rounded-xl border px-4 font-semibold"
           >
             Back to assessment
           </button>
@@ -133,7 +139,7 @@ export function SavedPreliminaryReportView({
               type="button"
               onClick={() => void downloadPdf()}
               disabled={downloading}
-              className="inline-flex min-h-10 items-center justify-center rounded-xl bg-slate-950 px-4 font-semibold text-white disabled:bg-slate-500"
+              className="bg-pool-950 disabled:bg-pool-500 inline-flex min-h-10 items-center justify-center rounded-xl px-4 font-semibold text-white"
             >
               {downloading ? "Preparing PDF…" : "Download PDF"}
             </button>
@@ -150,6 +156,12 @@ export function SavedPreliminaryReportView({
         </p>
       )}
 
+      {recipientVerificationRequired && (
+        <p className="text-pool-blue-800 text-center text-sm font-semibold">
+          Check your email to confirm your address before we send the PDF.
+        </p>
+      )}
+
       <div className="grid gap-3 sm:grid-cols-2">
         <DeliveryStatus
           label="Homeowner email"
@@ -163,15 +175,15 @@ export function SavedPreliminaryReportView({
 
       <section
         aria-labelledby="saved-report-main-recommendation-heading"
-        className="rounded-2xl border border-teal-200 bg-teal-50 p-5"
+        className="border-pool-blue-200 bg-pool-blue-50 rounded-2xl border p-5"
       >
         <h3
           id="saved-report-main-recommendation-heading"
-          className="text-sm font-bold tracking-wide text-teal-800 uppercase"
+          className="text-pool-blue-800 text-sm font-bold tracking-wide uppercase"
         >
           Main recommendation
         </h3>
-        <p className="mt-2 text-lg font-semibold text-teal-950">
+        <p className="text-pool-blue-950 mt-2 text-lg font-semibold">
           {report.mainRecommendation}
         </p>
       </section>
@@ -205,7 +217,7 @@ export function SavedPreliminaryReportView({
         <Fact label="Rotation" value={`${report.pool.rotationDegrees}°`} />
       </div>
 
-      <figure className="grid overflow-hidden rounded-2xl border border-slate-200 bg-white lg:grid-cols-[minmax(0,1fr)_20rem]">
+      <figure className="border-pool-200 grid overflow-hidden rounded-2xl border bg-white lg:grid-cols-[minmax(0,1fr)_20rem]">
         <Image
           src={report.mapImageDataUrl}
           alt="Saved property and pool map"
@@ -214,8 +226,8 @@ export function SavedPreliminaryReportView({
           unoptimized
           className="h-auto w-full object-contain lg:self-center"
         />
-        <figcaption className="border-t border-slate-200 bg-slate-50 px-4 py-3 lg:border-t-0 lg:border-l lg:px-5 lg:py-5">
-          <p className="text-sm font-semibold text-slate-950">Map layers</p>
+        <figcaption className="border-pool-200 bg-pool-50 border-t px-4 py-3 lg:border-t-0 lg:border-l lg:px-5 lg:py-5">
+          <p className="text-pool-950 text-sm font-semibold">Map layers</p>
           <ul
             className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-1"
             role="list"
@@ -223,7 +235,7 @@ export function SavedPreliminaryReportView({
             {mapLegend.entries.map((entry) => (
               <li
                 key={entry.id}
-                className={`flex items-center gap-2 text-sm font-medium ${entry.statusLabel === "Mapped" || !entry.statusLabel ? "text-slate-700" : "text-slate-500"}`}
+                className={`flex items-center gap-2 text-sm font-medium ${entry.statusLabel === "Mapped" || !entry.statusLabel ? "text-pool-700" : "text-pool-500"}`}
               >
                 <span
                   aria-hidden="true"
@@ -244,7 +256,7 @@ export function SavedPreliminaryReportView({
                 <span>
                   {entry.label}
                   {entry.statusLabel && (
-                    <small className="block text-xs font-normal text-slate-500">
+                    <small className="text-pool-500 block text-xs font-normal">
                       {entry.statusLabel}
                     </small>
                   )}
@@ -253,8 +265,8 @@ export function SavedPreliminaryReportView({
             ))}
           </ul>
           {mapLegend.excludedLayers.length > 0 && (
-            <p className="mt-3 text-sm leading-6 text-slate-600">
-              <b className="text-slate-800">Not reproduced in this report:</b>{" "}
+            <p className="text-pool-600 mt-3 text-sm leading-6">
+              <b className="text-pool-800">Not reproduced in this report:</b>{" "}
               {mapLegend.excludedLayers.join(", ")}. These live reference layers
               remain excluded until report reuse is cleared.
             </p>
@@ -265,7 +277,7 @@ export function SavedPreliminaryReportView({
       <section aria-labelledby="saved-report-scenarios-heading">
         <h3
           id="saved-report-scenarios-heading"
-          className="text-lg font-semibold text-slate-950"
+          className="text-pool-950 text-lg font-semibold"
         >
           Scenario results
         </h3>
@@ -273,13 +285,13 @@ export function SavedPreliminaryReportView({
           {report.scenarios.map((scenario) => (
             <div
               key={scenario.label}
-              className="rounded-xl border border-slate-200 p-4"
+              className="border-pool-200 rounded-xl border p-4"
             >
-              <p className="font-semibold text-slate-950">{scenario.label}</p>
-              <p className="mt-1 text-sm text-slate-700">
+              <p className="text-pool-950 font-semibold">{scenario.label}</p>
+              <p className="text-pool-700 mt-1 text-sm">
                 {humanizeReportValue(scenario.status)}
               </p>
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="text-pool-500 mt-1 text-xs">
                 {scenario.usableAreaSquareMetres === null
                   ? "Usable area unavailable"
                   : `${scenario.usableAreaSquareMetres} m² usable area`}
@@ -292,7 +304,7 @@ export function SavedPreliminaryReportView({
       <section aria-labelledby="saved-report-warnings-heading">
         <h3
           id="saved-report-warnings-heading"
-          className="text-lg font-semibold text-slate-950"
+          className="text-pool-950 text-lg font-semibold"
         >
           Warnings
         </h3>
@@ -310,7 +322,7 @@ export function SavedPreliminaryReportView({
               </div>
             ))
           ) : (
-            <p className="text-sm text-slate-600">
+            <p className="text-pool-600 text-sm">
               No additional warning was recorded.
             </p>
           )}
@@ -320,14 +332,14 @@ export function SavedPreliminaryReportView({
       <section aria-labelledby="saved-report-recommendations-heading">
         <h3
           id="saved-report-recommendations-heading"
-          className="text-lg font-semibold text-slate-950"
+          className="text-pool-950 text-lg font-semibold"
         >
           Recommendations
         </h3>
-        <ol className="mt-3 list-decimal space-y-3 pl-5 text-sm leading-6 text-slate-700">
+        <ol className="text-pool-700 mt-3 list-decimal space-y-3 pl-5 text-sm leading-6">
           {reportRecommendations(report).map((recommendation) => (
             <li key={`${recommendation.priority}-${recommendation.title}`}>
-              <b className="text-slate-950">{recommendation.title}:</b>{" "}
+              <b className="text-pool-950">{recommendation.title}:</b>{" "}
               {recommendation.reason}
             </li>
           ))}
@@ -337,14 +349,14 @@ export function SavedPreliminaryReportView({
       <section aria-labelledby="saved-report-categories-heading">
         <h3
           id="saved-report-categories-heading"
-          className="text-lg font-semibold text-slate-950"
+          className="text-pool-950 text-lg font-semibold"
         >
           Feasibility category status
         </h3>
         <div className="mt-3 overflow-x-auto">
           <table className="w-full min-w-2xl border-collapse text-left text-sm">
             <thead>
-              <tr className="border-b border-slate-300 text-slate-600">
+              <tr className="border-pool-300 text-pool-600 border-b">
                 <th className="p-3">Category</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Score</th>
@@ -355,9 +367,9 @@ export function SavedPreliminaryReportView({
               {report.categories.map((category) => (
                 <tr
                   key={category.id}
-                  className="border-b border-slate-200 align-top"
+                  className="border-pool-200 border-b align-top"
                 >
-                  <td className="p-3 font-semibold text-slate-950">
+                  <td className="text-pool-950 p-3 font-semibold">
                     {humanizeReportValue(category.id)}
                   </td>
                   <td className="p-3">
@@ -366,7 +378,7 @@ export function SavedPreliminaryReportView({
                   <td className="p-3">
                     {category.awardedPoints ?? "—"} / {category.maximumPoints}
                   </td>
-                  <td className="p-3 text-slate-700">{category.rationale}</td>
+                  <td className="text-pool-700 p-3">{category.rationale}</td>
                 </tr>
               ))}
             </tbody>
@@ -381,7 +393,7 @@ export function SavedPreliminaryReportView({
         <div>
           <h3
             id="saved-report-risks-actions-heading"
-            className="text-lg font-semibold text-slate-950"
+            className="text-pool-950 text-lg font-semibold"
           >
             Material risks
           </h3>
@@ -400,25 +412,25 @@ export function SavedPreliminaryReportView({
                 </div>
               ))
             ) : (
-              <p className="text-sm text-slate-600">
+              <p className="text-pool-600 text-sm">
                 No additional material risk was recorded.
               </p>
             )}
           </div>
         </div>
         <div>
-          <h3 className="text-lg font-semibold text-slate-950">
+          <h3 className="text-pool-950 text-lg font-semibold">
             Prioritised actions
           </h3>
           {report.actions.length > 0 ? (
-            <ul className="mt-3 space-y-3 text-sm text-slate-700">
+            <ul className="text-pool-700 mt-3 space-y-3 text-sm">
               {report.actions.flatMap((group) =>
                 group.items.map((item) => (
                   <li
                     key={`${group.phase}-${item}`}
-                    className="rounded-xl border border-slate-200 p-4"
+                    className="border-pool-200 rounded-xl border p-4"
                   >
-                    <b className="block text-xs tracking-wide text-slate-500 uppercase">
+                    <b className="text-pool-500 block text-xs tracking-wide uppercase">
                       {humanizeReportValue(group.phase)}
                     </b>
                     <span className="mt-1 block">{item}</span>
@@ -427,14 +439,14 @@ export function SavedPreliminaryReportView({
               )}
             </ul>
           ) : (
-            <p className="mt-3 text-sm text-slate-600">
+            <p className="text-pool-600 mt-3 text-sm">
               No additional action was recorded.
             </p>
           )}
-          <h3 className="mt-6 text-lg font-semibold text-slate-950">
+          <h3 className="text-pool-950 mt-6 text-lg font-semibold">
             Missing information
           </h3>
-          <ul className="mt-3 list-disc space-y-1 pl-5 text-sm text-slate-700">
+          <ul className="text-pool-700 mt-3 list-disc space-y-1 pl-5 text-sm">
             {report.missingInformation.length > 0 ? (
               report.missingInformation.map((item) => (
                 <li key={item.id}>{item.label}</li>
@@ -449,7 +461,7 @@ export function SavedPreliminaryReportView({
       <section aria-labelledby="saved-report-layers-heading">
         <h3
           id="saved-report-layers-heading"
-          className="text-lg font-semibold text-slate-950"
+          className="text-pool-950 text-lg font-semibold"
         >
           Official layer status
         </h3>
@@ -458,10 +470,10 @@ export function SavedPreliminaryReportView({
             {report.layers.map((layer) => (
               <li
                 key={`${layer.provider}-${layer.dataset}`}
-                className="rounded-xl border border-slate-200 p-4 text-sm"
+                className="border-pool-200 rounded-xl border p-4 text-sm"
               >
-                <b className="text-slate-950">{layer.dataset}</b>
-                <span className="block text-slate-600">
+                <b className="text-pool-950">{layer.dataset}</b>
+                <span className="text-pool-600 block">
                   {layer.provider} · {humanizeReportValue(layer.state)} ·{" "}
                   {humanizeReportValue(layer.confidence)}
                 </span>
@@ -469,7 +481,7 @@ export function SavedPreliminaryReportView({
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="text-pool-600 mt-3 text-sm">
             Detailed official checks have not been loaded.
           </p>
         )}
@@ -478,18 +490,18 @@ export function SavedPreliminaryReportView({
       <section aria-labelledby="saved-report-sources-heading">
         <h3
           id="saved-report-sources-heading"
-          className="text-lg font-semibold text-slate-950"
+          className="text-pool-950 text-lg font-semibold"
         >
           Data sources and map attribution
         </h3>
         {report.sources.length > 0 ? (
-          <ul className="mt-3 space-y-3 text-sm text-slate-700">
+          <ul className="text-pool-700 mt-3 space-y-3 text-sm">
             {report.sources.map((source) => (
               <li
                 key={`${source.provider}-${source.dataset}`}
-                className="rounded-xl border border-slate-200 p-4"
+                className="border-pool-200 rounded-xl border p-4"
               >
-                <b className="text-slate-950">{source.dataset}</b>
+                <b className="text-pool-950">{source.dataset}</b>
                 <span className="block">
                   {source.provider} · {humanizeReportValue(source.status)} ·{" "}
                   {source.licence}
@@ -502,7 +514,7 @@ export function SavedPreliminaryReportView({
                     href={source.sourceUrl}
                     target="_blank"
                     rel="noreferrer"
-                    className="block break-all text-teal-700 underline"
+                    className="text-pool-blue-700 block break-all underline"
                   >
                     {source.sourceUrl}
                   </a>
@@ -511,20 +523,20 @@ export function SavedPreliminaryReportView({
             ))}
           </ul>
         ) : (
-          <p className="mt-3 text-sm text-slate-600">
+          <p className="text-pool-600 mt-3 text-sm">
             No report-eligible source attribution was recorded.
           </p>
         )}
       </section>
 
-      <div className="rounded-xl bg-slate-50 p-4 text-sm leading-6 text-slate-700">
-        <p className="font-semibold text-slate-950">Assumptions</p>
+      <div className="bg-pool-50 text-pool-700 rounded-xl p-4 text-sm leading-6">
+        <p className="text-pool-950 font-semibold">Assumptions</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           {report.assumptions.map((assumption) => (
             <li key={assumption}>{assumption}</li>
           ))}
         </ul>
-        <p className="font-semibold text-slate-950">Limitations</p>
+        <p className="text-pool-950 font-semibold">Limitations</p>
         <ul className="mt-2 list-disc space-y-1 pl-5">
           {report.limitations.map((limitation) => (
             <li key={limitation}>{limitation}</li>
@@ -563,11 +575,11 @@ function DeliveryStatus({
 
 function Fact({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-slate-200 p-4">
-      <p className="text-xs font-bold tracking-wide text-slate-500 uppercase">
+    <div className="border-pool-200 rounded-xl border p-4">
+      <p className="text-pool-500 text-xs font-bold tracking-wide uppercase">
         {label}
       </p>
-      <p className="mt-2 font-semibold text-slate-950">{value}</p>
+      <p className="text-pool-950 mt-2 font-semibold">{value}</p>
     </div>
   );
 }

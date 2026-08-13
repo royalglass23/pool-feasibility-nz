@@ -34,14 +34,14 @@ export function StaffAssessmentDashboard({
 }) {
   if (assessments.length === 0) {
     return (
-      <section className="rounded-3xl border border-slate-200 bg-white px-6 py-16 text-center shadow-sm">
-        <p className="text-xs font-bold tracking-[0.18em] text-teal-700 uppercase">
+      <section className="rounded-3xl border border-pool-200 bg-white px-6 py-16 text-center shadow-sm">
+        <p className="text-xs font-bold tracking-[0.18em] text-pool-blue-700 uppercase">
           Submission register
         </p>
-        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">
+        <h2 className="mt-3 text-2xl font-semibold tracking-tight text-pool-950">
           No saved assessments yet
         </h2>
-        <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-slate-600">
+        <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-pool-600">
           New homeowner submissions will appear here in submitted order.
         </p>
       </section>
@@ -52,17 +52,17 @@ export function StaffAssessmentDashboard({
     <section aria-labelledby="staff-assessments-heading">
       <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="text-xs font-bold tracking-[0.18em] text-teal-700 uppercase">
+          <p className="text-xs font-bold tracking-[0.18em] text-pool-blue-700 uppercase">
             Submission register
           </p>
           <h2
             id="staff-assessments-heading"
-            className="mt-2 text-2xl font-semibold tracking-tight text-slate-950"
+            className="mt-2 text-2xl font-semibold tracking-tight text-pool-950"
           >
             Saved assessments
           </h2>
         </div>
-        <p className="text-sm text-slate-500">
+        <p className="text-sm text-pool-500">
           {assessments.length}{" "}
           {assessments.length === 1 ? "assessment" : "assessments"} · newest
           first
@@ -72,36 +72,36 @@ export function StaffAssessmentDashboard({
       <ol className="space-y-3">
         {assessments.map((assessment) => (
           <li key={assessment.id}>
-            <article className="group relative overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm transition hover:-translate-y-0.5 hover:border-teal-700/30 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none">
+            <article className="group relative overflow-hidden rounded-3xl border border-pool-200 bg-white shadow-sm transition hover:-tranpool-y-0.5 hover:border-pool-blue-700/30 hover:shadow-md motion-reduce:transform-none motion-reduce:transition-none">
               <div className="grid gap-5 p-5 sm:p-6 lg:grid-cols-[minmax(0,1.35fr)_minmax(12rem,0.65fr)_auto] lg:items-center">
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                    <h3 className="text-lg font-semibold text-slate-950">
+                    <h3 className="text-lg font-semibold text-pool-950">
                       {assessment.homeownerName}
                     </h3>
-                    <span className="font-mono text-xs font-semibold text-slate-500">
+                    <span className="font-mono text-xs font-semibold text-pool-500">
                       {assessment.reference}
                     </span>
                   </div>
-                  <p className="mt-1 truncate text-sm text-slate-600">
+                  <p className="mt-1 truncate text-sm text-pool-600">
                     {assessment.homeownerAddress}
                   </p>
                   <dl className="mt-4 flex flex-wrap gap-x-6 gap-y-2 text-sm">
                     <div>
-                      <dt className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                      <dt className="text-xs font-semibold tracking-wide text-pool-500 uppercase">
                         Submitted
                       </dt>
-                      <dd className="mt-1 font-medium text-slate-800">
+                      <dd className="mt-1 font-medium text-pool-800">
                         <time dateTime={assessment.createdAt.toISOString()}>
                           {submittedDate.format(assessment.createdAt)}
                         </time>
                       </dd>
                     </div>
                     <div>
-                      <dt className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+                      <dt className="text-xs font-semibold tracking-wide text-pool-500 uppercase">
                         Timing
                       </dt>
-                      <dd className="mt-1 font-medium text-slate-800">
+                      <dd className="mt-1 font-medium text-pool-800">
                         {timingLabels[assessment.desiredTiming] ??
                           assessment.desiredTiming}
                       </dd>
@@ -115,7 +115,7 @@ export function StaffAssessmentDashboard({
                   href={`/staff/${assessment.id}`}
                   prefetch={false}
                   aria-label={`Open ${assessment.reference}`}
-                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-slate-950 px-4 py-2 text-sm font-semibold text-white outline-offset-4 transition group-hover:bg-teal-800 hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-teal-700"
+                  className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full bg-pool-950 px-4 py-2 text-sm font-semibold text-white outline-offset-4 transition group-hover:bg-pool-blue-800 hover:bg-pool-blue-800 focus-visible:outline-2 focus-visible:outline-pool-blue-700"
                 >
                   View detail
                   <ArrowUpRight aria-hidden="true" className="size-4" />

@@ -48,25 +48,25 @@ export function PoolScenarioComparisonResult({
         <div>
           <h3
             id="pool-scenario-comparison-heading"
-            className="text-xl font-semibold text-balance text-slate-950"
+            className="text-xl font-semibold text-balance text-pool-950"
           >
             Pool size screening
           </h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-pretty text-slate-700">
+          <p className="mt-2 max-w-3xl text-sm leading-6 text-pretty text-pool-700">
             We checked {rankedScenarios.length} common pool sizes against the
             available property information. The largest size with a possible
             position is shown here. A site visit and specialist checks are still
             required before design or construction.
           </p>
         </div>
-        <div className="rounded-2xl bg-teal-50 px-4 py-3 text-sm ring-1 ring-teal-600/15 lg:min-w-80">
-          <p className="font-semibold text-teal-950">Largest potential fit</p>
-          <p className="mt-1 text-lg font-bold text-teal-800">
+        <div className="rounded-2xl bg-pool-blue-50 px-4 py-3 text-sm ring-1 ring-pool-blue-600/15 lg:min-w-80">
+          <p className="font-semibold text-pool-blue-950">Largest potential fit</p>
+          <p className="mt-1 text-lg font-bold text-pool-blue-800">
             {recommendedShell
               ? `${recommendedShell.label} · ${formatShell(recommendedShell)}`
               : "No pool size can be recommended yet"}
           </p>
-          <p className="mt-1 text-sm leading-5 text-teal-900">
+          <p className="mt-1 text-sm leading-5 text-pool-blue-900">
             {recommendedShell
               ? "A possible position was found using the available property information."
               : "The available property information does not support a size recommendation."}
@@ -74,7 +74,7 @@ export function PoolScenarioComparisonResult({
         </div>
       </div>
 
-      <p className="mt-5 text-sm font-medium text-slate-800">
+      <p className="mt-5 text-sm font-medium text-pool-800">
         {successfulCount > 0
           ? `Possible positions found for ${successfulCount} of ${rankedScenarios.length} sizes.`
           : `No possible positions found for the ${rankedScenarios.length} sizes checked.`}
@@ -94,8 +94,8 @@ export function PoolScenarioComparisonResult({
       {!sharedStatus && (
         <ul className="mt-4 space-y-2" aria-label="Results by pool size">
           {statusGroups.map(({ status, labels }) => (
-            <li key={status} className="text-sm leading-6 text-slate-700">
-              <span className="font-semibold text-slate-950">
+            <li key={status} className="text-sm leading-6 text-pool-700">
+              <span className="font-semibold text-pool-950">
                 {formatList(labels)}:
               </span>{" "}
               <span className={statusTextClass(status)}>
@@ -106,21 +106,21 @@ export function PoolScenarioComparisonResult({
         </ul>
       )}
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <div className="grid grid-cols-[1fr_auto] gap-4 bg-slate-100 px-4 py-2.5 text-sm font-semibold text-slate-700 sm:grid-cols-[1fr_10rem]">
+      <div className="mt-5 overflow-hidden rounded-2xl border border-pool-200 bg-white">
+        <div className="grid grid-cols-[1fr_auto] gap-4 bg-pool-100 px-4 py-2.5 text-sm font-semibold text-pool-700 sm:grid-cols-[1fr_10rem]">
           <span>Pool size</span>
           <span>Dimensions</span>
         </div>
-        <ul className="divide-y divide-slate-200">
+        <ul className="divide-y divide-pool-200">
           {rankedScenarios.map((analysis) => (
             <li
               key={analysis.scenario.id}
               className="grid grid-cols-[1fr_auto] items-center gap-4 px-4 py-3 sm:grid-cols-[1fr_10rem]"
             >
-              <h4 className="font-semibold text-slate-950">
+              <h4 className="font-semibold text-pool-950">
                 {analysis.scenario.label}
               </h4>
-              <p className="text-sm font-medium whitespace-nowrap text-slate-800">
+              <p className="text-sm font-medium whitespace-nowrap text-pool-800">
                 {formatShell({
                   lengthMetres: analysis.scenario.shellLengthMetres,
                   widthMetres: analysis.scenario.shellWidthMetres,
@@ -197,25 +197,25 @@ function statusExplanation(status: PoolScenarioStatus) {
 function sharedStatusClass(status: PoolScenarioStatus) {
   const tone =
     status === "likely"
-      ? "bg-teal-50 text-teal-950 ring-teal-600/20"
+      ? "bg-pool-blue-50 text-pool-blue-950 ring-pool-blue-600/20"
       : status === "possible_with_constraints"
         ? "bg-blue-50 text-blue-950 ring-blue-600/20"
         : status === "specialist_review_required"
           ? "bg-orange-50 text-orange-950 ring-orange-600/20"
           : status === "no_clear_candidate"
             ? "bg-amber-50 text-amber-950 ring-amber-600/20"
-            : "bg-slate-100 text-slate-900 ring-slate-500/20";
+            : "bg-pool-100 text-pool-900 ring-pool-500/20";
   return `mt-4 rounded-xl px-4 py-3 ring-1 ${tone}`;
 }
 
 function statusTextClass(status: PoolScenarioStatus) {
   return status === "likely"
-    ? "font-semibold text-teal-800"
+    ? "font-semibold text-pool-blue-800"
     : status === "possible_with_constraints"
       ? "font-semibold text-blue-800"
       : status === "specialist_review_required"
         ? "font-semibold text-orange-800"
         : status === "no_clear_candidate"
           ? "font-semibold text-amber-800"
-          : "font-semibold text-slate-700";
+          : "font-semibold text-pool-700";
 }

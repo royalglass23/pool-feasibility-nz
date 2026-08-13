@@ -20,12 +20,12 @@ export function SavedReportInteractiveMap({
 
   return (
     <div
-      className="mt-4 overflow-hidden rounded-xl border border-slate-200 bg-white"
+      className="mt-4 overflow-hidden rounded-xl border border-pool-200 bg-white"
       role="region"
       aria-label="Saved assessment map"
     >
       <div className="grid lg:grid-cols-[minmax(0,1fr)_18rem]">
-        <figure className="min-w-0 bg-slate-900">
+        <figure className="min-w-0 bg-pool-900">
           <div className="aspect-[3/2]">
             <Image
               src={report.mapImageDataUrl}
@@ -36,7 +36,7 @@ export function SavedReportInteractiveMap({
               className="h-full w-full object-cover"
             />
           </div>
-          <figcaption className="border-t border-white/15 bg-slate-950 px-4 py-3 text-xs leading-5 text-slate-200">
+          <figcaption className="border-t border-white/15 bg-pool-950 px-4 py-3 text-xs leading-5 text-pool-200">
             {isFastPropertyViewCapture
               ? "Saved Fast Property View capture. This is the aerial map and layer selection used when this report was generated."
               : "Saved assessment map. This is the map capture used when this report was generated."}
@@ -44,21 +44,21 @@ export function SavedReportInteractiveMap({
         </figure>
         <aside
           aria-label="Saved map layers"
-          className="border-t border-slate-200 bg-white p-4 lg:border-t-0 lg:border-l"
+          className="border-t border-pool-200 bg-white p-4 lg:border-t-0 lg:border-l"
         >
-          <h4 className="font-semibold text-slate-950">Captured map layers</h4>
-          <p className="mt-1 text-xs leading-5 text-slate-600">
+          <h4 className="font-semibold text-pool-950">Captured map layers</h4>
+          <p className="mt-1 text-xs leading-5 text-pool-600">
             This legend records what the saved image shows. It does not load or
             change live data.
           </p>
-          <ul className="mt-4 divide-y divide-slate-100">
+          <ul className="mt-4 divide-y divide-pool-100">
             {entries.map((entry) => (
               <SavedLayerLegend key={entry.id} entry={entry} />
             ))}
           </ul>
         </aside>
       </div>
-      <p className="border-t border-slate-200 px-4 py-3 text-xs leading-5 text-slate-600 sm:px-5">
+      <p className="border-t border-pool-200 px-4 py-3 text-xs leading-5 text-pool-600 sm:px-5">
         {attribution}
       </p>
     </div>
@@ -89,10 +89,10 @@ function SavedLayerLegend({ entry }: { entry: ReportMapLegendEntry }) {
         }
       />
       <span className="min-w-0 text-sm">
-        <span className="block font-semibold text-slate-900">
+        <span className="block font-semibold text-pool-900">
           {entry.label}
         </span>
-        <span className="mt-0.5 block text-xs leading-5 text-slate-600">
+        <span className="mt-0.5 block text-xs leading-5 text-pool-600">
           {status}
         </span>
       </span>

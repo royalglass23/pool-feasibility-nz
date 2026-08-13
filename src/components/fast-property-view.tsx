@@ -130,6 +130,7 @@ export function FastPropertyView({
   result,
   onLoadDetailed,
   onRetry,
+  onStartAgain,
   isLoadingDetailed,
   onPlacementChange,
   onSnapshotReady,
@@ -137,6 +138,7 @@ export function FastPropertyView({
   result: FastPropertyViewResult;
   onLoadDetailed: () => void;
   onRetry: () => void;
+  onStartAgain?: () => void;
   isLoadingDetailed: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
   onSnapshotReady?: (snapshot: FastPropertyViewMapSnapshot | null) => void;
@@ -674,29 +676,41 @@ export function FastPropertyView({
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-xs font-bold tracking-[0.18em] text-teal-700 uppercase">
+          <p className="text-pool-blue-700 text-xs font-bold tracking-[0.18em] uppercase">
             Fast property view
           </p>
           <h2
             id="fast-view-heading"
-            className="mt-2 text-2xl font-semibold text-slate-950"
+            className="text-pool-950 mt-2 text-2xl font-semibold"
           >
             {result.resolvedAddress.fullAddress}
           </h2>
-          <p className="mt-2 text-sm text-slate-600">
+          <p className="text-pool-600 mt-2 text-sm">
             A preliminary mapped view is ready.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={onLoadDetailed}
-          disabled={isLoadingDetailed}
-          className="min-h-11 rounded-xl bg-slate-950 px-4 text-sm font-semibold text-white disabled:bg-slate-400"
-        >
-          {isLoadingDetailed
-            ? "Loading detailed checks…"
-            : "Load detailed official checks"}
-        </button>
+        <div className="flex flex-wrap gap-2">
+          {onStartAgain && (
+            <button
+              type="button"
+              onClick={onStartAgain}
+              disabled={isLoadingDetailed}
+              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Start again
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onLoadDetailed}
+            disabled={isLoadingDetailed}
+            className="bg-pool-950 disabled:bg-pool-400 min-h-11 rounded-xl px-4 text-sm font-semibold text-white"
+          >
+            {isLoadingDetailed
+              ? "Loading detailed checks…"
+              : "Load detailed official checks"}
+          </button>
+        </div>
       </div>
       <ol
         aria-label="Fast view progress"
@@ -704,22 +718,22 @@ export function FastPropertyView({
       >
         <Progress label="Address found" state="complete" />
       </ol>
-      <div className="overflow-hidden rounded-2xl border border-slate-200">
+      <div className="border-pool-200 overflow-hidden rounded-2xl border">
         <div className="grid lg:grid-cols-[minmax(0,1fr)_18rem]">
           <div
             ref={mapRef}
-            className="h-[min(62vw,600px)] min-h-[360px] w-full bg-slate-800"
+            className="bg-pool-800 h-[min(62vw,600px)] min-h-[360px] w-full"
             aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
           />
           <aside
             aria-label="Map layers"
-            className="border-t border-slate-200 bg-white p-4 lg:border-t-0 lg:border-l"
+            className="border-pool-200 border-t bg-white p-4 lg:border-t-0 lg:border-l"
           >
-            <h3 className="font-semibold text-slate-950">Map layers</h3>
+            <h3 className="text-pool-950 font-semibold">Map layers</h3>
 
             {result.detailedChecks ? (
               <>
-                <div className="mt-4 border-b border-slate-200 pb-4 text-sm text-slate-700">
+                <div className="border-pool-200 text-pool-700 mt-4 border-b pb-4 text-sm">
                   <label className="flex cursor-pointer items-center gap-2">
                     <input
                       type="checkbox"
@@ -727,7 +741,7 @@ export function FastPropertyView({
                       checked={Boolean(mappedContours) && contoursVisible}
                       onChange={() => setContoursVisible((current) => !current)}
                       disabled={!mappedContours}
-                      className="size-4 accent-slate-950"
+                      className="accent-pool-950 size-4"
                     />
                     <span
                       aria-hidden="true"
@@ -736,7 +750,7 @@ export function FastPropertyView({
                     />
                     <span className="font-semibold">Contours</span>
                   </label>
-                  <p className="mt-1 ml-11 text-xs text-slate-500">
+                  <p className="text-pool-500 mt-1 ml-11 text-xs">
                     {mappedContours
                       ? "Terrain contours (2016, indicative only)"
                       : contourResult
@@ -744,7 +758,7 @@ export function FastPropertyView({
                         : "Contour data was not checked"}
                   </p>
                 </div>
-                <ul className="mt-4 space-y-3 text-sm text-slate-700">
+                <ul className="text-pool-700 mt-4 space-y-3 text-sm">
                   {utilityCategories.map((category) => {
                     const hasGeometry = mappedUtilityLayers.some(
                       ({ definition }) => definition.category === category.id,
@@ -759,7 +773,7 @@ export function FastPropertyView({
                             }
                             onChange={() => toggleUtilityCategory(category.id)}
                             disabled={!hasGeometry}
-                            className="size-4 accent-slate-950"
+                            className="accent-pool-950 size-4"
                           />
                           <span
                             aria-hidden="true"
@@ -770,7 +784,7 @@ export function FastPropertyView({
                             {category.label}
                           </span>
                         </label>
-                        <p className="mt-1 ml-11 text-xs text-slate-500">
+                        <p className="text-pool-500 mt-1 ml-11 text-xs">
                           {hasGeometry
                             ? "Mapped evidence returned"
                             : "No mapped evidence returned"}
@@ -781,7 +795,7 @@ export function FastPropertyView({
                 </ul>
               </>
             ) : (
-              <p className="mt-4 text-sm leading-6 text-slate-600">
+              <p className="text-pool-600 mt-4 text-sm leading-6">
                 Load detailed official checks to see contours and mapped utility
                 evidence.
               </p>
@@ -789,7 +803,7 @@ export function FastPropertyView({
           </aside>
         </div>
         <div className="flex justify-end bg-white px-4 py-3 text-sm">
-          <p className="text-slate-600">
+          <p className="text-pool-600">
             Default pool: {result.defaultPool.label} (
             {result.defaultPool.lengthMetres} × {result.defaultPool.widthMetres}{" "}
             m)
@@ -798,11 +812,11 @@ export function FastPropertyView({
       </div>
       <div
         aria-label="Pool catalogue and placement controls"
-        className="space-y-4 rounded-2xl border border-slate-200 bg-slate-50 p-4"
+        className="border-pool-200 bg-pool-50 space-y-4 rounded-2xl border p-4"
       >
         <div>
-          <h3 className="font-semibold text-slate-950">Choose a pool layout</h3>
-          <p className="mt-1 text-sm text-slate-600">
+          <h3 className="text-pool-950 font-semibold">Choose a pool layout</h3>
+          <p className="text-pool-600 mt-1 text-sm">
             Drag the pool or rotate it with the orange handle. The indicative
             construction envelope is constrained to the mapped area.
           </p>
@@ -818,7 +832,7 @@ export function FastPropertyView({
               type="button"
               aria-pressed={selectedPoolId === pool.id}
               onClick={() => choosePool(pool.id)}
-              className="min-h-11 rounded-xl border border-slate-300 bg-white px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 aria-pressed:border-teal-700 aria-pressed:bg-teal-50"
+              className="border-pool-300 focus-visible:outline-pool-blue-700 aria-pressed:border-pool-blue-700 aria-pressed:bg-pool-blue-50 min-h-11 rounded-xl border bg-white px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
             >
               {pool.label} ({pool.lengthMetres} × {pool.widthMetres} m)
             </button>
@@ -879,28 +893,28 @@ export function FastPropertyView({
         </p>
       )}
       {result.detailedChecks && (
-        <details className="group rounded-2xl border border-slate-200 bg-slate-50">
-          <summary className="flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 p-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-teal-700">
+        <details className="group border-pool-200 bg-pool-50 rounded-2xl border">
+          <summary className="focus-visible:outline-pool-blue-700 flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 p-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px]">
             <span>
               <span
                 id="detailed-checks-heading"
                 role="heading"
                 aria-level={3}
-                className="block font-semibold text-slate-950"
+                className="text-pool-950 block font-semibold"
               >
                 Detailed official checks
               </span>
-              <span className="mt-1 block text-sm text-slate-600">
+              <span className="text-pool-600 mt-1 block text-sm">
                 {result.detailedChecks.status === "complete"
                   ? "All configured provider queries completed."
                   : "Some provider queries remain unknown; this is a partial result."}
               </span>
             </span>
-            <span className="rounded-full border border-slate-300 bg-white px-3 py-1 text-xs font-bold uppercase">
+            <span className="border-pool-300 rounded-full border bg-white px-3 py-1 text-xs font-bold uppercase">
               {result.detailedChecks.status}
             </span>
           </summary>
-          <div className="space-y-3 border-t border-slate-200 p-4">
+          <div className="border-pool-200 space-y-3 border-t p-4">
             <ul
               className="grid gap-2 sm:grid-cols-2"
               aria-label="Official layer results"
@@ -909,11 +923,11 @@ export function FastPropertyView({
                 <DetailedLayer key={layer.key} layer={layer} />
               ))}
             </ul>
-            <p className="text-xs leading-5 text-slate-600">
+            <p className="text-pool-600 text-xs leading-5">
               {result.detailedChecks.region} Attribution and limitations remain
               applicable to every returned layer.
             </p>
-            <ul className="list-disc space-y-1 pl-5 text-xs leading-5 text-slate-600">
+            <ul className="text-pool-600 list-disc space-y-1 pl-5 text-xs leading-5">
               {result.detailedChecks.limitations.map((limitation) => (
                 <li key={limitation}>{limitation}</li>
               ))}
@@ -925,7 +939,7 @@ export function FastPropertyView({
         <button
           type="button"
           onClick={onRetry}
-          className="text-sm font-semibold text-teal-800 underline"
+          className="text-pool-blue-800 text-sm font-semibold underline"
         >
           Retry fast view
         </button>
@@ -968,17 +982,17 @@ function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
 function DetailedLayer({ layer }: { layer: DetailedLayerResult }) {
   const stateLabel = layer.state.replaceAll("_", " ");
   return (
-    <li className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm">
+    <li className="border-pool-200 rounded-xl border bg-white px-3 py-2 text-sm">
       <div className="flex items-center justify-between gap-2">
-        <span className="font-semibold text-slate-900">
+        <span className="text-pool-900 font-semibold">
           {layer.evidence.dataset}
         </span>
-        <span className="text-xs font-bold text-slate-700 uppercase">
+        <span className="text-pool-700 text-xs font-bold uppercase">
           {stateLabel}
         </span>
       </div>
-      <p className="mt-1 text-xs leading-5 text-slate-600">{layer.message}</p>
-      <p className="mt-1 text-xs text-slate-500">
+      <p className="text-pool-600 mt-1 text-xs leading-5">{layer.message}</p>
+      <p className="text-pool-500 mt-1 text-xs">
         Provider: {layer.evidence.provider}
       </p>
       {layer.evidence.attribution && (
@@ -986,7 +1000,7 @@ function DetailedLayer({ layer }: { layer: DetailedLayerResult }) {
           href={layer.evidence.attribution.url}
           target="_blank"
           rel="noreferrer"
-          className="mt-1 inline-block text-xs font-semibold text-teal-800 underline"
+          className="text-pool-blue-800 mt-1 inline-block text-xs font-semibold underline"
         >
           {layer.evidence.attribution.text}
         </a>
@@ -1004,7 +1018,7 @@ function Progress({
 }) {
   return (
     <li
-      className={`rounded-xl border px-3 py-2 ${state === "complete" ? "border-teal-200 bg-teal-50 text-teal-900" : state === "partial" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-slate-200 bg-slate-50 text-slate-700"}`}
+      className={`rounded-xl border px-3 py-2 ${state === "complete" ? "border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900" : state === "partial" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-pool-200 bg-pool-50 text-pool-700"}`}
     >
       {label}
     </li>
@@ -1128,7 +1142,7 @@ function DimensionInput({
   onChange: (value: string) => void;
 }) {
   return (
-    <label className="text-sm font-medium text-slate-800">
+    <label className="text-pool-800 text-sm font-medium">
       {label}
       <input
         aria-invalid={invalid}
@@ -1140,7 +1154,7 @@ function DimensionInput({
         step="0.1"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="mt-1 block min-h-11 w-full rounded-xl border border-slate-300 bg-white px-3 focus:border-teal-700 focus:outline-2 focus:outline-teal-700 aria-[invalid=true]:border-red-500"
+        className="border-pool-300 focus:border-pool-blue-700 focus:outline-pool-blue-700 mt-1 block min-h-11 w-full rounded-xl border bg-white px-3 focus:outline-2 aria-[invalid=true]:border-red-500"
       />
     </label>
   );

@@ -69,7 +69,7 @@ export function StaffAssessmentDetailClient({ id }: { id: string }) {
     return (
       <p
         role="status"
-        className="rounded-3xl border border-slate-200 bg-white px-6 py-12 text-center text-sm font-semibold text-slate-600 shadow-sm"
+        className="rounded-3xl border border-pool-200 bg-white px-6 py-12 text-center text-sm font-semibold text-pool-600 shadow-sm"
       >
         Loading saved assessment…
       </p>

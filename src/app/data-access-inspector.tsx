@@ -390,6 +390,22 @@ export function DataAccessInspector() {
     URL.revokeObjectURL(objectUrl);
   }
 
+  function startAgain() {
+    fastRequestIdRef.current += 1;
+    setAddress("");
+    setSelectedAddressId(null);
+    setResult(null);
+    setFastResult(null);
+    setFastAssessmentSnapshot(null);
+    setFastPlacementSnapshot(null);
+    setFastMapSnapshot(null);
+    setError(null);
+    setCanRetry(false);
+    setAddressOptions([]);
+    setSuggestionMessage(null);
+    fastSavedReport.resetReport();
+  }
+
   return (
     <div className="space-y-8">
       <ActionProgressDialog
@@ -402,19 +418,20 @@ export function DataAccessInspector() {
         title="Running detailed official checks"
         description="Reviewing available official datasets and mapped property evidence."
       />
+      {!fastResult && !result && !fastSavedReport.assessment && (
       <form
         onSubmit={handleSubmit}
         className="rounded-3xl border border-white/70 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.35)] sm:p-7"
       >
         <div className="mb-4 flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-2xl bg-teal-50 text-teal-700">
+          <span className="grid size-10 place-items-center rounded-2xl bg-pool-blue-50 text-pool-blue-700">
             <MapPin className="size-5" aria-hidden="true" />
           </span>
           <div>
-            <h2 className="font-semibold text-slate-950">
+            <h2 className="font-semibold text-pool-950">
               Your property address
             </h2>
-            <p className="text-sm text-slate-500">
+            <p className="text-sm text-pool-500">
               Start with an Auckland address. We will match it against official
               address data before showing the property view.
             </p>
@@ -441,7 +458,7 @@ export function DataAccessInspector() {
               maxLength={200}
               autoComplete="street-address"
               placeholder="e.g. 42A Bahari Drive, Ranui, Auckland"
-              className="min-h-13 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 text-base text-slate-950 transition outline-none placeholder:text-slate-400 focus:border-teal-600 focus:bg-white focus:ring-4 focus:ring-teal-600/10"
+              className="min-h-13 w-full rounded-2xl border border-pool-200 bg-pool-50 px-4 text-base text-pool-950 transition outline-none placeholder:text-pool-400 focus:border-pool-blue-600 focus:bg-white focus:ring-4 focus:ring-pool-blue-600/10"
               aria-autocomplete="list"
               aria-controls="address-suggestions"
             />
@@ -450,7 +467,7 @@ export function DataAccessInspector() {
                 id="address-suggestions"
                 role="listbox"
                 aria-label="Address suggestions"
-                className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-xl"
+                className="absolute z-20 mt-2 w-full overflow-hidden rounded-2xl border border-pool-200 bg-white p-2 shadow-xl"
               >
                 {addressOptions.map((option) => (
                   <button
@@ -464,7 +481,7 @@ export function DataAccessInspector() {
                       setAddressOptions([]);
                       void requestPropertyData(option.addressId);
                     }}
-                    className="w-full rounded-xl px-3 py-3 text-left text-sm font-semibold text-slate-900 hover:bg-teal-50 hover:text-teal-800"
+                    className="w-full rounded-xl px-3 py-3 text-left text-sm font-semibold text-pool-900 hover:bg-pool-blue-50 hover:text-pool-blue-800"
                   >
                     {option.fullAddress}
                   </button>
@@ -472,12 +489,12 @@ export function DataAccessInspector() {
               </div>
             )}
             {isSuggesting && (
-              <p className="mt-1 text-xs text-slate-500">
+              <p className="mt-1 text-xs text-pool-500">
                 Searching LINZ addresses…
               </p>
             )}
             {!isSuggesting && suggestionMessage && !selectedAddressId && (
-              <p className="mt-1 text-xs text-slate-600" role="status">
+              <p className="mt-1 text-xs text-pool-600" role="status">
                 {suggestionMessage}
               </p>
             )}
@@ -485,7 +502,7 @@ export function DataAccessInspector() {
           <button
             type="submit"
             disabled={isLoading}
-            className="inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-slate-950 px-6 font-semibold text-white transition hover:bg-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            className="inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl bg-pool-950 px-6 font-semibold text-white transition hover:bg-pool-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700 disabled:cursor-not-allowed disabled:bg-pool-400"
           >
             {isLoading ? (
               <LoaderCircle
@@ -524,8 +541,9 @@ export function DataAccessInspector() {
           )}
         </div>
       </form>
+      )}
 
-      {fastResult && !result && (
+      {fastResult && !result && !fastSavedReport.assessment && (
         <>
           <FastPropertyView
             result={fastResult}
@@ -533,40 +551,39 @@ export function DataAccessInspector() {
             onRetry={() =>
               void requestPropertyData(fastResult.resolvedAddress.addressId)
             }
+            onStartAgain={startAgain}
             isLoadingDetailed={isLoadingDetailed}
             onPlacementChange={handleFastPlacementChange}
             onSnapshotReady={setFastMapSnapshot}
           />
-          {fastSavedReport.assessment ? (
-            <SavedAssessmentReportPanel
-              assessment={fastSavedReport.assessment}
-              showReport={fastSavedReport.showReport}
-              onOpen={fastSavedReport.openReport}
-              onBack={fastSavedReport.closeReport}
+          {fastPlacementSnapshot?.dimensions &&
+          fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
+          fastAssessmentSnapshot &&
+          fastMapSnapshot &&
+          fastResult.detailedChecks ? (
+            <HomeownerSubmissionForm
+              assessmentSnapshot={fastAssessmentSnapshot}
+              mapImageDataUrl={fastMapSnapshot.imageDataUrl}
+              mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
+              placement={fastPlacementSnapshot}
+              onSaved={fastSavedReport.saveAssessment}
             />
           ) : (
-            (() => {
-              return fastPlacementSnapshot?.dimensions &&
-                fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
-                fastAssessmentSnapshot &&
-                fastMapSnapshot &&
-                fastResult.detailedChecks ? (
-                <HomeownerSubmissionForm
-                  assessmentSnapshot={fastAssessmentSnapshot}
-                  mapImageDataUrl={fastMapSnapshot.imageDataUrl}
-                  mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
-                  placement={fastPlacementSnapshot}
-                  onSaved={fastSavedReport.saveAssessment}
-                />
-              ) : (
-                <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">
-                  Choose a valid pool placement, load the detailed official
-                  checks, and wait for the map capture before saving the report.
-                </p>
-              );
-            })()
+            <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">
+              Choose a valid pool placement, load the detailed official
+              checks, and wait for the map capture before saving the report.
+            </p>
           )}
         </>
+      )}
+
+      {fastSavedReport.assessment && (
+        <SavedAssessmentReportPanel
+          assessment={fastSavedReport.assessment}
+          showReport={fastSavedReport.showReport}
+          onOpen={fastSavedReport.openReport}
+          onBack={fastSavedReport.closeReport}
+        />
       )}
 
       {result && (
@@ -607,18 +624,18 @@ export function PropertyDataResult({
     <section aria-labelledby="result-heading" className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
         <div>
-          <p className="mb-2 text-xs font-bold tracking-[0.18em] text-teal-700 uppercase">
+          <p className="mb-2 text-xs font-bold tracking-[0.18em] text-pool-blue-700 uppercase">
             Official data result
           </p>
           <h2
             ref={headingRef}
             id="result-heading"
             tabIndex={-1}
-            className="text-2xl font-semibold tracking-tight text-slate-950 sm:text-3xl"
+            className="text-2xl font-semibold tracking-tight text-pool-950 sm:text-3xl"
           >
             {result.resolvedAddress.fullAddress}
           </h2>
-          <p className="mt-2 text-sm text-slate-500">
+          <p className="mt-2 text-sm text-pool-500">
             Retrieved {formatDate(result.generatedAt)} · LINZ address ID{" "}
             {result.resolvedAddress.addressId}
           </p>
@@ -626,7 +643,7 @@ export function PropertyDataResult({
         <button
           type="button"
           onClick={onDownload}
-          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-slate-300 bg-white px-4 font-semibold text-slate-800 shadow-sm transition hover:border-teal-600 hover:text-teal-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-700"
+          className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-pool-300 bg-white px-4 font-semibold text-pool-800 shadow-sm transition hover:border-pool-blue-600 hover:text-pool-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
         >
           <Download className="size-4" aria-hidden="true" />
           Download session assessment
@@ -701,7 +718,7 @@ export function PropertyDataResult({
           </ResultPanel>
 
           <ResultPanel title="Identity checks">
-            <ul className="space-y-3 text-sm text-slate-700">
+            <ul className="space-y-3 text-sm text-pool-700">
               <CheckItem
                 passed={result.identityCheck.exactAddressMatched}
                 text="Exact supplied address matched"
@@ -732,20 +749,20 @@ export function PropertyDataResult({
           <div className="overflow-x-auto">
             <table className="w-full min-w-170 border-separate border-spacing-0 text-left text-sm">
               <thead>
-                <tr className="text-xs tracking-wide text-slate-500 uppercase">
-                  <th className="border-b border-slate-200 px-3 py-3 font-semibold">
+                <tr className="text-xs tracking-wide text-pool-500 uppercase">
+                  <th className="border-b border-pool-200 px-3 py-3 font-semibold">
                     Dataset
                   </th>
-                  <th className="border-b border-slate-200 px-3 py-3 font-semibold">
+                  <th className="border-b border-pool-200 px-3 py-3 font-semibold">
                     Provider
                   </th>
-                  <th className="border-b border-slate-200 px-3 py-3 font-semibold">
+                  <th className="border-b border-pool-200 px-3 py-3 font-semibold">
                     Status
                   </th>
-                  <th className="border-b border-slate-200 px-3 py-3 font-semibold">
+                  <th className="border-b border-pool-200 px-3 py-3 font-semibold">
                     Features
                   </th>
-                  <th className="border-b border-slate-200 px-3 py-3 font-semibold">
+                  <th className="border-b border-pool-200 px-3 py-3 font-semibold">
                     Evidence use
                   </th>
                 </tr>
@@ -753,26 +770,26 @@ export function PropertyDataResult({
               <tbody>
                 {datasets.map(([key, dataset]) => (
                   <tr key={key} className="align-top">
-                    <td className="border-b border-slate-100 px-3 py-3.5">
-                      <p className="font-medium text-slate-900">
+                    <td className="border-b border-pool-100 px-3 py-3.5">
+                      <p className="font-medium text-pool-900">
                         {dataset.dataset}
                       </p>
                       {(dataset.reason || dataset.errorCode) && (
-                        <p className="mt-1 max-w-80 text-xs leading-5 text-slate-500">
+                        <p className="mt-1 max-w-80 text-xs leading-5 text-pool-500">
                           {dataset.reason ?? dataset.errorCode}
                         </p>
                       )}
                     </td>
-                    <td className="border-b border-slate-100 px-3 py-3.5 text-slate-600">
+                    <td className="border-b border-pool-100 px-3 py-3.5 text-pool-600">
                       {dataset.provider}
                     </td>
-                    <td className="border-b border-slate-100 px-3 py-3.5">
+                    <td className="border-b border-pool-100 px-3 py-3.5">
                       <StatusBadge status={dataset.status} />
                     </td>
-                    <td className="border-b border-slate-100 px-3 py-3.5 text-slate-600 tabular-nums">
+                    <td className="border-b border-pool-100 px-3 py-3.5 text-pool-600 tabular-nums">
                       {dataset.featureCount ?? "—"}
                     </td>
-                    <td className="border-b border-slate-100 px-3 py-3.5 text-slate-600">
+                    <td className="border-b border-pool-100 px-3 py-3.5 text-pool-600">
                       {humanize(dataset.evidenceUse)}
                     </td>
                   </tr>
@@ -817,15 +834,15 @@ function SummaryCard({
   detail: string;
 }) {
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
-      <div className="mb-4 flex size-10 items-center justify-center rounded-xl bg-slate-100 text-slate-700">
+    <div className="rounded-2xl border border-pool-200 bg-white p-5 shadow-sm">
+      <div className="mb-4 flex size-10 items-center justify-center rounded-xl bg-pool-100 text-pool-700">
         {icon}
       </div>
-      <p className="text-xs font-semibold tracking-wide text-slate-500 uppercase">
+      <p className="text-xs font-semibold tracking-wide text-pool-500 uppercase">
         {label}
       </p>
-      <p className="mt-2 font-semibold text-slate-950">{value}</p>
-      <p className="mt-1 text-sm text-slate-500">{detail}</p>
+      <p className="mt-2 font-semibold text-pool-950">{value}</p>
+      <p className="mt-1 text-sm text-pool-500">{detail}</p>
     </div>
   );
 }
@@ -838,8 +855,8 @@ function ResultPanel({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-3xl border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-      <h3 className="mb-5 font-semibold text-slate-950">{title}</h3>
+    <div className="rounded-3xl border border-pool-200 bg-white p-5 shadow-sm sm:p-6">
+      <h3 className="mb-5 font-semibold text-pool-950">{title}</h3>
       {children}
     </div>
   );
@@ -847,11 +864,11 @@ function ResultPanel({
 
 function DescriptionList({ items }: { items: Array<[string, string]> }) {
   return (
-    <dl className="divide-y divide-slate-100">
+    <dl className="divide-y divide-pool-100">
       {items.map(([label, value]) => (
         <div key={label} className="grid gap-1 py-3 first:pt-0 sm:grid-cols-2">
-          <dt className="text-sm text-slate-500">{label}</dt>
-          <dd className="text-sm font-medium break-words text-slate-800 sm:text-right">
+          <dt className="text-sm text-pool-500">{label}</dt>
+          <dd className="text-sm font-medium break-words text-pool-800 sm:text-right">
             {value}
           </dd>
         </div>
@@ -865,7 +882,7 @@ function CheckItem({ passed, text }: { passed: boolean; text: string }) {
     <li className="flex items-start gap-2.5">
       {passed ? (
         <CheckCircle2
-          className="mt-0.5 size-4 shrink-0 text-teal-700"
+          className="mt-0.5 size-4 shrink-0 text-pool-blue-700"
           aria-hidden="true"
         />
       ) : (
@@ -882,10 +899,10 @@ function CheckItem({ passed, text }: { passed: boolean; text: string }) {
 function StatusBadge({ status }: { status: string }) {
   const className =
     status === "success"
-      ? "bg-teal-50 text-teal-800 ring-teal-600/20"
+      ? "bg-pool-blue-50 text-pool-blue-800 ring-pool-blue-600/20"
       : status === "error"
         ? "bg-red-50 text-red-800 ring-red-600/20"
-        : "bg-slate-100 text-slate-700 ring-slate-500/20";
+        : "bg-pool-100 text-pool-700 ring-pool-500/20";
 
   return (
     <span
