@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 
-test("keeps the saved preliminary report visible when homeowner email needs retry", async ({
+test("keeps the saved preliminary report clean when background email delivery fails", async ({
   page,
 }) => {
   await page.route("**/api/public/property-check", async (route) => {
@@ -210,29 +210,24 @@ test("keeps the saved preliminary report visible when homeowner email needs retr
   await expect(page.getByText("GF-2026-000123")).toBeVisible();
   await expect(
     page.getByText("Report generated successfully. Email delivery failed."),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Resend report" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Resend report" })).toHaveCount(
+    0,
+  );
   await expect(page.getByText(/Internal report email/i)).toHaveCount(0);
   const assessmentMap = page.getByRole("region", {
-    name: "Interactive assessment map",
+    name: "Saved assessment map",
   });
   await expect(assessmentMap).toBeVisible();
+  await expect(assessmentMap.getByText("Captured map layers")).toBeVisible();
   await expect(
-    assessmentMap.getByRole("checkbox", { name: "Mapped property boundary" }),
-  ).toBeChecked();
-  const poolToggle = assessmentMap.getByRole("checkbox", {
-    name: "Selected pool",
-  });
-  await expect(poolToggle).toBeChecked();
+    assessmentMap.getByText("Mapped property boundary"),
+  ).toBeVisible();
+  await expect(assessmentMap.getByText("Selected pool")).toBeVisible();
   await expect(
-    assessmentMap.getByRole("checkbox", {
-      name: "Indicative investigation buffer",
-    }),
-  ).toBeChecked();
-  await poolToggle.uncheck();
-  await expect(assessmentMap.getByText("Selected pool hidden")).toBeVisible();
+    assessmentMap.getByText("Indicative investigation buffer"),
+  ).toBeVisible();
+  await expect(assessmentMap.getByRole("checkbox")).toHaveCount(0);
   const downloadButton = page.getByRole("button", { name: "Download PDF" });
   await expect(downloadButton).toHaveCSS("align-items", "center");
   await expect(downloadButton).toHaveCSS("justify-content", "center");
