@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ClipboardList, Waves } from "lucide-react";
+import { Waves } from "lucide-react";
 import { AnalyticsConsent } from "@/components/analytics-consent";
 import { isSiteIndexingEnabled } from "@/config/site-indexing";
 import { env } from "@/env";
@@ -39,13 +39,6 @@ export default function RootLayout({
                 <Waves aria-hidden="true" className="size-4" />
               </span>
               Pool Feasibility NZ
-            </Link>
-            <Link
-              href="/staff"
-              className="inline-flex min-h-11 items-center gap-2 rounded-full border border-slate-200 bg-white px-4 text-sm font-semibold text-slate-800 shadow-sm outline-offset-4 transition hover:border-teal-700/30 hover:bg-teal-50 hover:text-teal-900 focus-visible:outline-2 focus-visible:outline-teal-700"
-            >
-              <ClipboardList aria-hidden="true" className="size-4" />
-              Staff sign in
             </Link>
           </nav>
         </header>
