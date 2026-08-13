@@ -1,5 +1,4 @@
 import { cleanup, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { HomeownerFeasibilityReportView } from "@/components/homeowner-feasibility-report-view";
 import { StaffAssessmentDashboard } from "@/components/staff/staff-assessment-dashboard";
@@ -196,8 +195,7 @@ describe("staff assessment detail", () => {
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
   });
 
-  it("lets a homeowner toggle relevant persisted evidence on the report map", async () => {
-    const user = userEvent.setup();
+  it("shows the saved Fast Property View capture and records its visible layers", () => {
     const report = structuredClone(savedPreliminaryReport);
     report.layers = [
       {
@@ -219,6 +217,7 @@ describe("staff assessment detail", () => {
       },
     ];
     report.mapVisibleLayerKeys = ["wastewater_assets"];
+    report.mapImageSource = "fast_property_view_capture";
 
     render(
       <HomeownerFeasibilityReportView
@@ -229,16 +228,12 @@ describe("staff assessment detail", () => {
     );
 
     expect(
-      screen.getByRole("region", { name: "Interactive assessment map" }),
+      screen.getByRole("region", { name: "Saved assessment map" }),
     ).toBeVisible();
-    const wastewaterToggle = screen.getByRole("checkbox", {
-      name: "Wastewater",
-    });
-    expect(wastewaterToggle).toBeChecked();
-
-    await user.click(wastewaterToggle);
-
-    expect(wastewaterToggle).not.toBeChecked();
-    expect(screen.getByText("Wastewater hidden")).toBeVisible();
+    expect(screen.getByText("Captured map layers")).toBeVisible();
+    expect(screen.getByText(/Saved Fast Property View capture/)).toBeVisible();
+    expect(screen.getByText("Wastewater")).toBeVisible();
+    expect(screen.getByText("Mapped")).toBeVisible();
+    expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 });
