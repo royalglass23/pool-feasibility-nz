@@ -142,6 +142,38 @@ it("captures the completed Fast Property View canvas for report reuse", async ()
   );
 });
 
+it("draws the indicative investigation buffer around the selected pool", async () => {
+  render(
+    <FastPropertyView
+      result={fastResult}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const style = mapStyles.mock.calls[0]?.[0] as {
+    sources: Record<string, unknown>;
+    layers: Array<{ id: string }>;
+  };
+
+  expect(style.sources).toHaveProperty("construction-envelope");
+  expect(style.layers).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: "construction-envelope-line",
+        source: "construction-envelope",
+        paint: {
+          "line-color": "#f97316",
+          "line-width": 3,
+          "line-dasharray": [3, 2],
+        },
+      }),
+    ]),
+  );
+});
+
 it("draws returned contours and lets the user hide them", async () => {
   const user = userEvent.setup();
   const detailedChecks = fastResult.detailedChecks!;

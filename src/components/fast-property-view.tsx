@@ -413,6 +413,14 @@ export function FastPropertyView({
             data: pointFeature(result.resolvedAddress.coordinates),
           },
           pool: { type: "geojson", data: pool },
+          "construction-envelope": {
+            type: "geojson",
+            data:
+              constructionEnvelopeGeometry ?? {
+                type: "FeatureCollection" as const,
+                features: [],
+              },
+          },
           "pool-rotation": {
             type: "geojson",
             data: rotationHandleGeometry(
@@ -511,6 +519,16 @@ export function FastPropertyView({
           type: "line",
           source: "pool",
           paint: { "line-color": "#0f172a", "line-width": 3 },
+        },
+        {
+          id: "construction-envelope-line",
+          type: "line",
+          source: "construction-envelope",
+          paint: {
+            "line-color": "#f97316",
+            "line-width": 3,
+            "line-dasharray": [3, 2],
+          },
         },
         {
           id: "pool-rotation-guide",
@@ -676,6 +694,12 @@ export function FastPropertyView({
     const poolSource = map.getSource("pool") as
       import("maplibre-gl").GeoJSONSource | undefined;
     poolSource?.setData(poolGeometry ?? emptyGeometry);
+    const constructionEnvelopeSource = map.getSource(
+      "construction-envelope",
+    ) as import("maplibre-gl").GeoJSONSource | undefined;
+    constructionEnvelopeSource?.setData(
+      constructionEnvelopeGeometry ?? emptyGeometry,
+    );
     const rotationSource = map.getSource("pool-rotation") as
       import("maplibre-gl").GeoJSONSource | undefined;
     rotationSource?.setData(
@@ -683,7 +707,13 @@ export function FastPropertyView({
         ? rotationHandleGeometry(position, rotationDegrees, dimensions)
         : emptyGeometry,
     );
-  }, [dimensions, poolGeometry, position, rotationDegrees]);
+  }, [
+    constructionEnvelopeGeometry,
+    dimensions,
+    poolGeometry,
+    position,
+    rotationDegrees,
+  ]);
 
   return (
     <section
