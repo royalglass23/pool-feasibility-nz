@@ -27,21 +27,9 @@ const MAX_REQUEST_BYTES = 16_000;
 const requestSchema = z
   .object({ accessToken: z.string().min(32).max(4_096) })
   .strict();
-const PDF_REPORTS_ENABLED = false;
 
 async function handlePublicSavedReportPdf(request: Request): Promise<Response> {
   const correlationId = requestCorrelationId(request);
-  if (!PDF_REPORTS_ENABLED) {
-    return apiErrorResponse(
-      {
-        code: "PDF_REPORTS_DISABLED",
-        message: "PDF downloads are temporarily unavailable.",
-      },
-      410,
-      correlationId,
-      { "Cache-Control": "no-store" },
-    );
-  }
   try {
     const bytes = await readRequestBytesWithinLimit(request, MAX_REQUEST_BYTES);
     const body = requestSchema.parse(

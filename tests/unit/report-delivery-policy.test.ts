@@ -12,11 +12,10 @@ describe("report delivery policy", () => {
     ).toEqual({
       mode: "synthetic_test",
       channels: ["homeowner", "internal_test_report"],
-      requiresRecipientVerification: false,
     });
   });
 
-  it("permits Production delivery only in Vercel Production and includes the support PDF notification", () => {
+  it("permits direct Production delivery only in Vercel Production and includes the support PDF notification", () => {
     expect(
       resolveReportDeliveryPolicy({
         mode: "production",
@@ -26,36 +25,6 @@ describe("report delivery policy", () => {
     ).toEqual({
       mode: "production",
       channels: ["homeowner", "internal_test_report"],
-      requiresRecipientVerification: true,
-    });
-  });
-
-  it("permits the verified-recipient test path and support PDF notification only in Vercel Preview", () => {
-    expect(
-      resolveReportDeliveryPolicy({
-        mode: "production_test",
-        vercelEnvironment: "preview",
-        nodeEnvironment: "production",
-      }),
-    ).toEqual({
-      mode: "production_test",
-      channels: ["homeowner", "internal_test_report"],
-      requiresRecipientVerification: true,
-    });
-  });
-
-  it("uses the dedicated Preview verification-test flag without changing the shared delivery mode", () => {
-    expect(
-      resolveReportDeliveryPolicy({
-        mode: "synthetic_test",
-        vercelEnvironment: "preview",
-        nodeEnvironment: "production",
-        previewRecipientVerificationEnabled: true,
-      }),
-    ).toEqual({
-      mode: "production_test",
-      channels: ["homeowner", "internal_test_report"],
-      requiresRecipientVerification: true,
     });
   });
 
@@ -63,12 +32,6 @@ describe("report delivery policy", () => {
     { mode: undefined, vercelEnvironment: "production" },
     { mode: "synthetic_test", vercelEnvironment: "production" },
     { mode: "production", vercelEnvironment: "preview" },
-    { mode: "production_test", vercelEnvironment: "production" },
-    {
-      mode: "synthetic_test",
-      vercelEnvironment: "production",
-      previewRecipientVerificationEnabled: true,
-    },
     { mode: "production", nodeEnvironment: "production" },
   ])("fails closed for %#", (environment) => {
     expect(() => resolveReportDeliveryPolicy(environment)).toThrow(

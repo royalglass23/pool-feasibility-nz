@@ -553,6 +553,27 @@ export function DataAccessInspector() {
 
       {fastResult && !result && !fastSavedReport.assessment && (
         <>
+          {error && (
+            <div
+              role="alert"
+              className="border-amber-200 bg-amber-50 text-amber-950 rounded-2xl border px-4 py-3 text-sm leading-6"
+            >
+              <p className="font-semibold">
+                We couldn&apos;t finish every property check.
+              </p>
+              <p className="mt-1">
+                Your preliminary property view is still available. Please
+                search for the address again.
+              </p>
+              <button
+                type="button"
+                onClick={startAgain}
+                className="text-amber-950 hover:text-amber-800 focus-visible:outline-amber-800 mt-3 min-h-11 font-semibold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                Search again
+              </button>
+            </div>
+          )}
           <FastPropertyView
             result={fastResult}
             onLoadDetailed={() => void requestDetailedPropertyData()}

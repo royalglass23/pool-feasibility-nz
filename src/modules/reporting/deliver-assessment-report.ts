@@ -14,7 +14,6 @@ import { generatePreliminaryReportPdf } from "@/modules/reporting/report-rendere
 
 export async function deliverAssessmentReportByReference(
   reference: string,
-  options: { recipientVerified?: boolean } = {},
 ): Promise<
   Record<"homeowner" | "internal_test_report", AssessmentDeliveryOutcome>
 > {
@@ -29,10 +28,7 @@ export async function deliverAssessmentReportByReference(
       mode: process.env.REPORT_DELIVERY_MODE,
       vercelEnvironment: process.env.VERCEL_ENV,
       nodeEnvironment: process.env.NODE_ENV,
-      previewRecipientVerificationEnabled:
-        process.env.PREVIEW_REPORT_DELIVERY_TEST === "true",
     },
-    recipientVerified: options.recipientVerified,
     send: async (input) => {
       if (!apiKey || !from) {
         throw new ReportEmailDeliveryError("EMAIL_CONFIGURATION_MISSING");

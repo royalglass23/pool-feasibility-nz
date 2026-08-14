@@ -146,7 +146,7 @@ describe("canonical homeowner feasibility report", () => {
 
     expect(report.overall).toMatchObject({
       status: "red",
-      headline: "Potential constraint identified",
+      headline: "Potential Constraint",
       recommendedStage: "Review pool position",
     });
   });

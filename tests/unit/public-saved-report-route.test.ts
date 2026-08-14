@@ -131,7 +131,7 @@ describe("POST public saved report delivery", () => {
     expect(startAssessmentReportDeliveryByReference).not.toHaveBeenCalled();
   });
 
-  it("delivers immediately without recipient verification", async () => {
+  it("returns the durable delivery state after a direct delivery attempt", async () => {
     verifySavedReportAccessToken.mockReturnValue({
       assessmentId: "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48",
       reference: report.reference,
@@ -140,9 +140,7 @@ describe("POST public saved report delivery", () => {
       reference: report.reference,
       delivery: { homeowner: "pending", internal_test_report: "pending" },
     });
-    startAssessmentReportDeliveryByReference.mockResolvedValue(
-      "verification_required",
-    );
+    startAssessmentReportDeliveryByReference.mockResolvedValue("delivered");
 
     const response = await POST_DELIVERY(
       new Request(
@@ -181,8 +179,8 @@ describe("POST public saved report PDF", () => {
       }),
     );
 
-    expect(malformedResponse.status).toBe(410);
-    expect(oversizedResponse.status).toBe(410);
+    expect(malformedResponse.status).toBe(400);
+    expect(oversizedResponse.status).toBe(413);
     expect(getDb).not.toHaveBeenCalled();
   });
 
@@ -200,7 +198,7 @@ describe("POST public saved report PDF", () => {
       }),
     );
 
-    expect(response.status).toBe(410);
+    expect(response.status).toBe(401);
     expect(getDb).not.toHaveBeenCalled();
   });
 
@@ -221,9 +219,14 @@ describe("POST public saved report PDF", () => {
       }),
     );
 
-    expect(response.status).toBe(410);
-    expect(getSavedPreliminaryReportById).not.toHaveBeenCalled();
-    expect(generatePreliminaryReportPdf).not.toHaveBeenCalled();
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe("application/pdf");
+    expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
+    expect(getSavedPreliminaryReportById).toHaveBeenCalledWith(
+      expect.anything(),
+      "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48",
+    );
+    expect(generatePreliminaryReportPdf).toHaveBeenCalledWith(report);
   });
 
   it("fails closed when the loaded report reference does not match the token", async () => {
@@ -242,7 +245,7 @@ describe("POST public saved report PDF", () => {
       }),
     );
 
-    expect(response.status).toBe(410);
+    expect(response.status).toBe(404);
     expect(generatePreliminaryReportPdf).not.toHaveBeenCalled();
   });
 });
