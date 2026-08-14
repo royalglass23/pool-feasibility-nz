@@ -30,7 +30,7 @@ describe("report delivery policy", () => {
     });
   });
 
-  it("permits the verified-recipient test path only in Vercel Preview", () => {
+  it("permits the verified-recipient test path and support PDF notification only in Vercel Preview", () => {
     expect(
       resolveReportDeliveryPolicy({
         mode: "production_test",
@@ -39,7 +39,7 @@ describe("report delivery policy", () => {
       }),
     ).toEqual({
       mode: "production_test",
-      channels: ["homeowner"],
+      channels: ["homeowner", "internal_test_report"],
       requiresRecipientVerification: true,
     });
   });
@@ -54,7 +54,7 @@ describe("report delivery policy", () => {
       }),
     ).toEqual({
       mode: "production_test",
-      channels: ["homeowner"],
+      channels: ["homeowner", "internal_test_report"],
       requiresRecipientVerification: true,
     });
   });

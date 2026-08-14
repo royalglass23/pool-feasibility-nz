@@ -48,9 +48,9 @@ _Avoid_: Marketing consent, newsletter opt-in
 The controlled non-production delivery that immediately sends the same report PDF to the synthetic test user's submitted email address and the Internal Test Report Email. It has no verification step and must not contain customer or production data.
 _Avoid_: Production report delivery, ServiceM8 test lead, customer-data test
 
-**Internal Test Report Email**:
-The controlled `royalglass666@gmail.com` recipient for the second PDF copy in Test Report Delivery.
-_Avoid_: ServiceM8 forwarding address, customer recipient, production internal mailbox
+**Internal Report Notification**:
+The `support@royalglass.co.nz` recipient for the second PDF copy in permitted Preview and Production report delivery.
+_Avoid_: ServiceM8 forwarding address, customer recipient, marketing email
 
 **Report Request Retention Period**:
 The 12-month period for keeping a submitted report request and its associated personal/property data before deletion.

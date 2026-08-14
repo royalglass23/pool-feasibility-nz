@@ -15,7 +15,7 @@ export type ReportDeliveryPolicy =
     }
   | {
       mode: "production_test";
-      channels: readonly ["homeowner"];
+      channels: readonly ["homeowner", "internal_test_report"];
       requiresRecipientVerification: true;
     }
   | {
@@ -33,7 +33,7 @@ export function resolveReportDeliveryPolicy(
   ) {
     return {
       mode: "production_test",
-      channels: ["homeowner"],
+      channels: ["homeowner", "internal_test_report"],
       requiresRecipientVerification: true,
     };
   }
@@ -65,7 +65,7 @@ export function resolveReportDeliveryPolicy(
   ) {
     return {
       mode: "production_test",
-      channels: ["homeowner"],
+      channels: ["homeowner", "internal_test_report"],
       requiresRecipientVerification: true,
     };
   }
