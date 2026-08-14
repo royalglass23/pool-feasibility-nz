@@ -117,6 +117,6 @@ describe("web, PDF and email report consistency", () => {
     expect(email.subject).toBe(
       "Your Preliminary Pool Feasibility Report - 42A Bahari Drive",
     );
-    expect(email.attachment).toBeUndefined();
+    expect(email.attachment).toEqual(Buffer.from("%PDF-same-snapshot"));
   });
 });

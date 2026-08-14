@@ -76,8 +76,8 @@ export function HomeownerFeasibilityReportView({
         </div>
 
         <p className="text-pool-blue-800 mt-4 text-sm font-semibold">
-          We will email a summary of this preliminary report shortly. Check Spam
-          or Promotions if it is not in your inbox.
+          We will email your preliminary report with a PDF attachment shortly.
+          Check Spam or Promotions if it is not in your inbox.
         </p>
       </header>
 

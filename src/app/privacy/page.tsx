@@ -62,12 +62,12 @@ export default function PrivacyNoticePage() {
             </li>
             <li>
               <strong className="text-[#062f5d]">Resend</strong> receives the
-              data needed to send both the homeowner report email and the
-              ServiceM8 notification when those deliveries are enabled. The
-              homeowner email includes the visitor email address and a summary
-              of the saved preliminary report.
-              The ServiceM8 notification includes the report reference, contact
-              details, checked address, visitor type, and project timing.
+              data needed to send the homeowner report email and the Royal
+              Glass lead notification. Both messages include the saved
+              preliminary report PDF. The Royal Glass notification goes to the
+              Royal Glass support inbox and includes the report reference,
+              contact details, checked address, visitor type, and project
+              timing.
             </li>
             <li>
               <strong className="text-[#062f5d]">ServiceM8</strong> receives a

@@ -10,6 +10,7 @@ import {
   ReportEmailDeliveryError,
   sendResendEmail,
 } from "@/modules/reporting/resend-email-gateway";
+import { generatePreliminaryReportPdf } from "@/modules/reporting/report-renderer";
 
 export async function deliverAssessmentReportByReference(
   reference: string,
@@ -22,6 +23,8 @@ export async function deliverAssessmentReportByReference(
   return deliverAssessmentReport(reference, {
     store: createAssessmentDeliveryStore(getDb()),
     from: from || "unconfigured",
+    renderPdf: generatePreliminaryReportPdf,
+    internalRecipient: configuredInternalRecipient(),
     send: async (input) => {
       if (!apiKey || !from) {
         throw new ReportEmailDeliveryError("EMAIL_CONFIGURATION_MISSING");
@@ -29,6 +32,10 @@ export async function deliverAssessmentReportByReference(
       return sendResendEmail({ ...input, apiKey, from });
     },
   });
+}
+
+function configuredInternalRecipient(): string {
+  return process.env.REPORT_INTERNAL_EMAIL?.trim() || "support@royalglass.co.nz";
 }
 
 export async function startAssessmentReportDeliveryByReference(

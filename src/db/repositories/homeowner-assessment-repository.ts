@@ -482,6 +482,9 @@ async function claimAssessmentDelivery(
     claimToken,
     homeownerName: assessment.homeownerName,
     homeownerEmail: assessment.homeownerEmail,
+    homeownerPhone: assessment.homeownerPhone,
+    visitorType: assessment.visitorType,
+    desiredTiming: assessment.desiredTiming,
     report: buildSavedPreliminaryReport({
       reference: assessment.reference,
       createdAt: assessment.createdAt.toISOString(),
