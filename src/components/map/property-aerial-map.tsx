@@ -415,6 +415,12 @@ export function PropertyAerialMap({
         sources,
         layers,
       };
+      const bounds = new maplibregl.LngLatBounds();
+      for (const ring of result.parcel.geometry.coordinates) {
+        for (const coordinate of ring) {
+          bounds.extend([coordinate[0], coordinate[1]]);
+        }
+      }
 
       map = new maplibregl.Map({
         container,
@@ -422,6 +428,7 @@ export function PropertyAerialMap({
         attributionControl: { compact: true },
         center: result.resolvedAddress.coordinates,
         zoom: 18,
+        maxBounds: bounds,
         canvasContextAttributes: { preserveDrawingBuffer: true },
       });
       const activeMap = map;
@@ -471,13 +478,8 @@ export function PropertyAerialMap({
         activeMap.dragPan.enable();
       });
 
-      const bounds = new maplibregl.LngLatBounds();
-      for (const ring of result.parcel.geometry.coordinates) {
-        for (const coordinate of ring) {
-          bounds.extend([coordinate[0], coordinate[1]]);
-        }
-      }
       map.fitBounds(bounds, { padding: 72, maxZoom: 17, duration: 0 });
+      activeMap.setMinZoom(activeMap.getZoom());
       map.on("error", () => setMapError(true));
       captureAfterMove = () => captureReportSnapshot(true);
       map.on("moveend", captureAfterMove);
@@ -557,7 +559,7 @@ export function PropertyAerialMap({
           </h3>
           <p className="mt-1 text-sm text-pool-300">
             Teal shows parcel {result.parcel.parcelId}; orange marks the
-            resolved address point.
+            resolved address point. Navigation stays within this property.
           </p>
         </div>
         <div className="flex items-center gap-3">

@@ -4,12 +4,31 @@ import { createDataAccessGateway } from "../fixtures/normalized-data-access";
 import { PropertyAerialMap } from "@/components/map/property-aerial-map";
 import { runDataAccessSpike } from "@/modules/data-access-spike/run-data-access-spike";
 
+const mapInstances = vi.hoisted(
+  () =>
+    [] as Array<{
+      minZooms: number[];
+    }>,
+);
+const mapConstructorOptions = vi.hoisted(
+  () =>
+    [] as Array<{
+      maxBounds: { toArray: () => [[number, number], [number, number]] };
+    }>,
+);
+
 vi.mock("maplibre-gl", () => {
   class Map {
     private readonly layerVisibility = new globalThis.Map<string, string>();
     private readonly pendingVisibility = new globalThis.Map<string, string>();
+    readonly minZooms: number[] = [];
 
-    constructor(options: { style: { layers: Array<{ id: string }> } }) {
+    constructor(options: {
+      style: { layers: Array<{ id: string }> };
+      maxBounds: { toArray: () => [[number, number], [number, number]] };
+    }) {
+      mapInstances.push(this);
+      mapConstructorOptions.push(options);
       for (const layer of options.style.layers) {
         this.layerVisibility.set(layer.id, "visible");
       }
@@ -17,8 +36,14 @@ vi.mock("maplibre-gl", () => {
 
     addControl() {}
     fitBounds() {}
+    getZoom() {
+      return 17;
+    }
     on() {}
     remove() {}
+    setMinZoom(zoom: number) {
+      this.minZooms.push(zoom);
+    }
 
     once(event: string, callback: () => void) {
       if (event === "idle") {
@@ -50,8 +75,24 @@ vi.mock("maplibre-gl", () => {
   }
 
   class LngLatBounds {
-    extend() {
+    private west = Infinity;
+    private south = Infinity;
+    private east = -Infinity;
+    private north = -Infinity;
+
+    extend(coordinate: [number, number]) {
+      this.west = Math.min(this.west, coordinate[0]);
+      this.south = Math.min(this.south, coordinate[1]);
+      this.east = Math.max(this.east, coordinate[0]);
+      this.north = Math.max(this.north, coordinate[1]);
       return this;
+    }
+
+    toArray(): [[number, number], [number, number]] {
+      return [
+        [this.west, this.south],
+        [this.east, this.north],
+      ];
     }
   }
 
@@ -66,6 +107,8 @@ vi.mock("maplibre-gl", () => {
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  mapInstances.length = 0;
+  mapConstructorOptions.length = 0;
 });
 
 it("returns report-allowed evidence with derived candidate geometry", async () => {
@@ -155,6 +198,18 @@ it("returns report-allowed evidence with derived candidate geometry", async () =
     "parcel-outline",
     "address-point",
   ]);
+  const parcelCoordinates = result.parcel.geometry.coordinates.flat();
+  expect(mapConstructorOptions[0].maxBounds.toArray()).toEqual([
+    [
+      Math.min(...parcelCoordinates.map(([longitude]) => longitude)),
+      Math.min(...parcelCoordinates.map(([, latitude]) => latitude)),
+    ],
+    [
+      Math.max(...parcelCoordinates.map(([longitude]) => longitude)),
+      Math.max(...parcelCoordinates.map(([, latitude]) => latitude)),
+    ],
+  ]);
+  expect(mapInstances[0].minZooms).toEqual([17]);
 });
 
 function polygonFeatures(id: string) {
