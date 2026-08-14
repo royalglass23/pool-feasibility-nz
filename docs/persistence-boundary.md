@@ -20,13 +20,14 @@ map; those legacy rows cannot enter report delivery.
 After the assessment response is returned, Next.js `after` sends email only when the report
 delivery policy permits it. In controlled synthetic delivery (local development/test or Vercel
 Preview), it renders one PDF and sends the same attachment to the submitted synthetic test user and
-the fixed internal test mailbox. Neither send blocks the browser report. Each destination has its
+the fixed internal test mailbox. Production sends the same PDF directly to the submitted email
+address and the fixed internal mailbox. Neither send blocks the browser report. Each destination has its
 own delivery claim, token, attempt count, timestamp, provider message ID, and safe error code. A
 sent destination is never claimed again; failed and abandoned five-minute-old `sending` claims may
 be retried by repeating the original idempotent submission. Resend receives a deterministic
 `Idempotency-Key`, while the durable database `sent` state prevents resends after Resend's
-  provider-side idempotency window expires. Production delivery requires recipient verification and
-  sends the same PDF to `support@royalglass.co.nz` as an independent internal notification.
+  provider-side idempotency window expires. Production delivery sends the same PDF to
+  `support@royalglass.co.nz` as an independent internal notification.
 
 Report delivery needs these server-only settings:
 

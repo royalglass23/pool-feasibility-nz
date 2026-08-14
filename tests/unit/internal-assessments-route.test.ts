@@ -13,8 +13,10 @@ const getDb = vi.hoisted(() => vi.fn(() => ({}) as never));
 const saveHomeownerAssessment = vi.hoisted(() => vi.fn());
 const getSavedPreliminaryReportById = vi.hoisted(() => vi.fn());
 const issueSavedReportAccessToken = vi.hoisted(() => vi.fn());
+const after = vi.hoisted(() => vi.fn());
 
 vi.mock("server-only", () => ({}));
+vi.mock("next/server", () => ({ after }));
 vi.mock("@/modules/rate-limit/public-rate-limit", () => ({
   createPublicRateLimitedHandler: (
     _action: string,

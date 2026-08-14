@@ -880,7 +880,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(screen.queryByText("Fast property view")).not.toBeInTheDocument();
   });
 
-  it("shows a stage validation error instead of leaving the boundary pending", async () => {
+  it("explains a stage validation error on the open property view", async () => {
     const user = userEvent.setup();
     const fastResult = await runFastPropertyView({
       requestedAddress,
@@ -914,7 +914,17 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByRole("button", { name: "Fetch property data" }),
     );
 
-    expect(await screen.findByText(stageError)).toBeVisible();
+    expect(
+      await screen.findByText("We couldn't finish every property check."),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Your preliminary property view is still available. Please search for the address again.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Search again" }),
+    ).toBeVisible();
   });
 });
 

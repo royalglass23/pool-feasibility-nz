@@ -8,6 +8,18 @@ const mapInstances = vi.hoisted(
   () =>
     [] as Array<{
       minZooms: number[];
+      dragPan: {
+        isEnabled: () => boolean;
+      };
+      keyboard: {
+        isEnabled: () => boolean;
+      };
+      triggerLayerMouseDown: (
+        layer: "placement-shell-fill" | "placement-rotation-handle",
+        point: [number, number],
+      ) => void;
+      triggerMouseMove: (point: [number, number]) => void;
+      triggerMouseUp: () => void;
     }>,
 );
 const mapConstructorOptions = vi.hoisted(
@@ -21,7 +33,34 @@ vi.mock("maplibre-gl", () => {
   class Map {
     private readonly layerVisibility = new globalThis.Map<string, string>();
     private readonly pendingVisibility = new globalThis.Map<string, string>();
+    private readonly layerMouseDownHandlers = new globalThis.Map<
+      string,
+      (event: {
+        point: [number, number];
+        originalEvent: { stopPropagation: () => void };
+      }) => void
+    >();
+    private mouseMoveHandler:
+      ((event: { point: [number, number] }) => void) | undefined;
+    private mouseUpHandler: (() => void) | undefined;
     readonly minZooms: number[] = [];
+    readonly dragPan = {
+      enabled: true,
+      disable: () => {
+        this.dragPan.enabled = false;
+      },
+      enable: () => {
+        this.dragPan.enabled = true;
+      },
+      isEnabled: () => this.dragPan.enabled,
+    };
+    readonly keyboard = {
+      enabled: true,
+      disable: () => {
+        this.keyboard.enabled = false;
+      },
+      isEnabled: () => this.keyboard.enabled,
+    };
 
     constructor(options: {
       style: { layers: Array<{ id: string }> };
@@ -39,11 +78,57 @@ vi.mock("maplibre-gl", () => {
     getZoom() {
       return 17;
     }
-    on() {}
+    on(event: string, ...handlers: Array<unknown>) {
+      if (event === "mousedown") {
+        this.layerMouseDownHandlers.set(
+          handlers[0] as string,
+          handlers[1] as (event: {
+            point: [number, number];
+            originalEvent: { stopPropagation: () => void };
+          }) => void,
+        );
+      }
+      if (event === "mousemove") {
+        this.mouseMoveHandler = handlers[0] as (event: {
+          point: [number, number];
+        }) => void;
+      }
+      if (event === "mouseup") {
+        this.mouseUpHandler = handlers.at(-1) as () => void;
+      }
+    }
     remove() {}
     setMinZoom(zoom: number) {
       this.minZooms.push(zoom);
     }
+
+    triggerMouseUp() {
+      this.mouseUpHandler?.();
+    }
+
+    triggerLayerMouseDown(
+      layer: "placement-shell-fill" | "placement-rotation-handle",
+      point: [number, number],
+    ) {
+      this.layerMouseDownHandlers.get(layer)?.({
+        point,
+        originalEvent: { stopPropagation: () => {} },
+      });
+    }
+
+    triggerMouseMove(point: [number, number]) {
+      this.mouseMoveHandler?.({ point });
+    }
+
+    unproject(point: [number, number]) {
+      return { toArray: () => point };
+    }
+
+    getSource() {
+      return { setData: () => {} };
+    }
+
+    setPaintProperty() {}
 
     once(event: string, callback: () => void) {
       if (event === "idle") {
@@ -63,6 +148,7 @@ vi.mock("maplibre-gl", () => {
 
     getCanvas() {
       return {
+        style: { cursor: "" },
         toDataURL: () => {
           const visible = [...this.layerVisibility]
             .filter(([, visibility]) => visibility !== "none")
@@ -111,7 +197,7 @@ afterEach(() => {
   mapConstructorOptions.length = 0;
 });
 
-it("returns report-allowed evidence with derived candidate geometry", async () => {
+it("keeps the property map camera locked while capturing report evidence", async () => {
   vi.stubGlobal("WebGLRenderingContext", class WebGLRenderingContext {});
   const result = await runDataAccessSpike({
     requestedAddress: "42A Bahari Drive, Ranui, Auckland",
@@ -170,12 +256,14 @@ it("returns report-allowed evidence with derived candidate geometry", async () =
       "Largest successfully placed shell within the best-supported feasibility status.",
   };
   const onSnapshotReady = vi.fn();
+  const onPlacementChange = vi.fn();
 
   render(
     <PropertyAerialMap
       result={result}
       onRetry={() => {}}
       onSnapshotReady={onSnapshotReady}
+      onPlacementChange={onPlacementChange}
     />,
   );
 
@@ -210,6 +298,33 @@ it("returns report-allowed evidence with derived candidate geometry", async () =
     ],
   ]);
   expect(mapInstances[0].minZooms).toEqual([17]);
+  expect(mapInstances[0].dragPan.isEnabled()).toBe(false);
+  expect(mapInstances[0].keyboard.isEnabled()).toBe(false);
+
+  mapInstances[0].triggerLayerMouseDown(
+    "placement-shell-fill",
+    [174.60785, -36.86025],
+  );
+  mapInstances[0].triggerMouseMove([174.60786, -36.86024]);
+  await waitFor(() =>
+    expect(onPlacementChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ position: [174.60786, -36.86024] }),
+    ),
+  );
+
+  mapInstances[0].triggerLayerMouseDown(
+    "placement-rotation-handle",
+    [174.60786, -36.86024],
+  );
+  mapInstances[0].triggerMouseMove([174.60796, -36.86024]);
+  await waitFor(() =>
+    expect(onPlacementChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ rotationDegrees: 90 }),
+    ),
+  );
+
+  mapInstances[0].triggerMouseUp();
+  expect(mapInstances[0].dragPan.isEnabled()).toBe(false);
 });
 
 function polygonFeatures(id: string) {

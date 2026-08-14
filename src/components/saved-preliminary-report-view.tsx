@@ -33,7 +33,6 @@ export function SavedPreliminaryReportView({
   const [downloading] = useState(false);
   const [downloadError] = useState<string | null>(null);
   const [deliveryState] = useState(delivery);
-  const [recipientVerificationRequired] = useState(false);
   const mapLegend = reportMapLegend(report);
 
   return (
@@ -83,12 +82,6 @@ export function SavedPreliminaryReportView({
           className="text-center text-sm font-semibold text-red-700"
         >
           {downloadError}
-        </p>
-      )}
-
-      {recipientVerificationRequired && (
-        <p className="text-pool-blue-800 text-center text-sm font-semibold">
-          Check your email to confirm your address before we send the PDF.
         </p>
       )}
 

@@ -48,7 +48,6 @@ export type AssessmentReportDeliveryDependencies = {
   from: string;
   renderPdf: (report: SavedPreliminaryReport) => Promise<Buffer>;
   deliveryEnvironment: ReportDeliveryEnvironment;
-  recipientVerified?: boolean;
 };
 
 const SUPPORT_REPORT_EMAIL = "support@royalglass.co.nz";
@@ -58,11 +57,6 @@ export async function deliverAssessmentReport(
   dependencies: AssessmentReportDeliveryDependencies,
 ): Promise<Record<AssessmentDeliveryChannel, AssessmentDeliveryOutcome>> {
   const policy = resolveReportDeliveryPolicy(dependencies.deliveryEnvironment);
-  if (policy.requiresRecipientVerification && !dependencies.recipientVerified) {
-    throw new ReportEmailDeliveryError(
-      "REPORT_RECIPIENT_VERIFICATION_REQUIRED",
-    );
-  }
   const outcomes: Record<AssessmentDeliveryChannel, AssessmentDeliveryOutcome> =
     {
       homeowner: "unchanged",

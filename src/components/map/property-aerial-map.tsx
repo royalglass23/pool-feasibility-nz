@@ -434,6 +434,8 @@ export function PropertyAerialMap({
       const activeMap = map;
       mapRef.current = activeMap;
       activeMap.addControl(new maplibregl.NavigationControl(), "top-right");
+      activeMap.dragPan.disable();
+      activeMap.keyboard.disable();
 
       let interaction: "move" | "rotate" | null = null;
       const updatePosition = (nextPosition: [number, number]) => {
@@ -475,7 +477,7 @@ export function PropertyAerialMap({
       activeMap.on("mouseup", () => {
         interaction = null;
         activeMap.getCanvas().style.cursor = "";
-        activeMap.dragPan.enable();
+        activeMap.dragPan.disable();
       });
 
       map.fitBounds(bounds, { padding: 72, maxZoom: 17, duration: 0 });

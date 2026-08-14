@@ -106,7 +106,7 @@ describe("PDF assessment report delivery", () => {
     },
   );
 
-  it("sends the confirmed homeowner and support PDF notification in Production", async () => {
+  it("sends the homeowner and support PDF notification directly in Production", async () => {
     const { store } = createDeliveryStore({
       homeowner: "pending",
       internal_test_report: "pending",
@@ -118,7 +118,6 @@ describe("PDF assessment report delivery", () => {
       renderPdf: vi.fn().mockResolvedValue(Buffer.from("%PDF-shared")),
       send,
       from: "Royal Glass <reports@example.com>",
-      recipientVerified: true,
       deliveryEnvironment: {
         mode: "production",
         vercelEnvironment: "production",
@@ -146,27 +145,6 @@ describe("PDF assessment report delivery", () => {
       homeowner: "sent",
       internal_test_report: "sent",
     });
-  });
-
-  it("requires recipient verification in Production before claiming the report", async () => {
-    const { store } = createDeliveryStore({
-      homeowner: "pending",
-      internal_test_report: "pending",
-    });
-    await expect(
-      deliverAssessmentReport("GF-2026-000123", {
-        store,
-        renderPdf: vi.fn(),
-        send: vi.fn(),
-        from: "Royal Glass <reports@example.com>",
-        deliveryEnvironment: {
-          mode: "production",
-          vercelEnvironment: "production",
-          nodeEnvironment: "production",
-        },
-      }),
-    ).rejects.toMatchObject({ code: "REPORT_RECIPIENT_VERIFICATION_REQUIRED" });
-    expect(store.claim).not.toHaveBeenCalled();
   });
 
   it("sends the same saved report PDF to the submitted test email and support", async () => {

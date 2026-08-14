@@ -1,21 +1,10 @@
 import "server-only";
 
-import {
-  apiErrorResponse,
-  requestCorrelationId,
-} from "@/shared/http/api-response";
+import { createPublicRateLimitedHandler } from "@/modules/rate-limit/public-rate-limit";
+import { handleReportPdfRequest } from "@/modules/reporting/handle-report-pdf-request";
 
-export async function POST(request: Request): Promise<Response> {
-  const correlationId = requestCorrelationId(request);
-  return apiErrorResponse(
-    {
-      code: "PDF_REPORTS_DISABLED",
-      message: "PDF downloads are temporarily unavailable.",
-    },
-    410,
-    correlationId,
-    { "Cache-Control": "no-store" },
-  );
-}
+export const POST = createPublicRateLimitedHandler("report_pdf", (request) =>
+  handleReportPdfRequest(request, "anonymous_public"),
+);
 
 export const runtime = "nodejs";
