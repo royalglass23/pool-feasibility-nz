@@ -6,6 +6,11 @@ import {
 } from "@/modules/reporting/resend-email-gateway";
 import { escapeHtml } from "@/shared/html/escape-html";
 import { assessmentStatusLabel } from "@/modules/reporting/pool-feasibility-report";
+import { preliminaryReportFilename } from "@/modules/reporting/preliminary-report";
+import {
+  resolveReportDeliveryPolicy,
+  type ReportDeliveryEnvironment,
+} from "@/modules/reporting/report-delivery-policy";
 
 export type AssessmentDeliveryChannel = "homeowner" | "internal_test_report";
 export type AssessmentDeliveryOutcome = "sent" | "failed" | "unchanged";
@@ -41,47 +46,81 @@ export type AssessmentReportDeliveryDependencies = {
   store: AssessmentDeliveryStore;
   send: (input: ReportEmailInput) => Promise<ReportEmailResult>;
   from: string;
-  /** @deprecated PDF delivery is disabled while public HTML email is used. */
-  renderPdf?: (report: SavedPreliminaryReport) => Promise<Buffer>;
-  /** @deprecated Delivery no longer changes between Preview and Production. */
-  deliveryEnvironment?: unknown;
-  /** @deprecated Homeowner consent is captured at report submission. */
+  renderPdf: (report: SavedPreliminaryReport) => Promise<Buffer>;
+  deliveryEnvironment: ReportDeliveryEnvironment;
   recipientVerified?: boolean;
 };
+
+const SUPPORT_REPORT_EMAIL = "support@royalglass.co.nz";
 
 export async function deliverAssessmentReport(
   reference: string,
   dependencies: AssessmentReportDeliveryDependencies,
 ): Promise<Record<AssessmentDeliveryChannel, AssessmentDeliveryOutcome>> {
+  const policy = resolveReportDeliveryPolicy(dependencies.deliveryEnvironment);
+  if (policy.requiresRecipientVerification && !dependencies.recipientVerified) {
+    throw new ReportEmailDeliveryError(
+      "REPORT_RECIPIENT_VERIFICATION_REQUIRED",
+    );
+  }
   const outcomes: Record<AssessmentDeliveryChannel, AssessmentDeliveryOutcome> =
     {
       homeowner: "unchanged",
       internal_test_report: "unchanged",
     };
-  const claim = await dependencies.store.claim(reference, "homeowner");
-  if (!claim) return outcomes;
+  const claims = (
+    await Promise.all(
+      policy.channels.map((channel) =>
+        dependencies.store.claim(reference, channel),
+      ),
+    )
+  ).filter((claim): claim is AssessmentDeliveryClaim => claim !== null);
+  if (claims.length === 0) return outcomes;
 
   try {
-    const result = await dependencies.send(emailForHomeowner(claim, dependencies));
-    await dependencies.store.markSent(
-      reference,
-      claim.channel,
-      claim.claimToken,
-      result.id,
+    const pdf = await dependencies.renderPdf(claims[0]!.report);
+    await Promise.all(
+      claims.map(async (claim) => {
+        try {
+          const result = await dependencies.send(
+            claim.channel === "homeowner"
+              ? emailForHomeowner(claim, dependencies, pdf)
+              : emailForInternalTestReport(claim, dependencies, pdf),
+          );
+          await dependencies.store.markSent(
+            reference,
+            claim.channel,
+            claim.claimToken,
+            result.id,
+          );
+          outcomes[claim.channel] = "sent";
+        } catch (error) {
+          const errorCode =
+            error instanceof ReportEmailDeliveryError
+              ? error.code
+              : "EMAIL_DELIVERY_FAILED";
+          await dependencies.store.markFailed(
+            reference,
+            claim.channel,
+            claim.claimToken,
+            errorCode,
+          );
+          outcomes[claim.channel] = "failed";
+        }
+      }),
     );
-    outcomes.homeowner = "sent";
-  } catch (error) {
-    const errorCode =
-      error instanceof ReportEmailDeliveryError
-        ? error.code
-        : "EMAIL_DELIVERY_FAILED";
-    await dependencies.store.markFailed(
-      reference,
-      claim.channel,
-      claim.claimToken,
-      errorCode,
+  } catch {
+    await Promise.all(
+      claims.map(async (claim) => {
+        await dependencies.store.markFailed(
+          reference,
+          claim.channel,
+          claim.claimToken,
+          "REPORT_PDF_GENERATION_FAILED",
+        );
+        outcomes[claim.channel] = "failed";
+      }),
     );
-    outcomes.homeowner = "failed";
   }
 
   return outcomes;
@@ -90,6 +129,7 @@ export async function deliverAssessmentReport(
 function emailForHomeowner(
   claim: AssessmentDeliveryClaim,
   dependencies: Pick<AssessmentReportDeliveryDependencies, "from">,
+  pdf: Buffer,
 ): ReportEmailInput {
   const shortAddress = claim.report.property.address.split(",")[0]?.trim();
   const subject = `Your Preliminary Pool Feasibility Report - ${shortAddress || claim.report.property.address}`;
@@ -108,6 +148,22 @@ function emailForHomeowner(
     subject,
     html,
     text,
+    attachment: pdf,
+    filename: preliminaryReportFilename(claim.report),
     idempotencyKey: `assessment-report/${claim.report.reference}/homeowner`,
+  };
+}
+
+function emailForInternalTestReport(
+  claim: AssessmentDeliveryClaim,
+  dependencies: Pick<AssessmentReportDeliveryDependencies, "from">,
+  pdf: Buffer,
+): ReportEmailInput {
+  const homeownerEmail = emailForHomeowner(claim, dependencies, pdf);
+
+  return {
+    ...homeownerEmail,
+    to: SUPPORT_REPORT_EMAIL,
+    idempotencyKey: `assessment-report/${claim.report.reference}/internal_test_report`,
   };
 }

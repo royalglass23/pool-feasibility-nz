@@ -20,7 +20,7 @@ export type ReportDeliveryPolicy =
     }
   | {
       mode: "production";
-      channels: readonly ["homeowner"];
+      channels: readonly ["homeowner", "internal_test_report"];
       requiresRecipientVerification: true;
     };
 
@@ -76,7 +76,7 @@ export function resolveReportDeliveryPolicy(
   ) {
     return {
       mode: "production",
-      channels: ["homeowner"],
+      channels: ["homeowner", "internal_test_report"],
       requiresRecipientVerification: true,
     };
   }

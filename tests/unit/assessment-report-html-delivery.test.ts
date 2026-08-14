@@ -5,44 +5,122 @@ import {
   type AssessmentDeliveryStore,
 } from "@/modules/reporting/assessment-report-delivery";
 
-describe("assessment report HTML delivery", () => {
-  it("sends one homeowner HTML email without a PDF attachment", async () => {
+const controlledTestDeliveryEnvironment = {
+  mode: "synthetic_test",
+  vercelEnvironment: "preview",
+  nodeEnvironment: "production",
+} as const;
+
+describe("assessment report delivery", () => {
+  it("sends the same PDF attachment to the synthetic test user and support", async () => {
     const report = buildTestPreliminaryReport();
     const store: AssessmentDeliveryStore = {
-      claim: vi.fn().mockResolvedValue({
-        channel: "homeowner",
-        claimToken: "homeowner-claim",
-        homeownerName: "Jane Homeowner",
-        homeownerEmail: "jane@example.com",
-        report,
-      }),
+      claim: vi.fn((_: string, channel) =>
+        Promise.resolve({
+          channel,
+          claimToken: `${channel}-claim`,
+          homeownerName: "Jane Homeowner",
+          homeownerEmail: "jane@example.com",
+          report,
+        }),
+      ),
       markSent: vi.fn().mockResolvedValue(undefined),
       markFailed: vi.fn().mockResolvedValue(undefined),
     };
-    const send = vi.fn().mockResolvedValue({ id: "email-homeowner" });
+    const pdf = Buffer.from("%PDF-shared");
+    const renderPdf = vi.fn().mockResolvedValue(pdf);
+    const send = vi
+      .fn()
+      .mockResolvedValueOnce({ id: "email-homeowner" })
+      .mockResolvedValueOnce({ id: "email-royal-glass" });
 
     const outcome = await deliverAssessmentReport(report.reference, {
       store,
       send,
       from: "Royal Glass <reports@example.com>",
+      renderPdf,
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
     });
 
     expect(outcome).toEqual({
       homeowner: "sent",
-      internal_test_report: "unchanged",
+      internal_test_report: "sent",
     });
     expect(store.claim).toHaveBeenCalledWith(report.reference, "homeowner");
-    expect(send).toHaveBeenCalledWith(
-      expect.objectContaining({
-        to: "jane@example.com",
-        subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
-        idempotencyKey: `assessment-report/${report.reference}/homeowner`,
-      }),
+    expect(store.claim).toHaveBeenCalledWith(
+      report.reference,
+      "internal_test_report",
     );
-    const email = send.mock.calls[0]?.[0];
-    expect(email).not.toHaveProperty("attachment");
-    expect(email).not.toHaveProperty("filename");
-    expect(email.html).toContain(report.property.address);
-    expect(email.text).toContain(report.overall.recommendedStage);
+    expect(renderPdf).toHaveBeenCalledOnce();
+    expect(renderPdf).toHaveBeenCalledWith(report);
+    expect(send).toHaveBeenCalledTimes(2);
+    expect(send.mock.calls).toEqual(
+      expect.arrayContaining([
+        [
+          expect.objectContaining({
+            to: "jane@example.com",
+            subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
+            attachment: pdf,
+            filename: "preliminary-pool-feasibility-1-test-street.pdf",
+            idempotencyKey: `assessment-report/${report.reference}/homeowner`,
+          }),
+        ],
+        [
+          expect.objectContaining({
+            to: "support@royalglass.co.nz",
+            attachment: pdf,
+            filename: "preliminary-pool-feasibility-1-test-street.pdf",
+            idempotencyKey: `assessment-report/${report.reference}/internal_test_report`,
+          }),
+        ],
+      ]),
+    );
+  });
+
+  it("still notifies support when the homeowner email fails", async () => {
+    const report = buildTestPreliminaryReport();
+    const store: AssessmentDeliveryStore = {
+      claim: vi.fn((_: string, channel) =>
+        Promise.resolve({
+          channel,
+          claimToken: `${channel}-claim`,
+          homeownerName: "Jane Homeowner",
+          homeownerEmail: "jane@example.com",
+          report,
+        }),
+      ),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined),
+    };
+    const send = vi.fn(async (input: { to: string }) => {
+      if (input.to === "jane@example.com")
+        throw new Error("Resend unavailable");
+      return { id: "email-royal-glass" };
+    });
+
+    const outcome = await deliverAssessmentReport(report.reference, {
+      store,
+      send,
+      from: "Royal Glass <reports@example.com>",
+      renderPdf: vi.fn().mockResolvedValue(Buffer.from("%PDF-shared")),
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
+    });
+
+    expect(outcome).toEqual({
+      homeowner: "failed",
+      internal_test_report: "sent",
+    });
+    expect(store.markFailed).toHaveBeenCalledWith(
+      report.reference,
+      "homeowner",
+      "homeowner-claim",
+      "EMAIL_DELIVERY_FAILED",
+    );
+    expect(store.markSent).toHaveBeenCalledWith(
+      report.reference,
+      "internal_test_report",
+      "internal_test_report-claim",
+      "email-royal-glass",
+    );
   });
 });

@@ -7,7 +7,7 @@ Build one saved `GeneratedReport` view model and render it into both the interac
 MT-249 implements this as `SavedPreliminaryReport`. The assessment response returns that model
 immediately for browser display. The PDF renderer and both email destinations consume the same
 saved model and map capture. During the ADR-0005 controlled test, the submitted synthetic test
-email and `royalglass666@gmail.com` receive the same PDF bytes and filename. ServiceM8 delivery
+email and `support@royalglass.co.nz` receive the same PDF bytes and filename. ServiceM8 delivery
 remains disabled.
 
 HTML-to-PDF is preferred, but the browser binary/runtime is not selected until a Vercel deployment spike proves compatibility, cold-start and bundle limits, A4 pagination, map capture, and attribution. Playwright is installed for application and E2E testing; that does not yet prove it is the production PDF runtime.

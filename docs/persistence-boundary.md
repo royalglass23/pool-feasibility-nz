@@ -17,23 +17,28 @@ without calling live GIS providers. New submissions require a validated PNG data
 column remains nullable only so pre-MT-249 development rows are not backfilled with a fictional
 map; those legacy rows cannot enter report delivery.
 
-After the assessment response is returned, Next.js `after` sends a single HTML summary to the
-submitted email address. It does not block the browser report or generate a PDF. The homeowner
-delivery claim records its token, attempt count, timestamp, provider message ID, and safe error
-code. A sent destination is never claimed again; failed and abandoned five-minute-old `sending`
-claims may be retried by repeating the original idempotent submission. Resend receives a
-deterministic `Idempotency-Key`, while the durable database `sent` state prevents resends after
-Resend's provider-side idempotency window expires.
+After the assessment response is returned, Next.js `after` sends email only when the report
+delivery policy permits it. In controlled synthetic delivery (local development/test or Vercel
+Preview), it renders one PDF and sends the same attachment to the submitted synthetic test user and
+the fixed internal test mailbox. Neither send blocks the browser report. Each destination has its
+own delivery claim, token, attempt count, timestamp, provider message ID, and safe error code. A
+sent destination is never claimed again; failed and abandoned five-minute-old `sending` claims may
+be retried by repeating the original idempotent submission. Resend receives a deterministic
+`Idempotency-Key`, while the durable database `sent` state prevents resends after Resend's
+  provider-side idempotency window expires. Production delivery requires recipient verification and
+  sends the same PDF to `support@royalglass.co.nz` as an independent internal notification.
 
 Report delivery needs these server-only settings:
 
 - `RESEND_API_KEY`
 - `REPORT_FROM_EMAIL`
+- `REPORT_DELIVERY_MODE`
 - `DATABASE_URL_DEV` for the dedicated Vercel Preview database when `DATABASE_URL` is Production-only
 
 Missing delivery configuration records a delivery failure; it does not remove the saved assessment
-or browser report. The email contains an HTML summary only; PDF downloads and PDF attachments are
-temporarily disabled. `SERVICEM8_FORWARD_EMAIL` remains unset, and no ServiceM8 email or API job is created.
+or browser report. Public PDF downloads remain temporarily disabled. The synthetic test email
+attachment is limited to the approved non-production policy; `SERVICEM8_FORWARD_EMAIL` remains
+unset, and no ServiceM8 email or API job is created.
 Saved-report access tokens derive a domain-scoped signing key from `RESEND_API_KEY` when
 `INTERNAL_REPORT_SIGNING_SECRET` is not configured, so test delivery does not require an additional
 Vercel variable. The separate `INTERNAL_REPORT_SIGNING_SECRET` remains the preferred key for signed

@@ -16,7 +16,7 @@ describe("report delivery policy", () => {
     });
   });
 
-  it("permits Production delivery only in Vercel Production and never includes the internal test mailbox", () => {
+  it("permits Production delivery only in Vercel Production and includes the support PDF notification", () => {
     expect(
       resolveReportDeliveryPolicy({
         mode: "production",
@@ -25,7 +25,7 @@ describe("report delivery policy", () => {
       }),
     ).toEqual({
       mode: "production",
-      channels: ["homeowner"],
+      channels: ["homeowner", "internal_test_report"],
       requiresRecipientVerification: true,
     });
   });

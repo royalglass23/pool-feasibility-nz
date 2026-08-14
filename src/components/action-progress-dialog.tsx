@@ -54,10 +54,10 @@ export function ActionProgressDialog({
       aria-modal="true"
       onCancel={(event) => event.preventDefault()}
       tabIndex={-1}
-      className="fixed top-1/2 left-1/2 w-[min(calc(100%-2rem),28rem)] -tranpool-x-1/2 -tranpool-y-1/2 rounded-2xl border border-pool-200 bg-white p-0 text-pool-950 shadow-xl backdrop:bg-pool-950/45"
+      className="border-pool-200 text-pool-950 backdrop:bg-pool-950/45 fixed top-1/2 left-1/2 w-[min(calc(100%-2rem),28rem)] -translate-x-1/2 -translate-y-1/2 rounded-2xl border bg-white p-0 shadow-xl"
     >
       <div className="flex items-start gap-4 p-6">
-        <span className="grid size-11 shrink-0 place-items-center rounded-full bg-pool-blue-50 text-pool-blue-800">
+        <span className="bg-pool-blue-50 text-pool-blue-800 grid size-11 shrink-0 place-items-center rounded-full">
           <LoaderCircle
             className="size-5 animate-spin motion-reduce:animate-none"
             aria-hidden="true"
@@ -69,11 +69,11 @@ export function ActionProgressDialog({
           </h2>
           <p
             id={descriptionId}
-            className="mt-1 text-sm leading-6 text-pool-600"
+            className="text-pool-600 mt-1 text-sm leading-6"
           >
             {description}
           </p>
-          <p className="mt-3 text-sm font-medium text-pool-700" role="status">
+          <p className="text-pool-700 mt-3 text-sm font-medium" role="status">
             Please wait…
           </p>
         </div>

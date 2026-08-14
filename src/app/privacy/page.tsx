@@ -65,9 +65,9 @@ export default function PrivacyNoticePage() {
               data needed to send both the homeowner report email and the
               ServiceM8 notification when those deliveries are enabled. The
               homeowner email includes the visitor email address and a summary
-              of the saved preliminary report.
-              The ServiceM8 notification includes the report reference, contact
-              details, checked address, visitor type, and project timing.
+              of the saved preliminary report. The ServiceM8 notification
+              includes the report reference, contact details, checked address,
+              visitor type, and project timing.
             </li>
             <li>
               <strong className="text-[#062f5d]">ServiceM8</strong> receives a
@@ -90,7 +90,7 @@ export default function PrivacyNoticePage() {
             Email{" "}
             <a
               href="mailto:support@royalglass.co.nz"
-              className="font-semibold text-pool-blue-800 underline decoration-pool-blue-300 underline-offset-4 outline-offset-4 hover:text-pool-blue-950 focus-visible:outline-2 focus-visible:outline-pool-blue-700"
+              className="text-pool-blue-800 decoration-pool-blue-300 hover:text-pool-blue-950 focus-visible:outline-pool-blue-700 font-semibold underline underline-offset-4 outline-offset-4 focus-visible:outline-2"
             >
               support@royalglass.co.nz
             </a>{" "}
@@ -104,7 +104,7 @@ export default function PrivacyNoticePage() {
 
         <Link
           href="/"
-          className="mt-10 inline-flex min-h-11 items-center rounded-xl border border-[#9fc8df] px-4 text-sm font-semibold text-[#062f5d] outline-offset-4 transition hover:border-[#0077bd] hover:bg-[#e9f7ff] focus-visible:outline-2 focus-visible:outline-pool-blue-700"
+          className="focus-visible:outline-pool-blue-700 mt-10 inline-flex min-h-11 items-center rounded-xl border border-[#9fc8df] px-4 text-sm font-semibold text-[#062f5d] outline-offset-4 transition hover:border-[#0077bd] hover:bg-[#e9f7ff] focus-visible:outline-2"
         >
           Return to the Property Check
         </Link>

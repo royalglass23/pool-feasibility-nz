@@ -2,9 +2,7 @@
 
 import { SavedReportInteractiveMap } from "@/components/saved-report-interactive-map";
 import type { ReportDeliveryState } from "@/components/saved-preliminary-report-view";
-import {
-  type SavedPreliminaryReport,
-} from "@/modules/reporting/preliminary-report";
+import { type SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import {
   assessmentStatusLabel,
   formatReportNumber,
