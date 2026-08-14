@@ -439,8 +439,9 @@ export function DataAccessInspector() {
                 Your property address
               </h2>
               <p className="text-pool-500 text-sm">
-                Start with an Auckland address. We will match it against
-                official address data before showing the property view.
+                Currently available for Auckland addresses only. We will match
+                your address against official data before showing the property
+                view.
               </p>
             </div>
           </div>
