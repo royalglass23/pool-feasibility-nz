@@ -1,11 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { SavedReportInteractiveMap } from "@/components/saved-report-interactive-map";
 import type { ReportDeliveryState } from "@/components/saved-preliminary-report-view";
-import { ActionProgressDialog } from "@/components/action-progress-dialog";
 import {
-  preliminaryReportFilename,
   type SavedPreliminaryReport,
 } from "@/modules/reporting/preliminary-report";
 import {
@@ -36,85 +33,14 @@ export function HomeownerFeasibilityReportView({
   downloadAccessToken?: string;
   onStartAgain?: () => void;
 }) {
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [recipientVerificationRequired, setRecipientVerificationRequired] =
-    useState(false);
-
-  useEffect(() => {
-    if (
-      !downloadAccessToken ||
-      (delivery.homeowner !== "pending" && delivery.homeowner !== "sending")
-    ) {
-      return;
-    }
-    const controller = new AbortController();
-    void fetch("/api/public/assessments/report/delivery", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accessToken: downloadAccessToken }),
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) return null;
-        return (await response.json()) as {
-          recipientVerification?: "required";
-        };
-      })
-      .then((body) => {
-        if (body?.recipientVerification === "required") {
-          setRecipientVerificationRequired(true);
-        }
-      })
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, [delivery.homeowner, downloadAccessToken]);
-
-  async function downloadPdf() {
-    if (!downloadAccessToken || downloading) return;
-    setDownloading(true);
-    setDownloadError(null);
-    try {
-      const response = await fetch("/api/public/assessments/report/pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: downloadAccessToken }),
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          error?: { message?: string };
-        } | null;
-        throw new Error(
-          body?.error?.message ?? "The PDF could not be downloaded.",
-        );
-      }
-      const url = URL.createObjectURL(await response.blob());
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = preliminaryReportFilename(report);
-      anchor.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      setDownloadError(
-        error instanceof Error
-          ? error.message
-          : "The PDF could not be downloaded.",
-      );
-    } finally {
-      setDownloading(false);
-    }
-  }
+  void delivery;
+  void downloadAccessToken;
 
   return (
     <article
       aria-labelledby="saved-report-heading"
       className="border-pool-200 text-pool-900 mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border bg-white shadow-sm"
     >
-      <ActionProgressDialog
-        open={downloading}
-        title="Preparing your PDF"
-        description="Generating your preliminary property assessment report."
-      />
       <header className="border-pool-200 border-b px-5 py-5 sm:px-8 lg:px-10">
         <div className="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
           <div className="max-w-3xl">
@@ -146,29 +72,13 @@ export function HomeownerFeasibilityReportView({
                 Back to assessment
               </button>
             )}
-            {downloadAccessToken && (
-              <button
-                type="button"
-                onClick={() => void downloadPdf()}
-                disabled={downloading}
-                className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-500 inline-flex min-h-11 items-center justify-center rounded-xl px-5 font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-wait"
-              >
-                {downloading ? "Preparing PDF..." : "Download PDF"}
-              </button>
-            )}
           </div>
         </div>
 
-        {downloadError && (
-          <p role="alert" className="mt-4 text-sm font-semibold text-red-700">
-            {downloadError}
-          </p>
-        )}
-        {recipientVerificationRequired && (
-          <p className="text-pool-blue-800 mt-4 text-sm font-semibold">
-            Check your email to confirm your address before we send the PDF.
-          </p>
-        )}
+        <p className="text-pool-blue-800 mt-4 text-sm font-semibold">
+          We will email a summary of this preliminary report shortly. Check Spam
+          or Promotions if it is not in your inbox.
+        </p>
       </header>
 
       <div className="space-y-10 px-5 py-7 sm:px-8 lg:px-10 lg:py-10">

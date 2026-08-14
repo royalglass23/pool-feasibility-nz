@@ -21,8 +21,9 @@ This keeps limits consistent across Vercel function instances.
 - `POST /api/public/assessments/report/delivery` and
   `POST /api/public/assessments/report/verify`: 3 combined attempts per client
   IP in a rolling one-hour window through the shared `report_delivery` budget.
-- `POST /api/public/assessments`: 3 attempts per client IP in a rolling
-  one-hour window.
+- `POST /api/public/assessments`: unlimited in a Vercel Preview deployment so
+  the email flow can be tested repeatedly; 3 attempts per client IP in a
+  rolling one-hour window in Production.
 - A signed Property Check session receives two stage operations in 15 minutes:
   automatic enrichment plus the optional detailed check. The allowance is
   scoped by client IP and signed snapshot ID, so replay cannot create unbounded
@@ -41,18 +42,18 @@ this release.
 
 ## Deployment configuration
 
-Set both server-only variables in each production and Vercel preview
-environment:
+Set both server-only variables in Production and Vercel Preview environments:
 
 ```text
 UPSTASH_REDIS_REST_URL=https://...
 UPSTASH_REDIS_REST_TOKEN=...
 ```
 
-Do not prefix either value with `NEXT_PUBLIC_`. Production fails closed with a
-calm HTTP `503` response if either credential, the trusted Vercel client-IP
-header, or the managed store is unavailable. An Upstash SDK timeout is also
-treated as unavailable rather than allowed.
+Do not prefix either value with `NEXT_PUBLIC_`. The Preview exemption applies
+only to report requests; all other public limits remain enforced. Production
+fails closed with a calm HTTP `503` response if either credential, the trusted
+Vercel client-IP header, or the managed store is unavailable. An Upstash SDK
+timeout is also treated as unavailable rather than allowed.
 
 ## Local development
 

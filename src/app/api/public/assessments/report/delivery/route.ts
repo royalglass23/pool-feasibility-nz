@@ -49,20 +49,7 @@ async function handlePublicReportDelivery(request: Request): Promise<Response> {
         { "Cache-Control": "no-store" },
       );
     }
-    const started = await startAssessmentReportDeliveryByReference(
-      access.reference,
-    );
-    if (started === "verification_required") {
-      return apiJsonResponse(
-        {
-          delivery: initialState.delivery,
-          recipientVerification: "required",
-        },
-        202,
-        correlationId,
-        { "Cache-Control": "no-store" },
-      );
-    }
+    await startAssessmentReportDeliveryByReference(access.reference);
     const state =
       (await getAssessmentDeliveryStateById(getDb(), access.assessmentId)) ??
       initialState;

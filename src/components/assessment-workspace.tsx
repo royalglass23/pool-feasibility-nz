@@ -50,6 +50,7 @@ const sectionIds = [
   "limits",
 ] as const;
 type SectionId = (typeof sectionIds)[number];
+const pdfReportsEnabled = false;
 
 export function AssessmentWorkspace({
   result,
@@ -290,14 +291,16 @@ export function AssessmentWorkspace({
             <FileText className="size-4" aria-hidden="true" />
             Get my preliminary report
           </button>
-          <button
-            type="button"
-            disabled={!mapImage}
-            onClick={() => setPreview(true)}
-            className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-pool-300 px-4 font-semibold text-pool-800 transition-colors hover:border-pool-blue-600 hover:text-pool-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700 disabled:cursor-not-allowed disabled:bg-pool-100 disabled:text-pool-400"
-          >
-            Generate PDF report
-          </button>
+          {pdfReportsEnabled && (
+            <button
+              type="button"
+              disabled={!mapImage}
+              onClick={() => setPreview(true)}
+              className="inline-flex min-h-11 items-center gap-2 rounded-xl border border-pool-300 px-4 font-semibold text-pool-800 transition-colors hover:border-pool-blue-600 hover:text-pool-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700 disabled:cursor-not-allowed disabled:bg-pool-100 disabled:text-pool-400"
+            >
+              Generate PDF report
+            </button>
+          )}
           <button
             type="button"
             onClick={onDownloadData}

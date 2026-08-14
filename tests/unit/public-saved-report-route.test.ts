@@ -131,7 +131,7 @@ describe("POST public saved report delivery", () => {
     expect(startAssessmentReportDeliveryByReference).not.toHaveBeenCalled();
   });
 
-  it("requests recipient verification without exposing the email address", async () => {
+  it("delivers immediately without recipient verification", async () => {
     verifySavedReportAccessToken.mockReturnValue({
       assessmentId: "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48",
       reference: report.reference,
@@ -156,9 +156,8 @@ describe("POST public saved report delivery", () => {
       ),
     );
 
-    expect(response.status).toBe(202);
+    expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({
-      recipientVerification: "required",
       delivery: { homeowner: "pending", internal_test_report: "pending" },
     });
   });
@@ -182,8 +181,8 @@ describe("POST public saved report PDF", () => {
       }),
     );
 
-    expect(malformedResponse.status).toBe(400);
-    expect(oversizedResponse.status).toBe(413);
+    expect(malformedResponse.status).toBe(410);
+    expect(oversizedResponse.status).toBe(410);
     expect(getDb).not.toHaveBeenCalled();
   });
 
@@ -201,7 +200,7 @@ describe("POST public saved report PDF", () => {
       }),
     );
 
-    expect(response.status).toBe(401);
+    expect(response.status).toBe(410);
     expect(getDb).not.toHaveBeenCalled();
   });
 
@@ -222,13 +221,9 @@ describe("POST public saved report PDF", () => {
       }),
     );
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get("content-type")).toBe("application/pdf");
-    expect(getSavedPreliminaryReportById).toHaveBeenCalledWith(
-      expect.anything(),
-      "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48",
-    );
-    expect(generatePreliminaryReportPdf).toHaveBeenCalledWith(report);
+    expect(response.status).toBe(410);
+    expect(getSavedPreliminaryReportById).not.toHaveBeenCalled();
+    expect(generatePreliminaryReportPdf).not.toHaveBeenCalled();
   });
 
   it("fails closed when the loaded report reference does not match the token", async () => {
@@ -247,7 +242,7 @@ describe("POST public saved report PDF", () => {
       }),
     );
 
-    expect(response.status).toBe(404);
+    expect(response.status).toBe(410);
     expect(generatePreliminaryReportPdf).not.toHaveBeenCalled();
   });
 });

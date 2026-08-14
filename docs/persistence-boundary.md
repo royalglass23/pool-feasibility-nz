@@ -17,34 +17,23 @@ without calling live GIS providers. New submissions require a validated PNG data
 column remains nullable only so pre-MT-249 development rows are not backfilled with a fictional
 map; those legacy rows cannot enter report delivery.
 
-After the assessment response is returned, Next.js `after` starts delivery from the persisted
-aggregate. In local development/test and Vercel Preview, the submitted synthetic test email and
-internal test email are claimed, attempted, and completed independently. The internal test destination temporarily reuses the persisted
-`forwarding_*` database columns behind a repository-only mapping; the application channel is
-`internal_test_report`. These legacy columns do not enable or send to ServiceM8. Each claim records
-its token, attempt count, timestamp, provider message ID, and safe error code. A sent destination is
-never claimed again. Failed destinations and abandoned
-five-minute-old `sending` claims may be retried by repeating the original idempotent submission.
-Resend also receives a deterministic destination-specific `Idempotency-Key`, while the durable
-database `sent` state prevents resends after Resend's provider-side idempotency window expires.
+After the assessment response is returned, Next.js `after` sends a single HTML summary to the
+submitted email address. It does not block the browser report or generate a PDF. The homeowner
+delivery claim records its token, attempt count, timestamp, provider message ID, and safe error
+code. A sent destination is never claimed again; failed and abandoned five-minute-old `sending`
+claims may be retried by repeating the original idempotent submission. Resend receives a
+deterministic `Idempotency-Key`, while the durable database `sent` state prevents resends after
+Resend's provider-side idempotency window expires.
 
 Report delivery needs these server-only settings:
 
 - `RESEND_API_KEY`
 - `REPORT_FROM_EMAIL`
 - `DATABASE_URL_DEV` for the dedicated Vercel Preview database when `DATABASE_URL` is Production-only
-- `REPORT_DELIVERY_MODE=synthetic_test` for local development/test or Vercel Preview,
-  `REPORT_DELIVERY_MODE=production_test` for recipient-confirmation testing in Vercel Preview, or
-  `REPORT_DELIVERY_MODE=production` only in Vercel Production
 
 Missing delivery configuration records a delivery failure; it does not remove the saved assessment
-or browser report. In `synthetic_test`, both controlled-test destinations receive the same saved
-report PDF through Resend; the internal destination is fixed in the controlled-test boundary as
-`royalglass666@gmail.com`. In `production_test` and Production, the initial request sends a one-hour confirmation link
-only to the submitted recipient. Its signed token is kept in the URL fragment, so it is not sent in
-the page request or referrer; confirmation is required before the saved PDF is sent. Production
-does not claim or send the internal-test channel. The mode fails closed outside its explicit
-environment. `SERVICEM8_FORWARD_EMAIL` remains unset, and no ServiceM8 email or API job is created.
+or browser report. The email contains an HTML summary only; PDF downloads and PDF attachments are
+temporarily disabled. `SERVICEM8_FORWARD_EMAIL` remains unset, and no ServiceM8 email or API job is created.
 Saved-report access tokens derive a domain-scoped signing key from `RESEND_API_KEY` when
 `INTERNAL_REPORT_SIGNING_SECRET` is not configured, so test delivery does not require an additional
 Vercel variable. The separate `INTERNAL_REPORT_SIGNING_SECRET` remains the preferred key for signed

@@ -7,19 +7,12 @@ import {
   type AssessmentDeliveryOutcome,
 } from "@/modules/reporting/assessment-report-delivery";
 import {
-  resolveReportDeliveryPolicy,
-  type ReportDeliveryEnvironment,
-} from "@/modules/reporting/report-delivery-policy";
-import { generatePreliminaryReportPdf } from "@/modules/reporting/report-renderer";
-import { requestReportRecipientVerificationByReference } from "@/modules/reporting/report-recipient-verification";
-import {
   ReportEmailDeliveryError,
   sendResendEmail,
 } from "@/modules/reporting/resend-email-gateway";
 
 export async function deliverAssessmentReportByReference(
   reference: string,
-  options: { recipientVerified?: boolean } = {},
 ): Promise<
   Record<"homeowner" | "internal_test_report", AssessmentDeliveryOutcome>
 > {
@@ -28,10 +21,7 @@ export async function deliverAssessmentReportByReference(
 
   return deliverAssessmentReport(reference, {
     store: createAssessmentDeliveryStore(getDb()),
-    renderPdf: generatePreliminaryReportPdf,
     from: from || "unconfigured",
-    deliveryEnvironment: reportDeliveryEnvironment(),
-    recipientVerified: options.recipientVerified,
     send: async (input) => {
       if (!apiKey || !from) {
         throw new ReportEmailDeliveryError("EMAIL_CONFIGURATION_MISSING");
@@ -43,27 +33,9 @@ export async function deliverAssessmentReportByReference(
 
 export async function startAssessmentReportDeliveryByReference(
   reference: string,
-): Promise<"verification_required" | "delivered"> {
-  const environment = reportDeliveryEnvironment();
-  const policy = resolveReportDeliveryPolicy(environment);
-  if (policy.requiresRecipientVerification) {
-    await requestReportRecipientVerificationByReference(reference, {
-      deliveryEnvironment: environment,
-    });
-    return "verification_required";
-  }
+): Promise<"delivered"> {
   await deliverAssessmentReportByReference(reference);
   return "delivered";
-}
-
-export function reportDeliveryEnvironment(): ReportDeliveryEnvironment {
-  return {
-    mode: process.env.REPORT_DELIVERY_MODE,
-    vercelEnvironment: process.env.VERCEL_ENV,
-    nodeEnvironment: process.env.NODE_ENV,
-    previewRecipientVerificationEnabled:
-      process.env.PREVIEW_REPORT_DELIVERY_TEST === "true",
-  };
 }
 
 function configuredReportFromEmail(): string | undefined {

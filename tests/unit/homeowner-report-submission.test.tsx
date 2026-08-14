@@ -328,8 +328,7 @@ describe("homeowner report submission", () => {
     });
   });
 
-  it("downloads the saved report through the public token boundary with centered button content", async () => {
-    const user = userEvent.setup();
+  it("shows the saved report without exposing a public PDF download", async () => {
     const createObjectUrl = vi.fn(() => "blob:report-pdf");
     const revokeObjectUrl = vi.fn();
     Object.defineProperties(URL, {
@@ -394,7 +393,7 @@ describe("homeowner report submission", () => {
     const reportMapPanel = screen.getByRole("region", {
       name: "Saved assessment map",
     });
-    expect(reportMapPanel).toHaveClass("rounded-xl", "border-slate-200");
+    expect(reportMapPanel).toHaveClass("rounded-xl", "border-pool-200");
     expect(
       within(reportMapPanel).getByText("Captured map layers"),
     ).toBeVisible();
@@ -409,25 +408,13 @@ describe("homeowner report submission", () => {
       within(reportMapPanel).queryByRole("checkbox"),
     ).not.toBeInTheDocument();
 
-    const download = screen.getByRole("button", { name: "Download PDF" });
-    expect(download).toHaveClass("items-center", "justify-center");
     expect(
-      screen.queryByRole("link", { name: "Download PDF" }),
+      screen.queryByRole("button", { name: "Download PDF" }),
     ).not.toBeInTheDocument();
-
-    await user.click(download);
-    await waitFor(() =>
-      expect(request).toHaveBeenCalledWith(
-        "/api/public/assessments/report/pdf",
-        expect.objectContaining({
-          method: "POST",
-          body: JSON.stringify({ accessToken: "saved-report-access-token" }),
-        }),
-      ),
-    );
+    expect(request).not.toHaveBeenCalled();
   });
 
-  it("requests recipient verification once after the saved report opens", async () => {
+  it("shows the background-email message without a confirmation request", async () => {
     const request = vi.fn().mockResolvedValue(
       Response.json(
         {
@@ -463,19 +450,11 @@ describe("homeowner report submission", () => {
     );
 
     expect(
-      await screen.findByText(
-        "Check your email to confirm your address before we send the PDF.",
+      screen.getByText(
+        "We will email a summary of this preliminary report shortly. Check Spam or Promotions if it is not in your inbox.",
       ),
     ).toBeVisible();
-    expect(request).toHaveBeenCalledTimes(1);
-    expect(request).toHaveBeenCalledWith(
-      "/api/public/assessments/report/delivery",
-      expect.objectContaining({
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: "saved-report-access-token" }),
-      }),
-    );
+    expect(request).not.toHaveBeenCalled();
   });
 
   it("offers Start again at the end of the saved report", async () => {

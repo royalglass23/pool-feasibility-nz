@@ -1,4 +1,5 @@
 import pino from "pino";
+import { after } from "next/server";
 import { getDb } from "@/db/client";
 import {
   getSavedPreliminaryReportById,
@@ -15,6 +16,7 @@ import {
   verifyAssessmentSnapshot,
 } from "@/modules/assessment/assessment-snapshot";
 import { issueSavedReportAccessToken } from "@/modules/reporting/saved-report-access-token";
+import { deliverAssessmentReportByReference } from "@/modules/reporting/deliver-assessment-report";
 import { staffSessionDeniedResponse } from "@/modules/staff/staff-session";
 import {
   apiErrorResponse,
@@ -116,6 +118,28 @@ export async function POST(request: Request) {
     const reportAccessToken = issueSavedReportAccessToken({
       assessmentId: result.assessment.id,
       reference: result.assessment.reference,
+    });
+    after(async () => {
+      try {
+        const outcome = await deliverAssessmentReportByReference(
+          result.assessment.reference,
+        );
+        logger.info({
+          event: "assessment_report_email",
+          outcome: outcome.homeowner,
+          correlationId,
+        });
+      } catch (error) {
+        logger.error({
+          event: "assessment_report_email",
+          outcome: "failed",
+          reason:
+            error instanceof Error && "code" in error
+              ? String(error.code)
+              : "unexpected_error",
+          correlationId,
+        });
+      }
     });
 
     return apiJsonResponse(
