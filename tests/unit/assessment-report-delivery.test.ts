@@ -63,7 +63,7 @@ function createDeliveryStore(
   return { states, store };
 }
 
-describe.skip("legacy PDF assessment report delivery", () => {
+describe("PDF assessment report delivery", () => {
   it.each([
     [
       "the explicit mode is missing",
@@ -106,7 +106,7 @@ describe.skip("legacy PDF assessment report delivery", () => {
     },
   );
 
-  it("sends only the confirmed homeowner in Production", async () => {
+  it("sends the confirmed homeowner and support PDF notification in Production", async () => {
     const { store } = createDeliveryStore({
       homeowner: "pending",
       internal_test_report: "pending",
@@ -126,18 +126,25 @@ describe.skip("legacy PDF assessment report delivery", () => {
       },
     });
 
-    expect(send).toHaveBeenCalledOnce();
+    expect(send).toHaveBeenCalledTimes(2);
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({ to: "jane@example.com" }),
     );
+    expect(send).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "support@royalglass.co.nz",
+        attachment: Buffer.from("%PDF-shared"),
+        idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
+      }),
+    );
     expect(store.claim).toHaveBeenCalledWith("GF-2026-000123", "homeowner");
-    expect(store.claim).not.toHaveBeenCalledWith(
+    expect(store.claim).toHaveBeenCalledWith(
       "GF-2026-000123",
       "internal_test_report",
     );
     expect(result).toEqual({
       homeowner: "sent",
-      internal_test_report: "unchanged",
+      internal_test_report: "sent",
     });
   });
 
@@ -162,7 +169,7 @@ describe.skip("legacy PDF assessment report delivery", () => {
     expect(store.claim).not.toHaveBeenCalled();
   });
 
-  it("sends the same saved report PDF to the submitted test email and internal test email", async () => {
+  it("sends the same saved report PDF to the submitted test email and support", async () => {
     const { store } = createDeliveryStore({
       homeowner: "pending",
       internal_test_report: "pending",
@@ -192,7 +199,7 @@ describe.skip("legacy PDF assessment report delivery", () => {
       ([input]) => input.to === "jane@example.com",
     )?.[0];
     const internalEmail = send.mock.calls.find(
-      ([input]) => input.to === "royalglass666@gmail.com",
+      ([input]) => input.to === "support@royalglass.co.nz",
     )?.[0];
     expect(homeownerEmail).toMatchObject({
       attachment: pdf,
@@ -211,7 +218,7 @@ describe.skip("legacy PDF assessment report delivery", () => {
     });
   });
 
-  it("keeps the internal test delivery independent when homeowner email fails", async () => {
+  it("keeps the support PDF notification independent when homeowner email fails", async () => {
     const { states, store } = createDeliveryStore({
       homeowner: "pending",
       internal_test_report: "pending",
@@ -238,7 +245,7 @@ describe.skip("legacy PDF assessment report delivery", () => {
       ([input]) => input.to === "jane@example.com",
     )?.[0];
     const internalEmail = send.mock.calls.find(
-      ([input]) => input.to === "royalglass666@gmail.com",
+      ([input]) => input.to === "support@royalglass.co.nz",
     )?.[0];
     expect(homeownerEmail).toMatchObject({
       to: "jane@example.com",
@@ -247,7 +254,7 @@ describe.skip("legacy PDF assessment report delivery", () => {
       attachment: Buffer.from("%PDF-shared"),
     });
     expect(internalEmail).toMatchObject({
-      to: "royalglass666@gmail.com",
+      to: "support@royalglass.co.nz",
       subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
       attachment: Buffer.from("%PDF-shared"),
       filename: "preliminary-pool-feasibility-1-test-street.pdf",
@@ -325,7 +332,7 @@ describe.skip("legacy PDF assessment report delivery", () => {
     );
   });
 
-  it("retries only the internal test destination with the saved PDF", async () => {
+  it("retries only the support PDF notification with the saved PDF", async () => {
     const { store } = createDeliveryStore({
       homeowner: "sent",
       internal_test_report: "pending",
@@ -346,7 +353,7 @@ describe.skip("legacy PDF assessment report delivery", () => {
     expect(renderPdf).toHaveBeenCalledWith(report);
     expect(send).toHaveBeenCalledOnce();
     expect(send.mock.calls[0]?.[0]).toMatchObject({
-      to: "royalglass666@gmail.com",
+      to: "support@royalglass.co.nz",
       attachment: pdf,
       filename: "preliminary-pool-feasibility-1-test-street.pdf",
       idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
@@ -400,7 +407,7 @@ describe.skip("legacy PDF assessment report delivery", () => {
     });
   });
 
-  it("sends the internal test PDF through Resend with its independent idempotency key", async () => {
+  it("sends the support PDF notification through Resend with its independent idempotency key", async () => {
     const fetchImplementation = vi.fn().mockResolvedValue(
       new Response(JSON.stringify({ id: "email-internal" }), {
         status: 200,
@@ -412,7 +419,7 @@ describe.skip("legacy PDF assessment report delivery", () => {
       {
         apiKey: "re_test",
         from: "Royal Glass <reports@example.com>",
-        to: "royalglass666@gmail.com",
+        to: "support@royalglass.co.nz",
         subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
         html: "<p>Your report is attached.</p>",
         text: "Your report is attached.",
@@ -426,7 +433,7 @@ describe.skip("legacy PDF assessment report delivery", () => {
     const [, init] = fetchImplementation.mock.calls[0] ?? [];
     expect(JSON.parse(String(init?.body))).toEqual({
       from: "Royal Glass <reports@example.com>",
-      to: ["royalglass666@gmail.com"],
+      to: ["support@royalglass.co.nz"],
       subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
       html: "<p>Your report is attached.</p>",
       text: "Your report is attached.",

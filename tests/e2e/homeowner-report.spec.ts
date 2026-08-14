@@ -4,6 +4,10 @@ import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 test("keeps the saved preliminary report clean when background email delivery fails", async ({
   page,
 }) => {
+  let releaseAssessmentSubmission: (() => void) | undefined;
+  const assessmentSubmissionHeld = new Promise<void>((resolve) => {
+    releaseAssessmentSubmission = resolve;
+  });
   await page.route("**/api/public/property-check", async (route) => {
     await route.fulfill({
       status: 200,
@@ -115,6 +119,7 @@ test("keeps the saved preliminary report clean when background email delivery fa
     expect(submission).not.toHaveProperty("addressEvidence");
     expect(submission).not.toHaveProperty("warnings");
     expect(submission).not.toHaveProperty("report");
+    await assessmentSubmissionHeld;
     await route.fulfill({
       status: 201,
       contentType: "application/json",
@@ -161,20 +166,13 @@ test("keeps the saved preliminary report clean when background email delivery fa
       });
     },
   );
+  let publicPdfRequests = 0;
   await page.route("**/api/public/assessments/report/pdf", async (route) => {
-    expect(route.request().postDataJSON()).toEqual({
-      accessToken: "e2e-saved-report-access-token",
-    });
-    await route.fulfill({
-      status: 200,
-      contentType: "application/pdf",
-      headers: {
-        "Content-Disposition": 'attachment; filename="pool-feasibility.pdf"',
-      },
-      body: "%PDF-1.4 e2e report",
-    });
+    publicPdfRequests += 1;
+    await route.abort();
   });
 
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
   await page
     .getByLabel("Auckland property address")
@@ -202,6 +200,17 @@ test("keeps the saved preliminary report clean when background email delivery fa
     .check();
   await page.getByRole("button", { name: "Save and show my report" }).click();
 
+  const savingDialog = page.getByRole("dialog", {
+    name: "Saving your assessment",
+  });
+  await expect(savingDialog).toBeVisible();
+  const savingDialogBox = await savingDialog.boundingBox();
+  expect(savingDialogBox).not.toBeNull();
+  expect(savingDialogBox!.x).toBeGreaterThanOrEqual(0);
+  expect(savingDialogBox!.x + savingDialogBox!.width).toBeLessThanOrEqual(390);
+  releaseAssessmentSubmission?.();
+  await page.setViewportSize({ width: 1280, height: 720 });
+
   await expect(
     page.getByRole("heading", {
       name: "Preliminary pool feasibility report",
@@ -228,14 +237,13 @@ test("keeps the saved preliminary report clean when background email delivery fa
     assessmentMap.getByText("Indicative investigation buffer"),
   ).toBeVisible();
   await expect(assessmentMap.getByRole("checkbox")).toHaveCount(0);
-  const downloadButton = page.getByRole("button", { name: "Download PDF" });
-  await expect(downloadButton).toHaveCSS("align-items", "center");
-  await expect(downloadButton).toHaveCSS("justify-content", "center");
-  const downloadPromise = page.waitForEvent("download");
-  await downloadButton.click();
-  const download = await downloadPromise;
-  expect(download.suggestedFilename()).toBe(
-    "preliminary-pool-feasibility-42a-bahari-drive.pdf",
+  await expect(
+    page.getByText(
+      /We will email a summary of this preliminary report shortly/i,
+    ),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Download PDF" })).toHaveCount(
+    0,
   );
-  await download.delete();
+  expect(publicPdfRequests).toBe(0);
 });

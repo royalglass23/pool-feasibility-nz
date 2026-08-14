@@ -5,8 +5,14 @@ import {
   type AssessmentDeliveryStore,
 } from "@/modules/reporting/assessment-report-delivery";
 
+const controlledTestDeliveryEnvironment = {
+  mode: "synthetic_test",
+  vercelEnvironment: "preview",
+  nodeEnvironment: "production",
+} as const;
+
 describe("assessment report delivery", () => {
-  it("sends the same PDF attachment to the homeowner and Royal Glass", async () => {
+  it("sends the same PDF attachment to the synthetic test user and support", async () => {
     const report = buildTestPreliminaryReport();
     const store: AssessmentDeliveryStore = {
       claim: vi.fn((_: string, channel) =>
@@ -33,6 +39,7 @@ describe("assessment report delivery", () => {
       send,
       from: "Royal Glass <reports@example.com>",
       renderPdf,
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
     });
 
     expect(outcome).toEqual({
@@ -70,7 +77,7 @@ describe("assessment report delivery", () => {
     );
   });
 
-  it("still notifies Royal Glass when the homeowner email fails", async () => {
+  it("still notifies support when the homeowner email fails", async () => {
     const report = buildTestPreliminaryReport();
     const store: AssessmentDeliveryStore = {
       claim: vi.fn((_: string, channel) =>
@@ -86,7 +93,8 @@ describe("assessment report delivery", () => {
       markFailed: vi.fn().mockResolvedValue(undefined),
     };
     const send = vi.fn(async (input: { to: string }) => {
-      if (input.to === "jane@example.com") throw new Error("Resend unavailable");
+      if (input.to === "jane@example.com")
+        throw new Error("Resend unavailable");
       return { id: "email-royal-glass" };
     });
 
@@ -95,6 +103,7 @@ describe("assessment report delivery", () => {
       send,
       from: "Royal Glass <reports@example.com>",
       renderPdf: vi.fn().mockResolvedValue(Buffer.from("%PDF-shared")),
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
     });
 
     expect(outcome).toEqual({

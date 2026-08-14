@@ -4,11 +4,19 @@ import userEvent from "@testing-library/user-event";
 import { FastPropertyView } from "@/components/fast-property-view";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 
-const { mapCreated, mapStyles, fitBounds } = vi.hoisted(() => ({
-  mapCreated: vi.fn(),
-  mapStyles: vi.fn(),
-  fitBounds: vi.fn(),
-}));
+const { mapCreated, mapStyles, fitBounds, mapEventHandlers } = vi.hoisted(
+  () => ({
+    mapCreated: vi.fn(),
+    mapStyles: vi.fn(),
+    fitBounds: vi.fn(),
+    mapEventHandlers: new globalThis.Map<string, (event: MapEvent) => void>(),
+  }),
+);
+
+type MapEvent = {
+  point: { coordinates: [number, number] };
+  originalEvent: { stopPropagation: () => void };
+};
 
 vi.mock("maplibre-gl", () => {
   class Map {
@@ -19,7 +27,10 @@ vi.mock("maplibre-gl", () => {
 
     addControl() {}
     getCanvas() {
-      return { toDataURL: () => "data:image/png;base64," };
+      return {
+        toDataURL: () => "data:image/png;base64,",
+        style: { setProperty() {} },
+      };
     }
     getSource() {
       return { setData() {} };
@@ -27,8 +38,26 @@ vi.mock("maplibre-gl", () => {
     getLayer() {
       return {};
     }
-    on(event: string, handler: () => void) {
-      if (event === "idle") handler();
+    on(
+      event: string,
+      layerOrHandler: string | ((event: MapEvent) => void),
+      handler?: (event: MapEvent) => void,
+    ) {
+      const listener =
+        typeof layerOrHandler === "function" ? layerOrHandler : handler;
+      if (!listener) return;
+      if (event === "idle") {
+        listener({} as MapEvent);
+        return;
+      }
+      mapEventHandlers.set(
+        `${event}:${typeof layerOrHandler === "string" ? layerOrHandler : "map"}`,
+        listener,
+      );
+    }
+    dragPan = { disable() {}, enable() {} };
+    unproject(point: { coordinates: [number, number] }) {
+      return { toArray: () => point.coordinates };
     }
     remove() {}
     setLayoutProperty() {}
@@ -52,6 +81,7 @@ afterEach(() => {
   mapCreated.mockClear();
   mapStyles.mockClear();
   fitBounds.mockClear();
+  mapEventHandlers.clear();
   vi.unstubAllGlobals();
 });
 
@@ -262,6 +292,47 @@ it("keeps shell geometry separate when its construction envelope does not fit", 
   );
   expect(screen.getByRole("alert")).toHaveTextContent(
     "This size does not fit inside the available mapped area.",
+  );
+});
+
+it("lets touch users move and rotate the pool layout", async () => {
+  const onPlacementChange = vi.fn();
+  render(
+    <FastPropertyView
+      result={fastResult}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+      onPlacementChange={onPlacementChange}
+    />,
+  );
+
+  await waitFor(() =>
+    expect(mapEventHandlers.get("touchstart:pool-fill")).toBeTypeOf("function"),
+  );
+  const event = (coordinates: [number, number]): MapEvent => ({
+    point: { coordinates },
+    originalEvent: { stopPropagation() {} },
+  });
+
+  mapEventHandlers.get("touchstart:pool-fill")!(event([174.60825, -36.86025]));
+  mapEventHandlers.get("touchmove:map")!(event([174.6083, -36.8602]));
+  mapEventHandlers.get("touchend:map")!(event([174.6083, -36.8602]));
+
+  await waitFor(() =>
+    expect(onPlacementChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({ position: [174.6083, -36.8602] }),
+    ),
+  );
+
+  mapEventHandlers.get("touchstart:pool-rotation-handle")!(
+    event([174.6083, -36.8602]),
+  );
+  mapEventHandlers.get("touchmove:map")!(event([174.60835, -36.8602]));
+  mapEventHandlers.get("touchend:map")!(event([174.60835, -36.8602]));
+
+  await waitFor(() =>
+    expect(onPlacementChange.mock.lastCall?.[0]?.rotationDegrees).not.toBe(0),
   );
 });
 

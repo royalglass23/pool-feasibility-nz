@@ -2,9 +2,7 @@
 
 import { SavedReportInteractiveMap } from "@/components/saved-report-interactive-map";
 import type { ReportDeliveryState } from "@/components/saved-preliminary-report-view";
-import {
-  type SavedPreliminaryReport,
-} from "@/modules/reporting/preliminary-report";
+import { type SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import {
   assessmentStatusLabel,
   formatReportNumber,
@@ -76,8 +74,8 @@ export function HomeownerFeasibilityReportView({
         </div>
 
         <p className="text-pool-blue-800 mt-4 text-sm font-semibold">
-          We will email your preliminary report with a PDF attachment shortly.
-          Check Spam or Promotions if it is not in your inbox.
+          We will email a summary of this preliminary report shortly. Check Spam
+          or Promotions if it is not in your inbox.
         </p>
       </header>
 

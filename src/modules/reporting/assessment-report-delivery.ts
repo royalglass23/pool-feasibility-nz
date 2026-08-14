@@ -7,6 +7,10 @@ import {
 import { escapeHtml } from "@/shared/html/escape-html";
 import { assessmentStatusLabel } from "@/modules/reporting/pool-feasibility-report";
 import { preliminaryReportFilename } from "@/modules/reporting/preliminary-report";
+import {
+  resolveReportDeliveryPolicy,
+  type ReportDeliveryEnvironment,
+} from "@/modules/reporting/report-delivery-policy";
 
 export type AssessmentDeliveryChannel = "homeowner" | "internal_test_report";
 export type AssessmentDeliveryOutcome = "sent" | "failed" | "unchanged";
@@ -16,9 +20,6 @@ export type AssessmentDeliveryClaim = {
   channel: AssessmentDeliveryChannel;
   homeownerName: string;
   homeownerEmail: string;
-  homeownerPhone?: string;
-  visitorType?: string | null;
-  desiredTiming?: string;
   report: SavedPreliminaryReport;
 };
 
@@ -46,19 +47,22 @@ export type AssessmentReportDeliveryDependencies = {
   send: (input: ReportEmailInput) => Promise<ReportEmailResult>;
   from: string;
   renderPdf: (report: SavedPreliminaryReport) => Promise<Buffer>;
-  internalRecipient?: string;
-  /** @deprecated Delivery no longer changes between Preview and Production. */
-  deliveryEnvironment?: unknown;
-  /** @deprecated Homeowner consent is captured at report submission. */
+  deliveryEnvironment: ReportDeliveryEnvironment;
   recipientVerified?: boolean;
 };
 
-const DEFAULT_INTERNAL_RECIPIENT = "support@royalglass.co.nz";
+const SUPPORT_REPORT_EMAIL = "support@royalglass.co.nz";
 
 export async function deliverAssessmentReport(
   reference: string,
   dependencies: AssessmentReportDeliveryDependencies,
 ): Promise<Record<AssessmentDeliveryChannel, AssessmentDeliveryOutcome>> {
+  const policy = resolveReportDeliveryPolicy(dependencies.deliveryEnvironment);
+  if (policy.requiresRecipientVerification && !dependencies.recipientVerified) {
+    throw new ReportEmailDeliveryError(
+      "REPORT_RECIPIENT_VERIFICATION_REQUIRED",
+    );
+  }
   const outcomes: Record<AssessmentDeliveryChannel, AssessmentDeliveryOutcome> =
     {
       homeowner: "unchanged",
@@ -66,7 +70,7 @@ export async function deliverAssessmentReport(
     };
   const claims = (
     await Promise.all(
-      (Object.keys(outcomes) as AssessmentDeliveryChannel[]).map((channel) =>
+      policy.channels.map((channel) =>
         dependencies.store.claim(reference, channel),
       ),
     )
@@ -81,7 +85,7 @@ export async function deliverAssessmentReport(
           const result = await dependencies.send(
             claim.channel === "homeowner"
               ? emailForHomeowner(claim, dependencies, pdf)
-              : emailForRoyalGlass(claim, dependencies, pdf),
+              : emailForInternalTestReport(claim, dependencies, pdf),
           );
           await dependencies.store.markSent(
             reference,
@@ -150,35 +154,16 @@ function emailForHomeowner(
   };
 }
 
-function emailForRoyalGlass(
+function emailForInternalTestReport(
   claim: AssessmentDeliveryClaim,
-  dependencies: Pick<
-    AssessmentReportDeliveryDependencies,
-    "from" | "internalRecipient"
-  >,
+  dependencies: Pick<AssessmentReportDeliveryDependencies, "from">,
   pdf: Buffer,
 ): ReportEmailInput {
-  const shortAddress = claim.report.property.address.split(",")[0]?.trim();
-  const visitorType = humanizeLeadValue(claim.visitorType);
-  const timing = humanizeLeadValue(claim.desiredTiming);
-  const text = `New pool feasibility report request\n\nReference: ${claim.report.reference}\nName: ${claim.homeownerName}\nPhone: ${claim.homeownerPhone ?? "Not provided"}\nEmail: ${claim.homeownerEmail}\nChecked address: ${claim.report.property.address}\nVisitor type: ${visitorType}\nProject timing: ${timing}\n\nThe preliminary PDF report is attached.`;
-  const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,sans-serif;color:#1f2937;background:#f1f5f9;padding:24px"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden"><tr><td style="background:#173755;color:#ffffff;padding:28px 32px"><p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase">Royal Glass</p><h1 style="margin:0;font-size:25px;line-height:1.3">New pool feasibility report request</h1></td></tr><tr><td style="padding:28px 32px"><p><strong>Reference:</strong> ${escapeHtml(claim.report.reference)}</p><p><strong>Name:</strong> ${escapeHtml(claim.homeownerName)}<br><strong>Phone:</strong> ${escapeHtml(claim.homeownerPhone ?? "Not provided")}<br><strong>Email:</strong> ${escapeHtml(claim.homeownerEmail)}</p><p><strong>Checked address:</strong><br>${escapeHtml(claim.report.property.address)}</p><p><strong>Visitor type:</strong> ${escapeHtml(visitorType)}<br><strong>Project timing:</strong> ${escapeHtml(timing)}</p><p>The preliminary PDF report is attached.</p></td></tr></table></td></tr></table>`;
+  const homeownerEmail = emailForHomeowner(claim, dependencies, pdf);
 
   return {
-    from: dependencies.from,
-    to: dependencies.internalRecipient ?? DEFAULT_INTERNAL_RECIPIENT,
-    subject: `New pool feasibility lead - ${shortAddress || claim.report.property.address}`,
-    html,
-    text,
-    attachment: pdf,
-    filename: preliminaryReportFilename(claim.report),
+    ...homeownerEmail,
+    to: SUPPORT_REPORT_EMAIL,
     idempotencyKey: `assessment-report/${claim.report.reference}/internal_test_report`,
   };
-}
-
-function humanizeLeadValue(value: string | null | undefined): string {
-  if (!value) return "Not provided";
-  return value
-    .replaceAll("_", " ")
-    .replace(/\b\w/g, (character) => character.toUpperCase());
 }

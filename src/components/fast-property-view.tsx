@@ -578,22 +578,10 @@ export function FastPropertyView({
           }
         });
         let interaction: "move" | "rotate" | null = null;
-        map.on("mousedown", "pool-rotation-handle", (event) => {
-          interaction = "rotate";
-          map?.dragPan.disable();
-          map?.getCanvas().style.setProperty("cursor", "crosshair");
-          event.originalEvent.stopPropagation();
-        });
-        map.on("mousedown", "pool-fill", (event) => {
-          interaction = "move";
-          map?.dragPan.disable();
-          map?.getCanvas().style.setProperty("cursor", "grabbing");
-          event.originalEvent.stopPropagation();
-          positionHandlerRef.current(
-            map!.unproject(event.point).toArray() as [number, number],
-          );
-        });
-        map.on("mousemove", (event) => {
+        type PoolInteractionEvent =
+          | import("maplibre-gl").MapMouseEvent
+          | import("maplibre-gl").MapTouchEvent;
+        const updateInteraction = (event: PoolInteractionEvent) => {
           if (interaction === "move") {
             positionHandlerRef.current(
               map!.unproject(event.point).toArray() as [number, number],
@@ -606,12 +594,40 @@ export function FastPropertyView({
               180 - bearing(point(active.position), point(cursor)),
             );
           }
-        });
-        map.on("mouseup", () => {
+        };
+        const beginInteraction = (
+          nextInteraction: "move" | "rotate",
+          event: PoolInteractionEvent,
+          cursor: "crosshair" | "grabbing" | null,
+        ) => {
+          interaction = nextInteraction;
+          map?.dragPan.disable();
+          if (cursor) map?.getCanvas().style.setProperty("cursor", cursor);
+          event.originalEvent.stopPropagation();
+          if (nextInteraction === "move") updateInteraction(event);
+        };
+        const endInteraction = () => {
           interaction = null;
           map?.dragPan.enable();
           map?.getCanvas().style.setProperty("cursor", "");
-        });
+        };
+        map.on("mousedown", "pool-rotation-handle", (event) =>
+          beginInteraction("rotate", event, "crosshair"),
+        );
+        map.on("touchstart", "pool-rotation-handle", (event) =>
+          beginInteraction("rotate", event, null),
+        );
+        map.on("mousedown", "pool-fill", (event) =>
+          beginInteraction("move", event, "grabbing"),
+        );
+        map.on("touchstart", "pool-fill", (event) =>
+          beginInteraction("move", event, null),
+        );
+        map.on("mousemove", updateInteraction);
+        map.on("touchmove", updateInteraction);
+        map.on("mouseup", endInteraction);
+        map.on("touchend", endInteraction);
+        map.on("touchcancel", endInteraction);
       } catch {
         setMapError(true);
       }
