@@ -112,6 +112,29 @@ describe("public report-request rate limit", () => {
     expect(afterExpiry.status).toBe(200);
     expect(next).toHaveBeenCalledTimes(4);
   });
+
+  it("does not consume a report-request allowance in a Vercel Preview deployment", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    vi.stubEnv("VERCEL_ENV", "preview");
+    const next = vi.fn(async () => Response.json({ ok: true }));
+    const limiter = createLocalPublicRateLimiter();
+    const handler = createPublicRateLimitedHandler("report_request", next, {
+      limiter,
+      log: vi.fn(),
+    });
+
+    for (let attempt = 1; attempt <= 10; attempt += 1) {
+      await expect(
+        handler(request("/api/public/assessments")),
+      ).resolves.toHaveProperty("status", 200);
+    }
+
+    expect(next).toHaveBeenCalledTimes(10);
+    await expect(limiter.limit("report_request", "client-a")).resolves.toMatchObject({
+      success: true,
+      remaining: 2,
+    });
+  });
 });
 
 describe("public provider and PDF rate-limit budgets", () => {

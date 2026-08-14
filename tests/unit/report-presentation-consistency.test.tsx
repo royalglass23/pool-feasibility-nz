@@ -84,7 +84,7 @@ describe("web, PDF and email report consistency", () => {
       subject: string;
       html: string;
       text: string;
-      filename: string;
+      attachment?: Buffer;
     };
 
     for (const value of [
@@ -117,8 +117,6 @@ describe("web, PDF and email report consistency", () => {
     expect(email.subject).toBe(
       "Your Preliminary Pool Feasibility Report - 42A Bahari Drive",
     );
-    expect(email.filename).toBe(
-      "preliminary-pool-feasibility-42a-bahari-drive.pdf",
-    );
+    expect(email.attachment).toBeUndefined();
   });
 });

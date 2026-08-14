@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import {
   formatReportBoundaryArea,
@@ -11,7 +11,8 @@ import {
   reportRecommendations,
   reportWarningLabel,
 } from "@/modules/reporting/preliminary-report-presentation";
-import { ActionProgressDialog } from "@/components/action-progress-dialog";
+
+const pdfDownloadsEnabled = false;
 
 export type ReportDeliveryState = "pending" | "sending" | "sent" | "failed";
 
@@ -29,87 +30,17 @@ export function SavedPreliminaryReportView({
   onBack: () => void;
   downloadAccessToken?: string;
 }) {
-  const [downloading, setDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
-  const [deliveryState, setDeliveryState] = useState(delivery);
-  const [recipientVerificationRequired, setRecipientVerificationRequired] =
-    useState(false);
+  const [downloading] = useState(false);
+  const [downloadError] = useState<string | null>(null);
+  const [deliveryState] = useState(delivery);
+  const [recipientVerificationRequired] = useState(false);
   const mapLegend = reportMapLegend(report);
-
-  useEffect(() => {
-    if (!downloadAccessToken) return;
-    const controller = new AbortController();
-    void fetch("/api/public/assessments/report/delivery", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ accessToken: downloadAccessToken }),
-      signal: controller.signal,
-    })
-      .then(async (response) => {
-        if (!response.ok) return null;
-        return (await response.json()) as {
-          delivery?: {
-            homeowner: ReportDeliveryState;
-            internal_test_report: ReportDeliveryState;
-          };
-          recipientVerification?: "required";
-        };
-      })
-      .then((body) => {
-        if (body?.delivery) setDeliveryState(body.delivery);
-        if (body?.recipientVerification === "required") {
-          setRecipientVerificationRequired(true);
-        }
-      })
-      .catch(() => undefined);
-    return () => controller.abort();
-  }, [downloadAccessToken]);
-
-  async function downloadPdf() {
-    if (!downloadAccessToken || downloading) return;
-    setDownloading(true);
-    setDownloadError(null);
-    try {
-      const response = await fetch("/api/public/assessments/report/pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: downloadAccessToken }),
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          error?: { message?: string };
-        } | null;
-        throw new Error(
-          body?.error?.message ?? "The PDF could not be downloaded.",
-        );
-      }
-      const url = URL.createObjectURL(await response.blob());
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `pool-feasibility-${report.reference}.pdf`;
-      anchor.click();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      setDownloadError(
-        error instanceof Error
-          ? error.message
-          : "The PDF could not be downloaded.",
-      );
-    } finally {
-      setDownloading(false);
-    }
-  }
 
   return (
     <section
       aria-labelledby="saved-report-heading"
       className="border-pool-200 space-y-6 rounded-3xl border bg-white p-5 shadow-sm sm:p-8"
     >
-      <ActionProgressDialog
-        open={downloading}
-        title="Preparing your PDF"
-        description="Generating your preliminary property assessment report."
-      />
       <div className="border-pool-200 flex flex-col gap-4 border-b pb-5 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <p className="text-pool-blue-700 text-xs font-bold tracking-[0.16em] uppercase">
@@ -134,11 +65,10 @@ export function SavedPreliminaryReportView({
           >
             Back to assessment
           </button>
-          {downloadAccessToken && (
+          {pdfDownloadsEnabled && downloadAccessToken && (
             <button
               type="button"
-              onClick={() => void downloadPdf()}
-              disabled={downloading}
+              disabled
               className="bg-pool-950 disabled:bg-pool-500 inline-flex min-h-10 items-center justify-center rounded-xl px-4 font-semibold text-white"
             >
               {downloading ? "Preparing PDF…" : "Download PDF"}
@@ -161,6 +91,11 @@ export function SavedPreliminaryReportView({
           Check your email to confirm your address before we send the PDF.
         </p>
       )}
+
+      <p className="text-pool-blue-800 text-center text-sm font-semibold">
+        We will email a summary of this preliminary report shortly. Check Spam
+        or Promotions if it is not in your inbox.
+      </p>
 
       <div className="grid gap-3 sm:grid-cols-2">
         <DeliveryStatus

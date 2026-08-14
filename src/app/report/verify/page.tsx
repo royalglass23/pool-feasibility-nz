@@ -10,10 +10,6 @@ export default function ReportRecipientVerificationPage() {
   useEffect(() => {
     const verificationToken = window.location.hash.slice(1);
     window.history.replaceState(null, "", window.location.pathname);
-    if (!verificationToken) {
-      setState("failed");
-      return;
-    }
     void fetch("/api/public/assessments/report/verify", {
       method: "POST",
       headers: { "Content-Type": "application/json" },

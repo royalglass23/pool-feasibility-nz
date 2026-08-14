@@ -64,7 +64,8 @@ export default function PrivacyNoticePage() {
               <strong className="text-[#062f5d]">Resend</strong> receives the
               data needed to send both the homeowner report email and the
               ServiceM8 notification when those deliveries are enabled. The
-              homeowner email includes the visitor email address and report PDF.
+              homeowner email includes the visitor email address and a summary
+              of the saved preliminary report.
               The ServiceM8 notification includes the report reference, contact
               details, checked address, visitor type, and project timing.
             </li>

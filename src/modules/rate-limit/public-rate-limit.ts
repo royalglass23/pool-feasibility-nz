@@ -244,6 +244,8 @@ async function publicRateLimitDeniedResponse(
   logAllowed = false,
 ): Promise<Response | null> {
   const log = rateLimitLog(options);
+  if (isUnlimitedPreviewReportRequest(input.action)) return null;
+
   const clientIp = trustedClientIp(input.request);
   if (!clientIp) return unavailableResponseAndLog(input, log);
 
@@ -288,6 +290,10 @@ async function publicRateLimitDeniedResponse(
     });
   }
   return null;
+}
+
+function isUnlimitedPreviewReportRequest(action: PublicRateLimitAction): boolean {
+  return action === "report_request" && process.env.VERCEL_ENV === "preview";
 }
 
 function unavailableResponseAndLog(

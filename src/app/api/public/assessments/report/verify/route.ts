@@ -53,9 +53,7 @@ async function handleReportRecipientVerification(
         { "Cache-Control": "no-store" },
       );
     }
-    await deliverAssessmentReportByReference(access.reference, {
-      recipientVerified: true,
-    });
+    await deliverAssessmentReportByReference(access.reference);
     const delivery =
       (await getAssessmentDeliveryStateById(getDb(), access.assessmentId)) ??
       state;
