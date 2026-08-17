@@ -1,7 +1,8 @@
-import Image from "next/image";
-import "./pool-feasibility-explainer.css";
+"use client";
 
-const slideDelays = ["0s", "-3s", "-6s", "-9s"];
+import Image from "next/image";
+import { useEffect, useState } from "react";
+import "./pool-feasibility-explainer.css";
 
 const slides = [
   {
@@ -35,6 +36,18 @@ const slides = [
 ] as const;
 
 export function PoolFeasibilityExplainer() {
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+
+    const timer = window.setInterval(() => {
+      setActiveSlide((currentSlide) => (currentSlide + 1) % slides.length);
+    }, 3600);
+
+    return () => window.clearInterval(timer);
+  }, []);
+
   return (
     <section
       className="pool-feasibility-explainer"
@@ -50,13 +63,10 @@ export function PoolFeasibilityExplainer() {
       <div className="pool-explainer-stage" aria-hidden="true">
         {slides.map((slide, index) => (
           <article
-            className="pool-explainer-slide"
+            className={`pool-explainer-slide ${
+              index === activeSlide ? "is-active" : ""
+            }`}
             key={slide.number}
-            style={
-              {
-                "--pool-explainer-delay": slideDelays[index],
-              } as React.CSSProperties
-            }
           >
             <Image
               alt=""

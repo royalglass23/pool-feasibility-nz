@@ -20,9 +20,17 @@
   position: absolute;
   inset: 0;
   color: #fff;
-  animation: pool-explainer-slide 12s cubic-bezier(0.4, 0, 0.2, 1) infinite;
-  animation-delay: var(--pool-explainer-delay);
+  opacity: 0;
+  transform: translateX(7%);
+  transition:
+    opacity 500ms cubic-bezier(0.16, 1, 0.3, 1),
+    transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
   will-change: transform, opacity;
+}
+
+.pool-explainer-slide.is-active {
+  opacity: 1;
+  transform: translateX(0);
 }
 
 .pool-explainer-photo {
@@ -97,34 +105,8 @@
   text-wrap: pretty;
 }
 
-@keyframes pool-explainer-slide {
-  0%,
-  20% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-  25%,
-  95% {
-    opacity: 0;
-    transform: translateX(-7%);
-  }
-  96% {
-    opacity: 0;
-    transform: translateX(7%);
-  }
-  100% {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
 @media (prefers-reduced-motion: reduce) {
   .pool-explainer-slide {
-    display: none;
-    animation: none;
-  }
-
-  .pool-explainer-slide:first-child {
-    display: block;
+    transition: none;
   }
 }

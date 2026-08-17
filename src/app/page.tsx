@@ -29,15 +29,25 @@ export default function Home() {
           className="mt-16 border-t border-[#dbe8f0] py-14 sm:mt-20 sm:py-20"
           aria-labelledby="how-it-works-heading"
         >
-          <h2 id="how-it-works-heading" className="sr-only">
-            How Pool Lab works
-          </h2>
-          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+          <div className="max-w-2xl">
+            <h2
+              id="how-it-works-heading"
+              className="text-3xl leading-tight font-semibold tracking-[-0.03em] text-balance text-[#062f5d] sm:text-4xl"
+            >
+              How it works
+            </h2>
+            <p className="mt-4 max-w-xl text-base leading-7 text-pretty text-[#426b87] sm:text-lg sm:leading-8">
+              A practical first look at the property, the pool idea, and the
+              questions worth carrying forward.
+            </p>
+          </div>
+
+          <div className="mt-10 grid items-stretch gap-12 lg:mt-12 lg:grid-cols-2 lg:gap-16">
             <div className="mx-auto w-full max-w-[480px]">
               <PoolFeasibilityExplainer />
             </div>
 
-            <ol className="border-t border-[#c6dce9]">
+            <ol className="mx-auto flex w-full max-w-[480px] flex-col border-t border-[#c6dce9] lg:aspect-[480/445]">
               <ProcessStep
                 number="01"
                 title="Find the property"
@@ -179,21 +189,21 @@ function ProcessStep({
 }) {
   return (
     <li
-      className={`grid gap-4 border-b border-[#c6dce9] py-8 sm:grid-cols-[3.5rem_minmax(0,1fr)] sm:gap-5 sm:py-10 ${
-        isLast ? "border-b-0 pb-0" : ""
+      className={`grid flex-1 gap-4 border-b border-[#c6dce9] py-8 sm:grid-cols-[3.5rem_minmax(0,1fr)] sm:gap-5 sm:py-10 lg:grid-cols-[3rem_minmax(0,1fr)] lg:gap-3 lg:py-3 ${
+        isLast ? "border-b-0" : ""
       }`}
     >
       <span
         aria-hidden="true"
-        className="text-lg leading-7 font-semibold tracking-[-0.03em] text-[#0077bd]"
+        className="text-lg leading-7 font-semibold tracking-[-0.03em] text-[#0077bd] lg:text-base lg:leading-6"
       >
         {number}
       </span>
       <div>
-        <h3 className="text-xl leading-7 font-semibold text-balance text-[#062f5d]">
+        <h3 className="text-xl leading-7 font-semibold text-balance text-[#062f5d] lg:text-lg lg:leading-6">
           {title}
         </h3>
-        <p className="mt-2 max-w-xl leading-7 text-pretty text-[#426b87]">
+        <p className="mt-2 max-w-xl leading-7 text-pretty text-[#426b87] lg:mt-1 lg:text-sm lg:leading-5">
           {text}
         </p>
       </div>
