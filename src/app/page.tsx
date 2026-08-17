@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
 import { AucklandPropertyJourney } from "@/components/auckland-property-journey";
+import { PoolFeasibilityExplainer } from "@/components/pool-feasibility-explainer";
 import { DataAccessInspector } from "./data-access-inspector";
 
 export default function Home() {
@@ -92,8 +93,47 @@ export default function Home() {
         </header>
 
         <section
+          id="how-it-works"
+          className="mt-16 border-t border-[#dbe8f0] py-14 sm:mt-20 sm:py-20"
+          aria-labelledby="how-it-works-heading"
+        >
+          <h2 id="how-it-works-heading" className="sr-only">
+            How Pool Lab works
+          </h2>
+          <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
+            <div className="mx-auto w-full max-w-[480px]">
+              <PoolFeasibilityExplainer />
+            </div>
+
+            <ol className="border-t border-[#c6dce9]">
+              <ProcessStep
+                number="01"
+                title="Find the property"
+                text="Search an Auckland address to open the mapped property view. It gives everyone a shared place to start, with the site and its available evidence in view."
+              />
+              <ProcessStep
+                number="02"
+                title="Try a pool position"
+                text="Move and rotate an indicative pool on the map to explore how usable space, access, fencing, and the surrounding area relate to the idea. The tool never silently chooses a position for you."
+              />
+              <ProcessStep
+                number="03"
+                title="See what needs checking"
+                text="Site context, usable space, and missing information stay visible rather than becoming a false green light."
+              />
+              <ProcessStep
+                number="04"
+                title="Get your preliminary report"
+                text="When you are ready, request a detailed preliminary report to support the next conversation."
+                isLast
+              />
+            </ol>
+          </div>
+        </section>
+
+        <section
           id="property-search"
-          className="mt-16 scroll-mt-24 border-t border-[#dbe8f0] pt-10 sm:mt-20 sm:pt-12"
+          className="scroll-mt-24 border-t border-[#dbe8f0] pt-10 sm:pt-12"
           aria-label="Property check"
         >
           <div id="property-search-intro" className="mb-6 max-w-2xl">
@@ -106,10 +146,6 @@ export default function Home() {
             >
               Begin with a practical property check
             </h2>
-            <p className="mt-3 hidden text-base leading-7 text-[#426b87]">
-              We’ll find the address, open the mapped property view, and show
-              what needs a closer look before you plan a pool.
-            </p>
             <p className="mt-3 text-base leading-7 text-[#426b87]">
               Search the property, try a pool layout, and see the early signals
               that deserve a closer look. You can request the detailed report
@@ -160,70 +196,6 @@ export default function Home() {
         </section>
 
         <section
-          id="how-it-works"
-          className="border-t border-[#dbe8f0] py-14 sm:py-20"
-          aria-labelledby="how-it-works-heading"
-        >
-          <div className="grid gap-12 lg:grid-cols-[0.72fr_1.28fr] lg:gap-20">
-            <div className="max-w-md lg:sticky lg:top-8 lg:self-start">
-              <p className="text-sm font-semibold tracking-[0.02em] text-[#5c7e96]">
-                How it works
-              </p>
-              <h2
-                id="how-it-works-heading"
-                className="mt-3 text-3xl leading-tight font-semibold tracking-[-0.03em] text-balance text-[#062f5d] sm:text-4xl"
-              >
-                See the property. Test the idea. Know what to ask next.
-              </h2>
-              <p className="mt-5 text-base leading-7 text-pretty text-[#426b87]">
-                Property Check is a practical first look, designed to help you
-                bring clearer questions to the people who later design, quote,
-                inspect, or approve the work.
-              </p>
-              <Link
-                href="/can-my-auckland-property-suit-a-pool"
-                className="focus-visible:outline-pool-blue-700 mt-7 inline-flex min-h-11 items-center gap-2 font-semibold text-[#0077bd] underline decoration-[#7fc4eb] underline-offset-4 transition-colors duration-200 ease-out hover:text-[#062f5d] focus-visible:outline-2 focus-visible:outline-offset-4 active:text-[#00598f] motion-reduce:transition-none"
-              >
-                Explore property-planning guidance
-                <ArrowRight aria-hidden="true" className="size-4" />
-              </Link>
-            </div>
-
-            <ol className="border-t border-[#c6dce9]">
-              <ProcessStep
-                number="01"
-                title="Find the property"
-                text="Search an Auckland address to open the mapped property view. It gives everyone a shared place to start, with the site and its available evidence in view."
-              />
-              <ProcessStep
-                number="02"
-                title="Try a pool position"
-                text="Move and rotate an indicative pool on the map to explore how usable space, access, fencing, and the surrounding area relate to the idea. The tool never silently chooses a position for you."
-              >
-                <figure className="relative mt-6 aspect-[16/9] overflow-hidden rounded-2xl bg-[#dbe8f0]">
-                  <Image
-                    src="/pool-projects/glass-pool-fence-detail.webp"
-                    alt="Close view of a raised pool and frameless glass fence"
-                    fill
-                    sizes="(max-width: 1023px) 100vw, 55vw"
-                    className="object-cover"
-                  />
-                  <figcaption className="absolute right-4 bottom-4 left-4 max-w-sm bg-[#062f5d]/90 px-4 py-3 text-sm leading-5 font-medium text-white backdrop-blur-sm sm:right-auto sm:bottom-5 sm:left-5">
-                    The pool is only one part of the space you are planning.
-                  </figcaption>
-                </figure>
-              </ProcessStep>
-              <ProcessStep
-                number="03"
-                title="Carry clearer questions forward"
-                text="Early signals and missing information stay visible rather than becoming a false green light. When you are ready, request a detailed preliminary report to support the next conversation."
-                isLast
-              />
-            </ol>
-          </div>
-        </section>
-
-        <section
           className="border-t border-[#dbe8f0] py-12 sm:py-16"
           aria-labelledby="builder-heading"
         >
@@ -266,13 +238,11 @@ function ProcessStep({
   number,
   title,
   text,
-  children,
   isLast = false,
 }: {
   number: string;
   title: string;
   text: string;
-  children?: React.ReactNode;
   isLast?: boolean;
 }) {
   return (
@@ -294,7 +264,6 @@ function ProcessStep({
         <p className="mt-2 max-w-xl leading-7 text-pretty text-[#426b87]">
           {text}
         </p>
-        {children}
       </div>
     </li>
   );
