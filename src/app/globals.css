@@ -27,6 +27,7 @@
   --color-pool-blue-800: oklch(40.1% 0.108 235);
   --color-pool-blue-900: oklch(34.5% 0.087 235);
   --color-pool-blue-950: oklch(26.1% 0.065 235);
+  --spacing-hero-inset: 11.875rem;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);

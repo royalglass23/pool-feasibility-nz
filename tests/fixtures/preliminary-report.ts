@@ -69,6 +69,7 @@ export function buildTestPreliminaryReport(
           ],
         ],
       },
+      clearancesVisible: true,
     },
     overall: {
       status: "amber",
@@ -288,6 +289,7 @@ export function buildTestPersistedAssessmentSubmission(
         type: "Polygon",
         coordinates: constructionEnvelopeCoordinates,
       },
+      clearancesVisible: true,
     },
     layerStates: [],
     warnings: [

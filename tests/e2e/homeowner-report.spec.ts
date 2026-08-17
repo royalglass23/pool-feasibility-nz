@@ -113,7 +113,11 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
     const submission = route.request().postDataJSON();
     expect(submission).toMatchObject({
       assessmentSnapshot: "server-issued-detailed-snapshot",
-      poolLayout: { lengthMetres: 6.5, widthMetres: 3 },
+      poolLayout: {
+        lengthMetres: 6.5,
+        widthMetres: 3,
+        clearancesVisible: false,
+      },
     });
     expect(submission.mapImageDataUrl).toMatch(/^data:image\/png;base64,/);
     expect(submission).not.toHaveProperty("addressEvidence");
@@ -143,6 +147,7 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
             },
             pool: {
               rotationDegrees: 0,
+              clearancesVisible: false,
             },
             mapImageDataUrl:
               "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGL5//8/AAAA//+rxzhLAAAABklEQVQDAAYOAwJctCtXAAAAAElFTkSuQmCC",
@@ -181,6 +186,14 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
   await page
     .getByRole("button", { name: "Load detailed official checks" })
     .click();
+  const clearanceToggle = page.getByRole("checkbox", {
+    name: "Show pool-shell clearances",
+  });
+  await expect(clearanceToggle).toBeChecked();
+  await expect(
+    page.getByRole("list", { name: "Pool-shell clearance measurements" }),
+  ).toHaveCount(1);
+  await clearanceToggle.uncheck();
   await expect(
     page.getByRole("heading", {
       name: "Your details for the preliminary report",
@@ -237,6 +250,9 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
     assessmentMap.getByText("Indicative investigation buffer"),
   ).toBeVisible();
   await expect(assessmentMap.getByRole("checkbox")).toHaveCount(0);
+  await expect(
+    assessmentMap.getByRole("region", { name: "Saved pool-shell clearances" }),
+  ).toHaveCount(0);
   await expect(
     page.getByText(
       /We will email a summary of this preliminary report shortly/i,

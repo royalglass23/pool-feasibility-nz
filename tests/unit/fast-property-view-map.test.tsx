@@ -174,6 +174,50 @@ it("draws the indicative investigation buffer around the selected pool", async (
   );
 });
 
+it("shows live pool-shell clearances by default and preserves the selected visibility while the pool moves", async () => {
+  const user = userEvent.setup();
+  const onPlacementChange = vi.fn();
+  render(
+    <FastPropertyView
+      result={fastResult}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+      onPlacementChange={onPlacementChange}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole("checkbox", { name: "Show pool-shell clearances" })).toBeChecked();
+  expect(onPlacementChange).toHaveBeenLastCalledWith(
+    expect.objectContaining({ clearancesVisible: true }),
+  );
+
+  await user.click(
+    screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
+  );
+  expect(onPlacementChange).toHaveBeenLastCalledWith(
+    expect.objectContaining({ clearancesVisible: false }),
+  );
+
+  const event: MapEvent = {
+    point: { coordinates: [174.6083, -36.8602] },
+    originalEvent: { stopPropagation() {} },
+  };
+  mapEventHandlers.get("mousedown:pool-fill")!(event);
+  mapEventHandlers.get("mousemove:map")!(event);
+  mapEventHandlers.get("mouseup:map")!(event);
+
+  await waitFor(() =>
+    expect(onPlacementChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        position: [174.6083, -36.8602],
+        clearancesVisible: false,
+      }),
+    ),
+  );
+});
+
 it("draws returned contours and lets the user hide them", async () => {
   const user = userEvent.setup();
   const detailedChecks = fastResult.detailedChecks!;

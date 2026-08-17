@@ -211,6 +211,19 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).not.toContain("Page 4");
   });
 
+  it("includes pool-shell clearances in the PDF only when that selected map overlay was saved", () => {
+    const shown = renderCanonicalPreliminaryReportHtml(buildReport());
+    expect(shown).toContain("Indicative mapped pool-shell clearances");
+    expect(shown).toMatch(/Side 1: [\d.]+ m/);
+
+    const hidden = renderCanonicalPreliminaryReportHtml(
+      buildReport((submission) => {
+        submission.poolLayout.clearancesVisible = false;
+      }),
+    );
+    expect(hidden).not.toContain("Indicative mapped pool-shell clearances");
+  });
+
   it("uses a human-readable address-based PDF filename", () => {
     const report = buildReport();
     expect(preliminaryReportFilename(report)).toBe(

@@ -7,77 +7,9 @@ import { DataAccessInspector } from "./data-access-inspector";
 
 export default function Home() {
   return (
-    <main className="min-h-screen bg-[#f5faff] px-4 py-5 text-[#062f5d] sm:px-6 sm:py-8">
-      <div className="mx-auto w-full max-w-7xl">
-        <AucklandPropertyJourney />
-        <section
-          className="hidden border-t border-[#dbe8f0] pt-10 sm:pt-12"
-          aria-labelledby="home-heading"
-        >
-          <div className="grid items-center gap-10 lg:grid-cols-[0.88fr_1.12fr] lg:gap-16">
-            <div className="max-w-xl">
-              <p className="text-sm font-semibold tracking-[0.02em] text-[#5c7e96]">
-                Plan with confidence before you commit
-              </p>
-              <h1
-                id="home-heading"
-                className="mt-5 max-w-lg text-4xl leading-[1.02] font-semibold tracking-[-0.045em] text-[#062f5d] sm:text-6xl"
-              >
-                Find the right pool solution for your property
-              </h1>
-              <p className="mt-6 max-w-lg text-base leading-7 text-[#426b87] sm:text-lg sm:leading-8">
-                Check your site, understand the likely budget, compare suitable
-                pool options, and connect with the professionals needed to
-                deliver the complete project.
-              </p>
-              <div
-                className="mt-7 flex max-w-md flex-wrap gap-2.5"
-                aria-label="What you can plan"
-              >
-                {[
-                  "Site feasibility",
-                  "Budget guidance",
-                  "Trusted referrals",
-                ].map((label) => (
-                  <span
-                    key={label}
-                    className="rounded-full bg-[#dbeef0] px-3 py-1.5 text-sm font-semibold text-[#1c6178]"
-                  >
-                    {label}
-                  </span>
-                ))}
-              </div>
-            </div>
-            <div
-              className="relative min-h-[330px] overflow-hidden rounded-[1.6rem] bg-[#6f897f] shadow-[0_30px_80px_-40px_rgba(26,57,50,0.45)] sm:min-h-[390px]"
-              role="img"
-              aria-label="A property planning view showing a pool, garden, and buildable site area"
-            >
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_72%_20%,_rgba(137,185,200,0.3),_transparent_26%),linear-gradient(135deg,_rgba(105,157,173,0.2),_transparent_42%),linear-gradient(145deg,_#526b68_0%,_#78928a_40%,_#b1b39a_40%,_#8f8d78_100%)]" />
-              <div className="absolute -top-24 -right-16 size-72 rounded-full border-[26px] border-[#c2d7d0]/25 sm:size-96" />
-              <div className="absolute inset-[12%_16%_18%_12%] rotate-[-8deg] rounded-[2rem] border-2 border-white/35 bg-[#9c9c82]/45 shadow-[0_20px_35px_-25px_rgba(0,0,0,0.8)]" />
-              <div className="absolute top-[24%] left-[20%] h-[38%] w-[46%] rotate-[-8deg] rounded-[45%] border-[10px] border-[#d6e4de]/60 bg-[#2c95b7] shadow-[inset_0_0_0_4px_rgba(35,93,111,0.5),0_18px_30px_-20px_rgba(0,0,0,0.9)]">
-                <div className="absolute inset-[14%] rounded-[45%] border border-white/35 bg-[linear-gradient(135deg,rgba(255,255,255,0.4),transparent_30%,rgba(13,80,116,0.22))]" />
-              </div>
-              <div className="absolute bottom-[18%] left-[12%] h-7 w-[24%] rotate-[-8deg] rounded-full bg-[#d5c8a9]/65" />
-              <div
-                className="absolute top-[16%] right-[10%] grid size-14 place-items-center rounded-full border border-white/30 bg-white/15 text-[0px] backdrop-blur-sm"
-                aria-hidden="true"
-              >
-                ☼
-              </div>
-              <div className="absolute right-5 bottom-5 left-5 rounded-2xl border border-white/70 bg-[#f9fbf8]/95 p-4 shadow-lg backdrop-blur-md sm:bottom-5 sm:left-auto sm:w-[min(80%,_300px)] sm:p-5">
-                <p className="text-base leading-6 font-bold text-[#062f5d]">
-                  From backyard idea to buildable plan
-                </p>
-                <p className="mt-1 text-sm leading-5 text-[#426b87]">
-                  Site checks, budget guidance and the right project team.
-                </p>
-              </div>
-            </div>
-          </div>
-        </section>
-
+    <main className="min-h-screen bg-[#f5faff] text-[#062f5d]">
+      <AucklandPropertyJourney />
+      <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
         <header className="mb-10 hidden max-w-3xl sm:mb-14">
           <div className="border-pool-blue-700/15 text-pool-blue-800 mb-6 inline-flex items-center gap-2 rounded-full border bg-white/80 px-3 py-1.5 text-xs font-bold tracking-[0.14em] uppercase shadow-sm backdrop-blur">
             Pool Lab · Data access POC
@@ -109,17 +41,17 @@ export default function Home() {
               <ProcessStep
                 number="01"
                 title="Find the property"
-                text="Search an Auckland address to open the mapped property view. It gives everyone a shared place to start, with the site and its available evidence in view."
+                text="It gives everyone a shared place to start, with the site and its available evidence in view."
               />
               <ProcessStep
                 number="02"
                 title="Try a pool position"
-                text="Move and rotate an indicative pool on the map to explore how usable space, access, fencing, and the surrounding area relate to the idea. The tool never silently chooses a position for you."
+                text="Select a pool size, move, and rotate an indicative pool on the map."
               />
               <ProcessStep
                 number="03"
                 title="See what needs checking"
-                text="Site context, usable space, and missing information stay visible rather than becoming a false green light."
+                text="Site context and usable space stay visible rather than becoming a false green light."
               />
               <ProcessStep
                 number="04"

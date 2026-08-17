@@ -52,6 +52,7 @@ const browserSubmissionSchema = z
           z.number().finite().min(160).max(180),
           z.number().finite().min(-48).max(-33),
         ]),
+        clearancesVisible: z.boolean().default(true),
       })
       .strict(),
   })
@@ -139,6 +140,7 @@ export async function buildServerAssessmentSubmission(input: {
       ...request.poolLayout,
       shellGeometry: poolGeometry.geometry,
       constructionEnvelopeGeometry: constructionEnvelope.geometry,
+      clearancesVisible: request.poolLayout.clearancesVisible,
     },
     layerStates:
       snapshot.fastResult.detailedChecks?.layers.map((layer) => ({

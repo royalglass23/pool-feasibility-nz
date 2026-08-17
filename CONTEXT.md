@@ -140,6 +140,30 @@ _Avoid_: Permanent browser login, shared session
 The small free result shown before contact details: an interactive pool concept that the visitor can move and rotate on the property map, plus a few clearly preliminary local signals. It establishes useful context without disclosing the full personalised report.
 _Avoid_: Full report, final feasibility result
 
+**Preliminary Feasibility Report**:
+An early desktop feasibility view based on available mapped information and indicative pool layouts. Every result requires normal site, design, title, service, planning, and specialist checks before it is relied on; generic `Needs Checking` labels must not be repeated as a substitute for this single clear limitation.
+_Avoid_: Feasibility approval, final feasibility report, repeated generic warning
+
+**Pool-Shell Clearance**:
+The displayed perpendicular distance, rounded to the nearest 0.1 metre, from the centre of each side of the proposed pool shell to the Property Check's mapped property boundary. It recalculates while the pool shell is moved or rotated. It excludes fencing, coping, excavation, construction access, regulatory setbacks, and any other construction envelope; it is not necessarily the shortest corner-to-boundary distance.
+_Avoid_: Setback, fence clearance, construction-envelope clearance, nearest-boundary distance
+
+**Saved Clearance Layout**:
+The Pool-Shell Clearances shown in a Preliminary Feasibility Report for the pool-shell placement selected in its Property Check, when the Homeowner has selected their Clearance Display. It records the same indicative mapped layout, not a new design, survey, or compliance assessment.
+_Avoid_: Redrawn report layout, forced measurement display, surveyed plan, approved pool position
+
+**Clearance Display**:
+The default-visible map overlay for Pool-Shell Clearances, which a Homeowner may hide or show without changing the selected pool-shell placement. Its selected state determines whether the clearances appear in the Preliminary Feasibility Report.
+_Avoid_: Permanently hidden measurements, layout-changing display control
+
+**Report Map Selection**:
+The Homeowner's selected optional map overlays, reproduced in the Preliminary Feasibility Report for the chosen pool-shell placement. The Mapped Property Boundary is always visible and is not part of this selection.
+_Avoid_: Hidden property boundary, forced optional overlays, unrelated default map, staff-selected report view
+
+**Mapped Property Boundary**:
+The always-visible mapped parcel outline used as the indicative reference for Property Check layouts and Pool-Shell Clearances.
+_Avoid_: Optional map layer, surveyed boundary, hidden clearance reference
+
 **Future Builder Network**:
 A clearly labelled later-stage opportunity for Pool Builders to express interest after experiencing the Property Check. It does not yet provide matching, lead sharing, or partner access.
 _Avoid_: Live builder network, active partner programme

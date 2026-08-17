@@ -139,6 +139,7 @@ describe("homeowner report submission", () => {
           poolGeometry: validPoolGeometry,
           constructionEnvelopeGeometry: validPoolGeometry,
           constructionEnvelopeWithinMappedArea: true,
+          clearancesVisible: false,
           warning: {
             status: "needs_checking",
             label: "Needs Checking",
@@ -189,7 +190,11 @@ describe("homeowner report submission", () => {
       assessmentSnapshot: "server-issued-assessment-snapshot",
       mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
       mapVisibleLayerKeys: ["wastewater_assets"],
-      poolLayout: { lengthMetres: 6.5, widthMetres: 3 },
+      poolLayout: {
+        lengthMetres: 6.5,
+        widthMetres: 3,
+        clearancesVisible: false,
+      },
     });
     expect(body).not.toHaveProperty("report");
   });
