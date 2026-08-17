@@ -81,6 +81,19 @@ describe("persisted homeowner assessment contract", () => {
     expect(parsed.homeowner.consentGiven).toBe(true);
   });
 
+  it("persists the selected pool-shell clearance visibility and defaults older saved layouts to visible", () => {
+    expect(
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        poolLayout: { ...validSubmission.poolLayout, clearancesVisible: false },
+      }).poolLayout.clearancesVisible,
+    ).toBe(false);
+    expect(
+      parsePersistedAssessmentSubmission(validSubmission).poolLayout
+        .clearancesVisible,
+    ).toBe(true);
+  });
+
   it("rejects missing consent and invalid timing", () => {
     expect(() =>
       parsePersistedAssessmentSubmission({

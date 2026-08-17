@@ -6,7 +6,10 @@ import {
   reportShortStatus,
   type ReportAssessment,
 } from "@/modules/reporting/pool-feasibility-report";
-import { reportMapLegend } from "@/modules/reporting/preliminary-report-presentation";
+import {
+  reportMapLegend,
+  reportPoolShellClearances,
+} from "@/modules/reporting/preliminary-report-presentation";
 import { escapeHtml } from "@/shared/html/escape-html";
 
 export function renderCanonicalPreliminaryReportHtml(
@@ -62,6 +65,11 @@ export function renderCanonicalPreliminaryReportHtml(
     )
     .join("");
   const mapAttribution = compactAttribution(report);
+  const clearances = reportPoolShellClearances(report);
+  const clearanceCaption =
+    clearances.length === 4
+      ? `<div class="map-clearances"><strong>Pool-shell clearances</strong><span>${clearances.map((clearance, index) => `Side ${index + 1}: ${esc(clearance.label)}`).join(" · ")}</span><p>Indicative mapped pool-shell clearances — not a survey or setback assessment.</p></div>`
+      : "";
 
   const assessmentCards = assessments
     .map((item) => renderAssessment(item, esc))
@@ -142,6 +150,9 @@ export function renderCanonicalPreliminaryReportHtml(
     .legend-swatch.area{height:2.8mm;border:0;background:color-mix(in srgb,var(--map-colour) 32%,white);outline:.55mm solid var(--map-colour);outline-offset:-.55mm}
     .legend-swatch.dashed{border-top-style:dashed}
     .map-attribution{margin-top:1.3mm;color:#687780;font-size:5.8pt;line-height:1.25}
+    .map-clearances{margin-top:1.8mm;color:#41515b;font-size:6.5pt;line-height:1.35}
+    .map-clearances strong{margin-right:2mm}
+    .map-clearances p{margin-top:.7mm;color:#687780;font-size:5.8pt}
     .findings{display:grid;grid-template-columns:repeat(3,1fr);gap:2.4mm}
     .finding{display:flex;gap:2mm;padding:2.4mm;background:#f7f9fa;border-radius:2mm;min-height:19mm}
     .finding-dot{width:2.4mm;height:2.4mm;margin-top:.4mm;border-radius:50%;background:var(--state-border);flex:0 0 auto}
@@ -189,7 +200,7 @@ export function renderCanonicalPreliminaryReportHtml(
     <div class="glance-grid">${glance}</div>
     <figure class="map-panel">
       <img class="map" src="${report.mapImageDataUrl}" alt="Aerial map showing the mapped property and proposed pool">
-      <figcaption class="map-caption"><div class="legend">${legend}</div><p class="map-attribution">${esc(mapAttribution)}</p></figcaption>
+      <figcaption class="map-caption"><div class="legend">${legend}</div>${clearanceCaption}<p class="map-attribution">${esc(mapAttribution)}</p></figcaption>
     </figure>
     <div class="section-heading"><h2>Key findings</h2></div>
     <div class="findings">${keyFindings}</div>

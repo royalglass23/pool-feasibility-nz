@@ -83,6 +83,7 @@ export function HomeownerSubmissionForm({
             widthMetres: placement.dimensions?.widthMetres,
             rotationDegrees: placement.rotationDegrees,
             position: placement.position,
+            clearancesVisible: placement.clearancesVisible ?? true,
           },
           homeowner: {
             name: form.get("name"),
@@ -291,6 +292,7 @@ export function buildDataAccessSubmissionContext(
       position: [...placement.position] as [number, number],
       shellGeometry: placement.shellGeometry,
       constructionEnvelopeGeometry: placement.constructionEnvelopeGeometry,
+      clearancesVisible: true,
     },
     layerStates: assessment.provenance.datasets.map((dataset) => ({
       provider: dataset.provider,
@@ -361,6 +363,7 @@ export function buildFastSubmissionContext(
       shellGeometry: placement.poolGeometry.geometry,
       constructionEnvelopeGeometry:
         placement.constructionEnvelopeGeometry.geometry,
+      clearancesVisible: placement.clearancesVisible ?? true,
     },
     layerStates:
       result.detailedChecks?.layers.map((layer) => ({

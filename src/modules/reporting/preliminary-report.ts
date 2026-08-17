@@ -30,6 +30,7 @@ export type SavedPreliminaryReport = {
     position: PersistedAssessmentSubmission["poolLayout"]["position"];
     shellGeometry: PersistedAssessmentSubmission["poolLayout"]["shellGeometry"];
     constructionEnvelopeGeometry: PersistedAssessmentSubmission["poolLayout"]["constructionEnvelopeGeometry"];
+    clearancesVisible: boolean;
   };
   overall: CanonicalPoolFeasibilityReport["overall"];
   assessments: CanonicalPoolFeasibilityReport["assessments"];
@@ -177,6 +178,7 @@ export function buildSavedPreliminaryReport({
       shellGeometry: submission.poolLayout.shellGeometry,
       constructionEnvelopeGeometry:
         submission.poolLayout.constructionEnvelopeGeometry,
+      clearancesVisible: submission.poolLayout.clearancesVisible,
     },
     warnings: submission.warnings,
     recommendations: [...submission.recommendations].sort(

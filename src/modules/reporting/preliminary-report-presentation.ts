@@ -1,4 +1,9 @@
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
+import type { Polygon } from "geojson";
+import {
+  calculatePoolShellClearances,
+  type PoolShellClearance,
+} from "@/modules/spatial/pool-shell-clearances";
 import {
   REPORT_MAP_BASE_STYLES,
   reportMapLayerKey,
@@ -157,6 +162,33 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
   }
 
   return { entries, excludedLayers };
+}
+
+export function reportPoolShellClearances(
+  report: SavedPreliminaryReport,
+): PoolShellClearance[] {
+  if (
+    !report.pool.clearancesVisible ||
+    !isPolygon(report.property.boundaryGeometry) ||
+    !isPolygon(report.pool.shellGeometry)
+  ) {
+    return [];
+  }
+  return calculatePoolShellClearances({
+    shellGeometry: report.pool.shellGeometry,
+    boundaryGeometry: report.property.boundaryGeometry,
+  });
+}
+
+function isPolygon(geometry: unknown): geometry is Polygon {
+  return (
+    typeof geometry === "object" &&
+    geometry !== null &&
+    "type" in geometry &&
+    geometry.type === "Polygon" &&
+    "coordinates" in geometry &&
+    Array.isArray(geometry.coordinates)
+  );
 }
 
 function reportLayerStyle(layer: SavedPreliminaryReport["layers"][number]) {

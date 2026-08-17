@@ -1,7 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { Feature, FeatureCollection, Geometry, Polygon } from "geojson";
+import type {
+  Feature,
+  FeatureCollection,
+  Geometry,
+  LineString,
+  Polygon,
+} from "geojson";
 import { type FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 import type { DetailedLayerResult } from "@/modules/data-access-spike/execute-fast-property-details";
 import {
@@ -18,6 +24,10 @@ import {
   type FastPoolPlacementSnapshot,
   type FastPoolWarning,
 } from "@/modules/data-access-spike/fast-pool-warning";
+import {
+  calculatePoolShellClearances,
+  type PoolShellClearance,
+} from "@/modules/spatial/pool-shell-clearances";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { bearing, point } from "@turf/turf";
 
@@ -166,6 +176,7 @@ export function FastPropertyView({
     allUtilityCategoriesVisible,
   );
   const [contoursVisible, setContoursVisible] = useState(true);
+  const [clearancesVisible, setClearancesVisible] = useState(true);
   const [initialPlacement] = useState(() => defaultPlacement(result));
   const [position, setPosition] = useState<[number, number]>(
     initialPlacement.position,
@@ -231,6 +242,16 @@ export function FastPropertyView({
     result.boundary.geometry,
     rotationDegrees,
   ]);
+  const poolShellClearances = useMemo(
+    () =>
+      poolGeometry && result.boundary.geometry
+        ? calculatePoolShellClearances({
+            shellGeometry: poolGeometry.geometry,
+            boundaryGeometry: result.boundary.geometry,
+          })
+        : [],
+    [poolGeometry, result.boundary.geometry],
+  );
   const poolWarning = useMemo(
     () =>
       classifyFastPoolWarning({
@@ -301,11 +322,13 @@ export function FastPropertyView({
       poolGeometry: poolGeometry ?? null,
       constructionEnvelopeGeometry,
       constructionEnvelopeWithinMappedArea,
+      clearancesVisible,
       warning: poolWarning,
     });
   }, [
     constructionEnvelopeGeometry,
     constructionEnvelopeWithinMappedArea,
+    clearancesVisible,
     dimensions,
     onPlacementChange,
     poolGeometry,
@@ -429,6 +452,10 @@ export function FastPropertyView({
               dimensions,
             ),
           },
+          "pool-shell-clearances": {
+            type: "geojson",
+            data: poolShellClearanceMapData(poolShellClearances),
+          },
           ...(boundary
             ? { boundary: { type: "geojson", data: boundary } }
             : {}),
@@ -519,6 +546,16 @@ export function FastPropertyView({
           type: "line",
           source: "pool",
           paint: { "line-color": "#0f172a", "line-width": 3 },
+        },
+        {
+          id: "pool-shell-clearance-lines",
+          type: "line",
+          source: "pool-shell-clearances",
+          paint: {
+            "line-color": "#0f766e",
+            "line-width": 2,
+            "line-dasharray": [2, 1],
+          },
         },
         {
           id: "construction-envelope-line",
@@ -700,6 +737,14 @@ export function FastPropertyView({
     constructionEnvelopeSource?.setData(
       constructionEnvelopeGeometry ?? emptyGeometry,
     );
+    const clearanceSource = map.getSource("pool-shell-clearances") as
+      | import("maplibre-gl").GeoJSONSource
+      | undefined;
+    clearanceSource?.setData(
+      clearancesVisible
+        ? poolShellClearanceMapData(poolShellClearances)
+        : emptyGeometry,
+    );
     const rotationSource = map.getSource("pool-rotation") as
       import("maplibre-gl").GeoJSONSource | undefined;
     rotationSource?.setData(
@@ -709,7 +754,9 @@ export function FastPropertyView({
     );
   }, [
     constructionEnvelopeGeometry,
+    clearancesVisible,
     dimensions,
+    poolShellClearances,
     poolGeometry,
     position,
     rotationDegrees,
@@ -776,6 +823,48 @@ export function FastPropertyView({
             className="border-pool-200 border-t bg-white p-4 lg:border-t-0 lg:border-l"
           >
             <h3 className="text-pool-950 font-semibold">Map layers</h3>
+            <div className="border-pool-200 text-pool-700 mt-4 border-b pb-4 text-sm">
+              <label className="flex cursor-pointer items-center gap-2">
+                <input
+                  type="checkbox"
+                  aria-label="Show pool-shell clearances"
+                  checked={clearancesVisible}
+                  onChange={() => setClearancesVisible((current) => !current)}
+                  disabled={poolShellClearances.length !== 4}
+                  className="accent-pool-950 size-4"
+                />
+                <span
+                  aria-hidden="true"
+                  className="w-5 border-t-2 border-dashed"
+                  style={{ borderColor: "#0f766e" }}
+                />
+                <span className="font-semibold">Pool-shell clearances</span>
+              </label>
+              {clearancesVisible && poolShellClearances.length === 4 ? (
+                <>
+                  <ul
+                    aria-label="Pool-shell clearance measurements"
+                    className="mt-2 grid grid-cols-2 gap-1 pl-7 text-xs font-semibold"
+                  >
+                    {poolShellClearances.map((clearance, index) => (
+                      <li key={clearance.id}>
+                        Side {index + 1}: {clearance.label}
+                      </li>
+                    ))}
+                  </ul>
+                  <p className="text-pool-500 mt-2 ml-7 text-xs leading-5">
+                    Indicative mapped pool-shell clearances — not a survey or
+                    setback assessment.
+                  </p>
+                </>
+              ) : (
+                <p className="text-pool-500 mt-1 ml-7 text-xs leading-5">
+                  {result.boundary.geometry
+                    ? "Clearance lines are hidden."
+                    : "Clearances need a mapped property boundary."}
+                </p>
+              )}
+            </div>
 
             {result.detailedChecks ? (
               <>
@@ -1080,6 +1169,22 @@ function pointFeature(coordinates: [number, number]): Feature {
 }
 function feature(geometry: Polygon): Feature {
   return { type: "Feature", properties: {}, geometry };
+}
+
+function poolShellClearanceMapData(
+  clearances: PoolShellClearance[],
+): FeatureCollection<LineString> {
+  return {
+    type: "FeatureCollection",
+    features: clearances.map((clearance) => ({
+      type: "Feature",
+      properties: { id: clearance.id, label: clearance.label },
+      geometry: {
+        type: "LineString",
+        coordinates: [clearance.start, clearance.end],
+      },
+    })),
+  };
 }
 
 function boundaryBounds(
