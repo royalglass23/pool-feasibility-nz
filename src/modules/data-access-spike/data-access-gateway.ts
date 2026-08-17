@@ -98,6 +98,7 @@ export interface DataAccessSpikeGateway {
     reason: string | null;
   };
   searchAddresses(requestedAddress: string): Promise<AddressMatch[]>;
+  getAddressById(addressId: string): Promise<AddressMatch | null>;
   findParcelsAt(position: Position): Promise<ParcelQueryResult>;
   countFeatures(
     dataset: QueryableDatasetKey,

@@ -39,14 +39,11 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(input).toHaveValue("");
 
     await user.type(input, requestedAddress);
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
-    const pendingButton = screen.getByRole("button", {
-      name: "Fetching official data…",
-    });
-    expect(pendingButton).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Fetch property data" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.getByRole("heading", { name: "Fetching property data" }),
     ).toBeVisible();
@@ -58,8 +55,8 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(trackAnonymousFunnelEvent).toHaveBeenCalledWith({
       name: "address_search_started",
     });
-    await user.click(pendingButton);
-    expect(fetchMock.mock.calls.length).toBeGreaterThanOrEqual(1);
+    await user.keyboard("{Enter}");
+    expect(fetchMock).toHaveBeenCalledOnce();
 
     resolveRequest?.(
       new Response(
@@ -83,9 +80,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     expect(
       await screen.findByRole("heading", { name: requestedAddress }),
@@ -126,9 +121,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     expect(
       await screen.findByRole("heading", { name: requestedAddress }),
@@ -195,9 +188,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     expect(await screen.findByRole("status")).toHaveTextContent(
       "Legal parcel confirmed",
@@ -230,9 +221,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         screen.getByLabelText("Auckland property address"),
         requestedAddress,
       );
-      await user.click(
-        screen.getByRole("button", { name: "Fetch property data" }),
-      );
+      await user.keyboard("{Enter}");
 
       expect(
         await screen.findByRole("heading", { name: requestedAddress }),
@@ -268,9 +257,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         screen.getByLabelText("Auckland property address"),
         requestedAddress,
       );
-      await user.click(
-        screen.getByRole("button", { name: "Fetch property data" }),
-      );
+      await user.keyboard("{Enter}");
 
       expect(await screen.findByText(message)).toBeVisible();
     },
@@ -348,9 +335,8 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       "Bahari Drive, Ranui, Auckland",
     );
-    await user.click(
-      await screen.findByRole("option", { name: requestedAddress }),
-    );
+    await screen.findByRole("option", { name: requestedAddress });
+    await user.keyboard("{Enter}");
 
     expect(
       screen.getByRole("heading", { name: "Checking selected address" }),
@@ -386,9 +372,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     await screen.findByRole("heading", { name: requestedAddress });
     await user.click(screen.getByText("Assessment and scoring"));
@@ -431,9 +415,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     await screen.findByRole("heading", { name: requestedAddress });
     await user.click(screen.getByText("Assessment and scoring"));
@@ -470,9 +452,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     await screen.findByRole("heading", { name: requestedAddress });
     expect(JSON.parse(fetchMock.mock.calls[0]![1]!.body as string)).toEqual({
@@ -506,9 +486,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     await screen.findByRole("heading", { name: requestedAddress });
     expect(
@@ -589,9 +567,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     expect(await screen.findByText("Utility legend")).toBeVisible();
     expect(screen.getByLabelText("Map legend")).toHaveTextContent(
@@ -647,9 +623,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       "Bahari Drive, Ranui, Auckland",
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     expect(
       await screen.findByRole("option", { name: requestedAddress }),
@@ -748,9 +722,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
     await user.click(screen.getByRole("option", { name: requestedAddress }));
     await user.click(await screen.findByRole("button", { name: "Try again" }));
 
@@ -788,9 +760,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     expect(
       await screen.findByRole("button", { name: "Try again" }),
@@ -841,9 +811,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     await screen.findByText(/Aerial imagery is not ready yet/);
     await user.click(screen.getByRole("button", { name: "Retry fast view" }));
@@ -896,9 +864,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     expect(
       await screen.findByRole("heading", { name: requestedAddress }),
@@ -953,9 +919,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
-    await user.click(
-      screen.getByRole("button", { name: "Fetch property data" }),
-    );
+    await user.keyboard("{Enter}");
 
     expect(
       await screen.findByText("We couldn't finish every property check."),

@@ -37,9 +37,17 @@ export function createDataAccessGateway(
     datasetEvidence: officialDatasetEvidence,
     datasetCapability: (dataset) =>
       dataset === "culverts"
-        ? { detailedQuery: false, reason: "No dedicated official culvert endpoint was verified in this spike." }
+        ? {
+            detailedQuery: false,
+            reason:
+              "No dedicated official culvert endpoint was verified in this spike.",
+          }
         : { detailedQuery: true, reason: null },
     searchAddresses: async () => addressMatchesFrom(addressesFixture),
+    getAddressById: async (addressId) =>
+      addressMatchesFrom(addressesFixture).find(
+        (address) => address.addressId === addressId,
+      ) ?? null,
     findParcelsAt: async ([longitude]) =>
       parcelQueryFrom(
         longitude < 174.608 ? parcelsFixture["42A"] : parcelsFixture["42"],
