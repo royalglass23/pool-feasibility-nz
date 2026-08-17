@@ -155,9 +155,12 @@ export function renderCanonicalPreliminaryReportHtml(
     .glance-row>span{font-size:7.5pt;font-weight:700}
     .status-text{font-size:6.8pt;color:var(--state-ink);text-align:right}
     .map-panel{margin-top:3.2mm;border:.25mm solid #cdd8dd;border-radius:2.5mm;overflow:hidden;background:#edf2f4}
+    .map-layout{display:grid;grid-template-columns:minmax(0,1fr) 45mm;background:#dce5e9}
     .map{display:block;width:100%;height:81mm;object-fit:contain;background:#dce5e9}
+    .map-legend{padding:3mm;border-left:.25mm solid #cdd8dd;background:#f7f9fa}
+    .map-legend h3{margin-bottom:2.2mm;color:#263842;font-size:7.2pt}
     .map-caption{padding:2mm 2.8mm;background:#f7f9fa;border-top:.25mm solid #d6dfe3}
-    .legend{display:flex;flex-wrap:wrap;gap:1.4mm 4mm}
+    .legend{display:grid;gap:2mm}
     .legend-item{display:inline-flex;align-items:center;gap:1.5mm;font-size:6.5pt;font-weight:700;color:#41515b}
     .legend-swatch{display:inline-block;width:7mm;height:0;border-top:1mm solid var(--map-colour)}
     .legend-swatch.area{height:2.8mm;border:0;background:color-mix(in srgb,var(--map-colour) 32%,white);outline:.55mm solid var(--map-colour);outline-offset:-.55mm}
@@ -218,8 +221,11 @@ export function renderCanonicalPreliminaryReportHtml(
     <div class="section-heading"><h2>At a glance</h2><span>Status is shown by colour and description</span></div>
     <div class="glance-grid">${glance}</div>
     <figure class="map-panel">
-      <img class="map" src="${report.mapImageDataUrl}" alt="Aerial map showing the mapped property and proposed pool">
-      <figcaption class="map-caption"><div class="legend">${legend}</div>${clearanceCaption}<p class="map-attribution">${esc(mapAttribution)}</p></figcaption>
+      <div class="map-layout">
+        <img class="map" src="${report.mapImageDataUrl}" alt="Aerial map showing the mapped property and proposed pool">
+        <aside class="map-legend" aria-label="Map legend"><h3>Map key</h3><div class="legend">${legend}</div></aside>
+      </div>
+      <figcaption class="map-caption">${clearanceCaption}<p class="map-attribution">${esc(mapAttribution)}</p></figcaption>
     </figure>
     <div class="section-heading"><h2>Key findings</h2></div>
     <div class="findings">${keyFindings}</div>

@@ -118,6 +118,7 @@ describe("persisted preliminary report renderer", () => {
           mapCount: number;
           mapPanelContained: boolean;
           legendText: string;
+          legendIsBesideMap: boolean;
         }
       | undefined;
     const executablePath = testChromiumExecutable();
@@ -137,12 +138,15 @@ describe("persisted preliminary report renderer", () => {
               document.querySelectorAll<HTMLElement>(".page"),
             );
             const mapPanel = document.querySelector<HTMLElement>(".map-panel");
+            const map = mapPanel?.querySelector<HTMLElement>(".map");
             const legend = mapPanel?.querySelector<HTMLElement>(".legend");
             const mapPage = mapPanel?.closest<HTMLElement>(".page");
-            if (!mapPanel || !legend || !mapPage) {
+            if (!mapPanel || !map || !legend || !mapPage) {
               throw new Error("REPORT_MAP_PANEL_MISSING");
             }
             const panelRect = mapPanel.getBoundingClientRect();
+            const mapRect = map.getBoundingClientRect();
+            const legendRect = legend.getBoundingClientRect();
             const pageRect = mapPage.getBoundingClientRect();
             return {
               pageCount: pages.length,
@@ -155,6 +159,9 @@ describe("persisted preliminary report renderer", () => {
                 panelRect.right <= pageRect.right &&
                 panelRect.bottom <= pageRect.bottom,
               legendText: legend.innerText,
+              legendIsBesideMap:
+                legendRect.left >= mapRect.right &&
+                Math.abs(legendRect.top - mapRect.top) < 40,
             };
           });
           return Buffer.from(
@@ -173,6 +180,7 @@ describe("persisted preliminary report renderer", () => {
       pageOverflowPixels: [0, 0, 0],
       mapCount: 1,
       mapPanelContained: true,
+      legendIsBesideMap: true,
     });
     expect(layout?.legendText).toContain("Mapped property boundary");
     expect(layout?.legendText).toContain("Selected pool");
