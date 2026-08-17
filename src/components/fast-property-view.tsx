@@ -1333,16 +1333,19 @@ function positionPoolShellClearanceLabels(
 
     const boundary = map.project(clearance.end);
     const pool = map.project(clearance.start);
-    const inwardX = pool.x - boundary.x;
-    const inwardY = pool.y - boundary.y;
-    const length = Math.hypot(inwardX, inwardY);
+    const outwardX = boundary.x - pool.x;
+    const outwardY = boundary.y - pool.y;
+    const length = Math.hypot(outwardX, outwardY);
     if (length === 0) return;
 
     const element = marker.getElement();
-    const horizontalInset = Math.abs(inwardX / length) * element.offsetWidth;
-    const verticalInset = Math.abs(inwardY / length) * element.offsetHeight;
+    const horizontalInset = Math.abs(outwardX / length) * element.offsetWidth;
+    const verticalInset = Math.abs(outwardY / length) * element.offsetHeight;
     const inset = (horizontalInset + verticalInset) / 2 + 8;
-    marker.setOffset([(inwardX / length) * inset, (inwardY / length) * inset]);
+    marker.setOffset([
+      (outwardX / length) * inset,
+      (outwardY / length) * inset,
+    ]);
   });
 }
 
