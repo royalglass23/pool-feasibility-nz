@@ -28,6 +28,10 @@ import {
   calculatePoolShellClearances,
   type PoolShellClearance,
 } from "@/modules/spatial/pool-shell-clearances";
+import {
+  POOL_SHELL_CLEARANCE_LIMITATION,
+  PRELIMINARY_FEASIBILITY_SCOPE,
+} from "@/modules/reporting/preliminary-feasibility-copy";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { bearing, point } from "@turf/turf";
 
@@ -454,7 +458,9 @@ export function FastPropertyView({
           },
           "pool-shell-clearances": {
             type: "geojson",
-            data: poolShellClearanceMapData(poolShellClearances),
+            data: clearancesVisible
+              ? poolShellClearanceMapData(poolShellClearances)
+              : { type: "FeatureCollection" as const, features: [] },
           },
           ...(boundary
             ? { boundary: { type: "geojson", data: boundary } }
@@ -552,7 +558,7 @@ export function FastPropertyView({
           type: "line",
           source: "pool-shell-clearances",
           paint: {
-            "line-color": "#0f766e",
+            "line-color": "#fff",
             "line-width": 2,
             "line-dasharray": [2, 1],
           },
@@ -781,6 +787,9 @@ export function FastPropertyView({
           <p className="text-pool-600 mt-2 text-sm">
             A preliminary mapped view is ready.
           </p>
+          <p className="text-pool-600 mt-2 max-w-3xl text-sm leading-6">
+            <strong>Preliminary feasibility only.</strong> {PRELIMINARY_FEASIBILITY_SCOPE}
+          </p>
         </div>
         <div className="flex flex-wrap gap-2">
           {onStartAgain && (
@@ -836,7 +845,7 @@ export function FastPropertyView({
                 <span
                   aria-hidden="true"
                   className="w-5 border-t-2 border-dashed"
-                  style={{ borderColor: "#0f766e" }}
+                  style={{ borderColor: "#fff" }}
                 />
                 <span className="font-semibold">Pool-shell clearances</span>
               </label>
@@ -853,8 +862,7 @@ export function FastPropertyView({
                     ))}
                   </ul>
                   <p className="text-pool-500 mt-2 ml-7 text-xs leading-5">
-                    Indicative mapped pool-shell clearances — not a survey or
-                    setback assessment.
+                    {POOL_SHELL_CLEARANCE_LIMITATION}
                   </p>
                 </>
               ) : (

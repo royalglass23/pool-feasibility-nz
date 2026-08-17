@@ -13,7 +13,6 @@ export type PoolShellClearance = {
   id: `pool-shell-side-${number}`;
   start: [number, number];
   end: [number, number];
-  labelPosition: [number, number];
   metres: number;
   label: string;
 };
@@ -27,6 +26,12 @@ export function calculatePoolShellClearances(input: {
   shellGeometry: Polygon;
   boundaryGeometry: Polygon;
 }): PoolShellClearance[] {
+  if (
+    !hasValidPolygonRing(input.shellGeometry) ||
+    !hasValidPolygonRing(input.boundaryGeometry)
+  ) {
+    return [];
+  }
   const corners = input.shellGeometry.coordinates[0]?.slice(0, -1);
   if (!corners || corners.length !== 4) return [];
 
@@ -58,12 +63,46 @@ export function calculatePoolShellClearances(input: {
         id: `pool-shell-side-${index}`,
         start,
         end: nearestBoundary.candidate,
-        labelPosition: midpoint(start, nearestBoundary.candidate),
         metres,
         label: `${metres.toFixed(1)} m`,
       },
     ];
   });
+}
+
+export function hasValidPolygonRing(geometry: unknown): geometry is Polygon {
+  if (
+    typeof geometry !== "object" ||
+    geometry === null ||
+    !("type" in geometry) ||
+    geometry.type !== "Polygon" ||
+    !("coordinates" in geometry) ||
+    !Array.isArray(geometry.coordinates)
+  ) {
+    return false;
+  }
+
+  return (
+    geometry.coordinates.length > 0 &&
+    geometry.coordinates.every((ring) => {
+      if (!Array.isArray(ring) || ring.length < 4) return false;
+      if (
+        !ring.every(
+          (position) =>
+            Array.isArray(position) &&
+            position.length >= 2 &&
+            Number.isFinite(position[0]) &&
+            Number.isFinite(position[1]),
+        )
+      ) {
+        return false;
+      }
+
+      const first = ring[0] as Position;
+      const last = ring[ring.length - 1] as Position;
+      return first[0] === last[0] && first[1] === last[1];
+    })
+  );
 }
 
 function averagePosition(positions: Position[]): [number, number] {

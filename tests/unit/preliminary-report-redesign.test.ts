@@ -204,7 +204,14 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).toContain(report.overall.summary);
     expect(html).toContain(report.overall.recommendedStage);
     expect(html).toContain("Mapping information");
+    expect(html).not.toContain("Map key");
+    expect(html).not.toContain("map-legend");
+    expect(html).not.toContain("Key findings");
     expect(html).toContain("Preliminary assessment");
+    expect(html).toContain("Preliminary feasibility only.");
+    expect(html).toContain(
+      "Preliminary Feasibility Report — indicative desktop screening",
+    );
     expect(html).not.toMatch(/Feasibility score|\/ 100|confidence percentage/i);
     expect(html).not.toMatch(/Compact Plus|Scenario results|rotation/i);
     expect(html).not.toMatch(/provider error|query status|returned|ArcGIS/i);

@@ -30,4 +30,23 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
   expect(
     screen.queryByRole("region", { name: "Saved pool-shell clearances" }),
   ).not.toBeInTheDocument();
+
+  rerender(
+    <SavedReportInteractiveMap
+      report={buildTestPreliminaryReport({
+        pool: {
+          clearancesVisible: true,
+          shellGeometry: {
+            type: "Polygon",
+            coordinates: [["malformed"]],
+          } as never,
+        },
+      })}
+      attribution="Test map attribution"
+    />,
+  );
+
+  expect(
+    screen.queryByRole("region", { name: "Saved pool-shell clearances" }),
+  ).not.toBeInTheDocument();
 });

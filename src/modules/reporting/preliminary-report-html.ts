@@ -6,10 +6,13 @@ import {
   reportShortStatus,
   type ReportAssessment,
 } from "@/modules/reporting/pool-feasibility-report";
+import { reportPoolShellClearances } from "@/modules/reporting/preliminary-report-presentation";
 import {
-  reportMapLegend,
-  reportPoolShellClearances,
-} from "@/modules/reporting/preliminary-report-presentation";
+  POOL_SHELL_CLEARANCE_LIMITATION,
+  PRELIMINARY_FEASIBILITY_REPORT_FOOTER,
+  PRELIMINARY_FEASIBILITY_REPORT_SCOPE,
+  preliminaryEvidenceActions,
+} from "@/modules/reporting/preliminary-feasibility-copy";
 import { escapeHtml } from "@/shared/html/escape-html";
 
 export function renderCanonicalPreliminaryReportHtml(
@@ -24,7 +27,7 @@ export function renderCanonicalPreliminaryReportHtml(
       <div class="page-meta">${esc(report.reference)}<br>Page ${page} of 3</div>
     </header>`;
   const footer = (page: number) => `
-    <footer><span>Preliminary desktop assessment</span><span>${esc(report.reference)} - ${page}/3</span></footer>`;
+    <footer><span>${esc(PRELIMINARY_FEASIBILITY_REPORT_FOOTER)}</span><span>${esc(report.reference)} - ${page}/3</span></footer>`;
 
   const assessments = REPORT_ASSESSMENT_ORDER.map(
     (id) => report.assessments[id],
@@ -38,37 +41,17 @@ export function renderCanonicalPreliminaryReportHtml(
         </div>`,
     )
     .join("");
-  const keyFindings = report.keyFindings
-    .slice(0, 3)
-    .map(
-      (finding) => `
-        <article class="finding">
-          <span class="finding-dot ${esc(finding.severity)}"></span>
-          <div><h3>${esc(finding.title)}</h3><p>${esc(finding.clientSummary)}</p></div>
-        </article>`,
-    )
-    .join("");
-
-  const visibleLegend = reportMapLegend(report).entries.filter(
-    (entry) =>
-      ["property-boundary", "selected-pool", "construction-envelope"].includes(
-        entry.id,
-      ) || entry.statusLabel === "Mapped",
-  );
-  const legend = visibleLegend
-    .map(
-      (entry) => `
-        <span class="legend-item">
-          <i class="legend-swatch ${esc(entry.kind)}${entry.dashed ? " dashed" : ""}" style="--map-colour:${esc(entry.colour)}"></i>
-          ${esc(entry.label)}
-        </span>`,
-    )
-    .join("");
-  const mapAttribution = compactAttribution(report);
   const clearances = reportPoolShellClearances(report);
+  const evidenceActions = preliminaryEvidenceActions({
+    boundaryStatus: report.property.boundaryStatus,
+    sources: report.sources,
+  });
+  const evidenceActionsHtml = evidenceActions.length
+    ? `<section class="evidence-actions"><h2>Evidence to confirm</h2><ul>${evidenceActions.map((action) => `<li>${esc(action)}</li>`).join("")}</ul></section>`
+    : "";
   const clearanceCaption =
     clearances.length === 4
-      ? `<div class="map-clearances"><strong>Pool-shell clearances</strong><span>${clearances.map((clearance, index) => `Side ${index + 1}: ${esc(clearance.label)}`).join(" · ")}</span><p>Indicative mapped pool-shell clearances — not a survey or setback assessment.</p></div>`
+      ? `<div class="map-clearances"><strong>Pool-shell clearances</strong><span>${clearances.map((clearance, index) => `Side ${index + 1}: ${esc(clearance.label)}`).join(" · ")}</span><p>${esc(POOL_SHELL_CLEARANCE_LIMITATION)}</p></div>`
       : "";
 
   const assessmentCards = assessments
@@ -142,22 +125,17 @@ export function renderCanonicalPreliminaryReportHtml(
     .glance-row>span{font-size:7.5pt;font-weight:700}
     .status-text{font-size:6.8pt;color:var(--state-ink);text-align:right}
     .map-panel{margin-top:3.2mm;border:.25mm solid #cdd8dd;border-radius:2.5mm;overflow:hidden;background:#edf2f4}
-    .map{display:block;width:100%;height:81mm;object-fit:contain;background:#dce5e9}
-    .map-caption{padding:2mm 2.8mm;background:#f7f9fa;border-top:.25mm solid #d6dfe3}
-    .legend{display:flex;flex-wrap:wrap;gap:1.4mm 4mm}
-    .legend-item{display:inline-flex;align-items:center;gap:1.5mm;font-size:6.5pt;font-weight:700;color:#41515b}
-    .legend-swatch{display:inline-block;width:7mm;height:0;border-top:1mm solid var(--map-colour)}
-    .legend-swatch.area{height:2.8mm;border:0;background:color-mix(in srgb,var(--map-colour) 32%,white);outline:.55mm solid var(--map-colour);outline-offset:-.55mm}
-    .legend-swatch.dashed{border-top-style:dashed}
-    .map-attribution{margin-top:1.3mm;color:#687780;font-size:5.8pt;line-height:1.25}
-    .map-clearances{margin-top:1.8mm;color:#41515b;font-size:6.5pt;line-height:1.35}
+    .map-layout{background:#dce5e9}
+    .map{display:block;width:100%;height:78mm;object-fit:contain;background:#dce5e9}
+    .map-caption{padding:1.8mm 2.8mm;background:#f7f9fa;border-top:.25mm solid #d6dfe3}
+    .map-clearances{color:#41515b;font-size:6.5pt;line-height:1.35}
     .map-clearances strong{margin-right:2mm}
     .map-clearances p{margin-top:.7mm;color:#687780;font-size:5.8pt}
-    .findings{display:grid;grid-template-columns:repeat(3,1fr);gap:2.4mm}
-    .finding{display:flex;gap:2mm;padding:2.4mm;background:#f7f9fa;border-radius:2mm;min-height:19mm}
-    .finding-dot{width:2.4mm;height:2.4mm;margin-top:.4mm;border-radius:50%;background:var(--state-border);flex:0 0 auto}
-    .finding p{margin-top:.8mm;color:#53636d;font-size:6.8pt}
     .assessment-intro{margin-top:4.5mm;max-width:150mm;color:#53636d}
+    .evidence-actions{margin-top:2.5mm;padding:2.5mm 3mm;border:.25mm solid #dce4e8;border-radius:2.5mm;color:#44545e}
+    .evidence-actions h2{font-size:7.5pt}
+    .evidence-actions ul{margin:1.2mm 0 0;padding-left:4mm}
+    .evidence-actions li{margin-bottom:.7mm;font-size:6.5pt;line-height:1.35}
     .assessment-grid{margin-top:3.5mm;display:grid;grid-template-columns:1fr 1fr;gap:2.5mm}
     .assessment-card{break-inside:avoid;min-height:37mm;padding:3mm;border:.25mm solid #dce4e8;border-radius:2.5mm}
     .assessment-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:3mm}
@@ -196,14 +174,16 @@ export function renderCanonicalPreliminaryReportHtml(
       <div class="status-label">${esc(assessmentStatusLabel(report.overall.status))}</div>
       <p>${esc(report.overall.summary)}</p>
     </section>
+    <p class="assessment-intro"><strong>Preliminary feasibility only.</strong> ${esc(PRELIMINARY_FEASIBILITY_REPORT_SCOPE)}</p>
+    ${evidenceActionsHtml}
     <div class="section-heading"><h2>At a glance</h2><span>Status is shown by colour and description</span></div>
     <div class="glance-grid">${glance}</div>
     <figure class="map-panel">
-      <img class="map" src="${report.mapImageDataUrl}" alt="Aerial map showing the mapped property and proposed pool">
-      <figcaption class="map-caption"><div class="legend">${legend}</div>${clearanceCaption}<p class="map-attribution">${esc(mapAttribution)}</p></figcaption>
+      <div class="map-layout">
+        <img class="map" src="${report.mapImageDataUrl}" alt="Aerial map showing the mapped property and proposed pool">
+      </div>
+      <figcaption class="map-caption">${clearanceCaption}</figcaption>
     </figure>
-    <div class="section-heading"><h2>Key findings</h2></div>
-    <div class="findings">${keyFindings}</div>
     ${footer(1)}
   </section>
 
@@ -263,19 +243,6 @@ function renderAssessment(
     <p>${esc(item.summary)}</p>
     ${details ? `<ul class="detail-list">${details}</ul>` : ""}
   </article>`;
-}
-
-function compactAttribution(report: SavedPreliminaryReport): string {
-  const attributions = unique(
-    report.sources
-      .map((source) => source.attribution)
-      .filter((value): value is string => Boolean(value)),
-  );
-  if (attributions.length > 0) return attributions.join(" - ");
-  const providers = unique(report.sources.map((source) => source.provider));
-  return providers.length > 0
-    ? `Map and data: ${providers.join(" - ")}`
-    : "Mapped information is indicative.";
 }
 
 function latestSourceDate(report: SavedPreliminaryReport): string | null {

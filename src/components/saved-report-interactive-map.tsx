@@ -7,6 +7,7 @@ import {
   reportPoolShellClearances,
   type ReportMapLegendEntry,
 } from "@/modules/reporting/preliminary-report-presentation";
+import { POOL_SHELL_CLEARANCE_LIMITATION } from "@/modules/reporting/preliminary-feasibility-copy";
 
 export function SavedReportInteractiveMap({
   report,
@@ -75,8 +76,7 @@ export function SavedReportInteractiveMap({
                 ))}
               </ul>
               <p className="mt-2 text-xs leading-5 text-pool-600">
-                Indicative mapped pool-shell clearances — not a survey or
-                setback assessment.
+                {POOL_SHELL_CLEARANCE_LIMITATION}
               </p>
             </section>
           )}
