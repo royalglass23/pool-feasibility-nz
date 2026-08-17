@@ -35,6 +35,9 @@ vi.mock("maplibre-gl", () => {
     getSource() {
       return { setData() {} };
     }
+    project([longitude, latitude]: [number, number]) {
+      return { x: longitude * 1_000_000, y: latitude * -1_000_000 };
+    }
     getLayer() {
       return {};
     }
@@ -66,11 +69,35 @@ vi.mock("maplibre-gl", () => {
     }
   }
 
+  class Marker {
+    constructor(private readonly options: { element: HTMLElement }) {}
+
+    addTo() {
+      document.body.append(this.options.element);
+      return this;
+    }
+    getElement() {
+      return this.options.element;
+    }
+    remove() {
+      this.options.element.remove();
+      return this;
+    }
+    setLngLat() {
+      return this;
+    }
+    setOffset() {
+      return this;
+    }
+  }
+
   return {
     Map,
+    Marker,
     NavigationControl: class NavigationControl {},
     default: {
       Map,
+      Marker,
       NavigationControl: class NavigationControl {},
     },
   };
@@ -181,6 +208,26 @@ it("draws the indicative investigation buffer around the selected pool", async (
       }),
     ]),
   );
+});
+
+it("labels each visible clearance at its mapped boundary end", async () => {
+  const user = userEvent.setup();
+  render(
+    <FastPropertyView
+      result={fastResult}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  expect(screen.getAllByText(/^Side [1-4] · \d+\.\d m$/)).toHaveLength(4);
+
+  await user.click(
+    screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
+  );
+  expect(screen.queryByText(/^Side 1 · \d+\.\d m$/)).not.toBeInTheDocument();
 });
 
 it("shows live pool-shell clearances by default and preserves the selected visibility while the pool moves", async () => {
