@@ -8,6 +8,7 @@ type ConsentChoice = "granted" | "denied" | null;
 type AnalyticsWindow = Window & {
   dataLayer?: unknown[];
   gtag?: (...arguments_: unknown[]) => void;
+  hj?: (...arguments_: unknown[]) => void;
   [key: `ga-disable-${string}`]: boolean | undefined;
 };
 
@@ -15,11 +16,16 @@ const CONSENT_CHANGE_EVENT = "rg-analytics-consent-change";
 
 export function AnalyticsConsent({
   measurementId,
+  hotjarSiteId,
 }: {
   measurementId?: string;
+  hotjarSiteId?: string;
 }) {
   const safeMeasurementId = isMeasurementId(measurementId)
     ? measurementId
+    : undefined;
+  const safeHotjarSiteId = isHotjarSiteId(hotjarSiteId)
+    ? hotjarSiteId
     : undefined;
   const choice = useSyncExternalStore(
     subscribeToConsent,
@@ -32,10 +38,11 @@ export function AnalyticsConsent({
   const settingsOpen = settingsOverride ?? choice === null;
 
   useEffect(() => {
-    if (choice === "denied" && safeMeasurementId) {
-      disableAnalytics(safeMeasurementId);
+    if (choice === "denied") {
+      if (safeMeasurementId) disableAnalytics(safeMeasurementId);
+      if (safeHotjarSiteId) disableHotjar(safeHotjarSiteId);
     }
-  }, [choice, safeMeasurementId]);
+  }, [choice, safeHotjarSiteId, safeMeasurementId]);
 
   function choose(nextChoice: Exclude<ConsentChoice, null>) {
     try {
@@ -47,36 +54,53 @@ export function AnalyticsConsent({
 
     window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT));
     setSettingsOverride(false);
-    if (!safeMeasurementId) return;
+    if (!safeMeasurementId && !safeHotjarSiteId) return;
 
     if (nextChoice === "denied") {
-      disableAnalytics(safeMeasurementId);
+      if (safeMeasurementId) disableAnalytics(safeMeasurementId);
+      if (safeHotjarSiteId) disableHotjar(safeHotjarSiteId);
     } else {
-      (window as unknown as AnalyticsWindow)[
-        `ga-disable-${safeMeasurementId}`
-      ] = false;
+      if (safeMeasurementId) {
+        (window as unknown as AnalyticsWindow)[
+          `ga-disable-${safeMeasurementId}`
+        ] = false;
+      }
     }
   }
 
   const analyticsEnabled =
-    choice === "granted" && safeMeasurementId !== undefined;
+    choice === "granted" &&
+    (safeMeasurementId !== undefined || safeHotjarSiteId !== undefined);
 
   return (
     <>
       {analyticsEnabled && (
         <>
-          <Script
-            id="ga4-loader"
-            src={`https://www.googletagmanager.com/gtag/js?id=${safeMeasurementId}`}
-            strategy="afterInteractive"
-          />
-          <Script
-            id="ga4-config"
-            strategy="afterInteractive"
-            dangerouslySetInnerHTML={{
-              __html: ga4Configuration(safeMeasurementId),
-            }}
-          />
+          {safeMeasurementId && (
+            <>
+              <Script
+                id="ga4-loader"
+                src={`https://www.googletagmanager.com/gtag/js?id=${safeMeasurementId}`}
+                strategy="afterInteractive"
+              />
+              <Script
+                id="ga4-config"
+                strategy="afterInteractive"
+                dangerouslySetInnerHTML={{
+                  __html: ga4Configuration(safeMeasurementId),
+                }}
+              />
+            </>
+          )}
+          {safeHotjarSiteId && (
+            <Script
+              id="hotjar-loader"
+              strategy="afterInteractive"
+              dangerouslySetInnerHTML={{
+                __html: hotjarConfiguration(safeHotjarSiteId),
+              }}
+            />
+          )}
         </>
       )}
 
@@ -93,9 +117,10 @@ export function AnalyticsConsent({
               Analytics cookies
             </h2>
             <p className="mt-2 text-sm leading-6">
-              With your permission, GA4 records anonymous steps through the
-              Property Check. We never send your contact details, property
-              address, map, report, coordinates, or free text.
+              With your permission, Hotjar and any configured analytics tool
+              record anonymous interaction patterns through the Property Check.
+              We never send your contact details, property address, map,
+              report, coordinates, or free text.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
@@ -163,6 +188,10 @@ function isMeasurementId(value: string | undefined): value is string {
   return typeof value === "string" && /^G-[A-Z0-9]+$/i.test(value);
 }
 
+function isHotjarSiteId(value: string | undefined): value is string {
+  return typeof value === "string" && /^\d+$/.test(value);
+}
+
 function ga4Configuration(measurementId: string): string {
   const id = JSON.stringify(measurementId);
   return `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}window.gtag=gtag;gtag('js',new Date());gtag('config',${id},{send_page_view:false,anonymize_ip:true,allow_google_signals:false,allow_ad_personalization_signals:false});`;
@@ -181,4 +210,34 @@ function disableAnalytics(measurementId: string) {
       document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
     }
   }
+}
+
+function hotjarConfiguration(siteId: string) {
+  const id = JSON.stringify(siteId);
+  return `window.hj=window.hj||function(){(window.hj.q=window.hj.q||[]).push(arguments);};window._hjSettings={hjid:${id},hjsv:6};(function(){var script=document.createElement('script');script.async=true;script.src='https://static.hotjar.com/c/hotjar-'+window._hjSettings.hjid+'.js?sv='+window._hjSettings.hjsv;document.head.appendChild(script);})();`;
+}
+
+function disableHotjar(siteId: string) {
+  for (const cookie of document.cookie.split(";")) {
+    const name = cookie.split("=", 1)[0]?.trim();
+    if (name?.startsWith("_hj")) {
+      document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
+    }
+  }
+
+  for (const storage of [localStorage, sessionStorage]) {
+    try {
+      for (const key of Object.keys(storage)) {
+        if (key.startsWith("_hj") || key.startsWith("hj")) {
+          storage.removeItem(key);
+        }
+      }
+    } catch {
+      // An unavailable storage API must not block withdrawal of consent.
+    }
+  }
+
+  document
+    .querySelectorAll(`script[src*="hotjar-${siteId}.js"]`)
+    .forEach((script) => script.remove());
 }

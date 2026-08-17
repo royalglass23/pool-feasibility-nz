@@ -54,7 +54,7 @@ export function PoolFeasibilityExplainer() {
       aria-labelledby="pool-explainer-title"
     >
       <div className="sr-only">
-        <h2 id="pool-explainer-title">How Pool Lab works</h2>
+        <h2 id="pool-explainer-title">How PoolReady works</h2>
         <p>
           Find your property, try an indicative pool position, see what needs
           checking, and receive a preliminary report.

@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnalyticsConsent } from "@/components/analytics-consent";
@@ -13,6 +13,7 @@ vi.mock("next/script", () => ({
 describe("analytics consent", () => {
   beforeEach(() => {
     localStorage.clear();
+    sessionStorage.clear();
   });
 
   it("keeps GA unloaded until consent and lets the visitor reverse the choice", async () => {
@@ -38,7 +39,7 @@ describe("analytics consent", () => {
     ).toBeNull();
 
     await user.click(
-      screen.getByRole("button", { name: "Analytics settings" }),
+      within(container).getByRole("button", { name: "Analytics settings" }),
     );
     await user.click(screen.getByRole("button", { name: "Allow analytics" }));
 
@@ -75,5 +76,32 @@ describe("analytics consent", () => {
 
     expect(localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY)).toBe("granted");
     expect(container.querySelector("script")).toBeNull();
+  });
+
+  it("loads Hotjar only after consent and clears its browser storage on withdrawal", async () => {
+    const user = userEvent.setup();
+    const { container } = render(<AnalyticsConsent hotjarSiteId="123456" />);
+
+    expect(container.querySelector("#hotjar-loader")).toBeNull();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Allow analytics" }),
+    );
+
+    expect(container.querySelector("#hotjar-loader")?.textContent).toContain(
+      "static.hotjar.com/c/hotjar-",
+    );
+    localStorage.setItem("_hjSession_123456", "session");
+    sessionStorage.setItem("hjViewportId", "viewport");
+
+    await user.click(
+      within(container).getByRole("button", { name: "Analytics settings" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Turn analytics off" }),
+    );
+
+    expect(localStorage.getItem("_hjSession_123456")).toBeNull();
+    expect(sessionStorage.getItem("hjViewportId")).toBeNull();
   });
 });

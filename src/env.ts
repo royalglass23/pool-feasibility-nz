@@ -47,6 +47,7 @@ export const env = createEnv({
       .string()
       .regex(/^G-[A-Z0-9]+$/i)
       .optional(),
+    NEXT_PUBLIC_HOTJAR_SITE_ID: z.string().regex(/^\d+$/).optional(),
   },
   runtimeEnv: {
     APP_BASE_URL: process.env.APP_BASE_URL,
@@ -72,6 +73,7 @@ export const env = createEnv({
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     OPENAI_MODEL: process.env.OPENAI_MODEL,
     NEXT_PUBLIC_GA4_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID,
+    NEXT_PUBLIC_HOTJAR_SITE_ID: process.env.NEXT_PUBLIC_HOTJAR_SITE_ID,
   },
   emptyStringAsUndefined: true,
   skipValidation: Boolean(process.env.SKIP_ENV_VALIDATION),

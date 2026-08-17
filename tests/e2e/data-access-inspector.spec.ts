@@ -653,7 +653,16 @@ test("selects an address suggestion and opens the fast property view", async ({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        suggestions: [{ addressId: "2359811", fullAddress: address }],
+        suggestions: [
+          {
+            addressId: "2359811",
+            fullAddress: address,
+            fullAddressNumber: "42A",
+            unit: null,
+            territorialAuthority: "Auckland",
+            coordinates: [174.6082, -36.8603],
+          },
+        ],
       }),
     });
   });

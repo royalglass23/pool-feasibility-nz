@@ -31,7 +31,14 @@ describe("POST /api/public/address-suggestions", () => {
   it("serves an anonymous visitor without Basic credentials", async () => {
     vi.stubEnv("NODE_ENV", "development");
     suggestAddresses.mockResolvedValue([
-      { addressId: "1", fullAddress: "1 Bahari Drive, Auckland" },
+      {
+        addressId: "1",
+        fullAddress: "1 Bahari Drive, Auckland",
+        fullAddressNumber: "1",
+        unit: null,
+        territorialAuthority: "Auckland",
+        coordinates: [174.6082, -36.8603],
+      },
     ]);
 
     const response = await POST_PUBLIC(
@@ -40,6 +47,18 @@ describe("POST /api/public/address-suggestions", () => {
 
     expect(response.status).toBe(200);
     expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(await response.json()).toEqual({
+      suggestions: [
+        {
+          addressId: "1",
+          fullAddress: "1 Bahari Drive, Auckland",
+          fullAddressNumber: "1",
+          unit: null,
+          territorialAuthority: "Auckland",
+          coordinates: [174.6082, -36.8603],
+        },
+      ],
+    });
     expect(suggestAddresses).toHaveBeenCalledWith("bahari");
   });
 });
