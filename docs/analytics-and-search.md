@@ -1,16 +1,24 @@
 # Analytics consent and search indexing
 
-## GA4
+## Analytics
 
-GA4 is optional. Set `NEXT_PUBLIC_GA4_MEASUREMENT_ID` to a valid `G-...`
-measurement ID to make analytics available. With no ID, the site remains fully
-usable and no analytics script is rendered.
+GA4 and Hotjar are optional. Set `NEXT_PUBLIC_GA4_MEASUREMENT_ID` to a valid
+`G-...` measurement ID and/or `NEXT_PUBLIC_HOTJAR_SITE_ID` to the numeric Site
+ID from Hotjar. With neither configured, the site remains fully usable and no
+analytics script is rendered.
 
-The visitor must select **Allow analytics** before the Google script is loaded.
-**Reject analytics** and **Not now** leave it unloaded. The persistent
+The visitor must select **Allow analytics** before either script is loaded.
+**Reject analytics** and **Not now** leave them unloaded. The persistent
 **Analytics settings** control lets the visitor change the choice later;
-turning analytics off disables collection and removes first-party `_ga`
-cookies that are accessible to the site.
+turning analytics off disables collection and removes first-party `_ga` and
+`_hj` cookies that are accessible to the site.
+
+Hotjar runs only on the public Property Check, never on `/staff` routes. The
+Property Check component is marked `data-hj-suppress`, so Hotjar does not
+receive addresses, maps, report content, contact details, coordinates, or free
+text. Do not use the Hotjar Identify API or add `data-hj-allow` to any field.
+In Hotjar Site Settings, keep input suppression on and configure data
+suppression before enabling recordings.
 
 The choice is stored in the browser under `rg_analytics_consent_v1`. Analytics
 accepts only these anonymous funnel events:

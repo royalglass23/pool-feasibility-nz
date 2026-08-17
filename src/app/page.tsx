@@ -1,5 +1,7 @@
 import { AucklandPropertyJourney } from "@/components/auckland-property-journey";
+import { AnalyticsConsent } from "@/components/analytics-consent";
 import { PoolFeasibilityExplainer } from "@/components/pool-feasibility-explainer";
+import { env } from "@/env";
 import { DataAccessInspector } from "./data-access-inspector";
 
 export default function Home() {
@@ -9,7 +11,7 @@ export default function Home() {
       <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
         <header className="mb-10 hidden max-w-3xl sm:mb-14">
           <div className="border-pool-blue-700/15 text-pool-blue-800 mb-6 inline-flex items-center gap-2 rounded-full border bg-white/80 px-3 py-1.5 text-xs font-bold tracking-[0.14em] uppercase shadow-sm backdrop-blur">
-            Pool Lab · Data access POC
+            PoolReady · Data access POC
           </div>
           <h1 className="text-pool-950 text-4xl leading-tight font-semibold tracking-[-0.035em] sm:text-6xl">
             Inspect official property data before assessing pool feasibility.
@@ -91,7 +93,9 @@ export default function Home() {
               once you are ready.
             </p>
           </div>
-          <DataAccessInspector />
+          <div data-hj-suppress>
+            <DataAccessInspector />
+          </div>
         </section>
 
         <footer className="mt-10 border-t border-[#dbe8f0] pt-6 text-sm leading-6 text-[#5c7e96]">
@@ -100,6 +104,10 @@ export default function Home() {
           interests, easements, or exact underground service positions.
         </footer>
       </div>
+      <AnalyticsConsent
+        measurementId={env.NEXT_PUBLIC_GA4_MEASUREMENT_ID}
+        hotjarSiteId={env.NEXT_PUBLIC_HOTJAR_SITE_ID}
+      />
     </main>
   );
 }

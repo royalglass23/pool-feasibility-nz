@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AnalyticsConsent } from "@/components/analytics-consent";
-import { PoolLabLogo } from "@/components/pool-lab-logo";
+import { PoolReadyLogo } from "@/components/pool-ready-logo";
 import { isSiteIndexingEnabled } from "@/config/site-indexing";
-import { env } from "@/env";
 import "./globals.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -33,15 +31,14 @@ export default function RootLayout({
           >
             <Link
               href="/"
-              aria-label="Pool Lab home"
+              aria-label="PoolReady home"
               className="inline-flex min-h-11 items-center rounded-xl outline-offset-4 focus-visible:outline-2 focus-visible:outline-pool-blue-700"
             >
-              <PoolLabLogo />
+              <PoolReadyLogo />
             </Link>
           </nav>
         </header>
         {children}
-        <AnalyticsConsent measurementId={env.NEXT_PUBLIC_GA4_MEASUREMENT_ID} />
       </body>
     </html>
   );

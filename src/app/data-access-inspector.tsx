@@ -25,6 +25,7 @@ import { SessionAssessmentResult } from "@/components/session-assessment-result"
 import { AssessmentExplanationResult } from "@/components/assessment-explanation-result";
 import { AssessmentWorkspace } from "@/components/assessment-workspace";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
+import type { AddressMatch } from "@/modules/data-access-spike/data-access-gateway";
 import type { DataAccessRequestError } from "@/modules/data-access-spike/execute-data-access-request";
 import { buildSessionAssessment } from "@/modules/assessment/build-session-assessment";
 import type { AssessmentExplanation } from "@/modules/recommendations/generate-assessment-explanation";
@@ -64,6 +65,9 @@ type ApiResponse =
       error: DataAccessRequestError;
     };
 
+type AddressOption = Pick<AddressMatch, "addressId" | "fullAddress">;
+type PendingSelectedAddress = AddressOption;
+
 export function DataAccessInspector() {
   const [address, setAddress] = useState("");
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
@@ -73,6 +77,8 @@ export function DataAccessInspector() {
   const [fastResult, setFastResult] = useState<FastPropertyViewResult | null>(
     null,
   );
+  const [pendingSelectedAddress, setPendingSelectedAddress] =
+    useState<PendingSelectedAddress | null>(null);
   const [fastAssessmentSnapshot, setFastAssessmentSnapshot] = useState<
     string | null
   >(null);
@@ -82,9 +88,7 @@ export function DataAccessInspector() {
     useState<FastPropertyViewMapSnapshot | null>(null);
   const fastSavedReport = useSavedAssessmentReport();
   const [error, setError] = useState<string | null>(null);
-  const [addressOptions, setAddressOptions] = useState<
-    Array<{ addressId: string; fullAddress: string }>
-  >([]);
+  const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
   const [canRetry, setCanRetry] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -95,7 +99,7 @@ export function DataAccessInspector() {
     null,
   );
   const isEnteringAddress =
-    !fastResult && !result && !fastSavedReport.assessment;
+    !pendingSelectedAddress && !fastResult && !result && !fastSavedReport.assessment;
   const handleFastPlacementChange = useCallback(
     (placement: FastPoolPlacementSnapshot) => {
       setFastPlacementSnapshot(placement);
@@ -125,7 +129,7 @@ export function DataAccessInspector() {
           throw new Error("Address suggestions are temporarily unavailable.");
         }
         const body = (await response.json()) as {
-          suggestions?: Array<{ addressId: string; fullAddress: string }>;
+          suggestions?: AddressOption[];
         };
         const nextSuggestions = body.suggestions ?? [];
         setAddressOptions(nextSuggestions);
@@ -184,6 +188,9 @@ export function DataAccessInspector() {
     setCanRetry(false);
     setResult(null);
     setFastResult(null);
+    setPendingSelectedAddress((current) =>
+      selectedId && current?.addressId === selectedId ? current : null,
+    );
     setFastAssessmentSnapshot(null);
     setFastPlacementSnapshot(null);
     setFastMapSnapshot(null);
@@ -248,6 +255,7 @@ export function DataAccessInspector() {
 
       if (fastRequestIdRef.current !== requestId) return;
       setFastResult(body.data);
+      setPendingSelectedAddress(null);
       setFastAssessmentSnapshot(body.assessmentSnapshot);
       trackAnonymousFunnelEvent({ name: "property_check_completed" });
       setCanRetry(false);
@@ -403,6 +411,7 @@ export function DataAccessInspector() {
     setSelectedAddressId(null);
     setResult(null);
     setFastResult(null);
+    setPendingSelectedAddress(null);
     setFastAssessmentSnapshot(null);
     setFastPlacementSnapshot(null);
     setFastMapSnapshot(null);
@@ -416,7 +425,7 @@ export function DataAccessInspector() {
   return (
     <div className="space-y-8">
       <ActionProgressDialog
-        open={isLoading}
+        open={isLoading && !fastResult && !pendingSelectedAddress}
         title="Fetching property data"
         description="Retrieving available property information and preparing your property view."
       />
@@ -425,7 +434,7 @@ export function DataAccessInspector() {
         title="Running detailed official checks"
         description="Reviewing available official datasets and mapped property evidence."
       />
-      {!fastResult && !result && !fastSavedReport.assessment && (
+      {isEnteringAddress && (
         <form
           onSubmit={handleSubmit}
           className="rounded-3xl border border-white/70 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.35)] sm:p-7"
@@ -486,6 +495,10 @@ export function DataAccessInspector() {
                       onClick={() => {
                         setAddress(option.fullAddress);
                         setSelectedAddressId(option.addressId);
+                        setPendingSelectedAddress({
+                          addressId: option.addressId,
+                          fullAddress: option.fullAddress,
+                        });
                         setAddressOptions([]);
                         void requestPropertyData(option.addressId);
                       }}
@@ -551,24 +564,35 @@ export function DataAccessInspector() {
         </form>
       )}
 
+      {pendingSelectedAddress && !fastResult && !result && (
+        <SelectedAddressPending
+          address={pendingSelectedAddress.fullAddress}
+          error={error}
+          canRetry={canRetry}
+          isLoading={isLoading}
+          onRetry={() => void requestPropertyData(pendingSelectedAddress.addressId)}
+          onStartAgain={startAgain}
+        />
+      )}
+
       {fastResult && !result && !fastSavedReport.assessment && (
         <>
           {error && (
             <div
               role="alert"
-              className="border-amber-200 bg-amber-50 text-amber-950 rounded-2xl border px-4 py-3 text-sm leading-6"
+              className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
             >
               <p className="font-semibold">
                 We couldn&apos;t finish every property check.
               </p>
               <p className="mt-1">
-                Your preliminary property view is still available. Please
-                search for the address again.
+                Your preliminary property view is still available. Please search
+                for the address again.
               </p>
               <button
                 type="button"
                 onClick={startAgain}
-                className="text-amber-950 hover:text-amber-800 focus-visible:outline-amber-800 mt-3 min-h-11 font-semibold underline underline-offset-2 focus-visible:outline-2 focus-visible:outline-offset-2"
+                className="mt-3 min-h-11 font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
               >
                 Search again
               </button>
@@ -625,6 +649,75 @@ export function DataAccessInspector() {
         />
       )}
     </div>
+  );
+}
+
+function SelectedAddressPending({
+  address,
+  error,
+  canRetry,
+  isLoading,
+  onRetry,
+  onStartAgain,
+}: {
+  address: string;
+  error: string | null;
+  canRetry: boolean;
+  isLoading: boolean;
+  onRetry: () => void;
+  onStartAgain: () => void;
+}) {
+  return (
+    <section
+      aria-labelledby="selected-address-pending-heading"
+      className="space-y-4 rounded-3xl border border-white/70 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.35)] sm:p-7"
+    >
+      <div className="flex items-start gap-3">
+        <span className="bg-pool-blue-50 text-pool-blue-700 grid size-10 place-items-center rounded-2xl">
+          <LoaderCircle className="size-5 animate-spin" aria-hidden="true" />
+        </span>
+        <div>
+          <p className="text-pool-blue-700 text-xs font-bold tracking-[0.18em] uppercase">
+            Address selected
+          </p>
+          <h2
+            id="selected-address-pending-heading"
+            className="text-pool-950 mt-2 text-2xl font-semibold"
+          >
+            Checking selected address
+          </h2>
+          <p className="text-pool-700 mt-2 font-semibold">{address}</p>
+          <p className="text-pool-600 mt-2 text-sm leading-6">
+            Checking the property boundary and available official information.
+          </p>
+        </div>
+      </div>
+      {error && (
+        <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
+          <p className="font-semibold">We couldn&apos;t verify a property view for this address.</p>
+          <p className="mt-1">{error}</p>
+          <div className="mt-3 flex flex-wrap gap-3">
+            {canRetry && (
+              <button
+                type="button"
+                disabled={isLoading}
+                onClick={onRetry}
+                className="min-h-11 rounded-xl border border-amber-300 bg-white px-4 text-sm font-semibold text-amber-950"
+              >
+                Try again
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={onStartAgain}
+              className="min-h-11 font-semibold text-amber-950 underline underline-offset-2"
+            >
+              Search again
+            </button>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
