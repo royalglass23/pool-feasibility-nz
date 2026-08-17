@@ -3,6 +3,7 @@ import { defineConfig, devices } from "@playwright/test";
 process.env.INTERNAL_REPORT_SIGNING_SECRET ??=
   "playwright-report-signing-secret-2026-07-22-at-least-32-bytes";
 process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID ??= "G-TEST123";
+process.env.NEXT_PUBLIC_HOTJAR_SITE_ID ??= "123456";
 
 export default defineConfig({
   testDir: "./tests/e2e",

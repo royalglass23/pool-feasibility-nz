@@ -1,5 +1,7 @@
 import { AucklandPropertyJourney } from "@/components/auckland-property-journey";
+import { AnalyticsConsent } from "@/components/analytics-consent";
 import { PoolFeasibilityExplainer } from "@/components/pool-feasibility-explainer";
+import { env } from "@/env";
 import { DataAccessInspector } from "./data-access-inspector";
 
 export default function Home() {
@@ -91,7 +93,9 @@ export default function Home() {
               once you are ready.
             </p>
           </div>
-          <DataAccessInspector />
+          <div data-hj-suppress>
+            <DataAccessInspector />
+          </div>
         </section>
 
         <footer className="mt-10 border-t border-[#dbe8f0] pt-6 text-sm leading-6 text-[#5c7e96]">
@@ -100,6 +104,10 @@ export default function Home() {
           interests, easements, or exact underground service positions.
         </footer>
       </div>
+      <AnalyticsConsent
+        measurementId={env.NEXT_PUBLIC_GA4_MEASUREMENT_ID}
+        hotjarSiteId={env.NEXT_PUBLIC_HOTJAR_SITE_ID}
+      />
     </main>
   );
 }

@@ -1,9 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AnalyticsConsent } from "@/components/analytics-consent";
 import { PoolReadyLogo } from "@/components/pool-ready-logo";
 import { isSiteIndexingEnabled } from "@/config/site-indexing";
-import { env } from "@/env";
 import "./globals.css";
 import "maplibre-gl/dist/maplibre-gl.css";
 
@@ -41,7 +39,6 @@ export default function RootLayout({
           </nav>
         </header>
         {children}
-        <AnalyticsConsent measurementId={env.NEXT_PUBLIC_GA4_MEASUREMENT_ID} />
       </body>
     </html>
   );

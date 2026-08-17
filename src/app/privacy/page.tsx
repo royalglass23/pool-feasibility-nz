@@ -43,6 +43,17 @@ export default function PrivacyNoticePage() {
           </p>
         </NoticeSection>
 
+        <NoticeSection title="Optional analytics">
+          <p>
+            If you choose <strong>Allow analytics</strong> on the Property
+            Check, Hotjar records anonymous interaction patterns to help Royal
+            Glass improve that journey. It does not load until you choose it,
+            and you can turn it off at any time through Analytics settings.
+            Your property search, map, report, contact details, and free text
+            are excluded from Hotjar.
+          </p>
+        </NoticeSection>
+
         <NoticeSection title="How long we keep it">
           <p>
             We keep the saved report request and its personal and property data
@@ -56,6 +67,11 @@ export default function PrivacyNoticePage() {
 
         <NoticeSection title="Services that process a request">
           <ul className="grid gap-3">
+            <li>
+              <strong className="text-[#062f5d]">Hotjar</strong> receives
+              anonymous Property Check interaction data only after you allow
+              analytics. It is not installed on staff pages.
+            </li>
             <li>
               <strong className="text-[#062f5d]">Neon</strong> stores the saved
               report request for Royal Glass.

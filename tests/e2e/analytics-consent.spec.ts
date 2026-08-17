@@ -1,11 +1,12 @@
 import { expect, test } from "@playwright/test";
 
-test("keeps the test site noindex and GA4 behind reversible consent", async ({
+test("keeps the test site noindex and analytics behind reversible consent", async ({
   page,
 }) => {
   await page.route("https://www.googletagmanager.com/**", (route) =>
     route.abort(),
   );
+  await page.route("https://static.hotjar.com/**", (route) => route.abort());
 
   const response = await page.goto("/");
   expect(response?.headers()["x-robots-tag"]).toBe(
@@ -17,10 +18,12 @@ test("keeps the test site noindex and GA4 behind reversible consent", async ({
   );
 
   const gaScript = page.locator('script[src*="googletagmanager.com/gtag/js"]');
+  const hotjarScript = page.locator("#hotjar-loader");
   await expect(
     page.getByRole("heading", { name: "Analytics cookies" }),
   ).toBeVisible();
   await expect(gaScript).toHaveCount(0);
+  await expect(hotjarScript).toHaveCount(0);
 
   await page.getByRole("button", { name: "Not now" }).click();
   await expect(gaScript).toHaveCount(0);
@@ -33,6 +36,7 @@ test("keeps the test site noindex and GA4 behind reversible consent", async ({
   await page.getByRole("button", { name: "Analytics settings" }).click();
   await page.getByRole("button", { name: "Allow analytics" }).click();
   await expect(gaScript).toHaveCount(1);
+  await expect(hotjarScript).toHaveCount(1);
 
   await page.getByRole("button", { name: "Analytics settings" }).click();
   await page.getByRole("button", { name: "Turn analytics off" }).click();
@@ -51,4 +55,9 @@ test("keeps the test site noindex and GA4 behind reversible consent", async ({
       localStorage.getItem("rg_analytics_consent_v1"),
     ),
   ).toBe("denied");
+});
+
+test("does not mount Hotjar on staff routes", async ({ page }) => {
+  await page.goto("/staff/sign-in");
+  await expect(page.locator("#hotjar-loader")).toHaveCount(0);
 });
