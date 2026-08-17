@@ -263,8 +263,10 @@ export function FastPropertyView({
         : [],
     [poolGeometry, result.boundary.geometry],
   );
-  poolShellClearancesRef.current = poolShellClearances;
-  clearancesVisibleRef.current = clearancesVisible;
+  useEffect(() => {
+    poolShellClearancesRef.current = poolShellClearances;
+    clearancesVisibleRef.current = clearancesVisible;
+  }, [clearancesVisible, poolShellClearances]);
   const poolWarning = useMemo(
     () =>
       classifyFastPoolWarning({
@@ -437,6 +439,7 @@ export function FastPropertyView({
   useEffect(() => {
     let map: import("maplibre-gl").Map | null = null;
     let disposed = false;
+    const clearanceLabelMarkers = clearanceLabelMarkersRef.current;
     void import("maplibre-gl").then((maplibregl) => {
       if (disposed || !mapRef.current) return;
       mapLibreRef.current = maplibregl;
@@ -636,7 +639,7 @@ export function FastPropertyView({
         syncPoolShellClearanceLabels({
           map,
           maplibregl,
-          markers: clearanceLabelMarkersRef.current,
+          markers: clearanceLabelMarkers,
           clearances: poolShellClearancesRef.current,
           visible: clearancesVisibleRef.current,
         });
@@ -747,7 +750,7 @@ export function FastPropertyView({
     });
     return () => {
       disposed = true;
-      removePoolShellClearanceLabels(clearanceLabelMarkersRef.current);
+      removePoolShellClearanceLabels(clearanceLabelMarkers);
       map?.remove();
       mapInstanceRef.current = null;
       mapLibreRef.current = null;
@@ -1303,7 +1306,12 @@ function syncPoolShellClearanceLabels({
       const element = document.createElement("span");
       element.className = "pool-shell-clearance-label";
       element.setAttribute("aria-hidden", "true");
-      marker = new maplibregl.Marker({ element, anchor: "center" }).addTo(map);
+      // MapLibre renders a marker as soon as it is added. Give it its
+      // coordinate first: adding an unpositioned marker makes its renderer
+      // read `lng` from an undefined LngLat and prevents the whole map loading.
+      marker = new maplibregl.Marker({ element, anchor: "center" })
+        .setLngLat(clearance.end)
+        .addTo(map);
       markers[index] = marker;
     }
     marker.getElement().textContent = `Side ${index + 1} · ${clearance.label}`;

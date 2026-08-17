@@ -72,9 +72,14 @@ vi.mock("maplibre-gl", () => {
   }
 
   class Marker {
+    private lngLat: [number, number] | undefined;
+
     constructor(private readonly options: { element: HTMLElement }) {}
 
     addTo() {
+      if (!this.lngLat) {
+        throw new Error("A marker must have a position before it is added.");
+      }
       document.body.append(this.options.element);
       return this;
     }
@@ -85,7 +90,8 @@ vi.mock("maplibre-gl", () => {
       this.options.element.remove();
       return this;
     }
-    setLngLat() {
+    setLngLat(lngLat: [number, number]) {
+      this.lngLat = lngLat;
       return this;
     }
     setOffset() {
