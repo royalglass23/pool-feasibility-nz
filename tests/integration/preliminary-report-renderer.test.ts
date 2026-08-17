@@ -46,7 +46,7 @@ describe("persisted preliminary report renderer", () => {
     expect(second.equals(first)).toBe(true);
   }, 60_000);
 
-  it("keeps the saved map, clearances and findings inside the fixed three-page A4 report", async () => {
+  it("keeps the saved map and clearances inside the fixed three-page A4 report", async () => {
     const sixStateReport = buildTestPreliminaryReport({
       layers: [
         {
@@ -119,7 +119,7 @@ describe("persisted preliminary report renderer", () => {
           mapPanelContained: boolean;
           mapKeyCount: number;
           mapCaptionContained: boolean;
-          findingsContainedAboveFooter: boolean;
+          keyFindingsCount: number;
         }
       | undefined;
     const executablePath = testChromiumExecutable();
@@ -143,25 +143,13 @@ describe("persisted preliminary report renderer", () => {
             const mapPage = mapPanel?.closest<HTMLElement>(".page");
             const mapCaption =
               mapPanel?.querySelector<HTMLElement>(".map-caption");
-            const findings = document.querySelector<HTMLElement>(".findings");
-            const firstPageFooter =
-              pages[0]?.querySelector<HTMLElement>("footer");
-            if (
-              !mapPanel ||
-              !map ||
-              !mapPage ||
-              !mapCaption ||
-              !findings ||
-              !firstPageFooter
-            ) {
+            if (!mapPanel || !map || !mapPage || !mapCaption) {
               throw new Error("REPORT_MAP_PANEL_MISSING");
             }
             const panelRect = mapPanel.getBoundingClientRect();
             const mapRect = map.getBoundingClientRect();
             const pageRect = mapPage.getBoundingClientRect();
             const captionRect = mapCaption.getBoundingClientRect();
-            const findingsRect = findings.getBoundingClientRect();
-            const footerRect = firstPageFooter.getBoundingClientRect();
             return {
               pageCount: pages.length,
               pageOverflowPixels: pages.map((reportPage) =>
@@ -176,8 +164,7 @@ describe("persisted preliminary report renderer", () => {
               mapCaptionContained:
                 captionRect.left >= mapRect.left &&
                 captionRect.right <= mapRect.right,
-              findingsContainedAboveFooter:
-                findingsRect.bottom <= footerRect.top,
+              keyFindingsCount: document.querySelectorAll(".findings").length,
             };
           });
           return Buffer.from(
@@ -198,7 +185,7 @@ describe("persisted preliminary report renderer", () => {
       mapPanelContained: true,
       mapKeyCount: 0,
       mapCaptionContained: true,
-      findingsContainedAboveFooter: true,
+      keyFindingsCount: 0,
     });
   }, 60_000);
 });

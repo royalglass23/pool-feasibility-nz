@@ -41,17 +41,6 @@ export function renderCanonicalPreliminaryReportHtml(
         </div>`,
     )
     .join("");
-  const keyFindings = report.keyFindings
-    .slice(0, 3)
-    .map(
-      (finding) => `
-        <article class="finding">
-          <span class="finding-dot ${esc(finding.severity)}"></span>
-          <div><h3>${esc(finding.title)}</h3><p>${esc(finding.clientSummary)}</p></div>
-        </article>`,
-    )
-    .join("");
-
   const clearances = reportPoolShellClearances(report);
   const evidenceActions = preliminaryEvidenceActions({
     boundaryStatus: report.property.boundaryStatus,
@@ -142,10 +131,6 @@ export function renderCanonicalPreliminaryReportHtml(
     .map-clearances{color:#41515b;font-size:6.5pt;line-height:1.35}
     .map-clearances strong{margin-right:2mm}
     .map-clearances p{margin-top:.7mm;color:#687780;font-size:5.8pt}
-    .findings{display:grid;grid-template-columns:repeat(3,1fr);gap:2.4mm}
-    .finding{display:flex;gap:2mm;padding:2.4mm;background:#f7f9fa;border-radius:2mm;min-height:19mm}
-    .finding-dot{width:2.4mm;height:2.4mm;margin-top:.4mm;border-radius:50%;background:var(--state-border);flex:0 0 auto}
-    .finding p{margin-top:.8mm;color:#53636d;font-size:6.8pt}
     .assessment-intro{margin-top:4.5mm;max-width:150mm;color:#53636d}
     .evidence-actions{margin-top:2.5mm;padding:2.5mm 3mm;border:.25mm solid #dce4e8;border-radius:2.5mm;color:#44545e}
     .evidence-actions h2{font-size:7.5pt}
@@ -199,8 +184,6 @@ export function renderCanonicalPreliminaryReportHtml(
       </div>
       <figcaption class="map-caption">${clearanceCaption}</figcaption>
     </figure>
-    <div class="section-heading"><h2>Key findings</h2></div>
-    <div class="findings">${keyFindings}</div>
     ${footer(1)}
   </section>
 
