@@ -42,6 +42,41 @@ describe("web, PDF and email report consistency", () => {
             "Mapped wastewater infrastructure is located close to the proposed pool area.",
         },
       ],
+      sources: [
+        {
+          provider: "Auckland Council",
+          dataset: "Stormwater",
+          status: "unavailable",
+          queryStatus: "unavailable",
+          evidenceUse: "unavailable",
+          licence: "Not available for this check.",
+          attribution: null,
+          sourceUrl: null,
+          retrievedAt: null,
+        },
+        {
+          provider: "Watercare",
+          dataset: "Wastewater",
+          status: "error",
+          queryStatus: "error",
+          evidenceUse: "unavailable",
+          licence: "Not available for this check.",
+          attribution: null,
+          sourceUrl: null,
+          retrievedAt: null,
+        },
+        {
+          provider: "Vector",
+          dataset: "Electricity",
+          status: "empty",
+          queryStatus: "empty",
+          evidenceUse: "report_allowed",
+          licence: "Fixture licence.",
+          attribution: null,
+          sourceUrl: null,
+          retrievedAt: null,
+        },
+      ],
     });
 
     render(
@@ -104,6 +139,31 @@ describe("web, PDF and email report consistency", () => {
     ).toBeVisible();
     expect(screen.getByText(report.property.address)).toBeVisible();
     expect(screen.getByText(report.overall.summary)).toBeVisible();
+    expect(
+      screen.getByText(
+        /This is an indicative desktop screen based on mapped information/i,
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Boundary source: provisional. Confirm boundary/title before design.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Stormwater layer unavailable for this check; it was not assessed.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Wastewater service did not return a result; it was not assessed.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "No Electricity feature was returned by this mapped-data query; this does not confirm that none are present.",
+      ),
+    ).toBeVisible();
     expect(screen.getByText(report.keyFindings[0]!.title)).toBeVisible();
     expect(
       screen.getByRole("region", {
@@ -111,6 +171,21 @@ describe("web, PDF and email report consistency", () => {
       }),
     ).toHaveTextContent(report.overall.recommendedStage);
     expect(pdfHtml).toContain(assessmentStatusLabel(report.overall.status));
+    expect(pdfHtml).toContain(
+      "This preliminary feasibility report is an indicative desktop screen based on available mapped information.",
+    );
+    expect(pdfHtml).toContain(
+      "Boundary source: provisional. Confirm boundary/title before design.",
+    );
+    expect(pdfHtml).toContain(
+      "Stormwater layer unavailable for this check; it was not assessed.",
+    );
+    expect(pdfHtml).toContain(
+      "Wastewater service did not return a result; it was not assessed.",
+    );
+    expect(pdfHtml).toContain(
+      "No Electricity feature was returned by this mapped-data query; this does not confirm that none are present.",
+    );
     expect(`${email.html}\n${email.text}`).toContain(
       assessmentStatusLabel(report.overall.status),
     );
