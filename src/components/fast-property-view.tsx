@@ -458,7 +458,9 @@ export function FastPropertyView({
           },
           "pool-shell-clearances": {
             type: "geojson",
-            data: poolShellClearanceMapData(poolShellClearances),
+            data: clearancesVisible
+              ? poolShellClearanceMapData(poolShellClearances)
+              : { type: "FeatureCollection" as const, features: [] },
           },
           ...(boundary
             ? { boundary: { type: "geojson", data: boundary } }

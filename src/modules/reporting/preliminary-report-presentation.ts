@@ -1,7 +1,7 @@
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
-import type { Polygon } from "geojson";
 import {
   calculatePoolShellClearances,
+  hasValidPolygonRing,
   type PoolShellClearance,
 } from "@/modules/spatial/pool-shell-clearances";
 import {
@@ -169,8 +169,8 @@ export function reportPoolShellClearances(
 ): PoolShellClearance[] {
   if (
     !report.pool.clearancesVisible ||
-    !isPolygon(report.property.boundaryGeometry) ||
-    !isPolygon(report.pool.shellGeometry)
+    !hasValidPolygonRing(report.property.boundaryGeometry) ||
+    !hasValidPolygonRing(report.pool.shellGeometry)
   ) {
     return [];
   }
@@ -178,17 +178,6 @@ export function reportPoolShellClearances(
     shellGeometry: report.pool.shellGeometry,
     boundaryGeometry: report.property.boundaryGeometry,
   });
-}
-
-function isPolygon(geometry: unknown): geometry is Polygon {
-  return (
-    typeof geometry === "object" &&
-    geometry !== null &&
-    "type" in geometry &&
-    geometry.type === "Polygon" &&
-    "coordinates" in geometry &&
-    Array.isArray(geometry.coordinates)
-  );
 }
 
 function reportLayerStyle(layer: SavedPreliminaryReport["layers"][number]) {

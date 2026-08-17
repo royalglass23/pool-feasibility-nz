@@ -227,6 +227,37 @@ it("shows live pool-shell clearances by default and preserves the selected visib
   );
 });
 
+it("keeps hidden pool-shell clearances hidden when a system update recreates the map", async () => {
+  const user = userEvent.setup();
+  const { rerender } = render(
+    <FastPropertyView
+      result={fastResult}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  await user.click(
+    screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
+  );
+  rerender(
+    <FastPropertyView
+      result={{ ...fastResult, fastPathDurationMs: 121 }}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(2));
+  const recreatedStyle = mapStyles.mock.calls[1]?.[0] as {
+    sources: Record<string, { data: { features: unknown[] } }>;
+  };
+  expect(recreatedStyle.sources["pool-shell-clearances"].data.features).toEqual([]);
+});
+
 it("draws returned contours and lets the user hide them", async () => {
   const user = userEvent.setup();
   const detailedChecks = fastResult.detailedChecks!;
