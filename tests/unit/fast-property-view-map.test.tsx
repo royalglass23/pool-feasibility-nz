@@ -162,6 +162,15 @@ it("draws the indicative investigation buffer around the selected pool", async (
   expect(style.layers).toEqual(
     expect.arrayContaining([
       expect.objectContaining({
+        id: "pool-shell-clearance-lines",
+        source: "pool-shell-clearances",
+        paint: {
+          "line-color": "#fff",
+          "line-width": 2,
+          "line-dasharray": [2, 1],
+        },
+      }),
+      expect.objectContaining({
         id: "construction-envelope-line",
         source: "construction-envelope",
         paint: {

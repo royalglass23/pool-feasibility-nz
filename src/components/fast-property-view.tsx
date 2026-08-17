@@ -556,7 +556,7 @@ export function FastPropertyView({
           type: "line",
           source: "pool-shell-clearances",
           paint: {
-            "line-color": "#0f766e",
+            "line-color": "#fff",
             "line-width": 2,
             "line-dasharray": [2, 1],
           },
@@ -843,7 +843,7 @@ export function FastPropertyView({
                 <span
                   aria-hidden="true"
                   className="w-5 border-t-2 border-dashed"
-                  style={{ borderColor: "#0f766e" }}
+                  style={{ borderColor: "#fff" }}
                 />
                 <span className="font-semibold">Pool-shell clearances</span>
               </label>
