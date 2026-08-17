@@ -20,7 +20,7 @@ export function AucklandPropertyJourney() {
         aria-hidden="true"
         className="absolute inset-0 bg-[linear-gradient(180deg,rgba(245,250,255,0.98)_0%,rgba(245,250,255,0.93)_43%,rgba(245,250,255,0.46)_72%,rgba(245,250,255,0.10)_100%)] lg:bg-[linear-gradient(90deg,rgba(245,250,255,1)_0%,rgba(245,250,255,0.97)_31%,rgba(245,250,255,0.71)_46%,rgba(245,250,255,0.12)_65%,transparent_78%)]"
       />
-      <div className="xl:px-hero-inset relative z-10 px-6 sm:px-10 lg:px-16">
+      <div className="relative z-10 mx-auto w-full max-w-7xl px-4 sm:px-6">
         <div className="flex min-h-[590px] max-w-xl flex-col justify-between py-8 sm:py-12 lg:min-h-[620px] lg:py-14">
           <div>
             <p className="max-w-md text-sm font-semibold text-[#426b87]">
