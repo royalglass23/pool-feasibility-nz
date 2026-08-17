@@ -1,6 +1,3 @@
-import Image from "next/image";
-import Link from "next/link";
-import { ArrowRight } from "lucide-react";
 import { AucklandPropertyJourney } from "@/components/auckland-property-journey";
 import { PoolFeasibilityExplainer } from "@/components/pool-feasibility-explainer";
 import { DataAccessInspector } from "./data-access-inspector";
@@ -95,75 +92,6 @@ export default function Home() {
             </p>
           </div>
           <DataAccessInspector />
-        </section>
-
-        <section
-          className="border-t border-[#dbe8f0] py-14 sm:py-20"
-          aria-labelledby="project-context-heading"
-        >
-          <div className="grid items-end gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
-            <div className="max-w-xl">
-              <h2
-                id="project-context-heading"
-                className="text-3xl leading-tight font-semibold tracking-[-0.03em] text-balance text-[#062f5d] sm:text-4xl"
-              >
-                A pool project is more than the pool.
-              </h2>
-              <p className="mt-5 text-base leading-7 text-pretty text-[#426b87]">
-                The best early decisions consider usable space, access, pool
-                fencing, surrounding levels, and the details that make the
-                finished area feel right at home.
-              </p>
-              <p className="mt-5 max-w-md text-sm leading-6 text-[#5c7e96]">
-                Property Check helps you start that conversation with the site
-                in view. It does not assess construction quality or approve a
-                pool project.
-              </p>
-            </div>
-
-            <figure className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-[#dbe8f0]">
-              <Image
-                src="/pool-projects/glass-pool-fence-courtyard.webp"
-                alt="A pool courtyard with clear glass fencing, paved surrounds, and established planting"
-                fill
-                sizes="(max-width: 1023px) 100vw, 56vw"
-                className="object-cover"
-              />
-              <figcaption className="absolute right-4 bottom-4 left-4 bg-[#062f5d]/90 px-4 py-3 text-sm leading-5 font-medium text-white backdrop-blur-sm sm:right-6 sm:bottom-6 sm:left-auto sm:max-w-xs">
-                A good pool plan considers the experience around the water as
-                well as the space it occupies.
-              </figcaption>
-            </figure>
-          </div>
-        </section>
-
-        <section
-          className="border-t border-[#dbe8f0] py-12 sm:py-16"
-          aria-labelledby="builder-heading"
-        >
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
-            <div className="max-w-2xl">
-              <h2
-                id="builder-heading"
-                className="text-2xl font-semibold tracking-[-0.025em] text-balance text-[#062f5d] sm:text-3xl"
-              >
-                For Auckland pool builders: start the conversation with the
-                property.
-              </h2>
-              <p className="mt-3 text-base leading-7 text-pretty text-[#426b87]">
-                Use the same early map and planning context to explain what a
-                homeowner should check next. The tool is public guidance, not a
-                partner programme or a lead-sharing service.
-              </p>
-            </div>
-            <Link
-              href="/auckland-pool-planning-for-builders"
-              className="focus-visible:outline-pool-blue-700 inline-flex min-h-11 shrink-0 items-center gap-2 rounded-xl border border-[#9fc8df] bg-transparent px-4 text-sm font-semibold text-[#062f5d] transition hover:border-[#0077bd] hover:bg-[#e9f7ff] focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              Read builder guidance
-              <ArrowRight aria-hidden="true" className="size-4" />
-            </Link>
-          </div>
         </section>
 
         <footer className="mt-10 border-t border-[#dbe8f0] pt-6 text-sm leading-6 text-[#5c7e96]">
