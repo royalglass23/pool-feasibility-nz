@@ -159,6 +159,10 @@ export function FastPropertyView({
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
+  const mapLibreRef = useRef<typeof import("maplibre-gl") | null>(null);
+  const clearanceLabelMarkersRef = useRef<import("maplibre-gl").Marker[]>([]);
+  const poolShellClearancesRef = useRef<PoolShellClearance[]>([]);
+  const clearancesVisibleRef = useRef(true);
   const placementRef = useRef<{
     position: [number, number];
     rotationDegrees: number;
@@ -256,6 +260,8 @@ export function FastPropertyView({
         : [],
     [poolGeometry, result.boundary.geometry],
   );
+  poolShellClearancesRef.current = poolShellClearances;
+  clearancesVisibleRef.current = clearancesVisible;
   const poolWarning = useMemo(
     () =>
       classifyFastPoolWarning({
@@ -425,6 +431,7 @@ export function FastPropertyView({
     let disposed = false;
     void import("maplibre-gl").then((maplibregl) => {
       if (disposed || !mapRef.current) return;
+      mapLibreRef.current = maplibregl;
       const boundary = result.boundary.geometry
         ? feature(result.boundary.geometry)
         : null;
@@ -614,6 +621,13 @@ export function FastPropertyView({
         });
         mapInstanceRef.current = map;
         map.addControl(new maplibregl.NavigationControl(), "top-right");
+        syncPoolShellClearanceLabels({
+          map,
+          maplibregl,
+          markers: clearanceLabelMarkersRef.current,
+          clearances: poolShellClearancesRef.current,
+          visible: clearancesVisibleRef.current,
+        });
         if (result.boundary.geometry) {
           map.fitBounds(boundaryBounds(result.boundary.geometry), {
             padding: 56,
@@ -623,6 +637,13 @@ export function FastPropertyView({
         }
         map.on("error", () => setMapError(true));
         map.on("movestart", () => snapshotHandlerRef.current?.(null));
+        map.on("move", () =>
+          positionPoolShellClearanceLabels(
+            map!,
+            clearanceLabelMarkersRef.current,
+            poolShellClearancesRef.current,
+          ),
+        );
         map.on("idle", () => {
           try {
             const imageDataUrl = map?.getCanvas().toDataURL("image/png");
@@ -695,8 +716,10 @@ export function FastPropertyView({
     });
     return () => {
       disposed = true;
+      removePoolShellClearanceLabels(clearanceLabelMarkersRef.current);
       map?.remove();
       mapInstanceRef.current = null;
+      mapLibreRef.current = null;
     };
     // MapLibre is initialized once per resolved property. Placement geometry is
     // updated through GeoJSON source sync so pointer interaction is not rebuilt.
@@ -751,6 +774,16 @@ export function FastPropertyView({
         ? poolShellClearanceMapData(poolShellClearances)
         : emptyGeometry,
     );
+    const maplibregl = mapLibreRef.current;
+    if (maplibregl) {
+      syncPoolShellClearanceLabels({
+        map,
+        maplibregl,
+        markers: clearanceLabelMarkersRef.current,
+        clearances: poolShellClearances,
+        visible: clearancesVisible,
+      });
+    }
     const rotationSource = map.getSource("pool-rotation") as
       import("maplibre-gl").GeoJSONSource | undefined;
     rotationSource?.setData(
@@ -1193,6 +1226,71 @@ function poolShellClearanceMapData(
       },
     })),
   };
+}
+
+function syncPoolShellClearanceLabels({
+  map,
+  maplibregl,
+  markers,
+  clearances,
+  visible,
+}: {
+  map: import("maplibre-gl").Map;
+  maplibregl: typeof import("maplibre-gl");
+  markers: import("maplibre-gl").Marker[];
+  clearances: PoolShellClearance[];
+  visible: boolean;
+}) {
+  if (!visible || clearances.length !== 4) {
+    removePoolShellClearanceLabels(markers);
+    return;
+  }
+
+  clearances.forEach((clearance, index) => {
+    let marker = markers[index];
+    if (!marker) {
+      const element = document.createElement("span");
+      element.className = "pool-shell-clearance-label";
+      element.setAttribute("aria-hidden", "true");
+      marker = new maplibregl.Marker({ element, anchor: "center" }).addTo(map);
+      markers[index] = marker;
+    }
+    marker.getElement().textContent = `Side ${index + 1} · ${clearance.label}`;
+    marker.setLngLat(clearance.end);
+  });
+
+  markers.splice(clearances.length).forEach((marker) => marker.remove());
+  positionPoolShellClearanceLabels(map, markers, clearances);
+}
+
+function positionPoolShellClearanceLabels(
+  map: import("maplibre-gl").Map,
+  markers: import("maplibre-gl").Marker[],
+  clearances: PoolShellClearance[],
+) {
+  clearances.forEach((clearance, index) => {
+    const marker = markers[index];
+    if (!marker) return;
+
+    const boundary = map.project(clearance.end);
+    const pool = map.project(clearance.start);
+    const inwardX = pool.x - boundary.x;
+    const inwardY = pool.y - boundary.y;
+    const length = Math.hypot(inwardX, inwardY);
+    if (length === 0) return;
+
+    const element = marker.getElement();
+    const horizontalInset = Math.abs(inwardX / length) * element.offsetWidth;
+    const verticalInset = Math.abs(inwardY / length) * element.offsetHeight;
+    const inset = (horizontalInset + verticalInset) / 2 + 8;
+    marker.setOffset([(inwardX / length) * inset, (inwardY / length) * inset]);
+  });
+}
+
+function removePoolShellClearanceLabels(
+  markers: import("maplibre-gl").Marker[],
+) {
+  markers.splice(0).forEach((marker) => marker.remove());
 }
 
 function boundaryBounds(
