@@ -2,7 +2,15 @@ import { expect, test } from "@playwright/test";
 
 const boundary = {
   type: "Polygon",
-  coordinates: [[[174.5, -36.9], [174.7, -36.9], [174.7, -36.8], [174.5, -36.8], [174.5, -36.9]]],
+  coordinates: [
+    [
+      [174.5, -36.9],
+      [174.7, -36.9],
+      [174.7, -36.8],
+      [174.5, -36.8],
+      [174.5, -36.9],
+    ],
+  ],
 };
 const assessmentSnapshot = "server-issued-assessment-snapshot";
 
@@ -23,8 +31,18 @@ const baseResult = {
     parcelId: "parcel-1",
   },
   aerial: { state: "unavailable", durationMs: null, attribution: null },
-  defaultPool: { id: "compact", label: "Compact", lengthMetres: 6.5, widthMetres: 3 },
-  progress: { address: "found", boundary: "found", aerial: "unavailable", detailedChecks: "not_loaded" },
+  defaultPool: {
+    id: "compact",
+    label: "Compact",
+    lengthMetres: 6.5,
+    widthMetres: 3,
+  },
+  progress: {
+    address: "found",
+    boundary: "found",
+    aerial: "unavailable",
+    detailedChecks: "not_loaded",
+  },
   firstUsableViewStartedAt: "2026-07-28T00:00:00.000Z",
   fastPathDurationMs: 120,
 };
@@ -60,7 +78,10 @@ function conflictLayer() {
       evidenceUse: "report_allowed",
       confidence: "limited",
     },
-    geometry: { type: "FeatureCollection", features: [{ type: "Feature", properties: {}, geometry: boundary }] },
+    geometry: {
+      type: "FeatureCollection",
+      features: [{ type: "Feature", properties: {}, geometry: boundary }],
+    },
     message: "Returned mapped wastewater infrastructure.",
   };
 }
@@ -74,7 +95,8 @@ async function openFastView(page: import("@playwright/test").Page) {
     });
   });
   await page.route("**/api/public/property-check/stages", async (route) => {
-    if (route.request().postDataJSON()?.mode === "detailed") return route.continue();
+    if (route.request().postDataJSON()?.mode === "detailed")
+      return route.continue();
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -91,17 +113,26 @@ async function openFastView(page: import("@playwright/test").Page) {
     });
   });
   await page.goto("/");
-  await page.getByLabel("Auckland property address").fill(baseResult.requestedAddress);
-  await page.getByRole("button", { name: "Fetch property data" }).click();
-  await expect(page.getByRole("heading", { name: baseResult.resolvedAddress.fullAddress })).toBeVisible();
+  await page
+    .getByLabel("Auckland property address")
+    .fill(baseResult.requestedAddress);
+  await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("heading", { name: baseResult.resolvedAddress.fullAddress }),
+  ).toBeVisible();
 }
 
-test("shows Needs Checking before detailed evidence, then No Warning after a clean check", async ({ page }) => {
+test("shows Needs Checking before detailed evidence, then No Warning after a clean check", async ({
+  page,
+}) => {
   await openFastView(page);
-  await expect(page.getByRole("heading", { name: "Needs Checking" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "Needs Checking" }),
+  ).toBeVisible();
 
   await page.route("**/api/public/property-check/stages", async (route) => {
-    if (route.request().postDataJSON()?.mode !== "detailed") return route.continue();
+    if (route.request().postDataJSON()?.mode !== "detailed")
+      return route.continue();
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -111,14 +142,19 @@ test("shows Needs Checking before detailed evidence, then No Warning after a cle
       }),
     });
   });
-  await page.getByRole("button", { name: "Load detailed official checks" }).click();
+  await page
+    .getByRole("button", { name: "Load detailed official checks" })
+    .click();
   await expect(page.getByRole("heading", { name: "No Warning" })).toBeVisible();
 });
 
-test("shows Blocked while leaving the pool warning and recommendation visible", async ({ page }) => {
+test("shows Blocked while leaving the pool warning and recommendation visible", async ({
+  page,
+}) => {
   await openFastView(page);
   await page.route("**/api/public/property-check/stages", async (route) => {
-    if (route.request().postDataJSON()?.mode !== "detailed") return route.continue();
+    if (route.request().postDataJSON()?.mode !== "detailed")
+      return route.continue();
     await route.fulfill({
       status: 200,
       contentType: "application/json",
@@ -128,8 +164,16 @@ test("shows Blocked while leaving the pool warning and recommendation visible", 
       }),
     });
   });
-  await page.getByRole("button", { name: "Load detailed official checks" }).click();
+  await page
+    .getByRole("button", { name: "Load detailed official checks" })
+    .click();
   await expect(page.getByRole("heading", { name: "Blocked" })).toBeVisible();
-  await expect(page.getByText("Move the pool, or obtain an engineer-designed solution accepted by the relevant council or service owner.")).toBeVisible();
-  await expect(page.getByRole("group", { name: "Pool catalogue" })).toBeVisible();
+  await expect(
+    page.getByText(
+      "Move the pool, or obtain an engineer-designed solution accepted by the relevant council or service owner.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("group", { name: "Pool catalogue" }),
+  ).toBeVisible();
 });

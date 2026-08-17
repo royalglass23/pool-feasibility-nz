@@ -86,12 +86,12 @@ export async function resolveFastPropertyAddress(input: {
 }): Promise<FastPropertyViewResult> {
   const requestedAddress = addressSchema.parse(input.requestedAddress);
   const startedAt = (input.now?.() ?? new Date()).toISOString();
-  const addressMatches = await input.gateway.searchAddresses(requestedAddress);
   const resolvedAddress = input.selectedAddressId
-    ? addressMatches.find(
-        (candidate) => candidate.addressId === input.selectedAddressId,
-      )
-    : resolveAddress(addressMatches, requestedAddress);
+    ? await input.gateway.getAddressById(input.selectedAddressId)
+    : resolveAddress(
+        await input.gateway.searchAddresses(requestedAddress),
+        requestedAddress,
+      );
   if (!resolvedAddress) throw new DataAccessSpikeError("ADDRESS_NOT_FOUND");
   const boundaryData = await loadFastPropertyBoundary({
     resolvedAddress,

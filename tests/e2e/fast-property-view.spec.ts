@@ -50,10 +50,11 @@ test("shows the fast address-to-property stages before detailed checks", async (
   });
 
   await page.goto("/");
+  await page.getByRole("button", { name: "Not now" }).click();
   await page
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
-  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.keyboard.press("Enter");
 
   await expect(
     page.getByRole("heading", { name: "42A Bahari Drive, Ranui, Auckland" }),
@@ -71,101 +72,101 @@ test("shows the fast address-to-property stages before detailed checks", async (
   await expect(
     page.getByRole("button", { name: "Load detailed official checks" }),
   ).toBeVisible();
-  await page.route(
-    "**/api/public/property-check/stages",
-    async (route) => {
-      const requestBody = route.request().postDataJSON();
-      if (requestBody?.mode !== "detailed") return route.continue();
-      await route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          data: {
-            status: "partial",
-            retrievedAt: "2026-07-28T00:00:01.000Z",
-            durationMs: 210,
-            region:
-              "New Zealand; provider coverage varies by territorial authority and dataset licence.",
-            limitations: ["A verified empty response does not prove absence."],
-            layers: [
-              {
-                key: "building_footprints",
-                state: "returned",
-                evidence: {
-                  dataset: "NZ Building Outlines",
-                  provider: "LINZ",
-                  attribution: {
-                    text: "Land Information New Zealand (LINZ), CC BY 4.0",
-                    url: "https://www.linz.govt.nz/products-services/data/licensing-and-using-data",
+  await page.route("**/api/public/property-check/stages", async (route) => {
+    const requestBody = route.request().postDataJSON();
+    if (requestBody?.mode !== "detailed") return route.continue();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          status: "partial",
+          retrievedAt: "2026-07-28T00:00:01.000Z",
+          durationMs: 210,
+          region:
+            "New Zealand; provider coverage varies by territorial authority and dataset licence.",
+          limitations: ["A verified empty response does not prove absence."],
+          layers: [
+            {
+              key: "building_footprints",
+              state: "returned",
+              evidence: {
+                dataset: "NZ Building Outlines",
+                provider: "LINZ",
+                attribution: {
+                  text: "Land Information New Zealand (LINZ), CC BY 4.0",
+                  url: "https://www.linz.govt.nz/products-services/data/licensing-and-using-data",
+                },
+              },
+              geometry: {
+                type: "FeatureCollection",
+                features: [
+                  {
+                    type: "Feature",
+                    properties: {},
+                    geometry: {
+                      type: "Polygon",
+                      coordinates: [
+                        [
+                          [174.6, -36.86],
+                          [174.61, -36.86],
+                          [174.61, -36.87],
+                          [174.6, -36.86],
+                        ],
+                      ],
+                    },
                   },
-                },
-                geometry: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      properties: {},
-                      geometry: {
-                        type: "Polygon",
-                        coordinates: [
-                          [
-                            [174.6, -36.86],
-                            [174.61, -36.86],
-                            [174.61, -36.87],
-                            [174.6, -36.86],
-                          ],
-                        ],
-                      },
+                ],
+              },
+              message: "Returned 0 mapped features.",
+            },
+            {
+              key: "contours",
+              state: "timeout",
+              evidence: { dataset: "Contours" },
+              geometry: null,
+              message:
+                "The provider timed out; no geometry was drawn. Retry is available.",
+            },
+            {
+              key: "wastewater_assets",
+              state: "returned",
+              evidence: {
+                dataset: "Wastewater Pipes",
+                provider: "Watercare",
+              },
+              geometry: {
+                type: "FeatureCollection",
+                features: [
+                  {
+                    type: "Feature",
+                    properties: {},
+                    geometry: {
+                      type: "LineString",
+                      coordinates: [
+                        [174.6079, -36.8603],
+                        [174.6081, -36.8602],
+                      ],
                     },
-                  ],
-                },
-                message: "Returned 0 mapped features.",
+                  },
+                ],
               },
-              {
-                key: "contours",
-                state: "timeout",
-                evidence: { dataset: "Contours" },
-                geometry: null,
-                message:
-                  "The provider timed out; no geometry was drawn. Retry is available.",
-              },
-              {
-                key: "wastewater_assets",
-                state: "returned",
-                evidence: {
-                  dataset: "Wastewater Pipes",
-                  provider: "Watercare",
-                },
-                geometry: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      properties: {},
-                      geometry: {
-                        type: "LineString",
-                        coordinates: [
-                          [174.6079, -36.8603],
-                          [174.6081, -36.8602],
-                        ],
-                      },
-                    },
-                  ],
-                },
-                message: "Returned 1 mapped feature.",
-              },
-            ],
-          },
-          assessmentSnapshot: "server-issued-detailed-snapshot",
-        }),
-      });
-    },
-  );
+              message: "Returned 1 mapped feature.",
+            },
+          ],
+        },
+        assessmentSnapshot: "server-issued-detailed-snapshot",
+      }),
+    });
+  });
   await page
     .getByRole("button", { name: "Load detailed official checks" })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Detailed official checks" }),
+    page.getByRole("heading", {
+      name: "Detailed official checks",
+      exact: true,
+    }),
   ).toBeVisible();
   const officialChecks = page
     .locator("details")
@@ -194,16 +195,15 @@ test("shows the fast address-to-property stages before detailed checks", async (
   });
   await expect(unavailableStormwater).toBeDisabled();
   await expect(unavailableStormwater).not.toBeChecked();
-  await expect(
-    legend.getByText(
-      "No contour geometry returned",
-    ),
-  ).toBeVisible();
+  await expect(legend.getByText("No contour geometry returned")).toBeVisible();
   await page
     .getByRole("button", { name: "Load detailed official checks" })
     .click();
   await expect(
-    page.getByRole("heading", { name: "Detailed official checks" }),
+    page.getByRole("heading", {
+      name: "Detailed official checks",
+      exact: true,
+    }),
   ).toBeVisible();
 });
 
@@ -255,7 +255,7 @@ test("supports the pool catalogue and bounded custom input", async ({
   await page
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
-  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.keyboard.press("Enter");
   const catalogue = page.getByRole("group", { name: "Pool catalogue" });
   await expect(catalogue).toBeVisible();
   await expect(catalogue).toHaveClass(/sm:grid-cols-3/);

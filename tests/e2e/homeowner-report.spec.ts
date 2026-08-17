@@ -187,7 +187,7 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
   await page
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
-  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.keyboard.press("Enter");
   await page
     .getByRole("button", { name: "Load detailed official checks" })
     .click();
@@ -271,7 +271,7 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
   await page
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
-  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page.keyboard.press("Enter");
   await page
     .getByRole("button", { name: "Load detailed official checks" })
     .click();

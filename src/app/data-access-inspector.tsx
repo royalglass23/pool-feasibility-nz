@@ -16,7 +16,6 @@ import {
   LoaderCircle,
   MapPin,
   RefreshCw,
-  Search,
   ShieldCheck,
 } from "lucide-react";
 import { PoolScenarioComparisonResult } from "@/components/pool-scenario-comparison-result";
@@ -99,7 +98,10 @@ export function DataAccessInspector() {
     null,
   );
   const isEnteringAddress =
-    !pendingSelectedAddress && !fastResult && !result && !fastSavedReport.assessment;
+    !pendingSelectedAddress &&
+    !fastResult &&
+    !result &&
+    !fastSavedReport.assessment;
   const handleFastPlacementChange = useCallback(
     (placement: FastPoolPlacementSnapshot) => {
       setFastPlacementSnapshot(placement);
@@ -160,6 +162,17 @@ export function DataAccessInspector() {
     const intro = document.getElementById("property-search-intro");
     if (intro) intro.hidden = !isEnteringAddress;
   }, [isEnteringAddress]);
+
+  function selectAddress(option: AddressOption) {
+    setAddress(option.fullAddress);
+    setSelectedAddressId(option.addressId);
+    setPendingSelectedAddress({
+      addressId: option.addressId,
+      fullAddress: option.fullAddress,
+    });
+    setAddressOptions([]);
+    void requestPropertyData(option.addressId);
+  }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -470,6 +483,12 @@ export function DataAccessInspector() {
                   setAddressOptions([]);
                   setSuggestionMessage(null);
                 }}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" && addressOptions.length > 0) {
+                    event.preventDefault();
+                    selectAddress(addressOptions[0]);
+                  }
+                }}
                 required
                 minLength={8}
                 maxLength={200}
@@ -492,16 +511,7 @@ export function DataAccessInspector() {
                       type="button"
                       role="option"
                       aria-selected="false"
-                      onClick={() => {
-                        setAddress(option.fullAddress);
-                        setSelectedAddressId(option.addressId);
-                        setPendingSelectedAddress({
-                          addressId: option.addressId,
-                          fullAddress: option.fullAddress,
-                        });
-                        setAddressOptions([]);
-                        void requestPropertyData(option.addressId);
-                      }}
+                      onClick={() => selectAddress(option)}
                       className="text-pool-900 hover:bg-pool-blue-50 hover:text-pool-blue-800 w-full rounded-xl px-3 py-3 text-left text-sm font-semibold"
                     >
                       {option.fullAddress}
@@ -520,21 +530,6 @@ export function DataAccessInspector() {
                 </p>
               )}
             </div>
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-400 inline-flex min-h-13 items-center justify-center gap-2 rounded-2xl px-6 font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
-            >
-              {isLoading ? (
-                <LoaderCircle
-                  className="size-5 animate-spin"
-                  aria-hidden="true"
-                />
-              ) : (
-                <Search className="size-5" aria-hidden="true" />
-              )}
-              {isLoading ? "Fetching official data…" : "Fetch property data"}
-            </button>
           </div>
 
           <div className="mt-4 min-h-6" aria-live="polite">
@@ -570,7 +565,9 @@ export function DataAccessInspector() {
           error={error}
           canRetry={canRetry}
           isLoading={isLoading}
-          onRetry={() => void requestPropertyData(pendingSelectedAddress.addressId)}
+          onRetry={() =>
+            void requestPropertyData(pendingSelectedAddress.addressId)
+          }
           onStartAgain={startAgain}
         />
       )}
@@ -693,8 +690,13 @@ function SelectedAddressPending({
         </div>
       </div>
       {error && (
-        <div role="alert" className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950">
-          <p className="font-semibold">We couldn&apos;t verify a property view for this address.</p>
+        <div
+          role="alert"
+          className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
+        >
+          <p className="font-semibold">
+            We couldn&apos;t verify a property view for this address.
+          </p>
           <p className="mt-1">{error}</p>
           <div className="mt-3 flex flex-wrap gap-3">
             {canRetry && (
