@@ -295,6 +295,22 @@ describe("OfficialGisGateway", () => {
     );
   });
 
+  it("resolves a confirmed address by its LINZ ID", async () => {
+    const fetchStub = vi.fn<typeof fetch>(async () =>
+      Response.json({ type: "FeatureCollection", features: [] }),
+    );
+    const gateway = new OfficialGisGateway({ fetch: fetchStub });
+
+    await gateway.getAddressById("2359811");
+
+    const requestedUrl = new URL(String(fetchStub.mock.calls[0]?.[0]));
+    expect(requestedUrl.searchParams.get("where")).toBe(
+      "address_id=2359811 AND address_lifecycle='Current'",
+    );
+    expect(requestedUrl.searchParams.get("resultRecordCount")).toBe("1");
+    expect(requestedUrl.searchParams.get("returnGeometry")).toBe("true");
+  });
+
   it("builds a bounded current-address autocomplete lookup", async () => {
     const fetchStub = vi.fn<typeof fetch>(async () =>
       Response.json({ type: "FeatureCollection", features: [] }),
@@ -305,10 +321,24 @@ describe("OfficialGisGateway", () => {
 
     const requestedUrl = new URL(String(fetchStub.mock.calls[0]?.[0]));
     expect(requestedUrl.searchParams.get("where")).toBe(
-      "address_lifecycle='Current' AND full_address LIKE '%42%bahari%'",
+      "address_lifecycle='Current' AND full_address LIKE '42%bahari%'",
     );
     expect(requestedUrl.searchParams.get("resultRecordCount")).toBe("8");
     expect(requestedUrl.searchParams.get("returnGeometry")).toBe("true");
+  });
+
+  it("keeps a broad autocomplete fallback when no house number is entered", async () => {
+    const fetchStub = vi.fn<typeof fetch>(async () =>
+      Response.json({ type: "FeatureCollection", features: [] }),
+    );
+    const gateway = new OfficialGisGateway({ fetch: fetchStub });
+
+    await gateway.suggestAddresses("Bahari Drive");
+
+    const requestedUrl = new URL(String(fetchStub.mock.calls[0]?.[0]));
+    expect(requestedUrl.searchParams.get("where")).toBe(
+      "address_lifecycle='Current' AND full_address LIKE '%bahari%drive%'",
+    );
   });
 
   it("uses nationwide LINZ suggestions for comma-separated input", async () => {
@@ -323,7 +353,7 @@ describe("OfficialGisGateway", () => {
 
     const requestedUrl = new URL(String(fetchStub.mock.calls[0]?.[0]));
     expect(requestedUrl.searchParams.get("where")).toBe(
-      "address_lifecycle='Current' AND full_address LIKE '%245%state%highway%1%waipu%'",
+      "address_lifecycle='Current' AND full_address LIKE '245%state%highway%1%waipu%'",
     );
     expect(requestedUrl.searchParams.get("where")).not.toContain(
       "territorial_authority",

@@ -146,6 +146,20 @@ describe("runFastPropertyView", () => {
     expect(findParcelsAt).toHaveBeenCalledOnce();
   });
 
+  it("uses the confirmed LINZ address ID without repeating the text lookup", async () => {
+    const gateway = createDataAccessGateway();
+    const searchAddresses = vi.spyOn(gateway, "searchAddresses");
+
+    const initial = await resolveFastPropertyAddress({
+      requestedAddress: "42A Bahari Drive, Ranui, Auckland",
+      selectedAddressId: "2359811",
+      gateway,
+    });
+
+    expect(initial.resolvedAddress.addressId).toBe("2359811");
+    expect(searchAddresses).not.toHaveBeenCalled();
+  });
+
   it("builds the default Compact geometry in metres", () => {
     const geometry = buildFastCompactPoolGeometry([174.6082, -36.8603]);
     const ring = geometry.features[0].geometry.coordinates[0];

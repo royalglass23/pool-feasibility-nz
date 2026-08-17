@@ -207,7 +207,11 @@ export class OfficialGisGateway implements DataAccessSpikeGateway {
     reason: string | null;
   } {
     return dataset === "culverts"
-      ? { detailedQuery: false, reason: "No dedicated official culvert endpoint was verified in this spike." }
+      ? {
+          detailedQuery: false,
+          reason:
+            "No dedicated official culvert endpoint was verified in this spike.",
+        }
       : { detailedQuery: true, reason: null };
   }
 
@@ -248,14 +252,46 @@ export class OfficialGisGateway implements DataAccessSpikeGateway {
     return normalizeAddressResponse(await this.#getJson(url));
   }
 
-  async suggestAddresses(query: string): Promise<AddressMatch[]> {
-    const normalizedQuery = normalizeAddressQuery(query);
-    if (normalizedQuery.length < 3) return [];
+  async getAddressById(addressId: string): Promise<AddressMatch | null> {
+    if (!/^\d{1,20}$/.test(addressId)) return null;
 
     const url = new URL(linzAddressQueryUrl);
     url.searchParams.set(
       "where",
-      `address_lifecycle='Current' AND full_address LIKE '%${escapeArcGisText(buildAddressLikePattern(normalizedQuery))}%'`,
+      `address_id=${addressId} AND address_lifecycle='Current'`,
+    );
+    url.searchParams.set(
+      "outFields",
+      [
+        "address_id",
+        "full_address",
+        "full_address_number",
+        "unit",
+        "territorial_authority",
+        "address_lifecycle",
+      ].join(","),
+    );
+    url.searchParams.set("returnGeometry", "true");
+    url.searchParams.set("outSR", "4326");
+    url.searchParams.set("resultRecordCount", "1");
+    url.searchParams.set("f", "geojson");
+
+    return (
+      normalizeAddressResponse(await this.#getJson(url)).find(
+        (address) => address.addressId === addressId,
+      ) ?? null
+    );
+  }
+
+  async suggestAddresses(query: string): Promise<AddressMatch[]> {
+    const normalizedQuery = normalizeAddressQuery(query);
+    if (normalizedQuery.length < 3) return [];
+    const startsWithHouseNumber = /^\d/.test(normalizedQuery);
+
+    const url = new URL(linzAddressQueryUrl);
+    url.searchParams.set(
+      "where",
+      `address_lifecycle='Current' AND full_address LIKE '${startsWithHouseNumber ? "" : "%"}${escapeArcGisText(buildAddressLikePattern(normalizedQuery))}%'`,
     );
     url.searchParams.set(
       "outFields",

@@ -4,12 +4,13 @@ import userEvent from "@testing-library/user-event";
 import { FastPropertyView } from "@/components/fast-property-view";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 
-const { mapCreated, mapStyles, fitBounds, mapEventHandlers } = vi.hoisted(
+const { mapCreated, mapStyles, fitBounds, mapEventHandlers, markerOffsets } = vi.hoisted(
   () => ({
     mapCreated: vi.fn(),
     mapStyles: vi.fn(),
     fitBounds: vi.fn(),
     mapEventHandlers: new globalThis.Map<string, (event: MapEvent) => void>(),
+    markerOffsets: [] as [number, number][],
   }),
 );
 
@@ -72,9 +73,14 @@ vi.mock("maplibre-gl", () => {
   }
 
   class Marker {
+    private lngLat: [number, number] | undefined;
+
     constructor(private readonly options: { element: HTMLElement }) {}
 
     addTo() {
+      if (!this.lngLat) {
+        throw new Error("A marker must have a position before it is added.");
+      }
       document.body.append(this.options.element);
       return this;
     }
@@ -85,10 +91,12 @@ vi.mock("maplibre-gl", () => {
       this.options.element.remove();
       return this;
     }
-    setLngLat() {
+    setLngLat(lngLat: [number, number]) {
+      this.lngLat = lngLat;
       return this;
     }
-    setOffset() {
+    setOffset(offset: [number, number]) {
+      markerOffsets.push(offset);
       return this;
     }
   }
@@ -111,6 +119,7 @@ afterEach(() => {
   mapStyles.mockClear();
   fitBounds.mockClear();
   mapEventHandlers.clear();
+  markerOffsets.length = 0;
   vi.unstubAllGlobals();
 });
 
@@ -266,7 +275,7 @@ it("draws the indicative investigation buffer around the selected pool", async (
   );
 });
 
-it("labels each visible clearance at its mapped boundary end", async () => {
+it("positions each visible clearance label outside the mapped boundary", async () => {
   const user = userEvent.setup();
   render(
     <FastPropertyView
@@ -279,6 +288,28 @@ it("labels each visible clearance at its mapped boundary end", async () => {
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
   expect(screen.getAllByText(/^Side [1-4] · \d+\.\d m$/)).toHaveLength(4);
+  expect(markerOffsets).toHaveLength(4);
+
+  const style = mapStyles.mock.calls[0]?.[0] as {
+    sources: {
+      "pool-shell-clearances": {
+        data: {
+          features: Array<{
+            geometry: { coordinates: [[number, number], [number, number]] };
+          }>;
+        };
+      };
+    };
+  };
+  style.sources["pool-shell-clearances"].data.features.forEach(
+    ({ geometry: { coordinates: [start, end] } }, index) => {
+      const [offsetX, offsetY] = markerOffsets[index]!;
+      const outwardX = end[0] - start[0];
+      const outwardY = start[1] - end[1];
+
+      expect(offsetX * outwardX + offsetY * outwardY).toBeGreaterThan(0);
+    },
+  );
 
   await user.click(
     screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
