@@ -142,6 +142,122 @@ it("captures the completed Fast Property View canvas for report reuse", async ()
   );
 });
 
+it("draws the indicative investigation buffer around the selected pool", async () => {
+  render(
+    <FastPropertyView
+      result={fastResult}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const style = mapStyles.mock.calls[0]?.[0] as {
+    sources: Record<string, unknown>;
+    layers: Array<{ id: string }>;
+  };
+
+  expect(style.sources).toHaveProperty("construction-envelope");
+  expect(style.layers).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: "pool-shell-clearance-lines",
+        source: "pool-shell-clearances",
+        paint: {
+          "line-color": "#fff",
+          "line-width": 2,
+          "line-dasharray": [2, 1],
+        },
+      }),
+      expect.objectContaining({
+        id: "construction-envelope-line",
+        source: "construction-envelope",
+        paint: {
+          "line-color": "#f97316",
+          "line-width": 3,
+          "line-dasharray": [3, 2],
+        },
+      }),
+    ]),
+  );
+});
+
+it("shows live pool-shell clearances by default and preserves the selected visibility while the pool moves", async () => {
+  const user = userEvent.setup();
+  const onPlacementChange = vi.fn();
+  render(
+    <FastPropertyView
+      result={fastResult}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+      onPlacementChange={onPlacementChange}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  expect(screen.getByRole("checkbox", { name: "Show pool-shell clearances" })).toBeChecked();
+  expect(onPlacementChange).toHaveBeenLastCalledWith(
+    expect.objectContaining({ clearancesVisible: true }),
+  );
+
+  await user.click(
+    screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
+  );
+  expect(onPlacementChange).toHaveBeenLastCalledWith(
+    expect.objectContaining({ clearancesVisible: false }),
+  );
+
+  const event: MapEvent = {
+    point: { coordinates: [174.6083, -36.8602] },
+    originalEvent: { stopPropagation() {} },
+  };
+  mapEventHandlers.get("mousedown:pool-fill")!(event);
+  mapEventHandlers.get("mousemove:map")!(event);
+  mapEventHandlers.get("mouseup:map")!(event);
+
+  await waitFor(() =>
+    expect(onPlacementChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        position: [174.6083, -36.8602],
+        clearancesVisible: false,
+      }),
+    ),
+  );
+});
+
+it("keeps hidden pool-shell clearances hidden when a system update recreates the map", async () => {
+  const user = userEvent.setup();
+  const { rerender } = render(
+    <FastPropertyView
+      result={fastResult}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  await user.click(
+    screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
+  );
+  rerender(
+    <FastPropertyView
+      result={{ ...fastResult, fastPathDurationMs: 121 }}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(2));
+  const recreatedStyle = mapStyles.mock.calls[1]?.[0] as {
+    sources: Record<string, { data: { features: unknown[] } }>;
+  };
+  expect(recreatedStyle.sources["pool-shell-clearances"].data.features).toEqual([]);
+});
+
 it("draws returned contours and lets the user hide them", async () => {
   const user = userEvent.setup();
   const detailedChecks = fastResult.detailedChecks!;

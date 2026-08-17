@@ -204,11 +204,31 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).toContain(report.overall.summary);
     expect(html).toContain(report.overall.recommendedStage);
     expect(html).toContain("Mapping information");
+    expect(html).not.toContain("Map key");
+    expect(html).not.toContain("map-legend");
+    expect(html).not.toContain("Key findings");
     expect(html).toContain("Preliminary assessment");
+    expect(html).toContain("Preliminary feasibility only.");
+    expect(html).toContain(
+      "Preliminary Feasibility Report — indicative desktop screening",
+    );
     expect(html).not.toMatch(/Feasibility score|\/ 100|confidence percentage/i);
     expect(html).not.toMatch(/Compact Plus|Scenario results|rotation/i);
     expect(html).not.toMatch(/provider error|query status|returned|ArcGIS/i);
     expect(html).not.toContain("Page 4");
+  });
+
+  it("includes pool-shell clearances in the PDF only when that selected map overlay was saved", () => {
+    const shown = renderCanonicalPreliminaryReportHtml(buildReport());
+    expect(shown).toContain("Indicative mapped pool-shell clearances");
+    expect(shown).toMatch(/Side 1: [\d.]+ m/);
+
+    const hidden = renderCanonicalPreliminaryReportHtml(
+      buildReport((submission) => {
+        submission.poolLayout.clearancesVisible = false;
+      }),
+    );
+    expect(hidden).not.toContain("Indicative mapped pool-shell clearances");
   });
 
   it("uses a human-readable address-based PDF filename", () => {

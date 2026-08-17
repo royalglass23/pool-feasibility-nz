@@ -4,8 +4,10 @@ import Image from "next/image";
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import {
   reportMapLegend,
+  reportPoolShellClearances,
   type ReportMapLegendEntry,
 } from "@/modules/reporting/preliminary-report-presentation";
+import { POOL_SHELL_CLEARANCE_LIMITATION } from "@/modules/reporting/preliminary-feasibility-copy";
 
 export function SavedReportInteractiveMap({
   report,
@@ -15,6 +17,7 @@ export function SavedReportInteractiveMap({
   attribution: string;
 }) {
   const { entries } = reportMapLegend(report);
+  const clearances = reportPoolShellClearances(report);
   const isFastPropertyViewCapture =
     report.mapImageSource === "fast_property_view_capture";
 
@@ -56,6 +59,27 @@ export function SavedReportInteractiveMap({
               <SavedLayerLegend key={entry.id} entry={entry} />
             ))}
           </ul>
+          {clearances.length === 4 && (
+            <section
+              role="region"
+              aria-label="Saved pool-shell clearances"
+              className="mt-4 border-t border-pool-200 pt-4"
+            >
+              <h4 className="font-semibold text-pool-950">
+                Pool-shell clearances
+              </h4>
+              <ul className="mt-2 grid grid-cols-2 gap-2 text-xs font-semibold text-pool-800">
+                {clearances.map((clearance, index) => (
+                  <li key={clearance.id}>
+                    Side {index + 1}: {clearance.label}
+                  </li>
+                ))}
+              </ul>
+              <p className="mt-2 text-xs leading-5 text-pool-600">
+                {POOL_SHELL_CLEARANCE_LIMITATION}
+              </p>
+            </section>
+          )}
         </aside>
       </div>
       <p className="border-t border-pool-200 px-4 py-3 text-xs leading-5 text-pool-600 sm:px-5">

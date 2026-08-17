@@ -4,6 +4,7 @@ import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 test("keeps the saved preliminary report clean and does not auto-download a PDF when background email delivery fails", async ({
   page,
 }) => {
+  let assessmentSubmissionCount = 0;
   let releaseAssessmentSubmission: (() => void) | undefined;
   const assessmentSubmissionHeld = new Promise<void>((resolve) => {
     releaseAssessmentSubmission = resolve;
@@ -111,15 +112,23 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
   });
   await page.route("**/api/public/assessments", async (route) => {
     const submission = route.request().postDataJSON();
+    const clearancesVisible = submission.poolLayout?.clearancesVisible;
+    assessmentSubmissionCount += 1;
     expect(submission).toMatchObject({
       assessmentSnapshot: "server-issued-detailed-snapshot",
-      poolLayout: { lengthMetres: 6.5, widthMetres: 3 },
+      poolLayout: {
+        lengthMetres: 6.5,
+        widthMetres: 3,
+        clearancesVisible: assessmentSubmissionCount === 1,
+      },
     });
     expect(submission.mapImageDataUrl).toMatch(/^data:image\/png;base64,/);
     expect(submission).not.toHaveProperty("addressEvidence");
     expect(submission).not.toHaveProperty("warnings");
     expect(submission).not.toHaveProperty("report");
-    await assessmentSubmissionHeld;
+    if (assessmentSubmissionCount === 1) {
+      await assessmentSubmissionHeld;
+    }
     await route.fulfill({
       status: 201,
       contentType: "application/json",
@@ -143,6 +152,7 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
             },
             pool: {
               rotationDegrees: 0,
+              clearancesVisible,
             },
             mapImageDataUrl:
               "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGL5//8/AAAA//+rxzhLAAAABklEQVQDAAYOAwJctCtXAAAAAElFTkSuQmCC",
@@ -181,6 +191,13 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
   await page
     .getByRole("button", { name: "Load detailed official checks" })
     .click();
+  const clearanceToggle = page.getByRole("checkbox", {
+    name: "Show pool-shell clearances",
+  });
+  await expect(clearanceToggle).toBeChecked();
+  await expect(
+    page.getByRole("list", { name: "Pool-shell clearance measurements" }),
+  ).toHaveCount(1);
   await expect(
     page.getByRole("heading", {
       name: "Your details for the preliminary report",
@@ -238,6 +255,9 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
   ).toBeVisible();
   await expect(assessmentMap.getByRole("checkbox")).toHaveCount(0);
   await expect(
+    assessmentMap.getByRole("region", { name: "Saved pool-shell clearances" }),
+  ).toBeVisible();
+  await expect(
     page.getByText(
       /We will email a summary of this preliminary report shortly/i,
     ),
@@ -246,4 +266,45 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
     page.getByRole("button", { name: "Download PDF" }),
   ).toBeVisible();
   expect(publicPdfRequests).toBe(0);
+
+  await page.goto("/");
+  await page
+    .getByLabel("Auckland property address")
+    .fill("42A Bahari Drive, Ranui, Auckland");
+  await page.getByRole("button", { name: "Fetch property data" }).click();
+  await page
+    .getByRole("button", { name: "Load detailed official checks" })
+    .click();
+  const hiddenClearanceToggle = page.getByRole("checkbox", {
+    name: "Show pool-shell clearances",
+  });
+  await expect(hiddenClearanceToggle).toBeChecked();
+  await hiddenClearanceToggle.uncheck();
+  await expect(
+    page.getByRole("heading", {
+      name: "Your details for the preliminary report",
+    }),
+  ).toBeVisible({ timeout: 15_000 });
+  await page.getByLabel("Name").fill("Jane Homeowner");
+  await page.getByLabel("Phone").fill("021 555 1234");
+  await page.getByLabel("Email").fill("jane@example.com");
+  await page
+    .getByRole("checkbox", { name: /I consent to Royal Glass/i })
+    .check();
+  await page.getByRole("button", { name: "Save and show my report" }).click();
+
+  await expect(
+    page.getByRole("heading", {
+      name: "Preliminary pool feasibility report",
+    }),
+  ).toBeVisible();
+  const hiddenAssessmentMap = page.getByRole("region", {
+    name: "Saved assessment map",
+  });
+  await expect(
+    hiddenAssessmentMap.getByRole("region", {
+      name: "Saved pool-shell clearances",
+    }),
+  ).toHaveCount(0);
+  expect(assessmentSubmissionCount).toBe(2);
 });

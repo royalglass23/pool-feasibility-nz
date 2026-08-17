@@ -1,5 +1,10 @@
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import {
+  calculatePoolShellClearances,
+  hasValidPolygonRing,
+  type PoolShellClearance,
+} from "@/modules/spatial/pool-shell-clearances";
+import {
   REPORT_MAP_BASE_STYLES,
   reportMapLayerKey,
   reportMapLayerStyle,
@@ -157,6 +162,22 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
   }
 
   return { entries, excludedLayers };
+}
+
+export function reportPoolShellClearances(
+  report: SavedPreliminaryReport,
+): PoolShellClearance[] {
+  if (
+    !report.pool.clearancesVisible ||
+    !hasValidPolygonRing(report.property.boundaryGeometry) ||
+    !hasValidPolygonRing(report.pool.shellGeometry)
+  ) {
+    return [];
+  }
+  return calculatePoolShellClearances({
+    shellGeometry: report.pool.shellGeometry,
+    boundaryGeometry: report.property.boundaryGeometry,
+  });
 }
 
 function reportLayerStyle(layer: SavedPreliminaryReport["layers"][number]) {

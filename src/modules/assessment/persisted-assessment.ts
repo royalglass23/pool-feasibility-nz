@@ -81,6 +81,7 @@ const poolLayout = z.object({
   position: z.tuple([z.number().finite(), z.number().finite()]),
   shellGeometry: geoJsonGeometry,
   constructionEnvelopeGeometry: geoJsonGeometry,
+  clearancesVisible: z.boolean().default(true),
 });
 
 const warning = z.object({

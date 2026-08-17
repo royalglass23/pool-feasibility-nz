@@ -36,6 +36,7 @@ export type FastPoolPlacementSnapshot = {
   poolGeometry: Feature<Polygon> | null;
   constructionEnvelopeGeometry: Feature<Polygon> | null;
   constructionEnvelopeWithinMappedArea: boolean;
+  clearancesVisible?: boolean;
   warning: FastPoolWarning;
 };
 
