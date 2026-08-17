@@ -1,3 +1,4 @@
+import Image from "next/image";
 import { ArrowDownRight } from "lucide-react";
 import { PoolFeasibilityExplainer } from "@/components/pool-feasibility-explainer";
 
@@ -41,7 +42,22 @@ export function AucklandPropertyJourney() {
         </div>
 
         <div className="relative flex min-h-[410px] items-center justify-center overflow-hidden border-t border-white/10 bg-[#0077bd] p-5 lg:border-t-0 lg:border-l lg:p-10">
-          <PoolFeasibilityExplainer />
+          <Image
+            alt=""
+            aria-hidden="true"
+            className="object-cover object-center"
+            fill
+            preload
+            sizes="(max-width: 1023px) 100vw, 55vw"
+            src="/pool-projects/oakdale-glass-pool-fence.webp"
+          />
+          <div
+            aria-hidden="true"
+            className="absolute inset-0 bg-[linear-gradient(135deg,rgba(0,119,189,0.45),rgba(6,47,93,0.18))]"
+          />
+          <div className="relative z-10 w-full max-w-[480px]">
+            <PoolFeasibilityExplainer />
+          </div>
         </div>
       </div>
     </section>

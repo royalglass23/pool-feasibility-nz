@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, MapPinned, ScanSearch, ShieldCheck } from "lucide-react";
 import { AucklandPropertyJourney } from "@/components/auckland-property-journey";
@@ -116,6 +117,76 @@ export default function Home() {
             </p>
           </div>
           <DataAccessInspector />
+        </section>
+
+        <section
+          className="border-t border-[#dbe8f0] py-14 sm:py-20"
+          aria-labelledby="project-context-heading"
+        >
+          <div className="grid items-end gap-8 lg:grid-cols-[0.8fr_1.2fr] lg:gap-16">
+            <div className="max-w-xl">
+              <h2
+                id="project-context-heading"
+                className="text-3xl leading-tight font-semibold tracking-[-0.03em] text-balance text-[#062f5d] sm:text-4xl"
+              >
+                A pool project is more than the pool.
+              </h2>
+              <p className="mt-5 text-base leading-7 text-pretty text-[#426b87]">
+                The best early decisions consider usable space, access, pool
+                fencing, surrounding levels, and the details that make the
+                finished area feel right at home.
+              </p>
+              <p className="mt-5 max-w-md text-sm leading-6 text-[#5c7e96]">
+                Property Check helps you start that conversation with the site
+                in view. It does not assess construction quality or approve a
+                pool project.
+              </p>
+            </div>
+
+            <figure className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-[#dbe8f0]">
+              <Image
+                src="/pool-projects/glass-pool-fence-courtyard.webp"
+                alt="A pool courtyard with clear glass fencing, paved surrounds, and established planting"
+                fill
+                sizes="(max-width: 1023px) 100vw, 56vw"
+                className="object-cover"
+              />
+              <figcaption className="absolute right-4 bottom-4 left-4 bg-[#062f5d]/90 px-4 py-3 text-sm leading-5 font-medium text-white backdrop-blur-sm sm:right-6 sm:bottom-6 sm:left-auto sm:max-w-xs">
+                A good pool plan considers the experience around the water as
+                well as the space it occupies.
+              </figcaption>
+            </figure>
+          </div>
+
+          <div className="mt-5 grid gap-5 sm:grid-cols-3">
+            <figure className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[#dbe8f0]">
+              <Image
+                src="/pool-projects/oakdale-glass-pool-fence.webp"
+                alt="Residential pool with a frameless glass fence beside a garden"
+                fill
+                sizes="(max-width: 639px) 100vw, 33vw"
+                className="object-cover"
+              />
+            </figure>
+            <figure className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[#dbe8f0]">
+              <Image
+                src="/pool-projects/glass-pool-fence-detail.webp"
+                alt="Glass pool fence detail alongside a raised pool"
+                fill
+                sizes="(max-width: 639px) 100vw, 33vw"
+                className="object-cover"
+              />
+            </figure>
+            <figure className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[#dbe8f0]">
+              <Image
+                src="/pool-projects/round-mini-post-pool-fence.webp"
+                alt="Frameless glass pool fence with round stainless-steel posts"
+                fill
+                sizes="(max-width: 639px) 100vw, 33vw"
+                className="object-cover"
+              />
+            </figure>
+          </div>
         </section>
 
         <section
