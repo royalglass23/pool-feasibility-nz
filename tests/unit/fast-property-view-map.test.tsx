@@ -16,6 +16,8 @@ const { mapCreated, mapStyles, fitBounds, mapEventHandlers } = vi.hoisted(
 type MapEvent = {
   point: { coordinates: [number, number] };
   originalEvent: { stopPropagation: () => void };
+  error?: { message: string };
+  sourceId?: string;
 };
 
 vi.mock("maplibre-gl", () => {
@@ -179,6 +181,30 @@ it("does not expose or emit pool placement while the boundary is loading", async
     screen.queryByRole("heading", { name: "Choose a pool layout" }),
   ).not.toBeInTheDocument();
 });
+
+it("explains an aerial tile failure instead of swallowing the MapLibre error", async () => {
+  render(
+    <FastPropertyView
+      result={fastResult}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  mapEventHandlers.get("error:map")?.({
+    error: { message: "Failed to fetch aerial tile." },
+    sourceId: "aerial",
+  } as MapEvent);
+
+  expect(
+    await screen.findByText(
+      "Aerial imagery could not be loaded. Check the LINZ imagery configuration and retry the fast view.",
+    ),
+  ).toBeVisible();
+});
+
 it("captures the completed Fast Property View canvas for report reuse", async () => {
   const onSnapshotReady = vi.fn();
   render(
@@ -274,7 +300,9 @@ it("shows live pool-shell clearances by default and preserves the selected visib
   );
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
-  expect(screen.getByRole("checkbox", { name: "Show pool-shell clearances" })).toBeChecked();
+  expect(
+    screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
+  ).toBeChecked();
   expect(onPlacementChange).toHaveBeenLastCalledWith(
     expect.objectContaining({ clearancesVisible: true }),
   );
@@ -332,7 +360,9 @@ it("keeps hidden pool-shell clearances hidden when a system update recreates the
   const recreatedStyle = mapStyles.mock.calls[1]?.[0] as {
     sources: Record<string, { data: { features: unknown[] } }>;
   };
-  expect(recreatedStyle.sources["pool-shell-clearances"].data.features).toEqual([]);
+  expect(recreatedStyle.sources["pool-shell-clearances"].data.features).toEqual(
+    [],
+  );
 });
 
 it("draws returned contours and lets the user hide them", async () => {

@@ -175,7 +175,7 @@ export function FastPropertyView({
     () => undefined,
   );
   const snapshotHandlerRef = useRef(onSnapshotReady);
-  const [mapError, setMapError] = useState(false);
+  const [mapError, setMapError] = useState<"aerial" | "map" | null>(null);
   const [selectedPoolId, setSelectedPoolId] = useState<FastPoolId>("compact");
   const [customLength, setCustomLength] = useState("6.5");
   const [customWidth, setCustomWidth] = useState("3");
@@ -647,7 +647,22 @@ export function FastPropertyView({
             maxZoom: 20,
           });
         }
-        map.on("error", () => setMapError(true));
+        map.on("error", (event) => {
+          const sourceId =
+            "sourceId" in event && typeof event.sourceId === "string"
+              ? event.sourceId
+              : undefined;
+          const message = event.error?.message ?? "Unknown MapLibre error";
+          console.error("[GeoMap] fast property map error", {
+            sourceId,
+            message,
+          });
+          setMapError(
+            sourceId === "aerial" || /aerial|tile/i.test(message)
+              ? "aerial"
+              : "map",
+          );
+        });
         map.on("movestart", () => snapshotHandlerRef.current?.(null));
         map.on("move", () =>
           positionPoolShellClearanceLabels(
@@ -722,8 +737,12 @@ export function FastPropertyView({
         map.on("mouseup", endInteraction);
         map.on("touchend", endInteraction);
         map.on("touchcancel", endInteraction);
-      } catch {
-        setMapError(true);
+      } catch (error) {
+        console.error(
+          "[GeoMap] fast property map initialization failed",
+          error,
+        );
+        setMapError("map");
       }
     });
     return () => {
@@ -1089,7 +1108,9 @@ export function FastPropertyView({
       )}
       {mapError && (
         <p role="alert" className="text-sm font-semibold text-red-700">
-          The map could not load. Retry the fast view to try again.
+          {mapError === "aerial"
+            ? "Aerial imagery could not be loaded. Check the LINZ imagery configuration and retry the fast view."
+            : "The interactive map could not load. Retry the fast view to try again."}
         </p>
       )}
       {result.aerial.state !== "ready" && (

@@ -13,9 +13,24 @@ import { runDataAccessSpike } from "../src/modules/data-access-spike/run-data-ac
 import { resolveAerialVerificationPath } from "../src/modules/data-access-spike/verification-artifact";
 
 async function main(): Promise<void> {
-  const verificationAddress = process.argv.slice(2).join(" ").trim();
+  const arguments_ = process.argv.slice(2);
+  const selectedAddressIdIndex = arguments_.indexOf("--address-id");
+  const selectedAddressId =
+    selectedAddressIdIndex === -1
+      ? undefined
+      : arguments_[selectedAddressIdIndex + 1]?.trim() || undefined;
+  const verificationAddress = arguments_
+    .filter(
+      (_, index) =>
+        index !== selectedAddressIdIndex && index !== selectedAddressIdIndex + 1,
+    )
+    .join(" ")
+    .trim();
   if (!verificationAddress) {
     throw new Error("ADDRESS_REQUIRED");
+  }
+  if (selectedAddressIdIndex !== -1 && !selectedAddressId) {
+    throw new Error("ADDRESS_ID_REQUIRED");
   }
   const basemapApiKey = process.env.LINZ_BASEMAPS_API_KEY;
   if (!basemapApiKey) {
@@ -24,6 +39,7 @@ async function main(): Promise<void> {
 
   const result = await runDataAccessSpike({
     requestedAddress: verificationAddress,
+    selectedAddressId,
     gateway: new OfficialGisGateway({
       timeoutMs: providerTimeoutMs(),
     }),
