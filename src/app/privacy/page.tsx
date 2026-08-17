@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 
 export const metadata: Metadata = {
-  title: "Privacy notice | Pool Lab",
+  title: "Privacy notice | PoolReady",
   description:
     "How Royal Glass handles personal and property information submitted for a preliminary pool report.",
 };

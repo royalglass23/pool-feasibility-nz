@@ -1,8 +1,8 @@
-type PoolLabLogoProps = {
+type PoolReadyLogoProps = {
   className?: string;
 };
 
-export function PoolLabLogo({ className = "" }: PoolLabLogoProps) {
+export function PoolReadyLogo({ className = "" }: PoolReadyLogoProps) {
   return (
     <span
       aria-hidden="true"
@@ -11,7 +11,7 @@ export function PoolLabLogo({ className = "" }: PoolLabLogoProps) {
       <img
         alt=""
         className="absolute top-[-35px] left-0 block w-56 max-w-none"
-        src="/brand/pool-lab-logo.png"
+        src="/brand/pool-ready-logo.png"
       />
     </span>
   );

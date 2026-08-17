@@ -9,7 +9,7 @@ export default function Home() {
       <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
         <header className="mb-10 hidden max-w-3xl sm:mb-14">
           <div className="border-pool-blue-700/15 text-pool-blue-800 mb-6 inline-flex items-center gap-2 rounded-full border bg-white/80 px-3 py-1.5 text-xs font-bold tracking-[0.14em] uppercase shadow-sm backdrop-blur">
-            Pool Lab · Data access POC
+            PoolReady · Data access POC
           </div>
           <h1 className="text-pool-950 text-4xl leading-tight font-semibold tracking-[-0.035em] sm:text-6xl">
             Inspect official property data before assessing pool feasibility.

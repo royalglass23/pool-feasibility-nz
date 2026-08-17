@@ -3,7 +3,7 @@ import { notFound } from "next/navigation";
 import { TerrainReportPrototype } from "@/components/prototype/terrain-report-prototype";
 
 export const metadata = {
-  title: "Prototype: 3D aerial report | Pool Lab",
+  title: "Prototype: 3D aerial report | PoolReady",
 };
 
 export default function ThreeDimensionalAerialReportPrototypePage() {
