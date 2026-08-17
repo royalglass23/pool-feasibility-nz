@@ -49,11 +49,7 @@ export function AucklandPropertyJourney() {
             fill
             preload
             sizes="(max-width: 1023px) 100vw, 55vw"
-            src="/pool-projects/oakdale-glass-pool-fence.webp"
-          />
-          <div
-            aria-hidden="true"
-            className="absolute inset-0 bg-[linear-gradient(135deg,rgba(0,119,189,0.45),rgba(6,47,93,0.18))]"
+            src="/pool-projects/pool-hero-aerial-v2.png"
           />
           <div className="relative z-10 w-full max-w-[480px]">
             <PoolFeasibilityExplainer />
