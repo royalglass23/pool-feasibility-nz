@@ -6,12 +6,12 @@ export function PoolReadyLogo({ className = "" }: PoolReadyLogoProps) {
   return (
     <span
       aria-hidden="true"
-      className={`relative block h-10 w-56 shrink-0 overflow-hidden ${className}`}
+      className={`block h-10 w-28 shrink-0 ${className}`}
     >
       <img
         alt=""
-        className="absolute top-[-35px] left-0 block w-56 max-w-none"
-        src="/brand/pool-ready-logo.png"
+        className="block h-10 w-auto max-w-none"
+        src="/brand/pool-ready-logo.jpg"
       />
     </span>
   );
