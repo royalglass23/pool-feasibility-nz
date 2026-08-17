@@ -6,10 +6,7 @@ import {
   reportShortStatus,
   type ReportAssessment,
 } from "@/modules/reporting/pool-feasibility-report";
-import {
-  reportMapLegend,
-  reportPoolShellClearances,
-} from "@/modules/reporting/preliminary-report-presentation";
+import { reportPoolShellClearances } from "@/modules/reporting/preliminary-report-presentation";
 import {
   POOL_SHELL_CLEARANCE_LIMITATION,
   PRELIMINARY_FEASIBILITY_REPORT_FOOTER,
@@ -55,22 +52,6 @@ export function renderCanonicalPreliminaryReportHtml(
     )
     .join("");
 
-  const visibleLegend = reportMapLegend(report).entries.filter(
-    (entry) =>
-      ["property-boundary", "selected-pool", "construction-envelope"].includes(
-        entry.id,
-      ) || entry.statusLabel === "Mapped",
-  );
-  const legend = visibleLegend
-    .map(
-      (entry) => `
-        <span class="legend-item">
-          <i class="legend-swatch ${esc(entry.kind)}${entry.dashed ? " dashed" : ""}" style="--map-colour:${esc(entry.colour)}"></i>
-          ${esc(entry.label)}
-        </span>`,
-    )
-    .join("");
-  const mapAttribution = compactAttribution(report);
   const clearances = reportPoolShellClearances(report);
   const evidenceActions = preliminaryEvidenceActions({
     boundaryStatus: report.property.boundaryStatus,
@@ -155,18 +136,10 @@ export function renderCanonicalPreliminaryReportHtml(
     .glance-row>span{font-size:7.5pt;font-weight:700}
     .status-text{font-size:6.8pt;color:var(--state-ink);text-align:right}
     .map-panel{margin-top:3.2mm;border:.25mm solid #cdd8dd;border-radius:2.5mm;overflow:hidden;background:#edf2f4}
-    .map-layout{display:grid;grid-template-columns:minmax(0,1fr) 45mm;background:#dce5e9}
-    .map{display:block;width:100%;height:81mm;object-fit:contain;background:#dce5e9}
-    .map-legend{padding:3mm;border-left:.25mm solid #cdd8dd;background:#f7f9fa}
-    .map-legend h3{margin-bottom:2.2mm;color:#263842;font-size:7.2pt}
-    .map-caption{padding:2mm 2.8mm;background:#f7f9fa;border-top:.25mm solid #d6dfe3}
-    .legend{display:grid;gap:2mm}
-    .legend-item{display:inline-flex;align-items:center;gap:1.5mm;font-size:6.5pt;font-weight:700;color:#41515b}
-    .legend-swatch{display:inline-block;width:7mm;height:0;border-top:1mm solid var(--map-colour)}
-    .legend-swatch.area{height:2.8mm;border:0;background:color-mix(in srgb,var(--map-colour) 32%,white);outline:.55mm solid var(--map-colour);outline-offset:-.55mm}
-    .legend-swatch.dashed{border-top-style:dashed}
-    .map-attribution{margin-top:1.3mm;color:#687780;font-size:5.8pt;line-height:1.25}
-    .map-clearances{margin-top:1.8mm;color:#41515b;font-size:6.5pt;line-height:1.35}
+    .map-layout{background:#dce5e9}
+    .map{display:block;width:100%;height:78mm;object-fit:contain;background:#dce5e9}
+    .map-caption{padding:1.8mm 2.8mm;background:#f7f9fa;border-top:.25mm solid #d6dfe3}
+    .map-clearances{color:#41515b;font-size:6.5pt;line-height:1.35}
     .map-clearances strong{margin-right:2mm}
     .map-clearances p{margin-top:.7mm;color:#687780;font-size:5.8pt}
     .findings{display:grid;grid-template-columns:repeat(3,1fr);gap:2.4mm}
@@ -223,9 +196,8 @@ export function renderCanonicalPreliminaryReportHtml(
     <figure class="map-panel">
       <div class="map-layout">
         <img class="map" src="${report.mapImageDataUrl}" alt="Aerial map showing the mapped property and proposed pool">
-        <aside class="map-legend" aria-label="Map legend"><h3>Map key</h3><div class="legend">${legend}</div></aside>
       </div>
-      <figcaption class="map-caption">${clearanceCaption}<p class="map-attribution">${esc(mapAttribution)}</p></figcaption>
+      <figcaption class="map-caption">${clearanceCaption}</figcaption>
     </figure>
     <div class="section-heading"><h2>Key findings</h2></div>
     <div class="findings">${keyFindings}</div>
@@ -288,19 +260,6 @@ function renderAssessment(
     <p>${esc(item.summary)}</p>
     ${details ? `<ul class="detail-list">${details}</ul>` : ""}
   </article>`;
-}
-
-function compactAttribution(report: SavedPreliminaryReport): string {
-  const attributions = unique(
-    report.sources
-      .map((source) => source.attribution)
-      .filter((value): value is string => Boolean(value)),
-  );
-  if (attributions.length > 0) return attributions.join(" - ");
-  const providers = unique(report.sources.map((source) => source.provider));
-  return providers.length > 0
-    ? `Map and data: ${providers.join(" - ")}`
-    : "Mapped information is indicative.";
 }
 
 function latestSourceDate(report: SavedPreliminaryReport): string | null {

@@ -46,7 +46,7 @@ describe("persisted preliminary report renderer", () => {
     expect(second.equals(first)).toBe(true);
   }, 60_000);
 
-  it("keeps the saved map and relevant legend inside the fixed three-page A4 report", async () => {
+  it("keeps the saved map, clearances and findings inside the fixed three-page A4 report", async () => {
     const sixStateReport = buildTestPreliminaryReport({
       layers: [
         {
@@ -117,8 +117,9 @@ describe("persisted preliminary report renderer", () => {
           pageOverflowPixels: number[];
           mapCount: number;
           mapPanelContained: boolean;
-          legendText: string;
-          legendIsBesideMap: boolean;
+          mapKeyCount: number;
+          mapCaptionContained: boolean;
+          findingsContainedAboveFooter: boolean;
         }
       | undefined;
     const executablePath = testChromiumExecutable();
@@ -139,15 +140,28 @@ describe("persisted preliminary report renderer", () => {
             );
             const mapPanel = document.querySelector<HTMLElement>(".map-panel");
             const map = mapPanel?.querySelector<HTMLElement>(".map");
-            const legend = mapPanel?.querySelector<HTMLElement>(".legend");
             const mapPage = mapPanel?.closest<HTMLElement>(".page");
-            if (!mapPanel || !map || !legend || !mapPage) {
+            const mapCaption =
+              mapPanel?.querySelector<HTMLElement>(".map-caption");
+            const findings = document.querySelector<HTMLElement>(".findings");
+            const firstPageFooter =
+              pages[0]?.querySelector<HTMLElement>("footer");
+            if (
+              !mapPanel ||
+              !map ||
+              !mapPage ||
+              !mapCaption ||
+              !findings ||
+              !firstPageFooter
+            ) {
               throw new Error("REPORT_MAP_PANEL_MISSING");
             }
             const panelRect = mapPanel.getBoundingClientRect();
             const mapRect = map.getBoundingClientRect();
-            const legendRect = legend.getBoundingClientRect();
             const pageRect = mapPage.getBoundingClientRect();
+            const captionRect = mapCaption.getBoundingClientRect();
+            const findingsRect = findings.getBoundingClientRect();
+            const footerRect = firstPageFooter.getBoundingClientRect();
             return {
               pageCount: pages.length,
               pageOverflowPixels: pages.map((reportPage) =>
@@ -158,10 +172,12 @@ describe("persisted preliminary report renderer", () => {
                 panelRect.left >= pageRect.left &&
                 panelRect.right <= pageRect.right &&
                 panelRect.bottom <= pageRect.bottom,
-              legendText: legend.innerText,
-              legendIsBesideMap:
-                legendRect.left >= mapRect.right &&
-                Math.abs(legendRect.top - mapRect.top) < 40,
+              mapKeyCount: mapPanel.querySelectorAll(".map-legend").length,
+              mapCaptionContained:
+                captionRect.left >= mapRect.left &&
+                captionRect.right <= mapRect.right,
+              findingsContainedAboveFooter:
+                findingsRect.bottom <= footerRect.top,
             };
           });
           return Buffer.from(
@@ -180,13 +196,10 @@ describe("persisted preliminary report renderer", () => {
       pageOverflowPixels: [0, 0, 0],
       mapCount: 1,
       mapPanelContained: true,
-      legendIsBesideMap: true,
+      mapKeyCount: 0,
+      mapCaptionContained: true,
+      findingsContainedAboveFooter: true,
     });
-    expect(layout?.legendText).toContain("Mapped property boundary");
-    expect(layout?.legendText).toContain("Selected pool");
-    expect(layout?.legendText).toContain("Indicative investigation buffer");
-    expect(layout?.legendText).toContain("Stormwater");
-    expect(layout?.legendText).not.toContain("Gas");
   }, 60_000);
 });
 
