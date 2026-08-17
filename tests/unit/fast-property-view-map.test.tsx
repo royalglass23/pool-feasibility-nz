@@ -149,6 +149,36 @@ it("keeps unavailable utilities unchecked and preserves the map when a utility i
   expect(mapCreated).toHaveBeenCalledTimes(1);
 });
 
+it("does not expose or emit pool placement while the boundary is loading", async () => {
+  const onPlacementChange = vi.fn();
+  render(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        boundary: {
+          state: "loading",
+          geometry: null,
+          areaSquareMetres: null,
+          parcelId: null,
+        },
+        progress: { ...fastResult.progress, boundary: "loading" },
+      }}
+      isLoadingDetailed={false}
+      onLoadDetailed={() => {}}
+      onRetry={() => {}}
+      onPlacementChange={onPlacementChange}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  expect(onPlacementChange).not.toHaveBeenCalled();
+  expect(
+    screen.queryByLabelText("Pool catalogue and placement controls"),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("heading", { name: "Choose a pool layout" }),
+  ).not.toBeInTheDocument();
+});
 it("captures the completed Fast Property View canvas for report reuse", async () => {
   const onSnapshotReady = vi.fn();
   render(

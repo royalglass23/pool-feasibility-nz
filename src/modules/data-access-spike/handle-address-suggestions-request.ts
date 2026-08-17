@@ -62,7 +62,23 @@ export async function handleAddressSuggestionsRequest(
       {
         suggestions: suggestions
           .slice(0, 8)
-          .map(({ addressId, fullAddress }) => ({ addressId, fullAddress })),
+          .map(
+            ({
+              addressId,
+              fullAddress,
+              fullAddressNumber,
+              unit,
+              territorialAuthority,
+              coordinates,
+            }) => ({
+              addressId,
+              fullAddress,
+              fullAddressNumber,
+              unit,
+              territorialAuthority,
+              coordinates,
+            }),
+          ),
       },
       200,
       correlationId,

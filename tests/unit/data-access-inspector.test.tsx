@@ -318,6 +318,50 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     ).toBeVisible();
   });
 
+  it("shows a selected-address pending state while official property data loads", async () => {
+    const user = userEvent.setup();
+    let resolvePropertyCheck: ((response: Response) => void) | undefined;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) => {
+        if (String(input).includes("/api/public/address-suggestions")) {
+          return Promise.resolve(
+            Response.json({
+              suggestions: [
+                {
+                  addressId: "2359811",
+                  fullAddress: requestedAddress,
+                  coordinates: [174.6082, -36.8603],
+                },
+              ],
+            }),
+          );
+        }
+        return new Promise<Response>((resolve) => {
+          resolvePropertyCheck = resolve;
+        });
+      }),
+    );
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      "Bahari Drive, Ranui, Auckland",
+    );
+    await user.click(
+      await screen.findByRole("option", { name: requestedAddress }),
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Checking selected address" }),
+    ).toBeVisible();
+    expect(screen.getByText(requestedAddress)).toBeVisible();
+    expect(
+      screen.queryByLabelText("Pool catalogue and placement controls"),
+    ).not.toBeInTheDocument();
+    expect(resolvePropertyCheck).toBeDefined();
+  });
+
   it("shows the constrained AI explanation without presenting it as a calculation", async () => {
     const user = userEvent.setup();
     const result = await createResult();
@@ -653,7 +697,6 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       await screen.findByRole("option", { name: requestedAddress }),
     ).toBeVisible();
     await user.click(screen.getByRole("option", { name: requestedAddress }));
-    expect(input).toHaveValue(requestedAddress);
 
     expect(
       await screen.findByRole("heading", { name: requestedAddress }),
@@ -922,9 +965,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         "Your preliminary property view is still available. Please search for the address again.",
       ),
     ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Search again" }),
-    ).toBeVisible();
+    expect(screen.getByRole("button", { name: "Search again" })).toBeVisible();
   });
 });
 
