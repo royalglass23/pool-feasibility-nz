@@ -54,11 +54,6 @@ export function SavedReportInteractiveMap({
             This legend records what the saved image shows. It does not load or
             change live data.
           </p>
-          <ul className="mt-4 divide-y divide-pool-100">
-            {entries.map((entry) => (
-              <SavedLayerLegend key={entry.id} entry={entry} />
-            ))}
-          </ul>
           {clearances.length === 4 && (
             <section
               role="region"
@@ -80,6 +75,11 @@ export function SavedReportInteractiveMap({
               </p>
             </section>
           )}
+          <ul className="mt-4 divide-y divide-pool-100">
+            {entries.map((entry) => (
+              <SavedLayerLegend key={entry.id} entry={entry} />
+            ))}
+          </ul>
         </aside>
       </div>
       <p className="border-t border-pool-200 px-4 py-3 text-xs leading-5 text-pool-600 sm:px-5">

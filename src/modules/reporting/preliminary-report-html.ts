@@ -61,8 +61,8 @@ export function renderCanonicalPreliminaryReportHtml(
   const mapLegend = `<aside class="map-legend" aria-label="Captured map layers">
     <h3>Captured map layers</h3>
     <p class="map-legend-intro">This legend records what the saved image shows.</p>
-    <ul class="map-legend-list">${mapLegendEntries.map((entry) => renderMapLegendEntry(entry, esc)).join("")}</ul>
     ${clearanceCaption}
+    <ul class="map-legend-list">${mapLegendEntries.map((entry) => renderMapLegendEntry(entry, esc)).join("")}</ul>
   </aside>`;
 
   const assessmentCards = assessments

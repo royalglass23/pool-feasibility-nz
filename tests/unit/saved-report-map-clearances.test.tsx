@@ -25,6 +25,13 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
       .closest("figure")
       ?.parentElement,
   ).toHaveClass("items-start");
+  expect(
+    screen
+      .getByRole("region", { name: "Saved pool-shell clearances" })
+      .compareDocumentPosition(
+        screen.getByText("Mapped property boundary").closest("ul")!,
+      ) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
 
   rerender(
     <SavedReportInteractiveMap

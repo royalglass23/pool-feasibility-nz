@@ -48,6 +48,15 @@ describe("persisted preliminary report renderer", () => {
 
   it("keeps the saved map and clearances inside the fixed three-page A4 report", async () => {
     const sixStateReport = buildTestPreliminaryReport({
+      mapImageSource: "fast_property_view_capture",
+      mapVisibleLayerKeys: [
+        "contours",
+        "public_stormwater_assets",
+        "wastewater_assets",
+        "public_water_assets",
+        "electricity_feeder_lines",
+        "gas_distribution_lines",
+      ],
       layers: [
         {
           id: "contours",
@@ -121,6 +130,8 @@ describe("persisted preliminary report renderer", () => {
           mapPanelClearOfFooter: boolean;
           mapLayoutHeightMatchesFixedArea: boolean;
           mapLegendContentContained: boolean;
+          clearanceItemsContained: boolean;
+          clearancesAppearBeforeMapLayers: boolean;
           mapFillsLegendHeight: boolean;
           mapKeyCount: number;
           mapCaptionContained: boolean;
@@ -189,6 +200,21 @@ describe("persisted preliminary report renderer", () => {
                 Math.abs(mapRect.height - 415.7) < 1,
               mapLegendContentContained:
                 mapLegend.scrollHeight <= mapLegend.clientHeight,
+              clearanceItemsContained: Array.from(
+                mapLegend.querySelectorAll<HTMLElement>(".map-clearances li"),
+              ).every(
+                (item) =>
+                  item.getBoundingClientRect().bottom <=
+                  mapLegendRect.bottom + 1,
+              ),
+              clearancesAppearBeforeMapLayers:
+                (mapLegend
+                  .querySelector(".map-clearances")
+                  ?.compareDocumentPosition(
+                    mapLegend.querySelector(".map-legend-list")!,
+                  ) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING
+                  ? true
+                  : false,
               mapFillsLegendHeight: mapRect.bottom >= mapLegendRect.bottom - 1,
               mapKeyCount: mapPanel.querySelectorAll(".map-legend").length,
               mapCaptionContained:
@@ -217,6 +243,8 @@ describe("persisted preliminary report renderer", () => {
       mapPanelClearOfFooter: true,
       mapLayoutHeightMatchesFixedArea: true,
       mapLegendContentContained: true,
+      clearanceItemsContained: true,
+      clearancesAppearBeforeMapLayers: true,
       mapFillsLegendHeight: true,
       mapKeyCount: 1,
       mapCaptionContained: true,
