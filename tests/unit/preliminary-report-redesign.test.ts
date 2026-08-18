@@ -198,9 +198,13 @@ describe("canonical homeowner feasibility report", () => {
 
     expect(html.match(/<section class="page(?: page-two)?">/g)).toHaveLength(3);
     expect(html.match(/<img class="map"/g)).toHaveLength(1);
-    expect(html).toContain("Page 1 of 3");
-    expect(html).toContain("Page 2 of 3");
-    expect(html).toContain("Page 3 of 3");
+    expect(html).not.toContain("Page 1 of 3");
+    expect(html).not.toContain("Page 2 of 3");
+    expect(html).not.toContain("Page 3 of 3");
+    expect(html).toContain(`${report.reference} - 1/3`);
+    expect(html).toContain(`${report.reference} - 2/3`);
+    expect(html).toContain(`${report.reference} - 3/3`);
+    expect(html).toContain(`<h3>${report.property.address}</h3>`);
     expect(html).toContain(report.overall.summary);
     expect(html).toContain(report.overall.recommendedStage);
     expect(html).toContain("Mapping information");
