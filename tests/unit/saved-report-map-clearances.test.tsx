@@ -17,6 +17,14 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
     screen.getByRole("region", { name: "Saved pool-shell clearances" }),
   ).toHaveTextContent("Indicative mapped pool-shell clearances");
   expect(screen.getAllByText(/m$/)).toHaveLength(4);
+  expect(
+    screen
+      .getByAltText(
+        "Saved aerial assessment map showing the mapped property and proposed pool",
+      )
+      .closest("figure")
+      ?.parentElement,
+  ).toHaveClass("items-start");
 
   rerender(
     <SavedReportInteractiveMap

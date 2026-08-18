@@ -27,7 +27,7 @@ export function SavedReportInteractiveMap({
       role="region"
       aria-label="Saved assessment map"
     >
-      <div className="grid lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid items-start lg:grid-cols-[minmax(0,1fr)_18rem]">
         <figure className="min-w-0 bg-pool-900">
           <div className="aspect-[3/2]">
             <Image
