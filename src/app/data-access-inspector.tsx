@@ -493,7 +493,7 @@ export function DataAccessInspector() {
                 minLength={8}
                 maxLength={200}
                 autoComplete="street-address"
-                placeholder="e.g. 42A Bahari Drive, Ranui, Auckland"
+                placeholder="Enter your Auckland property address"
                 className="border-pool-200 bg-pool-50 text-pool-950 placeholder:text-pool-400 focus:border-pool-blue-600 focus:ring-pool-blue-600/10 min-h-13 w-full rounded-2xl border px-4 text-base transition outline-none focus:bg-white focus:ring-4"
                 aria-autocomplete="list"
                 aria-controls="address-suggestions"

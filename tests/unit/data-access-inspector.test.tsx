@@ -37,6 +37,10 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
 
     const input = screen.getByLabelText("Auckland property address");
     expect(input).toHaveValue("");
+    expect(input).toHaveAttribute(
+      "placeholder",
+      "Enter your Auckland property address",
+    );
 
     await user.type(input, requestedAddress);
     await user.keyboard("{Enter}");
