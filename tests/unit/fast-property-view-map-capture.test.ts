@@ -3,10 +3,10 @@ import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-vi
 import type { PoolShellClearance } from "@/modules/spatial/pool-shell-clearances";
 
 const clearances: PoolShellClearance[] = [
-  { id: "pool-shell-side-1", label: "1.2 m", metres: 1.2, start: [1, 1], end: [1, 0] },
-  { id: "pool-shell-side-2", label: "2.3 m", metres: 2.3, start: [1, 1], end: [2, 1] },
-  { id: "pool-shell-side-3", label: "3.4 m", metres: 3.4, start: [1, 1], end: [1, 2] },
-  { id: "pool-shell-side-4", label: "4.5 m", metres: 4.5, start: [1, 1], end: [0, 1] },
+  { id: "pool-shell-side-1", label: "1.2 m", metres: 1.2, start: [3, 3], end: [3, 2.5] },
+  { id: "pool-shell-side-2", label: "2.3 m", metres: 2.3, start: [3, 3], end: [3.5, 3] },
+  { id: "pool-shell-side-3", label: "3.4 m", metres: 3.4, start: [3, 3], end: [3, 3.5] },
+  { id: "pool-shell-side-4", label: "4.5 m", metres: 4.5, start: [3, 3], end: [2.5, 3] },
 ];
 
 afterEach(() => {
@@ -15,6 +15,7 @@ afterEach(() => {
 
 it("draws all four pool-shell clearance labels into the saved map image", () => {
   const drawImage = vi.fn();
+  const fillRect = vi.fn();
   const fillText = vi.fn();
   const context = {
     drawImage,
@@ -22,7 +23,7 @@ it("draws all four pool-shell clearance labels into the saved map image", () => 
     measureText: () => ({ width: 80 }),
     save() {},
     restore() {},
-    fillRect() {},
+    fillRect,
     strokeRect() {},
     beginPath() {},
     rect() {},
@@ -64,4 +65,11 @@ it("draws all four pool-shell clearance labels into the saved map image", () => 
   expect(fillText).toHaveBeenCalledWith("Side 2 · 2.3 m", expect.any(Number), expect.any(Number));
   expect(fillText).toHaveBeenCalledWith("Side 3 · 3.4 m", expect.any(Number), expect.any(Number));
   expect(fillText).toHaveBeenCalledWith("Side 4 · 4.5 m", expect.any(Number), expect.any(Number));
+  const labels = fillRect.mock.calls as Array<
+    [left: number, top: number, width: number, height: number]
+  >;
+  expect(labels[0]![1] + labels[0]![3]).toBeLessThan(250);
+  expect(labels[1]![0]).toBeGreaterThan(350);
+  expect(labels[2]![1]).toBeGreaterThan(350);
+  expect(labels[3]![0] + labels[3]![2]).toBeLessThan(250);
 });

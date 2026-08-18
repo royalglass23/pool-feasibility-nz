@@ -62,7 +62,6 @@ function drawPoolShellClearanceLabels({
   const padding = 6 * scale;
   const height = 24 * scale;
   const edgePadding = 4 * scale;
-  const inset = 12 * scale;
 
   context.save();
   context.font = `600 ${14 * scale}px Arial, Helvetica, sans-serif`;
@@ -78,8 +77,19 @@ function drawPoolShellClearanceLabels({
 
     const label = formatPoolShellClearanceLabel(clearance, index);
     const width = context.measureText(label).width + padding * 2;
-    const centreX = boundary.x * scaleX + (outwardX / distance) * inset;
-    const centreY = boundary.y * scaleY + (outwardY / distance) * inset;
+    const canvasOutwardX = outwardX * scaleX;
+    const canvasOutwardY = outwardY * scaleY;
+    const canvasDistance = Math.hypot(canvasOutwardX, canvasOutwardY);
+    if (canvasDistance === 0) return;
+
+    const normalX = canvasOutwardX / canvasDistance;
+    const normalY = canvasOutwardY / canvasDistance;
+    const inset =
+      Math.abs(normalX) * (width / 2) +
+      Math.abs(normalY) * (height / 2) +
+      8 * scale;
+    const centreX = boundary.x * scaleX + normalX * inset;
+    const centreY = boundary.y * scaleY + normalY * inset;
     const left = clamp(
       centreX - width / 2,
       edgePadding,
