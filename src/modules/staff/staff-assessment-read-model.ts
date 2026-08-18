@@ -31,6 +31,7 @@ export type StaffAssessmentSummary = {
   id: string;
   reference: string;
   homeownerName: string;
+  homeownerPhone: string;
   homeownerAddress: string;
   desiredTiming: PersistedAssessmentSubmission["homeowner"]["desiredTiming"];
   feasibilityState: StaffFeasibilityState;

@@ -36,6 +36,7 @@ export async function listHomeownerAssessments(
       id: true,
       reference: true,
       homeownerName: true,
+      homeownerPhone: true,
       homeownerAddress: true,
       desiredTiming: true,
       feasibilityState: true,
@@ -61,6 +62,7 @@ export async function listHomeownerAssessments(
       id: assessment.id,
       reference: assessment.reference,
       homeownerName: assessment.homeownerName,
+      homeownerPhone: assessment.homeownerPhone,
       homeownerAddress: assessment.homeownerAddress,
       desiredTiming:
         persistedAssessmentSubmissionSchema.shape.homeowner.shape.desiredTiming.parse(

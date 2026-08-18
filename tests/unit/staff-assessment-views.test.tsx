@@ -1,4 +1,5 @@
 import { cleanup, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { HomeownerFeasibilityReportView } from "@/components/homeowner-feasibility-report-view";
 import { StaffAssessmentDashboard } from "@/components/staff/staff-assessment-dashboard";
@@ -21,14 +22,16 @@ describe("staff assessment dashboard", () => {
     ).toBeVisible();
     expect(
       screen.getByText(
-        "New homeowner submissions will appear here in submitted order.",
+        "New homeowner submissions will appear here once they are received.",
       ),
     ).toBeVisible();
   });
 
-  it("shows the required submission fields and text-backed saved-state badges", () => {
+  it("shows staff a searchable, date-sortable assessment table", async () => {
+    const user = userEvent.setup();
     const base = {
       homeownerAddress: "1 Test Street, Auckland",
+      homeownerPhone: "021 555 1234",
       desiredTiming: "3_months",
       createdAt: new Date("2026-07-29T01:30:00.000Z"),
       poolLayout: {
@@ -40,6 +43,7 @@ describe("staff assessment dashboard", () => {
     } satisfies Pick<
       StaffAssessmentSummary,
       | "homeownerAddress"
+      | "homeownerPhone"
       | "desiredTiming"
       | "createdAt"
       | "poolLayout"
@@ -58,6 +62,8 @@ describe("staff assessment dashboard", () => {
         id: "needs-checking",
         reference: "GF-2026-000002",
         homeownerName: "Casey Checking",
+        homeownerPhone: "021 555 5678",
+        createdAt: new Date("2026-07-28T01:30:00.000Z"),
         feasibilityState: "needs_checking",
       },
       {
@@ -65,26 +71,64 @@ describe("staff assessment dashboard", () => {
         id: "blocked",
         reference: "GF-2026-000003",
         homeownerName: "Blake Blocked",
+        homeownerAddress: "2 Other Street, Auckland",
+        homeownerPhone: "021 555 9012",
+        createdAt: new Date("2026-07-27T01:30:00.000Z"),
         feasibilityState: "blocked",
       },
     ];
 
     render(<StaffAssessmentDashboard assessments={assessments} />);
 
+    expect(screen.getByRole("table")).toBeVisible();
     expect(screen.getByText("Nora Warning")).toBeVisible();
-    expect(screen.getAllByText("1 Test Street, Auckland")).toHaveLength(3);
-    expect(screen.getAllByText("3 months")).toHaveLength(3);
-    expect(screen.getAllByText("29 Jul 2026, 1:30 pm")).toHaveLength(3);
+    expect(screen.getAllByText("1 Test Street, Auckland")[0]).toBeVisible();
+    expect(screen.getByText("021 555 1234")).toBeVisible();
     for (const state of ["No Warning", "Needs Checking", "Blocked"]) {
-      expect(
-        screen.getByLabelText(
-          `${state}: saved 6.5 by 3 metre pool at 24 degrees with 2 evidence records.`,
-        ),
-      ).toBeVisible();
+      expect(screen.getByText(state)).toBeVisible();
     }
     expect(
       screen.getByRole("link", { name: "Open GF-2026-000003" }),
     ).toHaveAttribute("href", "/staff/blocked");
+
+    await user.type(screen.getByRole("searchbox"), "5678");
+    expect(screen.getByText("Casey Checking")).toBeVisible();
+    expect(screen.queryByText("Nora Warning")).not.toBeInTheDocument();
+    expect(screen.getByText("Showing 1–1 of 1")).toBeVisible();
+
+    await user.clear(screen.getByRole("searchbox"));
+    await user.click(
+      screen.getByRole("button", {
+        name: "Sort by date submitted oldest first",
+      }),
+    );
+    expect(screen.getAllByRole("row")[1]).toHaveTextContent("Blake Blocked");
+  });
+
+  it("paginates at five rows by default and lets staff choose a larger page", async () => {
+    const user = userEvent.setup();
+    const assessments = Array.from({ length: 6 }, (_, index) => ({
+      id: `assessment-${index}`,
+      reference: `GF-2026-00000${index}`,
+      homeownerName: `Homeowner ${index}`,
+      homeownerPhone: `021 555 12${index}`,
+      homeownerAddress: `${index} Test Street, Auckland`,
+      desiredTiming: "3_months" as const,
+      feasibilityState: "no_warning" as const,
+      createdAt: new Date(`2026-07-${20 + index}T01:30:00.000Z`),
+      poolLayout: { lengthMetres: 6.5, widthMetres: 3, rotationDegrees: 24 },
+      evidenceCount: 2,
+    }));
+
+    render(<StaffAssessmentDashboard assessments={assessments} />);
+
+    expect(screen.getByText("Showing 1–5 of 6")).toBeVisible();
+    expect(screen.queryByText("Homeowner 0")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Next" }));
+    expect(screen.getByText("Homeowner 0")).toBeVisible();
+
+    await user.selectOptions(screen.getByLabelText("Rows per page"), "10");
+    expect(screen.getByText("Showing 1–6 of 6")).toBeVisible();
   });
 });
 

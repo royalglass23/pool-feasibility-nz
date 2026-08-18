@@ -90,6 +90,7 @@ describe("staff assessment read model", () => {
       id: "newer",
       reference: "GF-2026-000003",
       homeownerName: "Jane Homeowner",
+      homeownerPhone: "021 555 1234",
       homeownerAddress: "1 Test Street, Auckland",
       desiredTiming: "3_months",
       feasibilityState: "needs_checking",
