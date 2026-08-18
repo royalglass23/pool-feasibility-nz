@@ -20,24 +20,24 @@ export default async function StaffPage() {
       <div className="mx-auto w-full max-w-6xl">
         <header className="mb-8 max-w-3xl">
           <div className="flex items-center justify-between gap-4">
-            <p className="text-xs font-bold tracking-[0.18em] text-pool-blue-700 uppercase">
+            <p className="text-pool-blue-700 text-xs font-bold tracking-[0.18em] uppercase">
               Royal Glass staff - saved assessment register
             </p>
             <form action={signOutStaffAdmin}>
               <button
-                className="min-h-10 rounded-full border border-pool-300 bg-white px-4 text-sm font-semibold text-pool-700 shadow-sm hover:border-pool-blue-700/40 hover:text-pool-blue-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
+                className="border-pool-300 text-pool-700 hover:border-pool-blue-700/40 hover:text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-10 rounded-full border bg-white px-4 text-sm font-semibold shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2"
                 type="submit"
               >
                 Sign out
               </button>
             </form>
           </div>
-          <h1 className="mt-3 text-4xl font-semibold tracking-[-0.035em] text-pool-950 sm:text-5xl">
+          <h1 className="text-pool-950 mt-3 text-4xl font-semibold tracking-[-0.035em] sm:text-5xl">
             Staff assessment dashboard
           </h1>
-          <p className="mt-4 max-w-2xl text-base leading-7 text-pool-600">
-            Review each homeowner&apos;s submitted pool layout and its saved evidence
-            state. New submissions appear first.
+          <p className="text-pool-600 mt-4 max-w-2xl text-base leading-7">
+            Search submitted assessments, open a saved report, or export the
+            current results for follow-up.
           </p>
         </header>
 
