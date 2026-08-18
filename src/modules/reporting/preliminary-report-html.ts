@@ -25,10 +25,10 @@ export function renderCanonicalPreliminaryReportHtml(
   const esc = (value: unknown) => escapeHtml(String(value ?? ""));
   const generatedDate = formatDate(report.generatedAt);
   const poolDimensions = `${formatReportNumber(report.pool.lengthMetres)} x ${formatReportNumber(report.pool.widthMetres)} m`;
-  const header = (page: number, label: string) => `
+  const header = (label: string) => `
     <header class="report-header">
-      <div><strong>Preliminary Pool Feasibility Report</strong><span>${esc(label)}</span></div>
-      <div class="page-meta">${esc(report.reference)}<br>Page ${page} of 3</div>
+      <div><strong>Preliminary Pool Feasibility Report</strong><h3>${esc(label)}</h3></div>
+      <div class="page-meta">${esc(report.reference)}<br>${esc(generatedDate)}</div>
     </header>`;
   const footer = (page: number) => `
     <footer><span>${esc(PRELIMINARY_FEASIBILITY_REPORT_FOOTER)}</span><span>${esc(report.reference)} - ${page}/3</span></footer>`;
@@ -108,24 +108,24 @@ export function renderCanonicalPreliminaryReportHtml(
     .page-two{padding-top:20mm}
     .page:last-child{page-break-after:auto}
     .report-header{height:16mm;padding-bottom:4mm;border-bottom:.25mm solid #d8e0e4;display:flex;align-items:flex-start;justify-content:space-between;color:#53636d;font-size:8pt}
-    .report-header strong{display:block;color:#13212a;font-size:11pt;line-height:1.2}
-    .report-header span{display:block;margin-top:1.2mm}
+    .report-header strong{display:block;color:#53636d;font-size:8pt;font-weight:400;line-height:1.45}
+    .report-header h3{margin-top:1.2mm;color:#13212a;font-size:11pt}
     .page-meta{text-align:right;font-family:Consolas,monospace;line-height:1.45}
     footer{position:absolute;left:12mm;right:12mm;bottom:5mm;padding-top:2mm;border-top:.25mm solid #e1e7ea;display:flex;justify-content:space-between;color:#6b7982;font-size:6.8pt}
     h1,h2,h3,p{margin:0}
     h1{font-size:21pt;line-height:1.1;letter-spacing:-.02em}
     h2{font-size:13pt;line-height:1.2}
     h3{font-size:8.4pt;line-height:1.25}
+    .primary-section-title{font-size:11pt;line-height:1.25;letter-spacing:0}
     p,li{font-size:7.7pt;line-height:1.38}
-    .property-line{margin-top:4.5mm;display:flex;justify-content:space-between;gap:8mm;align-items:flex-end}
+    .property-line{margin-top:4.5mm}
     .property-line p{margin-top:1.5mm;color:#53636d;font-size:8.4pt}
-    .property-line .report-id{text-align:right;white-space:nowrap}
     .overall{margin-top:4mm;padding:4mm 4.5mm;border-radius:3mm;border:.35mm solid var(--state-border);background:var(--state-soft)}
     .overall.green,.status-text.green,.status-pill.green,.finding-dot.green{--state-border:#4c9b88;--state-soft:#edf8f5;--state-ink:#176b5d}
     .overall.amber,.status-text.amber,.status-pill.amber,.finding-dot.amber{--state-border:#d49a28;--state-soft:#fff8e7;--state-ink:#875d0b}
     .overall.red,.status-text.red,.status-pill.red,.finding-dot.red{--state-border:#cf5c5c;--state-soft:#fff1f1;--state-ink:#9f2f2f}
     .overall.unknown,.status-text.unknown,.status-pill.unknown,.finding-dot.unknown{--state-border:#8a98a2;--state-soft:#f2f5f6;--state-ink:#4f5d66}
-    .overall .status-label{font-size:9.3pt;font-weight:700;color:var(--state-ink)}
+    .overall .status-label{font-size:7.7pt;font-weight:700;color:var(--state-ink)}
     .overall p{margin-top:1.7mm;max-width:155mm;font-size:8.7pt;line-height:1.4}
     .section-heading{margin:4mm 0 2mm;display:flex;align-items:baseline;justify-content:space-between}
     .section-heading span{font-size:7pt;color:#687780}
@@ -162,6 +162,7 @@ export function renderCanonicalPreliminaryReportHtml(
     .assessment-grid{margin-top:3.5mm;display:grid;grid-template-columns:1fr 1fr;gap:2.5mm}
     .assessment-card{break-inside:avoid;min-height:37mm;padding:3mm;border:.25mm solid #dce4e8;border-radius:2.5mm}
     .assessment-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:3mm}
+    .assessment-card h2,.later h2,.plain-section h2,.disclaimer h2{font-size:11pt;line-height:1.25}
     .status-pill{max-width:43mm;padding:1mm 1.6mm;border-radius:99px;background:var(--state-soft);color:var(--state-ink);font-size:6.2pt;font-weight:700;text-align:center}
     .assessment-card>p{margin-top:2mm;color:#44545e}
     .detail-list{margin:2mm 0 0;padding:0;list-style:none}
@@ -172,7 +173,7 @@ export function renderCanonicalPreliminaryReportHtml(
     .later li{break-inside:avoid;margin-bottom:1mm;font-size:7pt}
     .next-stage{margin-top:4.5mm;padding:3.5mm 4mm;background:#13212a;color:#fff;border-radius:2.5mm;display:flex;align-items:center;justify-content:space-between;gap:8mm}
     .next-stage span{font-size:7pt;color:#cbd6db}
-    .next-stage strong{font-size:13pt}
+    .next-stage strong{font-size:11pt}
     .steps{margin:3mm 0 0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:2.4mm 4mm}
     .steps li{display:flex;gap:2.5mm;break-inside:avoid}
     .steps li>span{display:grid;place-items:center;width:6mm;height:6mm;border-radius:50%;background:#e8f3f1;color:#176b5d;font-size:7pt;font-weight:700;flex:0 0 auto}
@@ -188,10 +189,9 @@ export function renderCanonicalPreliminaryReportHtml(
 </head>
 <body>
   <section class="page">
-    ${header(1, "The answer")}
+    ${header(report.property.address)}
     <div class="property-line">
-      <div><h1>${esc(report.property.address)}</h1><p>Proposed pool: ${esc(poolDimensions)}</p></div>
-      <p class="report-id">${esc(report.reference)}<br>${esc(generatedDate)}</p>
+      <p>Proposed pool: ${esc(poolDimensions)}</p>
     </div>
     <section class="overall ${esc(report.overall.status)}" aria-label="Overall assessment">
       <div class="status-label">${esc(assessmentStatusLabel(report.overall.status))}</div>
@@ -199,7 +199,7 @@ export function renderCanonicalPreliminaryReportHtml(
     </section>
     <p class="assessment-intro"><strong>Preliminary feasibility only.</strong> ${esc(PRELIMINARY_FEASIBILITY_REPORT_SCOPE)}</p>
     ${evidenceActionsHtml}
-    <div class="section-heading"><h2>At a glance</h2><span>Status is shown by colour and description</span></div>
+    <div class="section-heading"><h2 class="primary-section-title">At a glance</h2><span>Status is shown by colour and description</span></div>
     <div class="glance-grid">${glance}</div>
     <figure class="map-panel">
       <div class="map-layout">
@@ -212,8 +212,8 @@ export function renderCanonicalPreliminaryReportHtml(
   </section>
 
   <section class="page page-two">
-    ${header(2, "What we checked")}
-    <h1 style="margin-top:5mm">What we checked</h1>
+    ${header("What we checked")}
+    <h1 class="primary-section-title" style="margin-top:5mm">What we checked</h1>
     <p class="assessment-intro">These findings use the mapped information saved with this report. Distances and boundaries are indicative, not surveyed.</p>
     <div class="assessment-grid">${assessmentCards}</div>
     <section class="later">
@@ -224,8 +224,8 @@ export function renderCanonicalPreliminaryReportHtml(
   </section>
 
   <section class="page">
-    ${header(3, "What happens next")}
-    <h1 style="margin-top:5mm">What happens next</h1>
+    ${header("What happens next")}
+    <h1 class="primary-section-title" style="margin-top:5mm">What happens next</h1>
     <section class="next-stage"><span>Recommended next stage</span><strong>${esc(report.overall.recommendedStage)}</strong></section>
     <ol class="steps">${nextSteps}</ol>
     <div class="page-three-grid">
