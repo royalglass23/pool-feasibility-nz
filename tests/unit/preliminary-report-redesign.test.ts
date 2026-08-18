@@ -205,6 +205,8 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).toContain(`${report.reference} - 2/3`);
     expect(html).toContain(`${report.reference} - 3/3`);
     expect(html).toContain(`<h3>${report.property.address}</h3>`);
+    expect(html.match(/What we checked/g)).toHaveLength(1);
+    expect(html.match(/What happens next/g)).toHaveLength(1);
     expect(html).toContain(report.overall.summary);
     expect(html).toContain(report.overall.recommendedStage);
     expect(html).toContain("Mapping information");
