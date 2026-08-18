@@ -68,6 +68,12 @@ export function renderCanonicalPreliminaryReportHtml(
   const assessmentCards = assessments
     .map((item) => renderAssessment(item, esc))
     .join("");
+  const keyFindings = report.keyFindings
+    .map(
+      (finding) =>
+        `<li><strong>${esc(finding.title)}</strong><br>${esc(finding.clientSummary)}</li>`,
+    )
+    .join("");
   const laterVerification = report.laterVerification
     .map((item) => `<li>${esc(item)}</li>`)
     .join("");
@@ -215,6 +221,7 @@ export function renderCanonicalPreliminaryReportHtml(
     ${header("What we checked")}
     <p class="assessment-intro">These findings use the mapped information saved with this report. Distances and boundaries are indicative, not surveyed.</p>
     <div class="assessment-grid">${assessmentCards}</div>
+    ${keyFindings ? `<section class="later"><h2>Key findings</h2><ul>${keyFindings}</ul></section>` : ""}
     <section class="later">
       <h2>Requires later verification</h2>
       <ul>${laterVerification}</ul>
