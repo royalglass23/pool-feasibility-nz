@@ -70,6 +70,7 @@ describe("POST /api/internal/report/pdf security outcomes", () => {
     );
     const page = {
       emulateMediaType: vi.fn(async () => undefined),
+      evaluate: vi.fn(async () => undefined),
       on: vi.fn(),
       pdf: vi.fn(async () => new Uint8Array(threePagePdf)),
       setContent: vi.fn(async () => undefined),
