@@ -41,9 +41,11 @@ describe("persisted preliminary report renderer", () => {
 
   it("returns byte-identical PDFs for retries of the same saved report", async () => {
     const first = await generatePreliminaryReportPdf(report);
-    const second = await generatePreliminaryReportPdf(report);
 
-    expect(second.equals(first)).toBe(true);
+    for (let retry = 0; retry < 5; retry += 1) {
+      const retryPdf = await generatePreliminaryReportPdf(report);
+      expect(retryPdf.equals(first)).toBe(true);
+    }
   }, 60_000);
 
   it("keeps the saved map and clearances inside the fixed three-page A4 report", async () => {

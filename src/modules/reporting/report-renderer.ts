@@ -97,6 +97,21 @@ const puppeteerRenderer: PdfRenderer = {
       await page.setRequestInterception(true);
       page.on("request", (request) => void request.abort("blockedbyclient"));
       await page.setContent(html, { waitUntil: "load" });
+      await page.evaluate(async () => {
+        await Promise.all(
+          Array.from(document.images).map(async (image) => {
+            if (!image.complete) {
+              await new Promise<void>((resolve) => {
+                image.addEventListener("load", () => resolve(), { once: true });
+                image.addEventListener("error", () => resolve(), {
+                  once: true,
+                });
+              });
+            }
+            if (image.naturalWidth > 0) await image.decode();
+          }),
+        );
+      });
       await page.emulateMediaType("print");
       return Buffer.from(
         await page.pdf({

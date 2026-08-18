@@ -184,6 +184,7 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
 
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/");
+  await page.getByRole("button", { name: "Reject analytics" }).click();
   await page
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");

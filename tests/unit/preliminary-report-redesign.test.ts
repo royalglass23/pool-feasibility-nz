@@ -213,7 +213,8 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).toContain("Captured map layers");
     expect(html).toContain('class="map-legend"');
     expect(html).toContain("Mapped property boundary");
-    expect(html).not.toContain("Key findings");
+    expect(html).toContain("Key findings");
+    expect(html).toContain(report.keyFindings[0]!.title);
     expect(html).toContain("Preliminary assessment");
     expect(html).toContain("Preliminary feasibility only.");
     expect(html).toContain(
