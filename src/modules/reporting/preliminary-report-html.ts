@@ -213,7 +213,6 @@ export function renderCanonicalPreliminaryReportHtml(
 
   <section class="page page-two">
     ${header("What we checked")}
-    <h1 class="primary-section-title" style="margin-top:5mm">What we checked</h1>
     <p class="assessment-intro">These findings use the mapped information saved with this report. Distances and boundaries are indicative, not surveyed.</p>
     <div class="assessment-grid">${assessmentCards}</div>
     <section class="later">
@@ -225,7 +224,6 @@ export function renderCanonicalPreliminaryReportHtml(
 
   <section class="page">
     ${header("What happens next")}
-    <h1 class="primary-section-title" style="margin-top:5mm">What happens next</h1>
     <section class="next-stage"><span>Recommended next stage</span><strong>${esc(report.overall.recommendedStage)}</strong></section>
     <ol class="steps">${nextSteps}</ol>
     <div class="page-three-grid">
