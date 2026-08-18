@@ -6,7 +6,11 @@ import {
   reportShortStatus,
   type ReportAssessment,
 } from "@/modules/reporting/pool-feasibility-report";
-import { reportPoolShellClearances } from "@/modules/reporting/preliminary-report-presentation";
+import {
+  reportMapLegend,
+  reportPoolShellClearances,
+  type ReportMapLegendEntry,
+} from "@/modules/reporting/preliminary-report-presentation";
 import {
   POOL_SHELL_CLEARANCE_LIMITATION,
   PRELIMINARY_FEASIBILITY_REPORT_FOOTER,
@@ -42,6 +46,7 @@ export function renderCanonicalPreliminaryReportHtml(
     )
     .join("");
   const clearances = reportPoolShellClearances(report);
+  const { entries: mapLegendEntries } = reportMapLegend(report);
   const evidenceActions = preliminaryEvidenceActions({
     boundaryStatus: report.property.boundaryStatus,
     sources: report.sources,
@@ -51,8 +56,14 @@ export function renderCanonicalPreliminaryReportHtml(
     : "";
   const clearanceCaption =
     clearances.length === 4
-      ? `<div class="map-clearances"><strong>Pool-shell clearances</strong><span>${clearances.map((clearance, index) => `Side ${index + 1}: ${esc(clearance.label)}`).join(" · ")}</span><p>${esc(POOL_SHELL_CLEARANCE_LIMITATION)}</p></div>`
+      ? `<section class="map-clearances"><h3>Pool-shell clearances</h3><ul>${clearances.map((clearance, index) => `<li>Side ${index + 1}: ${esc(clearance.label)}</li>`).join("")}</ul><p>${esc(POOL_SHELL_CLEARANCE_LIMITATION)}</p></section>`
       : "";
+  const mapLegend = `<aside class="map-legend" aria-label="Captured map layers">
+    <h3>Captured map layers</h3>
+    <p class="map-legend-intro">This legend records what the saved image shows.</p>
+    <ul class="map-legend-list">${mapLegendEntries.map((entry) => renderMapLegendEntry(entry, esc)).join("")}</ul>
+    ${clearanceCaption}
+  </aside>`;
 
   const assessmentCards = assessments
     .map((item) => renderAssessment(item, esc))
@@ -125,12 +136,24 @@ export function renderCanonicalPreliminaryReportHtml(
     .glance-row>span{font-size:7.5pt;font-weight:700}
     .status-text{font-size:6.8pt;color:var(--state-ink);text-align:right}
     .map-panel{margin-top:3.2mm;border:.25mm solid #cdd8dd;border-radius:2.5mm;overflow:hidden;background:#edf2f4}
-    .map-layout{background:#dce5e9}
-    .map{display:block;width:100%;height:78mm;object-fit:contain;background:#dce5e9}
-    .map-caption{padding:1.8mm 2.8mm;background:#f7f9fa;border-top:.25mm solid #d6dfe3}
-    .map-clearances{color:#41515b;font-size:6.5pt;line-height:1.35}
-    .map-clearances strong{margin-right:2mm}
-    .map-clearances p{margin-top:.7mm;color:#687780;font-size:5.8pt}
+    .map-layout{display:grid;grid-template-columns:minmax(0,1fr) 51mm;align-items:stretch;background:#dce5e9}
+    .map-visual{display:flex;min-width:0;min-height:78mm;background:#dce5e9}
+    .map{display:block;width:100%;min-height:78mm;height:auto;flex:1 1 auto;object-fit:cover;background:#dce5e9}
+    .map-caption{padding:1.8mm 2.8mm;background:#f7f9fa;border-top:.25mm solid #d6dfe3;color:#53636d;font-size:6.2pt;line-height:1.35}
+    .map-legend{padding:3mm;background:#fff;border-left:.25mm solid #d6dfe3;color:#13212a}
+    .map-legend h3,.map-clearances h3{font-size:7.6pt;line-height:1.2}
+    .map-legend-intro{margin-top:1mm;color:#53636d;font-size:5.6pt;line-height:1.35}
+    .map-legend-list{margin:2mm 0 0;padding:0;list-style:none}
+    .map-legend-item{display:flex;gap:1.7mm;padding:1.15mm 0;border-top:.2mm solid #e5eaed}
+    .map-legend-item:first-child{border-top:0;padding-top:0}
+    .map-legend-swatch{width:6mm;flex:0 0 6mm;margin-top:1.3mm;border-top:.7mm solid #13212a}
+    .map-legend-swatch.area{height:3mm;margin-top:.7mm;border:.45mm solid #13212a;background:#fff}
+    .map-legend-copy{min-width:0;font-size:5.7pt;line-height:1.25}
+    .map-legend-copy strong{display:block;font-size:6.2pt}
+    .map-legend-copy span{display:block;margin-top:.3mm;color:#687780}
+    .map-clearances{margin-top:2mm;padding-top:2mm;border-top:.25mm solid #d6dfe3;color:#41515b}
+    .map-clearances ul{display:grid;grid-template-columns:1fr 1fr;gap:.8mm 1.5mm;margin:1.2mm 0 0;padding:0;list-style:none;font-size:5.8pt;font-weight:700;line-height:1.25}
+    .map-clearances p{margin-top:1mm;color:#687780;font-size:5.2pt;line-height:1.32}
     .assessment-intro{margin-top:4.5mm;max-width:150mm;color:#53636d}
     .evidence-actions{margin-top:2.5mm;padding:2.5mm 3mm;border:.25mm solid #dce4e8;border-radius:2.5mm;color:#44545e}
     .evidence-actions h2{font-size:7.5pt}
@@ -180,9 +203,10 @@ export function renderCanonicalPreliminaryReportHtml(
     <div class="glance-grid">${glance}</div>
     <figure class="map-panel">
       <div class="map-layout">
-        <img class="map" src="${report.mapImageDataUrl}" alt="Aerial map showing the mapped property and proposed pool">
+        <div class="map-visual"><img class="map" src="${report.mapImageDataUrl}" alt="Aerial map showing the mapped property and proposed pool"></div>
+        ${mapLegend}
       </div>
-      <figcaption class="map-caption">${clearanceCaption}</figcaption>
+      <figcaption class="map-caption">Saved aerial map and layer selection used when this report was generated.</figcaption>
     </figure>
     ${footer(1)}
   </section>
@@ -226,6 +250,19 @@ export function renderCanonicalPreliminaryReportHtml(
   </section>
 </body>
 </html>`;
+}
+
+function renderMapLegendEntry(
+  entry: ReportMapLegendEntry,
+  esc: (value: unknown) => string,
+): string {
+  const status = entry.statusLabel ?? "Included in saved capture";
+  const swatchClass = entry.kind === "area" ? "area" : "line";
+  const swatchStyle =
+    entry.kind === "area"
+      ? `border-color:${esc(entry.colour)};background:${esc(entry.colour)}22`
+      : `border-top-color:${esc(entry.colour)};border-top-style:${entry.dashed ? "dashed" : "solid"}`;
+  return `<li class="map-legend-item"><span class="map-legend-swatch ${swatchClass}" style="${swatchStyle}" aria-hidden="true"></span><span class="map-legend-copy"><strong>${esc(entry.label)}</strong><span>${esc(status)}</span></span></li>`;
 }
 
 function renderAssessment(

@@ -117,6 +117,7 @@ describe("persisted preliminary report renderer", () => {
           pageOverflowPixels: number[];
           mapCount: number;
           mapPanelContained: boolean;
+          mapFillsLegendHeight: boolean;
           mapKeyCount: number;
           mapCaptionContained: boolean;
           keyFindingsCount: number;
@@ -140,14 +141,17 @@ describe("persisted preliminary report renderer", () => {
             );
             const mapPanel = document.querySelector<HTMLElement>(".map-panel");
             const map = mapPanel?.querySelector<HTMLElement>(".map");
+            const mapLegend =
+              mapPanel?.querySelector<HTMLElement>(".map-legend");
             const mapPage = mapPanel?.closest<HTMLElement>(".page");
             const mapCaption =
               mapPanel?.querySelector<HTMLElement>(".map-caption");
-            if (!mapPanel || !map || !mapPage || !mapCaption) {
+            if (!mapPanel || !map || !mapLegend || !mapPage || !mapCaption) {
               throw new Error("REPORT_MAP_PANEL_MISSING");
             }
             const panelRect = mapPanel.getBoundingClientRect();
             const mapRect = map.getBoundingClientRect();
+            const mapLegendRect = mapLegend.getBoundingClientRect();
             const pageRect = mapPage.getBoundingClientRect();
             const captionRect = mapCaption.getBoundingClientRect();
             return {
@@ -160,6 +164,7 @@ describe("persisted preliminary report renderer", () => {
                 panelRect.left >= pageRect.left &&
                 panelRect.right <= pageRect.right &&
                 panelRect.bottom <= pageRect.bottom,
+              mapFillsLegendHeight: mapRect.bottom >= mapLegendRect.bottom - 1,
               mapKeyCount: mapPanel.querySelectorAll(".map-legend").length,
               mapCaptionContained:
                 captionRect.left >= mapRect.left &&
@@ -183,7 +188,8 @@ describe("persisted preliminary report renderer", () => {
       pageOverflowPixels: [0, 0, 0],
       mapCount: 1,
       mapPanelContained: true,
-      mapKeyCount: 0,
+      mapFillsLegendHeight: true,
+      mapKeyCount: 1,
       mapCaptionContained: true,
       keyFindingsCount: 0,
     });
