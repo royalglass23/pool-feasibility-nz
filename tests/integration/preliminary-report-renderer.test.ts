@@ -197,7 +197,7 @@ describe("persisted preliminary report renderer", () => {
               mapPanelClearOfFooter: panelRect.bottom <= footerRect.top - 8,
               mapLayoutHeightMatchesFixedArea:
                 Math.abs(mapRect.height - mapLegendRect.height) < 1 &&
-                Math.abs(mapRect.height - 415.7) < 1,
+                Math.abs(mapRect.height - 359.1) < 1,
               mapLegendContentContained:
                 mapLegend.scrollHeight <= mapLegend.clientHeight,
               clearanceItemsContained: Array.from(

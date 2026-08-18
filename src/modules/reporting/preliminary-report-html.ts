@@ -135,9 +135,9 @@ export function renderCanonicalPreliminaryReportHtml(
     .glance-row:nth-last-child(-n+2){border-bottom:0}
     .glance-row>span{font-size:7.5pt;font-weight:700}
     .status-text{font-size:6.8pt;color:var(--state-ink);text-align:right}
-    .map-panel{height:119mm;margin:3.2mm 0 0;border:.25mm solid #cdd8dd;border-radius:2.5mm;overflow:hidden;background:#edf2f4}
-    .map-layout{display:grid;grid-template-columns:minmax(0,1fr) 45mm;height:110mm;align-items:stretch;background:#dce5e9}
-    .map-visual{display:flex;min-width:0;height:110mm;min-height:0;background:#dce5e9}
+    .map-panel{height:104mm;margin:3.2mm 0 0;border:.25mm solid #cdd8dd;border-radius:2.5mm;overflow:hidden;background:#edf2f4}
+    .map-layout{display:grid;grid-template-columns:minmax(0,1fr) 45mm;height:95mm;align-items:stretch;background:#dce5e9}
+    .map-visual{display:flex;min-width:0;height:95mm;min-height:0;background:#dce5e9}
     .map{display:block;width:100%;height:100%;min-height:0;flex:1 1 auto;object-fit:cover;background:#dce5e9}
     .map-caption{padding:1.8mm 2.8mm;background:#f7f9fa;border-top:.25mm solid #d6dfe3;color:#53636d;font-size:6.2pt;line-height:1.35}
     .map-legend{padding:2.5mm;background:#fff;border-left:.25mm solid #d6dfe3;color:#13212a;overflow:hidden}
@@ -256,13 +256,15 @@ function renderMapLegendEntry(
   entry: ReportMapLegendEntry,
   esc: (value: unknown) => string,
 ): string {
-  const status = entry.statusLabel ?? "Included in saved capture";
+  const status = entry.statusLabel
+    ? `<span>${esc(entry.statusLabel)}</span>`
+    : "";
   const swatchClass = entry.kind === "area" ? "area" : "line";
   const swatchStyle =
     entry.kind === "area"
       ? `border-color:${esc(entry.colour)};background:${esc(entry.colour)}22`
       : `border-top-color:${esc(entry.colour)};border-top-style:${entry.dashed ? "dashed" : "solid"}`;
-  return `<li class="map-legend-item"><span class="map-legend-swatch ${swatchClass}" style="${swatchStyle}" aria-hidden="true"></span><span class="map-legend-copy"><strong>${esc(entry.label)}</strong><span>${esc(status)}</span></span></li>`;
+  return `<li class="map-legend-item"><span class="map-legend-swatch ${swatchClass}" style="${swatchStyle}" aria-hidden="true"></span><span class="map-legend-copy"><strong>${esc(entry.label)}</strong>${status}</span></li>`;
 }
 
 function renderAssessment(
