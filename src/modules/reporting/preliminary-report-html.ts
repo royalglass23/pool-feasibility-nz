@@ -135,12 +135,12 @@ export function renderCanonicalPreliminaryReportHtml(
     .glance-row:nth-last-child(-n+2){border-bottom:0}
     .glance-row>span{font-size:7.5pt;font-weight:700}
     .status-text{font-size:6.8pt;color:var(--state-ink);text-align:right}
-    .map-panel{margin-top:3.2mm;border:.25mm solid #cdd8dd;border-radius:2.5mm;overflow:hidden;background:#edf2f4}
-    .map-layout{display:grid;grid-template-columns:minmax(0,1fr) 51mm;align-items:stretch;background:#dce5e9}
-    .map-visual{display:flex;min-width:0;min-height:78mm;background:#dce5e9}
-    .map{display:block;width:100%;min-height:78mm;height:auto;flex:1 1 auto;object-fit:cover;background:#dce5e9}
+    .map-panel{height:119mm;margin:3.2mm 0 0;border:.25mm solid #cdd8dd;border-radius:2.5mm;overflow:hidden;background:#edf2f4}
+    .map-layout{display:grid;grid-template-columns:minmax(0,1fr) 51mm;height:110mm;align-items:stretch;background:#dce5e9}
+    .map-visual{display:flex;min-width:0;height:110mm;min-height:0;background:#dce5e9}
+    .map{display:block;width:100%;height:100%;min-height:0;flex:1 1 auto;object-fit:cover;background:#dce5e9}
     .map-caption{padding:1.8mm 2.8mm;background:#f7f9fa;border-top:.25mm solid #d6dfe3;color:#53636d;font-size:6.2pt;line-height:1.35}
-    .map-legend{padding:3mm;background:#fff;border-left:.25mm solid #d6dfe3;color:#13212a}
+    .map-legend{padding:3mm;background:#fff;border-left:.25mm solid #d6dfe3;color:#13212a;overflow:hidden}
     .map-legend h3,.map-clearances h3{font-size:7.6pt;line-height:1.2}
     .map-legend-intro{margin-top:1mm;color:#53636d;font-size:5.6pt;line-height:1.35}
     .map-legend-list{margin:2mm 0 0;padding:0;list-style:none}
