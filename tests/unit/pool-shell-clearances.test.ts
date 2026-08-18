@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { buildFastPoolGeometry } from "@/modules/data-access-spike/fast-pool-placement";
-import { calculatePoolShellClearances } from "@/modules/spatial/pool-shell-clearances";
+import {
+  calculatePoolShellClearances,
+  formatPoolShellClearanceLabel,
+} from "@/modules/spatial/pool-shell-clearances";
 
 describe("pool-shell clearances", () => {
   it("measures the four outward side-centre distances to the mapped boundary and rounds them to one decimal metre", () => {
@@ -28,6 +31,16 @@ describe("pool-shell clearances", () => {
       "7.0 m",
       "8.0 m",
       "7.0 m",
+    ]);
+    expect(
+      clearances.map((clearance, index) =>
+        formatPoolShellClearanceLabel(clearance, index),
+      ),
+    ).toEqual([
+      "Side 1 · 8.0 m",
+      "Side 2 · 7.0 m",
+      "Side 3 · 8.0 m",
+      "Side 4 · 7.0 m",
     ]);
   });
 

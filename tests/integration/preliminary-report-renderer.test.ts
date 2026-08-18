@@ -48,6 +48,15 @@ describe("persisted preliminary report renderer", () => {
 
   it("keeps the saved map and clearances inside the fixed three-page A4 report", async () => {
     const sixStateReport = buildTestPreliminaryReport({
+      mapImageSource: "fast_property_view_capture",
+      mapVisibleLayerKeys: [
+        "contours",
+        "public_stormwater_assets",
+        "wastewater_assets",
+        "public_water_assets",
+        "electricity_feeder_lines",
+        "gas_distribution_lines",
+      ],
       layers: [
         {
           id: "contours",
@@ -117,6 +126,13 @@ describe("persisted preliminary report renderer", () => {
           pageOverflowPixels: number[];
           mapCount: number;
           mapPanelContained: boolean;
+          mapPanelAlignedWithGlance: boolean;
+          mapPanelClearOfFooter: boolean;
+          mapLayoutHeightMatchesFixedArea: boolean;
+          mapLegendContentContained: boolean;
+          clearanceItemsContained: boolean;
+          clearancesAppearBeforeMapLayers: boolean;
+          mapFillsLegendHeight: boolean;
           mapKeyCount: number;
           mapCaptionContained: boolean;
           keyFindingsCount: number;
@@ -140,16 +156,31 @@ describe("persisted preliminary report renderer", () => {
             );
             const mapPanel = document.querySelector<HTMLElement>(".map-panel");
             const map = mapPanel?.querySelector<HTMLElement>(".map");
+            const mapLegend =
+              mapPanel?.querySelector<HTMLElement>(".map-legend");
             const mapPage = mapPanel?.closest<HTMLElement>(".page");
             const mapCaption =
               mapPanel?.querySelector<HTMLElement>(".map-caption");
-            if (!mapPanel || !map || !mapPage || !mapCaption) {
+            const glance = document.querySelector<HTMLElement>(".glance-grid");
+            const footer = mapPage?.querySelector<HTMLElement>("footer");
+            if (
+              !mapPanel ||
+              !map ||
+              !mapLegend ||
+              !mapPage ||
+              !mapCaption ||
+              !glance ||
+              !footer
+            ) {
               throw new Error("REPORT_MAP_PANEL_MISSING");
             }
             const panelRect = mapPanel.getBoundingClientRect();
             const mapRect = map.getBoundingClientRect();
+            const mapLegendRect = mapLegend.getBoundingClientRect();
             const pageRect = mapPage.getBoundingClientRect();
             const captionRect = mapCaption.getBoundingClientRect();
+            const glanceRect = glance.getBoundingClientRect();
+            const footerRect = footer.getBoundingClientRect();
             return {
               pageCount: pages.length,
               pageOverflowPixels: pages.map((reportPage) =>
@@ -160,10 +191,35 @@ describe("persisted preliminary report renderer", () => {
                 panelRect.left >= pageRect.left &&
                 panelRect.right <= pageRect.right &&
                 panelRect.bottom <= pageRect.bottom,
+              mapPanelAlignedWithGlance:
+                Math.abs(panelRect.left - glanceRect.left) < 1 &&
+                Math.abs(panelRect.right - glanceRect.right) < 1,
+              mapPanelClearOfFooter: panelRect.bottom <= footerRect.top - 8,
+              mapLayoutHeightMatchesFixedArea:
+                Math.abs(mapRect.height - mapLegendRect.height) < 1 &&
+                Math.abs(mapRect.height - 359.1) < 1,
+              mapLegendContentContained:
+                mapLegend.scrollHeight <= mapLegend.clientHeight,
+              clearanceItemsContained: Array.from(
+                mapLegend.querySelectorAll<HTMLElement>(".map-clearances li"),
+              ).every(
+                (item) =>
+                  item.getBoundingClientRect().bottom <=
+                  mapLegendRect.bottom + 1,
+              ),
+              clearancesAppearBeforeMapLayers:
+                (mapLegend
+                  .querySelector(".map-clearances")
+                  ?.compareDocumentPosition(
+                    mapLegend.querySelector(".map-legend-list")!,
+                  ) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING
+                  ? true
+                  : false,
+              mapFillsLegendHeight: mapRect.bottom >= mapLegendRect.bottom - 1,
               mapKeyCount: mapPanel.querySelectorAll(".map-legend").length,
               mapCaptionContained:
-                captionRect.left >= mapRect.left &&
-                captionRect.right <= mapRect.right,
+                captionRect.left >= panelRect.left &&
+                captionRect.right <= panelRect.right,
               keyFindingsCount: document.querySelectorAll(".findings").length,
             };
           });
@@ -183,7 +239,14 @@ describe("persisted preliminary report renderer", () => {
       pageOverflowPixels: [0, 0, 0],
       mapCount: 1,
       mapPanelContained: true,
-      mapKeyCount: 0,
+      mapPanelAlignedWithGlance: true,
+      mapPanelClearOfFooter: true,
+      mapLayoutHeightMatchesFixedArea: true,
+      mapLegendContentContained: true,
+      clearanceItemsContained: true,
+      clearancesAppearBeforeMapLayers: true,
+      mapFillsLegendHeight: true,
+      mapKeyCount: 1,
       mapCaptionContained: true,
       keyFindingsCount: 0,
     });

@@ -204,8 +204,9 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).toContain(report.overall.summary);
     expect(html).toContain(report.overall.recommendedStage);
     expect(html).toContain("Mapping information");
-    expect(html).not.toContain("Map key");
-    expect(html).not.toContain("map-legend");
+    expect(html).toContain("Captured map layers");
+    expect(html).toContain('class="map-legend"');
+    expect(html).toContain("Mapped property boundary");
     expect(html).not.toContain("Key findings");
     expect(html).toContain("Preliminary assessment");
     expect(html).toContain("Preliminary feasibility only.");
@@ -218,10 +219,13 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).not.toContain("Page 4");
   });
 
-  it("includes pool-shell clearances in the PDF only when that selected map overlay was saved", () => {
+  it("shows the saved layer legend and pool-shell clearances beside the PDF map", () => {
     const shown = renderCanonicalPreliminaryReportHtml(buildReport());
+    expect(shown).toContain("Captured map layers");
+    expect(shown).toContain('class="map-legend"');
     expect(shown).toContain("Indicative mapped pool-shell clearances");
     expect(shown).toMatch(/Side 1: [\d.]+ m/);
+    expect(shown).toMatch(/Side 4: [\d.]+ m/);
 
     const hidden = renderCanonicalPreliminaryReportHtml(
       buildReport((submission) => {

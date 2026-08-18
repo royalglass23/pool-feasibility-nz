@@ -26,12 +26,14 @@ import {
 } from "@/modules/data-access-spike/fast-pool-warning";
 import {
   calculatePoolShellClearances,
+  formatPoolShellClearanceLabel,
   type PoolShellClearance,
 } from "@/modules/spatial/pool-shell-clearances";
 import {
   POOL_SHELL_CLEARANCE_LIMITATION,
   PRELIMINARY_FEASIBILITY_SCOPE,
 } from "@/modules/reporting/preliminary-feasibility-copy";
+import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-view-map-capture";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { bearing, point } from "@turf/turf";
 
@@ -676,7 +678,13 @@ export function FastPropertyView({
         );
         map.on("idle", () => {
           try {
-            const imageDataUrl = map?.getCanvas().toDataURL("image/png");
+            const imageDataUrl = map
+              ? captureFastPropertyViewMap({
+                  map,
+                  clearances: poolShellClearancesRef.current,
+                  visible: clearancesVisibleRef.current,
+                })
+              : null;
             snapshotHandlerRef.current?.(
               imageDataUrl
                 ? {
@@ -1314,7 +1322,10 @@ function syncPoolShellClearanceLabels({
         .addTo(map);
       markers[index] = marker;
     }
-    marker.getElement().textContent = `Side ${index + 1} · ${clearance.label}`;
+    marker.getElement().textContent = formatPoolShellClearanceLabel(
+      clearance,
+      index,
+    );
     marker.setLngLat(clearance.end);
   });
 

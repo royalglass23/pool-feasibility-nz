@@ -17,6 +17,13 @@ export type PoolShellClearance = {
   label: string;
 };
 
+export function formatPoolShellClearanceLabel(
+  clearance: PoolShellClearance,
+  index: number,
+) {
+  return `Side ${index + 1} · ${clearance.label}`;
+}
+
 /**
  * Measures from the centre of each pool-shell side along that side's outward
  * normal. These are indicative mapped distances, not corner clearances or
