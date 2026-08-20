@@ -16,6 +16,7 @@ export type PublicRateLimitAction =
   | "aerial_tile"
   | "property_check"
   | "property_check_stage"
+  | "contact_request"
   | "report_delivery"
   | "report_pdf"
   | "report_request";
@@ -82,6 +83,11 @@ const policies = {
     limit: 2,
     window: { value: 15, unit: "m" },
     prefix: "geomap:public-rate-limit:property-check-stage:v1",
+  },
+  contact_request: {
+    limit: 3,
+    window: { value: 1, unit: "h" },
+    prefix: "geomap:public-rate-limit:contact-request:v1",
   },
   report_delivery: {
     limit: 3,
@@ -292,7 +298,9 @@ async function publicRateLimitDeniedResponse(
   return null;
 }
 
-function isUnlimitedPreviewReportRequest(action: PublicRateLimitAction): boolean {
+function isUnlimitedPreviewReportRequest(
+  action: PublicRateLimitAction,
+): boolean {
   return action === "report_request" && process.env.VERCEL_ENV === "preview";
 }
 
@@ -324,6 +332,11 @@ let localDevelopmentLimiter: PublicRateLimiter | undefined;
 let managedProductionLimiter: PublicRateLimiter | undefined;
 
 function configuredPublicRateLimiter(): PublicRateLimiter {
+  if (isExplicitLocalTestRateLimitMode()) {
+    localDevelopmentLimiter ??= createLocalPublicRateLimiter();
+    return localDevelopmentLimiter;
+  }
+
   const url = process.env.UPSTASH_REDIS_REST_URL?.trim();
   const token = process.env.UPSTASH_REDIS_REST_TOKEN?.trim();
   if (url && token) {
@@ -335,6 +348,30 @@ function configuredPublicRateLimiter(): PublicRateLimiter {
   }
   localDevelopmentLimiter ??= createLocalPublicRateLimiter();
   return localDevelopmentLimiter;
+}
+
+/**
+ * E2E can opt into an in-process limiter without contacting the configured
+ * provider. The mode is unavailable from every Vercel deployment and from
+ * production Node processes, preserving production's fail-closed behavior.
+ */
+export function isExplicitLocalTestRateLimitMode(
+  environment: {
+    mode?: string;
+    vercelEnvironment?: string;
+    nodeEnvironment?: string;
+  } = {
+    mode: process.env.PUBLIC_RATE_LIMIT_MODE,
+    vercelEnvironment: process.env.VERCEL_ENV,
+    nodeEnvironment: process.env.NODE_ENV,
+  },
+): boolean {
+  return (
+    environment.mode === "local_test" &&
+    !environment.vercelEnvironment &&
+    (environment.nodeEnvironment === "development" ||
+      environment.nodeEnvironment === "test")
+  );
 }
 
 function trustedClientIp(request: Request): string | null {

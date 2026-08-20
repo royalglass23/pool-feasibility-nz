@@ -61,7 +61,7 @@ describe("report-request privacy notice", () => {
     expect(notice.getByText("ServiceM8", { selector: "strong" })).toBeVisible();
     expect(
       notice.getAllByText(/contact details, checked address, visitor type/i),
-    ).toHaveLength(2);
+    ).toHaveLength(1);
     expect(
       notice.getByText(
         /homeowner report email and the ServiceM8 notification/i,
@@ -73,10 +73,13 @@ describe("report-request privacy notice", () => {
       ),
     ).toBeVisible();
     expect(
-      notice.getByRole("link", { name: "support@royalglass.co.nz" }),
-    ).toHaveAttribute("href", "mailto:support@royalglass.co.nz");
-    expect(
-      notice.getByText(/does not sign you up for marketing/i),
+      notice.getByText(
+        /contact enquiry includes only the name, email address, and message/i,
+      ),
     ).toBeVisible();
+    expect(
+      notice.getByText(/Use the Contact us button at the bottom/i),
+    ).toBeVisible();
+    expect(notice.getByText(/signs you up for marketing/i)).toBeVisible();
   });
 });

@@ -1,6 +1,7 @@
 type EmailMessage = {
   from: string;
   to: string;
+  replyTo?: string;
   subject: string;
   html: string;
   text: string;
@@ -48,6 +49,7 @@ export async function sendResendEmail(
         body: JSON.stringify({
           from: input.from,
           to: [input.to],
+          ...(input.replyTo ? { reply_to: input.replyTo } : {}),
           subject: input.subject,
           html: input.html,
           text: input.text,
