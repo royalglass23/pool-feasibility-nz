@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 const handlers = vi.hoisted(() => ({
   propertyCheck: vi.fn(async () => new Response(null, { status: 204 })),
   reportRequest: vi.fn(async () => new Response(null, { status: 204 })),
+  contactRequest: vi.fn(async () => new Response(null, { status: 204 })),
 }));
 
 vi.mock("server-only", () => ({}));
@@ -13,9 +14,13 @@ vi.mock(
 vi.mock("@/modules/assessment/handle-assessment-requests", () => ({
   POST: handlers.reportRequest,
 }));
+vi.mock("@/modules/contact/contact-request", () => ({
+  handleContactRequest: handlers.contactRequest,
+}));
 
 import { POST as propertyCheck } from "@/app/api/public/property-check/route";
 import { POST as reportRequest } from "@/app/api/public/assessments/route";
+import { POST as contactRequest } from "@/app/api/public/contact/route";
 
 afterEach(() => {
   vi.clearAllMocks();
@@ -42,6 +47,12 @@ describe("public rate-limit route adapters", () => {
       reportRequest,
       handlers.reportRequest,
       "/api/public/assessments",
+    ],
+    [
+      "contact request",
+      contactRequest,
+      handlers.contactRequest,
+      "/api/public/contact",
     ],
   ] as const)(
     "fails closed before %s downstream work when production protection is unavailable",

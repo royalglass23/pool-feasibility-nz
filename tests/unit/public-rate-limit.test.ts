@@ -6,6 +6,7 @@ import {
   createLocalPublicRateLimiter,
   createPublicRateLimitedHandler,
   createUpstashPublicRateLimiter,
+  isExplicitLocalTestRateLimitMode,
   enforcePublicPropertyStageRateLimit,
   type PublicRateLimitAction,
 } from "@/modules/rate-limit/public-rate-limit";
@@ -23,6 +24,22 @@ function request(path = "/api/public/property-check", ip = "203.0.113.10") {
 }
 
 describe("public Property Check rate limit", () => {
+  it("allows the local test limiter only outside deployments", () => {
+    expect(
+      isExplicitLocalTestRateLimitMode({
+        mode: "local_test",
+        nodeEnvironment: "test",
+      }),
+    ).toBe(true);
+    expect(
+      isExplicitLocalTestRateLimitMode({
+        mode: "local_test",
+        nodeEnvironment: "production",
+        vercelEnvironment: "production",
+      }),
+    ).toBe(false);
+  });
+
   it("allows the tenth attempt, denies the eleventh, and resets after 30 minutes", async () => {
     let now = Date.parse("2026-08-05T00:00:00.000Z");
     const next = vi.fn(async () => Response.json({ ok: true }));
@@ -130,7 +147,9 @@ describe("public report-request rate limit", () => {
     }
 
     expect(next).toHaveBeenCalledTimes(10);
-    await expect(limiter.limit("report_request", "client-a")).resolves.toMatchObject({
+    await expect(
+      limiter.limit("report_request", "client-a"),
+    ).resolves.toMatchObject({
       success: true,
       remaining: 2,
     });
