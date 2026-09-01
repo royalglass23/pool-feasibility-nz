@@ -14,6 +14,21 @@ export type FastPoolWarningStatus =
   | "needs_checking"
   | "blocked";
 
+export type PlacementLayerCategory =
+  | "pool_fit"
+  | "water_wastewater"
+  | "stormwater"
+  | "flooding_drainage"
+  | "planning";
+
+export type PlacementLayerFinding = {
+  key: DetailedLayerResult["key"];
+  dataset: string;
+  category: PlacementLayerCategory;
+  status: "potential_constraint" | "further_investigation";
+  evidence: "reliable" | "needs_checking";
+};
+
 export type FastPoolWarning = {
   status: FastPoolWarningStatus;
   label: "No Warning" | "Needs Checking" | "Blocked";
@@ -21,6 +36,7 @@ export type FastPoolWarning = {
   recommendation: string | null;
   conflictingDatasets: string[];
   checkingDatasets: string[];
+  placementLayerFindings?: PlacementLayerFinding[];
 };
 
 export type FastPoolWarningInput = {
@@ -40,9 +56,36 @@ export type FastPoolPlacementSnapshot = {
   warning: FastPoolWarning;
 };
 
-const serviceDatasetKeys = new Set<
+const placementLayerCategories: Partial<
+  Record<DetailedLayerResult["key"], PlacementLayerCategory>
+> = {
+  building_footprints: "pool_fit",
+  flood_plains: "flooding_drainage",
+  flood_prone_areas: "flooding_drainage",
+  overland_flow_paths: "flooding_drainage",
+  planning_overlays: "planning",
+  public_stormwater_assets: "stormwater",
+  manholes: "stormwater",
+  catchpits: "stormwater",
+  watercourses: "stormwater",
+  culverts: "stormwater",
+  wastewater_assets: "water_wastewater",
+  public_water_assets: "water_wastewater",
+  wastewater_manholes: "water_wastewater",
+  water_fittings: "water_wastewater",
+  wastewater_fittings: "water_wastewater",
+  electricity_feeder_lines: "pool_fit",
+  gas_distribution_lines: "pool_fit",
+};
+
+const placementDatasetKeys = new Set<
   DetailedLayerResult["key"]
 >([
+  "building_footprints",
+  "flood_plains",
+  "flood_prone_areas",
+  "overland_flow_paths",
+  "planning_overlays",
   "public_stormwater_assets",
   "watercourses",
   "manholes",
@@ -77,14 +120,24 @@ export function classifyFastPoolWarning(
   // rather than letting the interactive map fail before the visitor can retry.
   const detailedLayers = input.detailedChecks.layers ?? [];
   const intersectingLayers = detailedLayers
-    .filter((layer) => serviceDatasetKeys.has(layer.key))
+    .filter((layer) => placementDatasetKeys.has(layer.key))
     .filter((layer) => isMappedIntersection(layer, input.pool!));
-  const conflictingDatasets = intersectingLayers
-    .filter((layer) => isReliableIntersection(layer, input.pool!))
-    .map(datasetName);
-  const checkingDatasets = intersectingLayers
-    .filter((layer) => !isReliableIntersection(layer, input.pool!))
-    .map(datasetName);
+  const placementLayerFindings = intersectingLayers.map((layer) => {
+    const reliable = isReliableIntersection(layer, input.pool!);
+    return {
+      key: layer.key,
+      dataset: datasetName(layer),
+      category: placementLayerCategories[layer.key] ?? "pool_fit",
+      status: reliable ? "potential_constraint" : "further_investigation",
+      evidence: reliable ? "reliable" : "needs_checking",
+    } satisfies PlacementLayerFinding;
+  });
+  const conflictingDatasets = placementLayerFindings
+    .filter((finding) => finding.evidence === "reliable")
+    .map((finding) => finding.dataset);
+  const checkingDatasets = placementLayerFindings
+    .filter((finding) => finding.evidence === "needs_checking")
+    .map((finding) => finding.dataset);
 
   if (conflictingDatasets.length > 0) {
     const checkingText =
@@ -94,17 +147,19 @@ export function classifyFastPoolWarning(
     return {
       status: "blocked",
       label: "Blocked",
-      text: `The pool overlaps reliable mapped ${formatDatasetList(conflictingDatasets)} infrastructure.${checkingText}`,
+      text: `The pool overlaps reliable mapped ${formatDatasetList(conflictingDatasets)}.${checkingText}`,
       recommendation: FAST_POOL_SERVICE_RECOMMENDATION,
       conflictingDatasets,
       checkingDatasets,
+      placementLayerFindings,
     };
   }
 
   if (checkingDatasets.length > 0) {
     return needsChecking(
-      `The pool overlaps mapped ${formatDatasetList(checkingDatasets)} infrastructure. Its mapped position needs checking before this layout can be assessed.`,
+      `The pool overlaps mapped ${formatDatasetList(checkingDatasets)}. Its mapped position needs checking before this layout can be assessed.`,
       checkingDatasets,
+      placementLayerFindings,
     );
   }
 
@@ -136,6 +191,7 @@ export function classifyFastPoolWarning(
       recommendation: null,
       conflictingDatasets: [],
       checkingDatasets: [],
+      placementLayerFindings: [],
     };
 }
 
@@ -184,6 +240,7 @@ function isKnownLayerOutcome(layer: DetailedLayerResult): boolean {
 function needsChecking(
   text: string,
   checkingDatasets: string[] = [],
+  placementLayerFindings: PlacementLayerFinding[] = [],
 ): FastPoolWarning {
   return {
     status: "needs_checking",
@@ -192,6 +249,7 @@ function needsChecking(
     recommendation: null,
     conflictingDatasets: [],
     checkingDatasets,
+    placementLayerFindings,
   };
 }
 

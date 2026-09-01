@@ -30,8 +30,10 @@ export type FeasibilityFinding = {
     | "pool_fit"
     | "water"
     | "wastewater"
+    | "water_wastewater"
     | "stormwater"
     | "flooding"
+    | "flooding_drainage"
     | "terrain"
     | "planning"
     | "pool_barrier"
@@ -44,6 +46,8 @@ export type FeasibilityFinding = {
   approximateDistanceMetres?: number;
   technicalDetails?: Record<string, unknown>;
   sourceIds?: string[];
+  placementFinding?: boolean;
+  keyFinding?: boolean;
 };
 
 export type ReportDataSource = {
@@ -154,7 +158,26 @@ function buildFindings(
   sources: ReportDataSource[],
 ): FeasibilityFinding[] {
   const reportData = submission.report.reportData;
-  const findings: FeasibilityFinding[] = reportData.risks
+  const placementLayerFindings = reportData.placementLayerFindings ?? [];
+  const placementFindings: FeasibilityFinding[] = placementLayerFindings.map(
+    (finding) => ({
+      id: `placement_layer:${finding.key}`,
+      category: finding.category,
+      severity:
+        finding.status === "potential_constraint" ? "red" : "amber",
+      title: clientFindingTitle(
+        finding.category,
+        `${finding.dataset} affects the proposed pool position`,
+      ),
+      clientSummary:
+        finding.status === "potential_constraint"
+          ? `The selected pool layout overlaps reliable mapped ${finding.dataset.toLowerCase()} infrastructure.`
+          : `The selected pool layout overlaps mapped ${finding.dataset.toLowerCase()} infrastructure that needs position confirmation.`,
+      placementFinding: true,
+      keyFinding: false,
+    }),
+  );
+  const riskFindings: FeasibilityFinding[] = reportData.risks
     .filter((risk) => !isNormalLaterVerificationRisk(risk))
     .map((risk) => {
       const category = findingCategory(risk);
@@ -174,12 +197,35 @@ function buildFindings(
           .map((source) => source.id ?? source.dataset),
       } satisfies FeasibilityFinding;
     });
+  const warning = submission.warnings[0];
+  const aggregatePlacementFinding =
+    placementFindings.length > 0
+      ? {
+          id: "pool_position_review",
+          category: "pool_fit" as const,
+          severity: placementFindings.some(
+            (finding) => finding.severity === "red",
+          )
+            ? ("red" as const)
+            : ("amber" as const),
+          title:
+            submission.report.feasibilityState === "blocked"
+              ? "Pool position needs review"
+              : "Pool position requires checking",
+          clientSummary: warning?.message ?? submission.report.summary,
+          action: reportData.recommendation,
+        }
+      : null;
+  const findings = [
+    ...(aggregatePlacementFinding ? [aggregatePlacementFinding] : []),
+    ...riskFindings,
+    ...placementFindings,
+  ];
 
   if (
     findings.length === 0 &&
     submission.report.feasibilityState !== "no_warning"
   ) {
-    const warning = submission.warnings[0];
     findings.push({
       id: warning?.code ?? "pool_position_review",
       category: "pool_fit",
@@ -318,7 +364,7 @@ function buildAssessments(
         "water_fittings",
         "wastewater_fittings",
       ],
-      findingCategories: ["water", "wastewater"],
+      findingCategories: ["water", "wastewater", "water_wastewater"],
       clearSummary:
         "No major mapped water or wastewater conflict was identified for the proposed pool area.",
       unknownSummary:
@@ -346,7 +392,7 @@ function buildAssessments(
       layers,
       findings,
       keys: ["flood_plains", "flood_prone_areas", "overland_flow_paths"],
-      findingCategories: ["flooding"],
+      findingCategories: ["flooding", "flooding_drainage"],
       clearSummary:
         "No mapped flood or overland-flow conflict was identified at the proposed pool location.",
       unknownSummary:
@@ -405,12 +451,15 @@ function layerAssessment(input: {
   const relevantLayers = input.layers.filter((layer) =>
     input.keys.includes(reportMapLayerKey(layer.id, layer.dataset)),
   );
-  const strongest = input.findings
+  const categoryFindings = input.findings
     .filter((finding) => input.findingCategories.includes(finding.category))
     .sort(
       (left, right) =>
         statusPriority(right.severity) - statusPriority(left.severity),
-    )[0];
+    );
+  const strongest =
+    categoryFindings.find((finding) => finding.placementFinding) ??
+    categoryFindings[0];
   const hasUsableEvidence = relevantLayers.some((layer) =>
     ["returned", "empty", "internal_reference_only"].includes(layer.state),
   );
@@ -452,7 +501,10 @@ function selectKeyFindings(
   overallStatus: AssessmentStatus,
 ): FeasibilityFinding[] {
   const material = [...findings]
-    .filter((finding) => finding.severity !== "green")
+    .filter(
+      (finding) =>
+        finding.severity !== "green" && finding.keyFinding !== false,
+    )
     .sort(
       (left, right) =>
         statusPriority(right.severity) - statusPriority(left.severity),
@@ -635,8 +687,10 @@ function clientFindingTitle(
   const titles: Partial<Record<FeasibilityFinding["category"], string>> = {
     water: "Mapped water infrastructure requires checking",
     wastewater: "Wastewater infrastructure near the proposed pool",
+    water_wastewater: "Water and wastewater infrastructure requires checking",
     stormwater: "Stormwater infrastructure requires checking",
     flooding: "Mapped flooding or drainage constraint",
+    flooding_drainage: "Mapped flooding or drainage constraint",
     terrain: "Terrain conditions require checking",
     planning: "Mapped planning constraint",
     pool_fit: "Pool position needs review",
@@ -650,13 +704,17 @@ function clientFindingSummary(
   category: FeasibilityFinding["category"],
   evidence: string,
 ): string {
-  if (category === "water" || category === "wastewater") {
+  if (
+    category === "water" ||
+    category === "wastewater" ||
+    category === "water_wastewater"
+  ) {
     return "Mapped water or wastewater infrastructure may affect the proposed pool position and should be checked before the layout is finalised.";
   }
   if (category === "stormwater") {
     return "Mapped stormwater infrastructure may affect the proposed pool area and should be considered during detailed design.";
   }
-  if (category === "flooding") {
+  if (category === "flooding" || category === "flooding_drainage") {
     return "A mapped flooding or drainage condition may affect the proposed pool position and requires further review.";
   }
   if (category === "terrain") {
@@ -706,11 +764,17 @@ export function reportAddressSlug(address: string): string {
 }
 
 function recommendationTitle(category: FeasibilityFinding["category"]): string {
-  if (category === "water" || category === "wastewater") {
+  if (
+    category === "water" ||
+    category === "wastewater" ||
+    category === "water_wastewater"
+  ) {
     return "Verify water and wastewater infrastructure";
   }
   if (category === "stormwater") return "Verify stormwater infrastructure";
-  if (category === "flooding") return "Review flooding and drainage";
+  if (category === "flooding" || category === "flooding_drainage") {
+    return "Review flooding and drainage";
+  }
   if (category === "terrain") return "Verify terrain and ground conditions";
   if (category === "planning") return "Confirm planning requirements";
   if (category === "pool_barrier") return "Finalise the pool barrier layout";

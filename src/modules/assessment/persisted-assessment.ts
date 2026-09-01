@@ -142,6 +142,20 @@ const reportDataset = z.object({
   availabilityNote: z.string().max(2_000).nullable(),
 });
 
+const placementLayerFinding = z.object({
+  key: z.string().min(1).max(160),
+  dataset: z.string().min(1).max(160),
+  category: z.enum([
+    "pool_fit",
+    "water_wastewater",
+    "stormwater",
+    "flooding_drainage",
+    "planning",
+  ]),
+  status: z.enum(["potential_constraint", "further_investigation"]),
+  evidence: z.enum(["reliable", "needs_checking"]),
+});
+
 const reportData = z.object({
   mapImageSource: z
     .enum(["trusted_report_render", "fast_property_view_capture"])
@@ -162,6 +176,7 @@ const reportData = z.object({
     .max(50),
   limitations: z.array(z.string().max(2_000)).max(50),
   provenance: z.object({ datasets: z.array(reportDataset).max(50) }),
+  placementLayerFindings: z.array(placementLayerFinding).max(50).optional(),
   assessmentSnapshot: reportAssessmentSnapshotSchema.nullable().optional(),
 });
 
