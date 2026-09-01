@@ -72,7 +72,11 @@ export function classifyFastPoolWarning(
     );
   }
 
-  const intersectingLayers = input.detailedChecks.layers
+  // A staged retry may preserve a partial detailed-check response while an
+  // upstream provider is unavailable. Treat that as no returned evidence,
+  // rather than letting the interactive map fail before the visitor can retry.
+  const detailedLayers = input.detailedChecks.layers ?? [];
+  const intersectingLayers = detailedLayers
     .filter((layer) => serviceDatasetKeys.has(layer.key))
     .filter((layer) => isMappedIntersection(layer, input.pool!));
   const conflictingDatasets = intersectingLayers
@@ -110,13 +114,13 @@ export function classifyFastPoolWarning(
     );
   }
 
-  if (input.detailedChecks.layers.length === 0) {
+  if (detailedLayers.length === 0) {
     return needsChecking(
       "No detailed official layer results were returned, so the mapped utility evidence needs checking.",
     );
   }
 
-  const incompleteLayer = input.detailedChecks.layers.find(
+  const incompleteLayer = detailedLayers.find(
     (layer) => !isKnownLayerOutcome(layer),
   );
   if (incompleteLayer) {

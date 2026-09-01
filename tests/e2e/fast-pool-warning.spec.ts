@@ -127,7 +127,7 @@ test("shows Needs Checking before detailed evidence, then No Warning after a cle
 }) => {
   await openFastView(page);
   await expect(
-    page.getByRole("heading", { name: "Needs Checking" }),
+    page.getByRole("heading", { name: "Needs Checking", exact: true }),
   ).toBeVisible();
 
   await page.route("**/api/public/property-check/stages", async (route) => {

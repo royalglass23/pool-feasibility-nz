@@ -204,19 +204,25 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
       name: "Your details for the preliminary report",
     }),
   ).toBeVisible({ timeout: 15_000 });
-  const privacyNoticeLink = page.getByRole("link", {
+  const homeownerForm = page.locator(
+    'form[aria-labelledby="homeowner-details-heading"]',
+  );
+  const privacyNoticeLink = homeownerForm.getByRole("link", {
     name: "privacy notice",
+    exact: true,
   });
   await expect(privacyNoticeLink).toBeVisible();
   await expect(privacyNoticeLink).toHaveAttribute("href", "/privacy");
 
-  await page.getByLabel("Name").fill("Jane Homeowner");
-  await page.getByLabel("Phone").fill("021 555 1234");
-  await page.getByLabel("Email").fill("jane@example.com");
-  await page
+  await homeownerForm.getByLabel("Name").fill("Jane Homeowner");
+  await homeownerForm.getByLabel("Phone").fill("021 555 1234");
+  await homeownerForm.getByLabel("Email").fill("jane@example.com");
+  await homeownerForm
     .getByRole("checkbox", { name: /I consent to Royal Glass/i })
     .check();
-  await page.getByRole("button", { name: "Save and show my report" }).click();
+  await homeownerForm
+    .getByRole("button", { name: "Save and show my report" })
+    .click();
 
   const savingDialog = page.getByRole("dialog", {
     name: "Saving your assessment",
@@ -286,13 +292,18 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
       name: "Your details for the preliminary report",
     }),
   ).toBeVisible({ timeout: 15_000 });
-  await page.getByLabel("Name").fill("Jane Homeowner");
-  await page.getByLabel("Phone").fill("021 555 1234");
-  await page.getByLabel("Email").fill("jane@example.com");
-  await page
+  const secondHomeownerForm = page.locator(
+    'form[aria-labelledby="homeowner-details-heading"]',
+  );
+  await secondHomeownerForm.getByLabel("Name").fill("Jane Homeowner");
+  await secondHomeownerForm.getByLabel("Phone").fill("021 555 1234");
+  await secondHomeownerForm.getByLabel("Email").fill("jane@example.com");
+  await secondHomeownerForm
     .getByRole("checkbox", { name: /I consent to Royal Glass/i })
     .check();
-  await page.getByRole("button", { name: "Save and show my report" }).click();
+  await secondHomeownerForm
+    .getByRole("button", { name: "Save and show my report" })
+    .click();
 
   await expect(
     page.getByRole("heading", {

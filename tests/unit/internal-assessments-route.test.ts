@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_MAP_IMAGE_DATA_URL } from "../fixtures/preliminary-report";
 import { createAssessmentSnapshotService } from "@/modules/assessment/assessment-snapshot";
 import {
@@ -10,10 +10,12 @@ import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fa
 import { officialDatasetEvidence } from "@/modules/providers/official-dataset-catalog";
 
 const getDb = vi.hoisted(() => vi.fn(() => ({}) as never));
+const getHomeownerAssessmentByIdempotencyKey = vi.hoisted(() => vi.fn());
 const saveHomeownerAssessment = vi.hoisted(() => vi.fn());
 const getSavedPreliminaryReportById = vi.hoisted(() => vi.fn());
 const issueSavedReportAccessToken = vi.hoisted(() => vi.fn());
 const after = vi.hoisted(() => vi.fn());
+const executeFastPropertyDetailsRequest = vi.hoisted(() => vi.fn());
 
 vi.mock("server-only", () => ({}));
 vi.mock("next/server", () => ({ after }));
@@ -25,8 +27,12 @@ vi.mock("@/modules/rate-limit/public-rate-limit", () => ({
 }));
 vi.mock("@/db/client", () => ({ getDb }));
 vi.mock("@/db/repositories/homeowner-assessment-repository", () => ({
+  getHomeownerAssessmentByIdempotencyKey,
   getSavedPreliminaryReportById,
   saveHomeownerAssessment,
+}));
+vi.mock("@/modules/data-access-spike/execute-fast-property-details", () => ({
+  executeFastPropertyDetailsRequest,
 }));
 vi.mock("@/modules/reporting/saved-report-access-token", () => ({
   issueSavedReportAccessToken,
@@ -108,11 +114,22 @@ const validSubmission = {
   },
 };
 
+beforeEach(() => {
+  getHomeownerAssessmentByIdempotencyKey.mockResolvedValue(null);
+  executeFastPropertyDetailsRequest.mockResolvedValue({
+    ok: true,
+    status: 200,
+    data: completeDetailedChecks(),
+  });
+});
+
 afterEach(() => {
   getDb.mockClear();
+  getHomeownerAssessmentByIdempotencyKey.mockReset();
   saveHomeownerAssessment.mockReset();
   getSavedPreliminaryReportById.mockReset();
   issueSavedReportAccessToken.mockReset();
+  executeFastPropertyDetailsRequest.mockReset();
   vi.unstubAllEnvs();
 });
 
@@ -508,6 +525,57 @@ describe("POST /api/internal/assessments", () => {
     );
   });
 
+  it("returns an existing report without preparing detailed mapping again", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("INTERNAL_REPORT_SIGNING_SECRET", snapshotSigningKey);
+    const existingAssessment = {
+      id: ASSESSMENT_ID,
+      reference: "GF-2026-000001",
+      status: "new_enquiry",
+      emailDeliveryState: "pending",
+      forwardingState: "pending",
+    };
+    getHomeownerAssessmentByIdempotencyKey
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(existingAssessment);
+    saveHomeownerAssessment
+      .mockResolvedValueOnce({ assessment: existingAssessment, created: true })
+      .mockResolvedValueOnce({ assessment: existingAssessment, created: false });
+    getSavedPreliminaryReportById.mockResolvedValue({
+      reference: "GF-2026-000001",
+      generatedAt: "2026-07-29T02:03:04.000Z",
+      title: "Stored preliminary report",
+      summary: "The original persisted assessment.",
+      warningState: "blocked",
+      property: {
+        address: "Stored address",
+        boundaryStatus: "confirmed",
+        boundaryConfidence: "high",
+        boundaryAreaSquareMetres: 900,
+        parcelIdentifier: null,
+      },
+      pool: { lengthMetres: 6.5, widthMetres: 3, rotationDegrees: 12 },
+      warnings: [],
+      recommendations: [],
+      layers: [],
+      limitations: [],
+      mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
+    });
+    issueSavedReportAccessToken.mockReturnValue("saved-report-access-token");
+
+    const createRequest = () =>
+      new Request("http://127.0.0.1:3000/api/internal/assessments", {
+        method: "POST",
+        body: JSON.stringify(validSubmission),
+      });
+
+    expect((await POST(createRequest())).status).toBe(201);
+    expect((await POST(createRequest())).status).toBe(200);
+
+    expect(executeFastPropertyDetailsRequest).toHaveBeenCalledOnce();
+    expect(saveHomeownerAssessment).toHaveBeenCalledOnce();
+  });
+
   it("returns an already-saved assessment", async () => {
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("INTERNAL_REPORT_SIGNING_SECRET", snapshotSigningKey);
@@ -579,6 +647,32 @@ describe("POST /api/internal/assessments", () => {
         message:
           "The saved report is temporarily unavailable. Please try again shortly.",
         correlationId: "report-access-unavailable",
+      },
+    });
+  });
+
+  it("returns a safe correlated response when assessment storage is unavailable", async () => {
+    getDb.mockImplementationOnce(() => {
+      throw new Error("DATABASE_URL is required for persisted assessments.");
+    });
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/assessments", {
+        method: "POST",
+        headers: { "x-correlation-id": "assessment-storage-unavailable" },
+        body: JSON.stringify(validSubmission),
+      }),
+    );
+
+    expect(response.status).toBe(500);
+    expect(response.headers.get("x-correlation-id")).toBe(
+      "assessment-storage-unavailable",
+    );
+    await expect(response.json()).resolves.toEqual({
+      error: {
+        code: "ASSESSMENT_SAVE_FAILED",
+        message: "The assessment could not be saved. Please try again shortly.",
+        correlationId: "assessment-storage-unavailable",
       },
     });
   });

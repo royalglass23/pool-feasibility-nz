@@ -1,6 +1,6 @@
 import { createDataAccessGateway } from "../fixtures/normalized-data-access";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DataAccessInspector } from "@/app/data-access-inspector";
 import { runDataAccessSpike } from "@/modules/data-access-spike/run-data-access-spike";
@@ -818,12 +818,18 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     await user.keyboard("{Enter}");
 
     await screen.findByText(/Aerial imagery is not ready yet/);
+    const stageRequestCountBeforeRetry = fetchMock.mock.calls.filter(
+      ([input]) => String(input).includes("/api/public/property-check/stages"),
+    ).length;
     await user.click(screen.getByRole("button", { name: "Retry fast view" }));
-    expect(
-      fetchMock.mock.calls.filter(
-        ([input]) => String(input) === "/api/public/property-check",
-      ),
-    ).toHaveLength(2);
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(
+          ([input]) =>
+            String(input).includes("/api/public/property-check/stages"),
+        ),
+      ).toHaveLength(stageRequestCountBeforeRetry + 1),
+    );
   });
 
   it("hides the address search after a fast view opens and restores it from Start again", async () => {

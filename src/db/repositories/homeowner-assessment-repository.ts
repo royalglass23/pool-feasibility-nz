@@ -225,12 +225,10 @@ export async function saveHomeownerAssessment(
   db: Database,
   submission: PersistedAssessmentSubmission,
 ) {
-  const existing = await db.query.homeownerAssessments.findFirst({
-    where: eq(
-      schema.homeownerAssessments.idempotencyKey,
-      submission.idempotencyKey,
-    ),
-  });
+  const existing = await getHomeownerAssessmentByIdempotencyKey(
+    db,
+    submission.idempotencyKey,
+  );
   if (existing) return { created: false, assessment: existing };
 
   const sequenceResult = await db.execute<{ value: string }>(
@@ -286,15 +284,22 @@ export async function saveHomeownerAssessment(
 
   if (assessment) return { created: true, assessment };
 
-  const raced = await db.query.homeownerAssessments.findFirst({
-    where: eq(
-      schema.homeownerAssessments.idempotencyKey,
-      submission.idempotencyKey,
-    ),
-  });
+  const raced = await getHomeownerAssessmentByIdempotencyKey(
+    db,
+    submission.idempotencyKey,
+  );
   if (!raced)
     throw new Error("Assessment idempotency conflict could not be resolved.");
   return { created: false, assessment: raced };
+}
+
+export async function getHomeownerAssessmentByIdempotencyKey(
+  db: Database,
+  idempotencyKey: string,
+) {
+  return db.query.homeownerAssessments.findFirst({
+    where: eq(schema.homeownerAssessments.idempotencyKey, idempotencyKey),
+  });
 }
 
 export function createReportRequestRetentionStore(
