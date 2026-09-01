@@ -9,7 +9,6 @@ import type {
   Polygon,
 } from "geojson";
 import { type FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
-import type { DetailedLayerResult } from "@/modules/data-access-spike/execute-fast-property-details";
 import {
   buildFastPoolGeometry,
   FAST_POOL_CATALOGUE,
@@ -147,15 +146,15 @@ export function FastPropertyView({
   onLoadDetailed,
   onRetry,
   onStartAgain,
-  isLoadingDetailed,
+  isLoadingDetailed = false,
   onPlacementChange,
   onSnapshotReady,
 }: {
   result: FastPropertyViewResult;
-  onLoadDetailed: () => void;
+  onLoadDetailed?: () => void;
   onRetry: () => void;
   onStartAgain?: () => void;
-  isLoadingDetailed: boolean;
+  isLoadingDetailed?: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
   onSnapshotReady?: (snapshot: FastPropertyViewMapSnapshot | null) => void;
 }) {
@@ -884,18 +883,20 @@ export function FastPropertyView({
               Start again
             </button>
           )}
-          <button
-            type="button"
-            onClick={onLoadDetailed}
-            disabled={isInitialAddressLoad || isLoadingDetailed}
-            className="bg-pool-950 disabled:bg-pool-400 min-h-11 rounded-xl px-4 text-sm font-semibold text-white"
-          >
-            {isLoadingDetailed
-              ? "Loading detailed checks…"
-              : isInitialAddressLoad
-                ? "Finding property boundary…"
-                : "Load detailed official checks"}
-          </button>
+          {onLoadDetailed && (
+            <button
+              type="button"
+              onClick={onLoadDetailed}
+              disabled={isInitialAddressLoad || isLoadingDetailed}
+              className="bg-pool-950 disabled:bg-pool-400 min-h-11 rounded-xl px-4 text-sm font-semibold text-white"
+            >
+              {isLoadingDetailed
+                ? "Loading detailed checks…"
+                : isInitialAddressLoad
+                  ? "Finding property boundary…"
+                  : "Load detailed official checks"}
+            </button>
+          )}
         </div>
       </div>
       <ol
@@ -1036,8 +1037,8 @@ export function FastPropertyView({
           <div className="flex justify-end bg-white px-4 py-3 text-sm">
             <p className="text-pool-600">
               Default pool: {result.defaultPool.label} (
-              {result.defaultPool.lengthMetres} × {result.defaultPool.widthMetres}{" "}
-              m)
+              {result.defaultPool.lengthMetres} ×{" "}
+              {result.defaultPool.widthMetres} m)
             </p>
           </div>
         )}
@@ -1049,10 +1050,13 @@ export function FastPropertyView({
             className="border-pool-200 bg-pool-50 space-y-4 rounded-2xl border p-4"
           >
             <div>
-              <h3 className="text-pool-950 font-semibold">Choose a pool layout</h3>
+              <h3 className="text-pool-950 font-semibold">
+                Choose a pool layout
+              </h3>
               <p className="text-pool-600 mt-1 text-sm">
-                Drag the pool or rotate it with the orange handle. The indicative
-                construction envelope is constrained to the mapped area.
+                Drag the pool or rotate it with the orange handle. The
+                indicative construction envelope is constrained to the mapped
+                area.
               </p>
             </div>
             <div
@@ -1130,49 +1134,6 @@ export function FastPropertyView({
           be reviewed.
         </p>
       )}
-      {result.detailedChecks && (
-        <details className="group border-pool-200 bg-pool-50 rounded-2xl border">
-          <summary className="focus-visible:outline-pool-blue-700 flex min-h-16 cursor-pointer list-none items-center justify-between gap-3 p-4 focus-visible:outline-2 focus-visible:outline-offset-[-2px]">
-            <span>
-              <span
-                id="detailed-checks-heading"
-                role="heading"
-                aria-level={3}
-                className="text-pool-950 block font-semibold"
-              >
-                Detailed official checks
-              </span>
-              <span className="text-pool-600 mt-1 block text-sm">
-                {result.detailedChecks.status === "complete"
-                  ? "All configured provider queries completed."
-                  : "Some provider queries remain unknown; this is a partial result."}
-              </span>
-            </span>
-            <span className="border-pool-300 rounded-full border bg-white px-3 py-1 text-xs font-bold uppercase">
-              {result.detailedChecks.status}
-            </span>
-          </summary>
-          <div className="border-pool-200 space-y-3 border-t p-4">
-            <ul
-              className="grid gap-2 sm:grid-cols-2"
-              aria-label="Official layer results"
-            >
-              {result.detailedChecks.layers.map((layer) => (
-                <DetailedLayer key={layer.key} layer={layer} />
-              ))}
-            </ul>
-            <p className="text-pool-600 text-xs leading-5">
-              {result.detailedChecks.region} Attribution and limitations remain
-              applicable to every returned layer.
-            </p>
-            <ul className="text-pool-600 list-disc space-y-1 pl-5 text-xs leading-5">
-              {result.detailedChecks.limitations.map((limitation) => (
-                <li key={limitation}>{limitation}</li>
-              ))}
-            </ul>
-          </div>
-        </details>
-      )}
       <div className="flex justify-end">
         <button
           type="button"
@@ -1214,36 +1175,6 @@ function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
         </p>
       )}
     </section>
-  );
-}
-
-function DetailedLayer({ layer }: { layer: DetailedLayerResult }) {
-  const stateLabel = layer.state.replaceAll("_", " ");
-  return (
-    <li className="border-pool-200 rounded-xl border bg-white px-3 py-2 text-sm">
-      <div className="flex items-center justify-between gap-2">
-        <span className="text-pool-900 font-semibold">
-          {layer.evidence.dataset}
-        </span>
-        <span className="text-pool-700 text-xs font-bold uppercase">
-          {stateLabel}
-        </span>
-      </div>
-      <p className="text-pool-600 mt-1 text-xs leading-5">{layer.message}</p>
-      <p className="text-pool-500 mt-1 text-xs">
-        Provider: {layer.evidence.provider}
-      </p>
-      {layer.evidence.attribution && (
-        <a
-          href={layer.evidence.attribution.url}
-          target="_blank"
-          rel="noreferrer"
-          className="text-pool-blue-800 mt-1 inline-block text-xs font-semibold underline"
-        >
-          {layer.evidence.attribution.text}
-        </a>
-      )}
-    </li>
   );
 }
 

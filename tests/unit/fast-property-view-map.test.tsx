@@ -4,15 +4,14 @@ import userEvent from "@testing-library/user-event";
 import { FastPropertyView } from "@/components/fast-property-view";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 
-const { mapCreated, mapStyles, fitBounds, mapEventHandlers, markerOffsets } = vi.hoisted(
-  () => ({
+const { mapCreated, mapStyles, fitBounds, mapEventHandlers, markerOffsets } =
+  vi.hoisted(() => ({
     mapCreated: vi.fn(),
     mapStyles: vi.fn(),
     fitBounds: vi.fn(),
     mapEventHandlers: new globalThis.Map<string, (event: MapEvent) => void>(),
     markerOffsets: [] as [number, number][],
-  }),
-);
+  }));
 
 type MapEvent = {
   point: { coordinates: [number, number] };
@@ -123,8 +122,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-it("keeps unavailable utilities unchecked and preserves the map when a utility is hidden", async () => {
-  const user = userEvent.setup();
+it("shows detailed map controls without restoring the detailed checks panel", async () => {
   render(
     <FastPropertyView
       result={fastResult}
@@ -143,20 +141,12 @@ it("keeps unavailable utilities unchecked and preserves the map when a utility i
     expect.objectContaining({ padding: 56, duration: 0, maxZoom: 20 }),
   );
 
-  const detailedChecks = screen
-    .getByText("Detailed official checks")
-    .closest("details");
-  expect(detailedChecks).not.toHaveAttribute("open");
-  await user.click(screen.getByText("Detailed official checks"));
-  expect(detailedChecks).toHaveAttribute("open");
-
-  const stormwater = screen.getByRole("checkbox", { name: "Stormwater" });
-  expect(stormwater).toBeDisabled();
-  expect(stormwater).not.toBeChecked();
-
-  const wastewater = screen.getByRole("checkbox", { name: "Wastewater" });
-  await user.click(wastewater);
-  expect(wastewater).not.toBeChecked();
+  expect(
+    screen.queryByText("Detailed official checks"),
+  ).not.toBeInTheDocument();
+  expect(screen.getByRole("checkbox", { name: "Contours" })).toBeDisabled();
+  expect(screen.getByRole("checkbox", { name: "Stormwater" })).toBeDisabled();
+  expect(screen.getByRole("checkbox", { name: "Wastewater" })).toBeChecked();
   expect(mapCreated).toHaveBeenCalledTimes(1);
 });
 
@@ -174,8 +164,6 @@ it("does not expose or emit pool placement while the boundary is loading", async
         },
         progress: { ...fastResult.progress, boundary: "loading" },
       }}
-      isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
       onRetry={() => {}}
       onPlacementChange={onPlacementChange}
     />,
@@ -192,14 +180,7 @@ it("does not expose or emit pool placement while the boundary is loading", async
 });
 
 it("explains an aerial tile failure instead of swallowing the MapLibre error", async () => {
-  render(
-    <FastPropertyView
-      result={fastResult}
-      isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
-      onRetry={() => {}}
-    />,
-  );
+  render(<FastPropertyView result={fastResult} onRetry={() => {}} />);
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
   mapEventHandlers.get("error:map")?.({
@@ -219,8 +200,6 @@ it("captures the completed Fast Property View canvas for report reuse", async ()
   render(
     <FastPropertyView
       result={fastResult}
-      isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
       onRetry={() => {}}
       onSnapshotReady={onSnapshotReady}
     />,
@@ -235,14 +214,7 @@ it("captures the completed Fast Property View canvas for report reuse", async ()
 });
 
 it("draws the indicative investigation buffer around the selected pool", async () => {
-  render(
-    <FastPropertyView
-      result={fastResult}
-      isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
-      onRetry={() => {}}
-    />,
-  );
+  render(<FastPropertyView result={fastResult} onRetry={() => {}} />);
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
   const style = mapStyles.mock.calls[0]?.[0] as {
@@ -277,14 +249,7 @@ it("draws the indicative investigation buffer around the selected pool", async (
 
 it("positions each visible clearance label outside the mapped boundary", async () => {
   const user = userEvent.setup();
-  render(
-    <FastPropertyView
-      result={fastResult}
-      isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
-      onRetry={() => {}}
-    />,
-  );
+  render(<FastPropertyView result={fastResult} onRetry={() => {}} />);
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
   expect(screen.getAllByText(/^Side [1-4] · \d+\.\d m$/)).toHaveLength(4);
@@ -302,7 +267,14 @@ it("positions each visible clearance label outside the mapped boundary", async (
     };
   };
   style.sources["pool-shell-clearances"].data.features.forEach(
-    ({ geometry: { coordinates: [start, end] } }, index) => {
+    (
+      {
+        geometry: {
+          coordinates: [start, end],
+        },
+      },
+      index,
+    ) => {
       const [offsetX, offsetY] = markerOffsets[index]!;
       const outwardX = end[0] - start[0];
       const outwardY = start[1] - end[1];
@@ -323,8 +295,6 @@ it("shows live pool-shell clearances by default and preserves the selected visib
   render(
     <FastPropertyView
       result={fastResult}
-      isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
       onRetry={() => {}}
       onPlacementChange={onPlacementChange}
     />,
@@ -366,12 +336,7 @@ it("shows live pool-shell clearances by default and preserves the selected visib
 it("keeps hidden pool-shell clearances hidden when a system update recreates the map", async () => {
   const user = userEvent.setup();
   const { rerender } = render(
-    <FastPropertyView
-      result={fastResult}
-      isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
-      onRetry={() => {}}
-    />,
+    <FastPropertyView result={fastResult} onRetry={() => {}} />,
   );
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
@@ -381,8 +346,6 @@ it("keeps hidden pool-shell clearances hidden when a system update recreates the
   rerender(
     <FastPropertyView
       result={{ ...fastResult, fastPathDurationMs: 121 }}
-      isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
       onRetry={() => {}}
     />,
   );
@@ -433,14 +396,7 @@ it("draws returned contours and lets the user hide them", async () => {
       ],
     },
   } as unknown as FastPropertyViewResult;
-  render(
-    <FastPropertyView
-      result={result}
-      isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
-      onRetry={() => {}}
-    />,
-  );
+  render(<FastPropertyView result={result} onRetry={() => {}} />);
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
   const style = mapStyles.mock.calls[0]?.[0] as {
@@ -451,7 +407,6 @@ it("draws returned contours and lets the user hide them", async () => {
   expect(style.layers).toEqual(
     expect.arrayContaining([expect.objectContaining({ id: "contours" })]),
   );
-
   const contours = screen.getByRole("checkbox", { name: "Contours" });
   expect(contours).toBeChecked();
   await user.click(contours);
@@ -484,8 +439,6 @@ it("does not run an aerial existing-pool check when the map becomes ready", asyn
           datasets: { aerial_imagery: { datasetIdentifier: "aerial-imagery" } },
         } as unknown as FastPropertyViewResult
       }
-      isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
       onRetry={() => {}}
     />,
   );
@@ -525,8 +478,6 @@ it("keeps shell geometry separate when its construction envelope does not fit", 
   render(
     <FastPropertyView
       result={narrowResult}
-      isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
       onRetry={() => {}}
       onPlacementChange={onPlacementChange}
     />,
@@ -554,8 +505,6 @@ it("lets touch users move and rotate the pool layout", async () => {
   render(
     <FastPropertyView
       result={fastResult}
-      isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
       onRetry={() => {}}
       onPlacementChange={onPlacementChange}
     />,

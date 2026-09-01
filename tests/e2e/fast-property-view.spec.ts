@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-test("shows the fast address-to-property stages before detailed checks", async ({
+test("loads detailed mapping evidence into the public property view", async ({
   page,
 }) => {
   await page.route("**/api/public/property-check", async (route) => {
@@ -48,6 +48,54 @@ test("shows the fast address-to-property stages before detailed checks", async (
       }),
     });
   });
+  let detailedStageRequests = 0;
+  await page.route("**/api/public/property-check/stages", async (route) => {
+    const request = route.request().postDataJSON() as { mode?: string };
+    if (request.mode !== "detailed") return route.continue();
+
+    detailedStageRequests += 1;
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        assessmentSnapshot: "server-issued-detailed-snapshot",
+        data: {
+          status: "complete",
+          retrievedAt: "2026-07-28T00:00:01.000Z",
+          durationMs: 20,
+          region: "Auckland",
+          limitations: [],
+          layers: [
+            {
+              key: "wastewater_assets",
+              state: "returned",
+              evidence: {
+                dataset: "Wastewater pipes",
+                provider: "Watercare",
+              },
+              geometry: {
+                type: "FeatureCollection",
+                features: [
+                  {
+                    type: "Feature",
+                    properties: {},
+                    geometry: {
+                      type: "LineString",
+                      coordinates: [
+                        [174.608, -36.8604],
+                        [174.6084, -36.8601],
+                      ],
+                    },
+                  },
+                ],
+              },
+              message: "Returned 1 mapped feature.",
+            },
+          ],
+        },
+      }),
+    });
+  });
 
   await page.goto("/");
   await page.getByRole("button", { name: "Not now" }).click();
@@ -69,142 +117,26 @@ test("shows the fast address-to-property stages before detailed checks", async (
   await expect(
     page.getByText("Default pool: Compact (6.5 × 3 m)"),
   ).toBeVisible();
+  const legend = page.getByLabel("Map layers");
+  await expect(legend).toBeVisible();
+  await expect(legend).toContainText(
+    "Load detailed official checks to see contours and mapped utility evidence.",
+  );
   await expect(
     page.getByRole("button", { name: "Load detailed official checks" }),
   ).toBeVisible();
-  await page.route("**/api/public/property-check/stages", async (route) => {
-    const requestBody = route.request().postDataJSON();
-    if (requestBody?.mode !== "detailed") return route.continue();
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify({
-        data: {
-          status: "partial",
-          retrievedAt: "2026-07-28T00:00:01.000Z",
-          durationMs: 210,
-          region:
-            "New Zealand; provider coverage varies by territorial authority and dataset licence.",
-          limitations: ["A verified empty response does not prove absence."],
-          layers: [
-            {
-              key: "building_footprints",
-              state: "returned",
-              evidence: {
-                dataset: "NZ Building Outlines",
-                provider: "LINZ",
-                attribution: {
-                  text: "Land Information New Zealand (LINZ), CC BY 4.0",
-                  url: "https://www.linz.govt.nz/products-services/data/licensing-and-using-data",
-                },
-              },
-              geometry: {
-                type: "FeatureCollection",
-                features: [
-                  {
-                    type: "Feature",
-                    properties: {},
-                    geometry: {
-                      type: "Polygon",
-                      coordinates: [
-                        [
-                          [174.6, -36.86],
-                          [174.61, -36.86],
-                          [174.61, -36.87],
-                          [174.6, -36.86],
-                        ],
-                      ],
-                    },
-                  },
-                ],
-              },
-              message: "Returned 0 mapped features.",
-            },
-            {
-              key: "contours",
-              state: "timeout",
-              evidence: { dataset: "Contours" },
-              geometry: null,
-              message:
-                "The provider timed out; no geometry was drawn. Retry is available.",
-            },
-            {
-              key: "wastewater_assets",
-              state: "returned",
-              evidence: {
-                dataset: "Wastewater Pipes",
-                provider: "Watercare",
-              },
-              geometry: {
-                type: "FeatureCollection",
-                features: [
-                  {
-                    type: "Feature",
-                    properties: {},
-                    geometry: {
-                      type: "LineString",
-                      coordinates: [
-                        [174.6079, -36.8603],
-                        [174.6081, -36.8602],
-                      ],
-                    },
-                  },
-                ],
-              },
-              message: "Returned 1 mapped feature.",
-            },
-          ],
-        },
-        assessmentSnapshot: "server-issued-detailed-snapshot",
-      }),
-    });
-  });
+  const detailedChecksPanel = page
+    .locator("details")
+    .filter({ hasText: "Detailed official checks" });
+  await expect(detailedChecksPanel).toHaveCount(0);
   await page
     .getByRole("button", { name: "Load detailed official checks" })
     .click();
-  await expect(
-    page.getByRole("heading", {
-      name: "Detailed official checks",
-      exact: true,
-    }),
-  ).toBeVisible();
-  const officialChecks = page
-    .locator("details")
-    .filter({ hasText: "Detailed official checks" });
-  await expect(officialChecks).not.toHaveAttribute("open", "");
-  await officialChecks.locator("summary").click();
-  await expect(officialChecks).toHaveAttribute("open", "");
-  await expect(
-    page.getByText(
-      "Some provider queries remain unknown; this is a partial result.",
-    ),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("link", {
-      name: "Land Information New Zealand (LINZ), CC BY 4.0",
-    }),
-  ).toBeVisible();
-  const legend = page.getByLabel("Map layers");
-  await expect(legend).toBeVisible();
-  await expect(legend).toContainText("Wastewater");
+  await expect.poll(() => detailedStageRequests).toBe(1);
   await expect(
     legend.getByRole("checkbox", { name: "Wastewater" }),
   ).toBeChecked();
-  const unavailableStormwater = legend.getByRole("checkbox", {
-    name: "Stormwater",
-  });
-  await expect(unavailableStormwater).toBeDisabled();
-  await expect(unavailableStormwater).not.toBeChecked();
-  await expect(legend.getByText("No contour geometry returned")).toBeVisible();
-  await page
-    .getByRole("button", { name: "Load detailed official checks" })
-    .click();
-  await expect(
-    page.getByRole("heading", {
-      name: "Detailed official checks",
-      exact: true,
-    }),
-  ).toBeVisible();
+  await expect(detailedChecksPanel).toHaveCount(0);
 });
 
 test("supports the pool catalogue and bounded custom input", async ({

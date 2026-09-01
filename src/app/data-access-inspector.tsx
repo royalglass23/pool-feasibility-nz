@@ -41,8 +41,8 @@ import {
   useSavedAssessmentReport,
 } from "@/components/saved-assessment-report-panel";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
-import type { FastPropertyViewRequestError } from "@/modules/data-access-spike/execute-fast-property-view-request";
 import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fast-property-details";
+import type { FastPropertyViewRequestError } from "@/modules/data-access-spike/execute-fast-property-view-request";
 import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
 import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
 
@@ -445,7 +445,7 @@ export function DataAccessInspector() {
       <ActionProgressDialog
         open={isLoadingDetailed}
         title="Running detailed official checks"
-        description="Reviewing available official datasets and mapped property evidence."
+        description="Reviewing available official datasets for your preliminary report."
       />
       {isEnteringAddress && (
         <form
@@ -598,9 +598,7 @@ export function DataAccessInspector() {
           <FastPropertyView
             result={fastResult}
             onLoadDetailed={() => void requestDetailedPropertyData()}
-            onRetry={() =>
-              void requestPropertyData(fastResult.resolvedAddress.addressId)
-            }
+            onRetry={() => void requestDetailedPropertyData()}
             onStartAgain={startAgain}
             isLoadingDetailed={isLoadingDetailed}
             onPlacementChange={handleFastPlacementChange}

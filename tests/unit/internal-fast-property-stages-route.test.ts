@@ -82,6 +82,48 @@ describe("POST /api/internal/fast-property-view/stages", () => {
     expect(executeFastPropertyDetailsRequest).not.toHaveBeenCalled();
   });
 
+  it("loads detailed checks through the public stage route after rate limiting", async () => {
+    const detailedData = { datasets: {}, durationMs: 10 };
+    verifyAssessmentSnapshot.mockReturnValue({
+      submissionId: "snapshot-id",
+      fastResult: {},
+      expiresAt: Date.now() + 60_000,
+    });
+    enforcePublicPropertyStageRateLimit.mockResolvedValue(null);
+    executeFastPropertyDetailsRequest.mockResolvedValue({
+      ok: true,
+      status: 200,
+      data: detailedData,
+    });
+    refreshAssessmentSnapshot.mockReturnValue("refreshed-detailed-snapshot");
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/property-check/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...selectedAddressPoint,
+          mode: "detailed",
+          assessmentSnapshot: "s".repeat(2_000),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(enforcePublicPropertyStageRateLimit).toHaveBeenCalledWith(
+      expect.objectContaining({ submissionId: "snapshot-id" }),
+    );
+    expect(executeFastPropertyDetailsRequest).toHaveBeenCalledWith(
+      expect.objectContaining({
+        body: { ...selectedAddressPoint, mode: "detailed" },
+      }),
+    );
+    await expect(response.json()).resolves.toMatchObject({
+      data: detailedData,
+      assessmentSnapshot: "refreshed-detailed-snapshot",
+    });
+  });
+
   it("identifies malformed stage requests without starting imagery", async () => {
     vi.stubEnv("NODE_ENV", "development");
 

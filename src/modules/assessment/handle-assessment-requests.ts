@@ -2,6 +2,7 @@ import pino from "pino";
 import { after } from "next/server";
 import { getDb } from "@/db/client";
 import {
+  getHomeownerAssessmentByIdempotencyKey,
   getSavedPreliminaryReportById,
   listHomeownerAssessments,
   saveHomeownerAssessment,
@@ -14,7 +15,11 @@ import {
 import {
   AssessmentSnapshotValidationError,
   verifyAssessmentSnapshot,
+  type TrustedAssessmentSnapshot,
 } from "@/modules/assessment/assessment-snapshot";
+import { executeFastPropertyDetailsRequest } from "@/modules/data-access-spike/execute-fast-property-details";
+import { OfficialGisGateway } from "@/modules/providers/official-gis-gateway";
+import { providerTimeoutMs } from "@/shared/http/provider-runtime";
 import { issueSavedReportAccessToken } from "@/modules/reporting/saved-report-access-token";
 import { deliverAssessmentReportByReference } from "@/modules/reporting/deliver-assessment-report";
 import { staffSessionDeniedResponse } from "@/modules/staff/staff-session";
@@ -69,16 +74,16 @@ export async function POST(request: Request) {
     );
   }
 
-  let parsed;
+  let validated: {
+    browserRequest: ReturnType<typeof parseBrowserAssessmentSaveRequest>;
+    snapshot: TrustedAssessmentSnapshot;
+  };
   try {
     const browserRequest = parseBrowserAssessmentSaveRequest(input);
-    const snapshot = verifyAssessmentSnapshot(
-      browserRequest.assessmentSnapshot,
-    );
-    parsed = await buildServerAssessmentSubmission({
-      request: browserRequest,
-      snapshot,
-    });
+    validated = {
+      browserRequest,
+      snapshot: verifyAssessmentSnapshot(browserRequest.assessmentSnapshot),
+    };
   } catch (error) {
     if (!(
       error instanceof ZodError ||
@@ -97,70 +102,49 @@ export async function POST(request: Request) {
       { "Cache-Control": "no-store" },
     );
   }
+
   try {
     const db = getDb();
-    const result = await saveHomeownerAssessment(db, parsed);
-    const report = await getSavedPreliminaryReportById(
+    const existing = await getHomeownerAssessmentByIdempotencyKey(
       db,
-      result.assessment.id,
+      validated.snapshot.submissionId,
     );
-    if (!report) {
+    if (existing) {
+      return await savedAssessmentResponse({
+        db,
+        result: { assessment: existing, created: false },
+        correlationId,
+      });
+    }
+
+    let parsed;
+    try {
+      const snapshot = await loadReportDetails(validated.snapshot);
+      parsed = await buildServerAssessmentSubmission({
+        request: validated.browserRequest,
+        snapshot,
+      });
+    } catch (error) {
+      if (!(
+        error instanceof ZodError ||
+        error instanceof AssessmentSnapshotValidationError ||
+        error instanceof ServerAssessmentSubmissionError
+      )) {
+        throw error;
+      }
       return apiErrorResponse(
         {
-          code: "REPORT_GENERATION_FAILED",
-          message: "The saved preliminary report is not available.",
+          code: "INVALID_REQUEST",
+          message: "The assessment details are incomplete or invalid.",
         },
-        500,
+        400,
         correlationId,
         { "Cache-Control": "no-store" },
       );
     }
-    const reportAccessToken = issueSavedReportAccessToken({
-      assessmentId: result.assessment.id,
-      reference: result.assessment.reference,
-    });
-    after(async () => {
-      try {
-        const outcome = await deliverAssessmentReportByReference(
-          result.assessment.reference,
-        );
-        logger.info({
-          event: "assessment_report_email",
-          outcome: outcome.homeowner,
-          correlationId,
-        });
-      } catch (error) {
-        logger.error({
-          event: "assessment_report_email",
-          outcome: "failed",
-          reason:
-            error instanceof Error && "code" in error
-              ? String(error.code)
-              : "unexpected_error",
-          correlationId,
-        });
-      }
-    });
 
-    return apiJsonResponse(
-      {
-        assessment: {
-          id: result.assessment.id,
-          reference: result.assessment.reference,
-          status: result.assessment.status,
-          created: result.created,
-          report,
-          reportAccessToken,
-          delivery: {
-            homeowner: result.assessment.emailDeliveryState,
-            internal_test_report: result.assessment.forwardingState,
-          },
-        },
-      },
-      result.created ? 201 : 200,
-      correlationId,
-      { "Cache-Control": "no-store" },
-    );
+    const result = await saveHomeownerAssessment(db, parsed);
+    return await savedAssessmentResponse({ db, result, correlationId });
   } catch (error) {
     const reportAccessUnavailable =
       error instanceof Error &&
@@ -188,4 +172,98 @@ export async function POST(request: Request) {
       { "Cache-Control": "no-store" },
     );
   }
+}
+
+async function savedAssessmentResponse({
+  db,
+  result,
+  correlationId,
+}: {
+  db: ReturnType<typeof getDb>;
+  result: Awaited<ReturnType<typeof saveHomeownerAssessment>>;
+  correlationId: string;
+}) {
+  const report = await getSavedPreliminaryReportById(db, result.assessment.id);
+  if (!report) {
+    return apiErrorResponse(
+      {
+        code: "REPORT_GENERATION_FAILED",
+        message: "The saved preliminary report is not available.",
+      },
+      500,
+      correlationId,
+      { "Cache-Control": "no-store" },
+    );
+  }
+  const reportAccessToken = issueSavedReportAccessToken({
+    assessmentId: result.assessment.id,
+    reference: result.assessment.reference,
+  });
+  after(async () => {
+    try {
+      const outcome = await deliverAssessmentReportByReference(
+        result.assessment.reference,
+      );
+      logger.info({
+        event: "assessment_report_email",
+        outcome: outcome.homeowner,
+        correlationId,
+      });
+    } catch (error) {
+      logger.error({
+        event: "assessment_report_email",
+        outcome: "failed",
+        reason:
+          error instanceof Error && "code" in error
+            ? String(error.code)
+            : "unexpected_error",
+        correlationId,
+      });
+    }
+  });
+
+  return apiJsonResponse(
+    {
+      assessment: {
+        id: result.assessment.id,
+        reference: result.assessment.reference,
+        status: result.assessment.status,
+        created: result.created,
+        report,
+        reportAccessToken,
+        delivery: {
+          homeowner: result.assessment.emailDeliveryState,
+          internal_test_report: result.assessment.forwardingState,
+        },
+      },
+    },
+    result.created ? 201 : 200,
+    correlationId,
+    { "Cache-Control": "no-store" },
+  );
+}
+
+async function loadReportDetails(
+  snapshot: TrustedAssessmentSnapshot,
+): Promise<TrustedAssessmentSnapshot> {
+  if (snapshot.fastResult.detailedChecks) return snapshot;
+
+  const response = await executeFastPropertyDetailsRequest({
+    body: {
+      mode: "detailed",
+      addressId: snapshot.fastResult.resolvedAddress.addressId,
+      coordinates: snapshot.fastResult.resolvedAddress.coordinates,
+    },
+    gateway: new OfficialGisGateway({ timeoutMs: providerTimeoutMs() }),
+    timeoutMs: providerTimeoutMs(),
+  });
+  if (!response.ok) throw new ServerAssessmentSubmissionError();
+
+  return {
+    ...snapshot,
+    fastResult: {
+      ...snapshot.fastResult,
+      detailedChecks: response.data,
+    },
+  };
 }

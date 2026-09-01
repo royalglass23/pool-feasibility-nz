@@ -104,36 +104,35 @@ export function AnalyticsConsent({
         </>
       )}
 
-      <div className="fixed inset-x-4 bottom-4 z-50 flex flex-col items-end gap-2 sm:right-6 sm:left-auto sm:w-96">
+      <div className="fixed inset-x-4 bottom-4 z-50 flex max-h-[calc(100dvh-2rem)] flex-col items-end gap-2 sm:right-6 sm:left-auto sm:w-96">
         {settingsOpen && (
           <section
             aria-labelledby="analytics-consent-heading"
-            className="w-full rounded-2xl border border-pool-300 bg-white p-5 text-pool-800"
+            className="border-pool-300 text-pool-800 w-full overflow-y-auto rounded-2xl border bg-white p-4 sm:p-5"
           >
             <h2
               id="analytics-consent-heading"
-              className="text-base font-semibold text-pool-950"
+              className="text-pool-950 text-base font-semibold"
             >
               Analytics cookies
             </h2>
             <p className="mt-2 text-sm leading-6">
-              With your permission, Hotjar and any configured analytics tool
-              record anonymous interaction patterns through the Property Check.
-              We never send your contact details, property address, map,
-              report, coordinates, or free text.
+              Help us improve the Property Check with anonymous interaction
+              analytics. We never send your contact details, property address,
+              map, report, coordinates, or free text.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button
                 type="button"
                 onClick={() => choose("granted")}
-                className="min-h-11 rounded-xl bg-pool-950 px-4 text-sm font-semibold text-white transition-colors hover:bg-pool-blue-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
+                className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
               >
                 Allow analytics
               </button>
               <button
                 type="button"
                 onClick={() => choose("denied")}
-                className="min-h-11 rounded-xl border border-pool-300 px-4 text-sm font-semibold transition-colors hover:border-pool-blue-700 hover:text-pool-blue-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
+                className="border-pool-300 hover:border-pool-blue-700 hover:text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl border px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
               >
                 {choice === "granted"
                   ? "Turn analytics off"
@@ -142,7 +141,7 @@ export function AnalyticsConsent({
               <button
                 type="button"
                 onClick={() => setSettingsOverride(false)}
-                className="min-h-11 px-3 text-sm font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
+                className="focus-visible:outline-pool-blue-700 min-h-11 px-3 text-sm font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2"
               >
                 Not now
               </button>
@@ -153,7 +152,7 @@ export function AnalyticsConsent({
           type="button"
           aria-expanded={settingsOpen}
           onClick={() => setSettingsOverride(!settingsOpen)}
-          className="min-h-11 rounded-full border border-pool-300 bg-white px-4 text-sm font-semibold text-pool-800 shadow-sm transition-colors hover:border-pool-blue-700 hover:text-pool-blue-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
+          className="border-pool-300 text-pool-800 hover:border-pool-blue-700 hover:text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-11 rounded-full border bg-white px-4 text-sm font-semibold shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           Analytics settings
         </button>

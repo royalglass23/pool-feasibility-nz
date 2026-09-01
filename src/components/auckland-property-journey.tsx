@@ -30,11 +30,12 @@ export function AucklandPropertyJourney() {
               id="home-heading"
               className="mt-5 max-w-xl text-4xl leading-[1.04] font-semibold tracking-[-0.035em] text-balance text-[#062f5d] sm:text-6xl"
             >
-              A clearer first look at your property.
+              A clearer first look at an Auckland property.
             </h1>
             <p className="mt-6 max-w-md text-base leading-7 text-pretty text-[#426b87] sm:text-lg sm:leading-8">
-              Search an Auckland address, place a pool concept on the map, and
-              see what deserves a closer look before you plan further.
+              Search an Auckland address, place an indicative pool concept on
+              the map, and see what deserves a closer look before the first site
+              conversation.
             </p>
           </div>
 
@@ -43,12 +44,12 @@ export function AucklandPropertyJourney() {
               href="#property-search"
               className="inline-flex min-h-13 items-center gap-3 rounded-xl bg-[#062f5d] px-5 text-base font-semibold text-white transition-colors duration-200 ease-out hover:bg-[#0b477a] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#062f5d] active:bg-[#001f3d] motion-reduce:transition-none"
             >
-              Check my property
+              Check a property
               <ArrowDownRight aria-hidden="true" className="size-5" />
             </a>
             <p className="mt-4 max-w-sm text-sm leading-6 text-[#426b87]">
-              Preliminary guidance only. It is not a building approval, survey,
-              engineering assessment, or builder quote.
+              Early guidance only. Not a construction approval, survey,
+              engineering assessment, or quote.
             </p>
           </div>
         </div>

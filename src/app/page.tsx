@@ -3,6 +3,7 @@ import { AnalyticsConsent } from "@/components/analytics-consent";
 import { PoolFeasibilityExplainer } from "@/components/pool-feasibility-explainer";
 import { FooterContactDialog } from "@/components/footer-contact-dialog";
 import { env } from "@/env";
+import Link from "next/link";
 import { DataAccessInspector } from "./data-access-inspector";
 
 export default function Home() {
@@ -89,13 +90,39 @@ export default function Home() {
               Begin with a practical property check
             </h2>
             <p className="mt-3 text-base leading-7 text-[#426b87]">
-              Search the property, try a pool layout, and see the early signals
-              that deserve a closer look. You can request the detailed report
-              once you are ready.
+              Start with the address, then use the map to make the next site
+              conversation more informed.
             </p>
           </div>
           <div data-hj-suppress>
             <DataAccessInspector />
+          </div>
+        </section>
+
+        <section
+          className="border-t border-[#dbe8f0] py-14 sm:py-20"
+          aria-labelledby="pool-builders-heading"
+        >
+          <div className="flex max-w-4xl flex-col gap-5 sm:gap-6">
+            <div className="max-w-2xl">
+              <h2
+                id="pool-builders-heading"
+                className="text-2xl font-semibold tracking-[-0.03em] text-[#062f5d] sm:text-3xl"
+              >
+                Start the site conversation with PoolReady
+              </h2>
+              <p className="mt-3 text-base leading-7 text-[#426b87]">
+                Use the shared property view to discuss space, access, and the
+                questions that still need checking before a site visit, design,
+                or quote.
+              </p>
+            </div>
+            <Link
+              href="/auckland-pool-planning-for-builders"
+              className="inline-flex min-h-11 w-fit items-center text-sm font-semibold text-[#006da9] underline decoration-[#85b8d4] underline-offset-4 transition-colors hover:text-[#062f5d] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd]"
+            >
+              How PoolReady supports early builder conversations
+            </Link>
           </div>
         </section>
 

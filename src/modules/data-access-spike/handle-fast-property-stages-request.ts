@@ -48,6 +48,7 @@ export async function POST(request: Request): Promise<Response> {
 export async function handleFastPropertyStagesRequest(
   request: Request,
   beforeProviderWork?: BeforePublicProviderWork,
+  allowDetailedChecks = true,
 ): Promise<Response> {
   const correlationId = requestCorrelationId(request);
   let body: unknown;
@@ -79,6 +80,18 @@ export async function handleFastPropertyStagesRequest(
     return apiErrorResponse(
       stageRequestValidationError(body),
       400,
+      correlationId,
+      { "Cache-Control": "no-store" },
+    );
+  }
+  if (parsed.data.mode === "detailed" && !allowDetailedChecks) {
+    return apiErrorResponse(
+      {
+        code: "DETAILED_CHECKS_REPORT_ONLY",
+        message:
+          "Detailed mapping information is prepared with the preliminary report.",
+      },
+      403,
       correlationId,
       { "Cache-Control": "no-store" },
     );
