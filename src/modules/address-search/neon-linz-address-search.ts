@@ -100,9 +100,10 @@ export class NeonLinzAddressSearch implements AddressSearch {
 }
 
 function addressIndexDatabaseUrl(): string {
-  const localDevelopment =
-    process.env.NODE_ENV !== "production" && !process.env.VERCEL_ENV;
-  const databaseUrl = localDevelopment
+  const nonProduction =
+    process.env.NODE_ENV !== "production" ||
+    process.env.VERCEL_ENV === "preview";
+  const databaseUrl = nonProduction
     ? process.env.DATABASE_URL_DEV?.trim()
     : process.env.DATABASE_URL?.trim();
   if (!databaseUrl) throw new AddressIndexUnavailableError();
