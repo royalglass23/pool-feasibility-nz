@@ -3,8 +3,10 @@ import parcelsFixture from "./linz/42-bahari-parcels.json";
 import type {
   AddressMatch,
   DataAccessSpikeGateway,
+  OfficialPropertyLayers,
   ParcelQueryResult,
 } from "@/modules/data-access-spike/data-access-gateway";
+import type { AddressSearch } from "@/modules/address-search/address-search";
 import {
   normalizeAddressResponse,
   normalizeParcelResponse,
@@ -64,5 +66,19 @@ export function createDataAccessGateway(
       },
     }),
     ...overrides,
+  };
+}
+
+export function splitDataAccessGateway(gateway: DataAccessSpikeGateway): {
+  addressSearch: AddressSearch;
+  propertyLayers: OfficialPropertyLayers;
+} {
+  return {
+    addressSearch: {
+      search: (query) => gateway.searchAddresses(query),
+      getById: (addressId) => gateway.getAddressById(addressId),
+      status: async () => ({ indexedAt: null, isFresh: false }),
+    },
+    propertyLayers: gateway,
   };
 }

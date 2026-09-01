@@ -160,6 +160,68 @@ export const reportRequestRetentionRuns = pgTable(
   ],
 );
 
+/** Public LINZ address-search records only. No visitor search history is stored. */
+export const linzAddressIndex = pgTable(
+  "linz_address_index",
+  {
+    addressId: text("address_id").primaryKey(),
+    sourceObjectId: integer("source_object_id").notNull(),
+    fullAddress: text("full_address").notNull(),
+    fullAddressNumber: text("full_address_number").notNull(),
+    unit: text("unit"),
+    territorialAuthority: text("territorial_authority").notNull(),
+    suburbLocality: text("suburb_locality"),
+    townCity: text("town_city"),
+    postcode: text("postcode"),
+    searchText: text("search_text").notNull(),
+    longitude: doublePrecision("longitude").notNull(),
+    latitude: doublePrecision("latitude").notNull(),
+    isCurrent: boolean("is_current").notNull(),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull(),
+  },
+  (table) => [
+    uniqueIndex("linz_address_index_source_object_id_uq").on(
+      table.sourceObjectId,
+    ),
+    index("linz_address_index_current_ta_idx").on(
+      table.isCurrent,
+      table.territorialAuthority,
+    ),
+  ],
+);
+
+export const linzAddressIndexRuns = pgTable(
+  "linz_address_index_runs",
+  {
+    id: uuid("id").primaryKey(),
+    status: text("status").notNull(),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    sourceSnapshotUrl: text("source_snapshot_url"),
+    sourceSnapshotAt: timestamp("source_snapshot_at", { withTimezone: true }),
+    lastObjectId: integer("last_object_id"),
+    acceptedCount: integer("accepted_count").notNull().default(0),
+    rejectedCount: integer("rejected_count").notNull().default(0),
+    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
+    errorCode: text("error_code"),
+  },
+  (table) => [
+    index("linz_address_index_runs_status_completed_idx").on(
+      table.status,
+      table.completedAt,
+    ),
+    check(
+      "linz_address_index_runs_status_ck",
+      sql`${table.status} in ('running', 'completed', 'failed')`,
+    ),
+    check(
+      "linz_address_index_runs_counts_ck",
+      sql`${table.acceptedCount} >= 0 and ${table.rejectedCount} >= 0`,
+    ),
+  ],
+);
+
 export const staffAdminAccounts = pgTable(
   "staff_admin_accounts",
   {

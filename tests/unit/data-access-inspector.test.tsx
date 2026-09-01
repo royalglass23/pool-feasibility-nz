@@ -1,4 +1,7 @@
-import { createDataAccessGateway } from "../fixtures/normalized-data-access";
+import {
+  createDataAccessGateway,
+  splitDataAccessGateway,
+} from "../fixtures/normalized-data-access";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -779,9 +782,10 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
 
   it("retries when the property resolves but LINZ imagery fails", async () => {
     const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
       requestedAddress,
-      gateway: createDataAccessGateway(),
+      ...splitDataAccessGateway(gateway),
       basemapApiKey: "test-key",
     });
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
@@ -824,9 +828,8 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     await user.click(screen.getByRole("button", { name: "Retry fast view" }));
     await waitFor(() =>
       expect(
-        fetchMock.mock.calls.filter(
-          ([input]) =>
-            String(input).includes("/api/public/property-check/stages"),
+        fetchMock.mock.calls.filter(([input]) =>
+          String(input).includes("/api/public/property-check/stages"),
         ),
       ).toHaveLength(stageRequestCountBeforeRetry + 1),
     );
@@ -834,9 +837,10 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
 
   it("hides the address search after a fast view opens and restores it from Start again", async () => {
     const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
       requestedAddress,
-      gateway: createDataAccessGateway(),
+      ...splitDataAccessGateway(gateway),
       basemapApiKey: "test-key",
     });
     const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
@@ -901,9 +905,10 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
 
   it("explains a stage validation error on the open property view", async () => {
     const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
       requestedAddress,
-      gateway: createDataAccessGateway(),
+      ...splitDataAccessGateway(gateway),
       basemapApiKey: "test-key",
     });
     const stageError =

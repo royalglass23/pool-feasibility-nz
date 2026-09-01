@@ -25,14 +25,18 @@ import type {
   QueryableDatasetKey,
 } from "../data-access-spike/dataset-catalog";
 import type {
-  AddressMatch,
   CountResult,
-  DataAccessSpikeGateway,
   DatasetEvidence,
+  OfficialPropertyLayers,
   ParcelMatch,
   ParcelQueryResult,
   Position,
 } from "../data-access-spike/data-access-gateway";
+import type {
+  AddressMatch,
+  AddressSearch,
+  AddressSearchStatus,
+} from "../address-search/address-search";
 import { normalizeAddressQuery } from "@/shared/text/normalize-address-query";
 
 export { normalizeAddressQuery } from "@/shared/text/normalize-address-query";
@@ -187,7 +191,9 @@ export interface OfficialGisGatewayOptions {
   maxResponseBytes?: number;
 }
 
-export class OfficialGisGateway implements DataAccessSpikeGateway {
+export class OfficialGisGateway
+  implements AddressSearch, OfficialPropertyLayers
+{
   readonly #fetch: typeof fetch;
   readonly #timeoutMs: number;
   readonly #maxResponseBytes: number;
@@ -215,7 +221,7 @@ export class OfficialGisGateway implements DataAccessSpikeGateway {
       : { detailedQuery: true, reason: null };
   }
 
-  async searchAddresses(requestedAddress: string): Promise<AddressMatch[]> {
+  async search(requestedAddress: string): Promise<AddressMatch[]> {
     const parsed = parseSuppliedStreetAddress(requestedAddress);
     const normalizedQuery = normalizeAddressQuery(requestedAddress);
     const addressLikePattern = buildAddressLikePattern(normalizedQuery);
@@ -252,7 +258,7 @@ export class OfficialGisGateway implements DataAccessSpikeGateway {
     return normalizeAddressResponse(await this.#getJson(url));
   }
 
-  async getAddressById(addressId: string): Promise<AddressMatch | null> {
+  async getById(addressId: string): Promise<AddressMatch | null> {
     if (!/^\d{1,20}$/.test(addressId)) return null;
 
     const url = new URL(linzAddressQueryUrl);
@@ -283,6 +289,10 @@ export class OfficialGisGateway implements DataAccessSpikeGateway {
     );
   }
 
+  async status(): Promise<AddressSearchStatus> {
+    return { indexedAt: null, isFresh: false };
+  }
+
   async suggestAddresses(query: string): Promise<AddressMatch[]> {
     const normalizedQuery = normalizeAddressQuery(query);
     if (normalizedQuery.length < 3) return [];
@@ -311,6 +321,16 @@ export class OfficialGisGateway implements DataAccessSpikeGateway {
     url.searchParams.set("f", "geojson");
 
     return normalizeAddressResponse(await this.#getJson(url));
+  }
+
+  /** @deprecated Use AddressSearch.search through the address-identity seam. */
+  async searchAddresses(requestedAddress: string): Promise<AddressMatch[]> {
+    return this.search(requestedAddress);
+  }
+
+  /** @deprecated Use AddressSearch.getById through the address-identity seam. */
+  async getAddressById(addressId: string): Promise<AddressMatch | null> {
+    return this.getById(addressId);
   }
 
   async findParcelsAt([

@@ -7,7 +7,11 @@ import {
   resolveFastPropertyAddress,
   type FastPropertyViewResult,
 } from "./fast-property-view";
-import type { DataAccessSpikeGateway } from "./data-access-gateway";
+import {
+  AddressIndexUnavailableError,
+  type AddressSearch,
+} from "@/modules/address-search/address-search";
+import type { OfficialPropertyLayers } from "./data-access-gateway";
 import { isProviderEvidenceError } from "./data-access-gateway";
 
 const requestSchema = z
@@ -21,6 +25,7 @@ export type FastPropertyViewRequestError = {
   code:
     | "INVALID_ADDRESS"
     | "ADDRESS_NOT_FOUND"
+    | "TEMPORARILY_UNAVAILABLE"
     | "DATA_PROVIDER_ERROR"
     | "ANALYSIS_FAILED"
     | "ADDRESS_AMBIGUOUS";
@@ -33,13 +38,14 @@ export type FastPropertyViewRequestResponse =
   | { ok: true; status: 200; data: FastPropertyViewResult }
   | {
       ok: false;
-      status: 400 | 404 | 409 | 502 | 500;
+      status: 400 | 404 | 409 | 502 | 503 | 500;
       error: FastPropertyViewRequestError;
     };
 
 export async function executeFastPropertyViewRequest(input: {
   body: unknown;
-  gateway: DataAccessSpikeGateway;
+  addressSearch: AddressSearch;
+  propertyLayers: OfficialPropertyLayers;
   basemapApiKey?: string;
   now?: () => Date;
 }): Promise<FastPropertyViewRequestResponse> {
@@ -57,7 +63,8 @@ export async function executeFastPropertyViewRequest(input: {
       data: await resolveFastPropertyAddress({
         requestedAddress: request.data.address,
         selectedAddressId: request.data.selectedAddressId,
-        gateway: input.gateway,
+        addressSearch: input.addressSearch,
+        propertyLayers: input.propertyLayers,
         now: input.now,
       }),
     };
@@ -80,6 +87,12 @@ export async function executeFastPropertyViewRequest(input: {
           "No exact New Zealand address match was found.",
         );
     }
+    if (error instanceof AddressIndexUnavailableError)
+      return failure(
+        503,
+        "TEMPORARILY_UNAVAILABLE",
+        "Please try again shortly.",
+      );
     if (isProviderEvidenceError(error))
       return failure(
         502,
@@ -95,7 +108,7 @@ export async function executeFastPropertyViewRequest(input: {
 }
 
 function failure(
-  status: 400 | 404 | 409 | 502 | 500,
+  status: 400 | 404 | 409 | 502 | 503 | 500,
   code: FastPropertyViewRequestError["code"],
   message: string,
 ) {
