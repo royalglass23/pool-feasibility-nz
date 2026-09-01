@@ -195,6 +195,7 @@ export async function buildServerAssessmentSubmission(input: {
             "Detailed official checks have not been loaded.",
           ],
         provenance: reportAssessment?.provenance ?? { datasets: [] },
+        placementLayerFindings: warning.placementLayerFindings ?? [],
         assessmentSnapshot: reportAssessment
           ? buildReportAssessmentSnapshot(reportAssessment)
           : null,

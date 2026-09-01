@@ -124,6 +124,14 @@ describe("classifyFastPoolWarning", () => {
       status: "blocked",
       label: "Blocked",
       recommendation,
+      placementLayerFindings: [
+        {
+          key: "wastewater_assets",
+          category: "water_wastewater",
+          status: "potential_constraint",
+          evidence: "reliable",
+        },
+      ],
     });
     expect(result.text).toContain("mapped wastewater");
   });
@@ -144,6 +152,41 @@ describe("classifyFastPoolWarning", () => {
     );
 
     expect(result.status).toBe("blocked");
+  });
+
+  it("classifies mapped flood and planning overlaps separately from utility layers", () => {
+    const result = classifyFastPoolWarning(
+      input({
+        detailedChecks: {
+          ...input().detailedChecks!,
+          layers: [
+            layer("flood_plains", "returned", {
+              type: "FeatureCollection",
+              features: [point([174.6005, -36.8605])],
+            }),
+            layer("planning_overlays", "returned", {
+              type: "FeatureCollection",
+              features: [point([174.6005, -36.8605])],
+            }),
+          ],
+        },
+      }),
+    );
+
+    expect(result.placementLayerFindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "flood_plains",
+          category: "flooding_drainage",
+          status: "potential_constraint",
+        }),
+        expect.objectContaining({
+          key: "planning_overlays",
+          category: "planning",
+          status: "potential_constraint",
+        }),
+      ]),
+    );
   });
 
   it("names every intersecting indicative utility that needs checking", () => {
@@ -178,6 +221,20 @@ describe("classifyFastPoolWarning", () => {
     expect(result).toMatchObject({
       status: "needs_checking",
       checkingDatasets: ["Stormwater Pipes", "Wastewater Pipes"],
+      placementLayerFindings: [
+        {
+          key: "public_stormwater_assets",
+          category: "stormwater",
+          status: "further_investigation",
+          evidence: "needs_checking",
+        },
+        {
+          key: "wastewater_assets",
+          category: "water_wastewater",
+          status: "further_investigation",
+          evidence: "needs_checking",
+        },
+      ],
     });
     expect(result.text).toContain("stormwater pipes and wastewater pipes");
   });

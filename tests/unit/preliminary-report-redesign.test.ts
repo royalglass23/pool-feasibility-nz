@@ -151,6 +151,55 @@ describe("canonical homeowner feasibility report", () => {
     });
   });
 
+  it("uses saved placement-layer findings for the short category statuses and one combined key finding", () => {
+    const report = buildReport((submission) => {
+      submission.report.feasibilityState = "blocked";
+      submission.report.summary =
+        "The pool overlaps reliable mapped stormwater pipe infrastructure. Mapped wastewater pipe position also needs checking.";
+      submission.warnings = [
+        {
+          state: "blocked",
+          code: "POOL_BLOCKED",
+          title: "Blocked",
+          message: submission.report.summary,
+        },
+      ];
+      submission.report.reportData.placementLayerFindings = [
+        {
+          key: "public_stormwater_assets",
+          dataset: "Stormwater Pipes",
+          category: "stormwater",
+          status: "potential_constraint",
+          evidence: "reliable",
+        },
+        {
+          key: "wastewater_assets",
+          dataset: "Wastewater Pipes",
+          category: "water_wastewater",
+          status: "further_investigation",
+          evidence: "needs_checking",
+        },
+      ];
+    });
+
+    expect(report.assessments.pool_fit.status).toBe("red");
+    expect(report.assessments.stormwater.status).toBe("red");
+    expect(report.assessments.water_wastewater.status).toBe("amber");
+    expect(report.keyFindings[0]).toMatchObject({
+      id: "pool_position_review",
+      category: "pool_fit",
+      severity: "red",
+      title: "Pool position needs review",
+      clientSummary:
+        "The pool overlaps reliable mapped stormwater pipe infrastructure. Mapped wastewater pipe position also needs checking.",
+    });
+    expect(
+      report.keyFindings.filter((finding) =>
+        finding.id.startsWith("placement_layer:"),
+      ),
+    ).toHaveLength(0);
+  });
+
   it("does not expose internal-reference vector geometry in the homeowner report", () => {
     const report = buildReport((submission) => {
       submission.layerStates = [
