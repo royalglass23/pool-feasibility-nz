@@ -134,12 +134,17 @@ export function HomeownerFeasibilityReportView({
           or Promotions if it is not in your inbox.
         </p>
         {downloadError && (
-          <p
+          <div
             role="alert"
             className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950"
           >
-            {downloadError}
-          </p>
+            <p>Your saved report is still available here.</p>
+            <p className="mt-1 font-normal">{downloadError}</p>
+            <p className="mt-1 font-normal">
+              <span className="font-semibold">What to try: </span>
+              Wait a minute, then select Download PDF again.
+            </p>
+          </div>
         )}
       </header>
 

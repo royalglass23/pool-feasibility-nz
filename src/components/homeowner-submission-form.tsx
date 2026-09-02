@@ -125,7 +125,7 @@ export function HomeownerSubmissionForm({
   return (
     <form
       onSubmit={submit}
-      className="rounded-2xl border border-pool-blue-200 bg-pool-blue-50/60 p-5 sm:p-7"
+      className="border-pool-blue-200 bg-pool-blue-50/60 rounded-2xl border p-5 sm:p-7"
       aria-labelledby="homeowner-details-heading"
     >
       <ActionProgressDialog
@@ -136,11 +136,11 @@ export function HomeownerSubmissionForm({
       <h3
         id="homeowner-details-heading"
         tabIndex={-1}
-        className="text-xl font-semibold text-pool-950"
+        className="text-pool-950 text-xl font-semibold"
       >
         Your details for the preliminary report
       </h3>
-      <p className="mt-2 text-sm leading-6 text-pool-700">
+      <p className="text-pool-700 mt-2 text-sm leading-6">
         Your saved layout will match the pool position shown above. This is a
         preliminary assessment, not approval or construction advice.
       </p>
@@ -148,14 +148,14 @@ export function HomeownerSubmissionForm({
         <Field label="Name" name="name" required />
         <Field label="Phone" name="phone" type="tel" required />
         <Field label="Email" name="email" type="email" required />
-        <label className="text-sm font-medium text-pool-800">
+        <label className="text-pool-800 text-sm font-medium">
           I am a
           <select
             name="visitorType"
             required
             value={visitorType}
             onChange={(event) => setVisitorType(event.target.value)}
-            className="mt-1 block min-h-11 w-full rounded-lg border border-pool-300 bg-white px-3"
+            className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3"
           >
             {visitorTypeOptions.map((option) => (
               <option key={option.value} value={option.value}>
@@ -164,14 +164,14 @@ export function HomeownerSubmissionForm({
             ))}
           </select>
         </label>
-        <label className="text-sm font-medium text-pool-800">
+        <label className="text-pool-800 text-sm font-medium">
           When do you need it?
           <select
             name="desiredTiming"
             required
             value={desiredTiming}
             onChange={(event) => setDesiredTiming(event.target.value)}
-            className="mt-1 block min-h-11 w-full rounded-lg border border-pool-300 bg-white px-3"
+            className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3"
           >
             <option value="asap">ASAP</option>
             <option value="3_months">Within 3 months</option>
@@ -194,27 +194,27 @@ export function HomeownerSubmissionForm({
             required
           />
         )}
-        <label className="text-sm font-medium text-pool-800 sm:col-span-2">
+        <label className="text-pool-800 text-sm font-medium sm:col-span-2">
           Additional Info (optional)
           <textarea
             name="additionalInfo"
             maxLength={4000}
             rows={3}
-            className="mt-1 block w-full rounded-lg border border-pool-300 bg-white px-3 py-2"
+            className="border-pool-300 mt-1 block w-full rounded-lg border bg-white px-3 py-2"
           />
         </label>
-        <p className="text-sm leading-6 text-pool-700 sm:col-span-2">
+        <p className="text-pool-700 text-sm leading-6 sm:col-span-2">
           Before submitting, read our{" "}
           <Link
             href="/privacy"
-            className="font-semibold text-pool-blue-800 underline decoration-pool-blue-300 underline-offset-4 outline-offset-4 hover:text-pool-blue-950 focus-visible:outline-2 focus-visible:outline-pool-blue-700"
+            className="text-pool-blue-800 decoration-pool-blue-300 hover:text-pool-blue-950 focus-visible:outline-pool-blue-700 font-semibold underline underline-offset-4 outline-offset-4 focus-visible:outline-2"
           >
             privacy notice
           </Link>
           . It explains what we collect, the 12-month retention period, and how
           to ask for access, correction, or early deletion.
         </p>
-        <label className="flex gap-3 text-sm leading-6 text-pool-800 sm:col-span-2">
+        <label className="text-pool-800 flex gap-3 text-sm leading-6 sm:col-span-2">
           <input
             name="consent"
             type="checkbox"
@@ -222,21 +222,30 @@ export function HomeownerSubmissionForm({
             className="mt-1 size-4"
           />
           <span>
-            I consent to Royal Glass saving these details and this preliminary
+            I consent to PoolReady saving these details and this preliminary
             assessment, sending my report, and following up about this request.
             This is not marketing consent.
           </span>
         </label>
       </div>
       {error && (
-        <p role="alert" className="mt-4 text-sm font-semibold text-red-700">
-          {error}
-        </p>
+        <div
+          role="alert"
+          className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-950"
+        >
+          <p className="font-semibold">We couldn't save your report yet</p>
+          <p>{error}</p>
+          <p className="mt-1 text-red-800">
+            <span className="font-semibold">What to try: </span>
+            Check the required fields and consent box, then try again. If they
+            are already complete, wait a minute and retry.
+          </p>
+        </div>
       )}
       <button
         type="submit"
         disabled={saving}
-        className="mt-5 min-h-11 rounded-xl bg-pool-950 px-5 font-semibold text-white disabled:cursor-not-allowed disabled:bg-pool-400"
+        className="bg-pool-950 disabled:bg-pool-400 mt-5 min-h-11 rounded-xl px-5 font-semibold text-white disabled:cursor-not-allowed"
       >
         {saving ? "Saving assessment…" : "Save and show my report"}
       </button>
@@ -256,13 +265,13 @@ function Field({
   required?: boolean;
 }) {
   return (
-    <label className="text-sm font-medium text-pool-800">
+    <label className="text-pool-800 text-sm font-medium">
       {label}
       <input
         name={name}
         type={type}
         required={required}
-        className="mt-1 block min-h-11 w-full rounded-lg border border-pool-300 bg-white px-3"
+        className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3"
       />
     </label>
   );

@@ -67,6 +67,12 @@ type ApiResponse =
 type AddressOption = Pick<AddressMatch, "addressId" | "fullAddress">;
 type PendingSelectedAddress = AddressOption;
 
+type PropertyCheckIssue = {
+  title: string;
+  message: string;
+  troubleshooting: string;
+};
+
 export function DataAccessInspector() {
   const [address, setAddress] = useState("");
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
@@ -86,7 +92,7 @@ export function DataAccessInspector() {
   const [fastMapSnapshot, setFastMapSnapshot] =
     useState<FastPropertyViewMapSnapshot | null>(null);
   const fastSavedReport = useSavedAssessmentReport();
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<PropertyCheckIssue | null>(null);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
   const [canRetry, setCanRetry] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -171,25 +177,35 @@ export function DataAccessInspector() {
       fullAddress: option.fullAddress,
     });
     setAddressOptions([]);
-    void requestPropertyData(option.addressId);
+    void requestPropertyData(option.addressId, option.fullAddress);
   }
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isLoading) return;
 
+    const onlyAddress = addressOptions.length === 1 ? addressOptions[0] : null;
     await requestPropertyData(
-      selectedAddressId ??
-        (addressOptions.length === 1 ? addressOptions[0].addressId : undefined),
+      selectedAddressId ?? onlyAddress?.addressId,
+      onlyAddress?.fullAddress,
     );
   }
 
-  async function requestPropertyData(selectedId?: string) {
+  async function requestPropertyData(
+    selectedId?: string,
+    addressOverride?: string,
+  ) {
     if (isLoading) return;
 
-    const requestedAddress = address.trim();
+    const requestedAddress = (addressOverride ?? address).trim();
     if (requestedAddress.length < 8) {
-      setError("Enter a complete New Zealand property address.");
+      setError({
+        title: "Choose a full property address",
+        message:
+          "Start with the street number and street name, then choose your address from the list.",
+        troubleshooting:
+          "Add the suburb or city if you cannot see the right address.",
+      });
       setCanRetry(false);
       return;
     }
@@ -231,13 +247,10 @@ export function DataAccessInspector() {
           body.error.options?.length
         ) {
           setAddressOptions(body.error.options);
+          setSuggestionMessage("Choose the right address from the list.");
         } else {
           const responseError = "error" in body ? body.error : null;
-          setError(
-            responseError
-              ? responseError.message
-              : "The fast property view could not be completed.",
-          );
+          setError(propertyCheckIssue(responseError));
           setCanRetry(
             "error" in body &&
               (body.error.code === "DATA_PROVIDER_ERROR" ||
@@ -274,9 +287,12 @@ export function DataAccessInspector() {
       setCanRetry(false);
       void requestFastStages(body.data, body.assessmentSnapshot, requestId);
     } catch {
-      setError(
-        "The data service could not be reached. Check the local server and try again.",
-      );
+      setError({
+        title: "We couldn't connect to GeoMap",
+        message: "Your property check did not reach us.",
+        troubleshooting:
+          "Check your internet connection, then try again. If other websites are working, wait a minute and retry.",
+      });
       setCanRetry(true);
     } finally {
       setIsLoading(false);
@@ -304,7 +320,7 @@ export function DataAccessInspector() {
           "boundary" | "aerial" | "datasets" | "progress" | "fastPathDurationMs"
         >;
         assessmentSnapshot?: string;
-        error?: { message?: string };
+        error?: { code?: string; message?: string };
       };
       if (
         !response.ok ||
@@ -312,12 +328,8 @@ export function DataAccessInspector() {
         !body.assessmentSnapshot ||
         fastRequestIdRef.current !== requestId
       ) {
-        if (
-          !response.ok &&
-          body.error?.message &&
-          fastRequestIdRef.current === requestId
-        ) {
-          setError(body.error.message);
+        if (fastRequestIdRef.current === requestId) {
+          setError(detailedChecksIssue());
           setCanRetry(true);
         }
         return;
@@ -375,11 +387,8 @@ export function DataAccessInspector() {
         !body.assessmentSnapshot ||
         fastRequestIdRef.current !== requestId
       ) {
-        setError(
-          body.error
-            ? body.error.message
-            : "Detailed checks could not be completed.",
-        );
+        setError(detailedChecksIssue());
+        setCanRetry(true);
         return;
       }
       setFastMapSnapshot(null);
@@ -389,9 +398,8 @@ export function DataAccessInspector() {
       setFastAssessmentSnapshot(body.assessmentSnapshot);
       setError(null);
     } catch {
-      setError(
-        "The detailed data service could not be reached. The fast view remains available.",
-      );
+      setError(detailedChecksIssue());
+      setCanRetry(true);
     } finally {
       detailedRequestInFlightRef.current = false;
       setIsLoadingDetailed(false);
@@ -534,14 +542,24 @@ export function DataAccessInspector() {
 
           <div className="mt-4 min-h-6" aria-live="polite">
             {error && (
-              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <p className="flex items-start gap-2 text-sm font-medium text-red-700">
+              <div
+                role="alert"
+                className="flex flex-col gap-3 rounded-xl border border-red-200 bg-red-50 p-4 text-red-950 sm:flex-row sm:items-start sm:justify-between"
+              >
+                <div className="flex items-start gap-2">
                   <AlertTriangle
-                    className="mt-0.5 size-4 shrink-0"
+                    className="mt-0.5 size-4 shrink-0 text-red-700"
                     aria-hidden="true"
                   />
-                  {error}
-                </p>
+                  <div className="text-sm leading-6">
+                    <p className="font-semibold">{error.title}</p>
+                    <p>{error.message}</p>
+                    <p className="mt-1 text-red-800">
+                      <span className="font-semibold">What to try: </span>
+                      {error.troubleshooting}
+                    </p>
+                  </div>
+                </div>
                 {canRetry && (
                   <button
                     type="button"
@@ -579,20 +597,30 @@ export function DataAccessInspector() {
               role="alert"
               className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-950"
             >
-              <p className="font-semibold">
-                We couldn&apos;t finish every property check.
-              </p>
+              <p className="font-semibold">{error.title}</p>
+              <p className="mt-1">{error.message}</p>
               <p className="mt-1">
-                Your preliminary property view is still available. Please search
-                for the address again.
+                <span className="font-semibold">What to try: </span>
+                {error.troubleshooting}
               </p>
-              <button
-                type="button"
-                onClick={startAgain}
-                className="mt-3 min-h-11 font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
-              >
-                Search again
-              </button>
+              <div className="mt-3 flex flex-wrap gap-4">
+                {canRetry && (
+                  <button
+                    type="button"
+                    onClick={() => void requestPropertyData()}
+                    className="min-h-11 font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
+                  >
+                    Try property check again
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={startAgain}
+                  className="min-h-11 font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
+                >
+                  Search a different address
+                </button>
+              </div>
             </div>
           )}
           <FastPropertyView
@@ -647,6 +675,67 @@ export function DataAccessInspector() {
   );
 }
 
+function propertyCheckIssue(
+  error: FastPropertyViewRequestError | null,
+): PropertyCheckIssue {
+  switch (error?.code) {
+    case "INVALID_ADDRESS":
+      return {
+        title: "Choose a full property address",
+        message:
+          "We need a street number, street name, and suburb or city to check a property.",
+        troubleshooting:
+          "Start typing the address, then choose the matching result from the list.",
+      };
+    case "ADDRESS_NOT_FOUND":
+      return {
+        title: "We couldn't find that address",
+        message:
+          "It did not match an address in the New Zealand property index.",
+        troubleshooting:
+          "Check the street number and spelling, add the suburb, then choose a result from the list.",
+      };
+    case "TEMPORARILY_UNAVAILABLE":
+      return {
+        title: "Address search is temporarily unavailable",
+        message: "The official address service is not responding right now.",
+        troubleshooting:
+          "Check your internet connection, wait a minute, then try again.",
+      };
+    case "DATA_PROVIDER_ERROR":
+      return {
+        title: "We couldn't load the property information",
+        message: "One of the official map services did not respond in time.",
+        troubleshooting:
+          "Try again in a minute. If it keeps happening, come back later rather than changing a correct address.",
+      };
+    case "ANALYSIS_FAILED":
+      return {
+        title: "We couldn't prepare a property view",
+        message: "The property check did not finish on our side.",
+        troubleshooting:
+          "Try again in a minute. Your address has not been changed.",
+      };
+    default:
+      return {
+        title: "We couldn't complete that property check",
+        message: "Your property view was not ready this time.",
+        troubleshooting:
+          "Check your internet connection, then try again. If it keeps happening, return a little later.",
+      };
+  }
+}
+
+function detailedChecksIssue(): PropertyCheckIssue {
+  return {
+    title: "Your property view is ready, but some map checks are not",
+    message:
+      "We could not load every detailed official map layer. Your preliminary property view is still available.",
+    troubleshooting:
+      "Use the view as an early guide only, then try the property check again in a minute to load the missing detail.",
+  };
+}
+
 function SelectedAddressPending({
   address,
   error,
@@ -656,7 +745,7 @@ function SelectedAddressPending({
   onStartAgain,
 }: {
   address: string;
-  error: string | null;
+  error: PropertyCheckIssue | null;
   canRetry: boolean;
   isLoading: boolean;
   onRetry: () => void;
@@ -692,10 +781,12 @@ function SelectedAddressPending({
           role="alert"
           className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950"
         >
-          <p className="font-semibold">
-            We couldn&apos;t verify a property view for this address.
+          <p className="font-semibold">{error.title}</p>
+          <p className="mt-1">{error.message}</p>
+          <p className="mt-1">
+            <span className="font-semibold">What to try: </span>
+            {error.troubleshooting}
           </p>
-          <p className="mt-1">{error}</p>
           <div className="mt-3 flex flex-wrap gap-3">
             {canRetry && (
               <button

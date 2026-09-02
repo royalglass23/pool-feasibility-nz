@@ -39,6 +39,9 @@ describe("report-request privacy notice", () => {
 
     expect(link).toHaveAttribute("href", "/privacy");
     expect(link.closest("p")?.nextElementSibling).toContainElement(consent);
+    expect(
+      screen.getByText(/I consent to PoolReady saving these details/i),
+    ).toBeVisible();
     expect(screen.getByText(/not marketing consent/i)).toBeVisible();
   });
 
@@ -80,6 +83,9 @@ describe("report-request privacy notice", () => {
     expect(
       notice.getByText(/Use the Contact us button at the bottom/i),
     ).toBeVisible();
+    expect(
+      notice.getByRole("link", { name: "Return to PoolReady" }),
+    ).toHaveAttribute("href", "/");
     expect(notice.getByText(/signs you up for marketing/i)).toBeVisible();
   });
 });
