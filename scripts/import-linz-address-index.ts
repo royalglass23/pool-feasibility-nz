@@ -9,14 +9,11 @@ import {
   fetchAucklandAddressPage,
   linzAddressQueryUrl,
 } from "@/modules/address-search/linz-address-import";
+import { resolveAddressIndexTarget } from "./address-index-target";
 
-const databaseUrl = process.env.DATABASE_URL_DEV?.trim();
-if (!databaseUrl) throw new Error("DATABASE_URL_DEV is required.");
-if (process.env.DATABASE_URL === databaseUrl) {
-  throw new Error(
-    "Use the dedicated DATABASE_URL_DEV target, not DATABASE_URL.",
-  );
-}
+const { databaseUrl, target } = resolveAddressIndexTarget({
+  argv: process.argv.slice(2),
+});
 
 const db = drizzle(neon(databaseUrl), { schema });
 const now = new Date();
@@ -42,27 +39,34 @@ async function main() {
     for (;;) {
       const addresses = await fetchAucklandAddressPage({ afterObjectId });
       if (addresses.length === 0) break;
-      const batchNow = new Date();
       await db
         .insert(schema.linzAddressIndex)
         .values(
-          addresses.map((address) => ({ ...address, syncedAt: batchNow })),
+          addresses.map((address) => ({
+            addressId: address.addressId,
+            fullAddress: address.fullAddress,
+            fullAddressNumber: address.fullAddressNumber,
+            unit: address.unit,
+            territorialAuthority: address.territorialAuthority,
+            searchText: address.searchText,
+            longitude: address.longitude,
+            latitude: address.latitude,
+            isCurrent: address.isCurrent,
+            lastSeenRunId: runId,
+          })),
         )
         .onConflictDoUpdate({
           target: schema.linzAddressIndex.addressId,
           set: {
-            sourceObjectId: sql`excluded.source_object_id`,
             fullAddress: sql`excluded.full_address`,
             fullAddressNumber: sql`excluded.full_address_number`,
             unit: sql`excluded.unit`,
             territorialAuthority: sql`excluded.territorial_authority`,
-            suburbLocality: sql`excluded.suburb_locality`,
-            townCity: sql`excluded.town_city`,
             searchText: sql`excluded.search_text`,
             longitude: sql`excluded.longitude`,
             latitude: sql`excluded.latitude`,
             isCurrent: sql`excluded.is_current`,
-            syncedAt: sql`excluded.synced_at`,
+            lastSeenRunId: sql`excluded.last_seen_run_id`,
           },
         });
       afterObjectId = addresses.at(-1)!.sourceObjectId;
@@ -75,6 +79,13 @@ async function main() {
         .where(eq(schema.linzAddressIndexRuns.id, runId));
       process.stdout.write(`Imported through LINZ object ${afterObjectId}\n`);
     }
+
+    await db
+      .update(schema.linzAddressIndex)
+      .set({ isCurrent: false })
+      .where(
+        sql`${schema.linzAddressIndex.territorialAuthority} = 'Auckland' and ${schema.linzAddressIndex.lastSeenRunId} is distinct from ${runId}`,
+      );
 
     const [sourceCount, indexed] = await Promise.all([
       fetchAucklandAddressCount(),
@@ -94,7 +105,9 @@ async function main() {
         errorCode: null,
       })
       .where(eq(schema.linzAddressIndexRuns.id, runId));
-    process.stdout.write(`Completed ${sourceCount} Auckland addresses.\n`);
+    process.stdout.write(
+      `Completed ${sourceCount} Auckland addresses in ${target}.\n`,
+    );
   } catch (error) {
     await db
       .update(schema.linzAddressIndexRuns)

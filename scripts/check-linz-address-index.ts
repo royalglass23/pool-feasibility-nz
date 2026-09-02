@@ -1,10 +1,11 @@
 import "dotenv/config";
 import { neon } from "@neondatabase/serverless";
 import { NeonLinzAddressSearch } from "@/modules/address-search/neon-linz-address-search";
+import { resolveAddressIndexTarget } from "./address-index-target";
 
-const developmentDatabaseUrl = process.env.DATABASE_URL_DEV?.trim();
-if (!developmentDatabaseUrl) throw new Error("DATABASE_URL_DEV is required.");
-const databaseUrl = developmentDatabaseUrl;
+const { databaseUrl, target } = resolveAddressIndexTarget({
+  argv: process.argv.slice(2),
+});
 
 async function main() {
   const sql = neon(databaseUrl);
@@ -31,6 +32,7 @@ async function main() {
   process.stdout.write(
     `${JSON.stringify({
       ...rows[0],
+      target,
       indexed_at: status.indexedAt?.toISOString() ?? null,
       is_fresh: status.isFresh,
     })}\n`,

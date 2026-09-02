@@ -1,0 +1,1 @@
+ALTER TABLE "linz_address_index" ADD COLUMN "last_seen_run_id" uuid;
