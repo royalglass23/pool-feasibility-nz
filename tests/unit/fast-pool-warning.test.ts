@@ -7,8 +7,10 @@ import {
   type FastPoolWarningInput,
 } from "@/modules/data-access-spike/fast-pool-warning";
 
-const recommendation =
-  "Move the pool, or obtain an engineer-designed solution accepted by the relevant council or service owner.";
+const serviceRecommendation =
+  "Try a different pool position. If you want to keep this position, confirm the mapped constraint and required clearance with the relevant provider or a qualified pool professional.";
+const buildingRecommendation =
+  "Try a different pool position. If the mapped building outline looks incorrect, confirm it before progressing.";
 
 function input(
   overrides: Partial<FastPoolWarningInput> = {},
@@ -114,7 +116,7 @@ describe("classifyFastPoolWarning", () => {
     ).toBe("needs_checking");
   });
 
-  it("returns Blocked for a reliable mapped utility intersection and keeps the recommendation", () => {
+  it("uses friendly position-review copy for a reliable mapped utility intersection", () => {
     const result = classifyFastPoolWarning(
       input({
         detailedChecks: {
@@ -131,8 +133,8 @@ describe("classifyFastPoolWarning", () => {
 
     expect(result).toMatchObject({
       status: "blocked",
-      label: "Blocked",
-      recommendation,
+      label: "This pool position needs review",
+      recommendation: serviceRecommendation,
       placementLayerFindings: [
         {
           key: "wastewater_assets",
@@ -142,7 +144,34 @@ describe("classifyFastPoolWarning", () => {
         },
       ],
     });
-    expect(result.text).toContain("mapped wastewater");
+    expect(result.text).toContain(
+      "The selected pool area overlaps reliable mapped wastewater_assets.",
+    );
+  });
+
+  it("explains that a mapped building overlap affects this position, not the whole property", () => {
+    const result = classifyFastPoolWarning(
+      input({
+        detailedChecks: {
+          ...input().detailedChecks!,
+          layers: [
+            layer("building_footprints", "returned", {
+              type: "FeatureCollection",
+              features: [point([174.6005, -36.8605])],
+            }),
+          ],
+        },
+      }),
+    );
+
+    expect(result).toMatchObject({
+      status: "blocked",
+      label: "This pool position needs review",
+      recommendation: buildingRecommendation,
+    });
+    expect(result.text).toContain(
+      "This does not mean a pool cannot be built at this property.",
+    );
   });
 
   it("blocks a reliable mapped stormwater watercourse intersection", () => {

@@ -192,7 +192,7 @@ export function reportWarningLabel(
   state: SavedPreliminaryReport["warningState"],
 ): string {
   if (state === "no_warning") return "No warning";
-  if (state === "blocked") return "Blocked";
+  if (state === "blocked") return "This pool position needs review";
   return "Needs checking";
 }
 

@@ -37,7 +37,11 @@ import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { bearing, point } from "@turf/turf";
 
 type UtilityCategory =
-  "stormwater" | "wastewater" | "water" | "electricity" | "gas";
+  | "stormwater"
+  | "wastewater"
+  | "water"
+  | "electricity"
+  | "gas";
 
 type UtilityLayerDefinition = {
   key: DatasetKey;
@@ -799,7 +803,8 @@ export function FastPropertyView({
       features: [],
     };
     const poolSource = map.getSource("pool") as
-      import("maplibre-gl").GeoJSONSource | undefined;
+      | import("maplibre-gl").GeoJSONSource
+      | undefined;
     poolSource?.setData(
       isInitialAddressLoad ? emptyGeometry : (poolGeometry ?? emptyGeometry),
     );
@@ -812,7 +817,8 @@ export function FastPropertyView({
         : (constructionEnvelopeGeometry ?? emptyGeometry),
     );
     const clearanceSource = map.getSource("pool-shell-clearances") as
-      import("maplibre-gl").GeoJSONSource | undefined;
+      | import("maplibre-gl").GeoJSONSource
+      | undefined;
     clearanceSource?.setData(
       clearancesVisible
         ? poolShellClearanceMapData(poolShellClearances)
@@ -829,7 +835,8 @@ export function FastPropertyView({
       });
     }
     const rotationSource = map.getSource("pool-rotation") as
-      import("maplibre-gl").GeoJSONSource | undefined;
+      | import("maplibre-gl").GeoJSONSource
+      | undefined;
     rotationSource?.setData(
       !isInitialAddressLoad && poolGeometry
         ? rotationHandleGeometry(position, rotationDegrees, dimensions)
@@ -1124,14 +1131,14 @@ export function FastPropertyView({
       {mapError && (
         <p role="alert" className="text-sm font-semibold text-red-700">
           {mapError === "aerial"
-            ? "Aerial imagery could not be loaded. Check the LINZ imagery configuration and retry the fast view."
-            : "The interactive map could not load. Retry the fast view to try again."}
+            ? "We couldn't load the aerial photo. You can still review the property boundary; try the property check again in a minute."
+            : "We couldn't load the interactive map. Try the property check again in a minute."}
         </p>
       )}
       {result.aerial.state !== "ready" && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-          Aerial imagery is not ready yet. The address and mapped area can still
-          be reviewed.
+          The aerial photo is still loading. You can keep reviewing the address
+          and mapped property area.
         </p>
       )}
       <div className="flex justify-end">
@@ -1140,7 +1147,7 @@ export function FastPropertyView({
           onClick={onRetry}
           className="text-pool-blue-800 text-sm font-semibold underline"
         >
-          Retry fast view
+          Retry property check
         </button>
       </div>
     </section>

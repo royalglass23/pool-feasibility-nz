@@ -219,12 +219,18 @@ export function FooterContactDialog() {
                 .
               </p>
               {error && (
-                <p
+                <div
                   role="alert"
-                  className="mt-3 text-sm font-semibold text-red-700"
+                  className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-950"
                 >
-                  {error}
-                </p>
+                  <p className="font-semibold">We couldn't send your message</p>
+                  <p>{error}</p>
+                  <p className="mt-1 text-red-800">
+                    <span className="font-semibold">What to try: </span>
+                    Check your email address and message, then try again. If it
+                    still does not send, come back in a few minutes.
+                  </p>
+                </div>
               )}
               <button
                 type="submit"

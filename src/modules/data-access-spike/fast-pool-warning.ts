@@ -7,7 +7,10 @@ import type {
 import type { BoundaryState } from "./run-data-access-spike";
 
 export const FAST_POOL_SERVICE_RECOMMENDATION =
-  "Move the pool, or obtain an engineer-designed solution accepted by the relevant council or service owner.";
+  "Try a different pool position. If you want to keep this position, confirm the mapped constraint and required clearance with the relevant provider or a qualified pool professional.";
+
+const FAST_POOL_BUILDING_RECOMMENDATION =
+  "Try a different pool position. If the mapped building outline looks incorrect, confirm it before progressing.";
 
 export type FastPoolWarningStatus = "no_warning" | "needs_checking" | "blocked";
 
@@ -30,7 +33,7 @@ export type PlacementLayerFinding = {
 
 export type FastPoolWarning = {
   status: FastPoolWarningStatus;
-  label: "No Warning" | "Needs Checking" | "Blocked";
+  label: "No Warning" | "Needs Checking" | "This pool position needs review";
   text: string;
   recommendation: string | null;
   conflictingDatasets: string[];
@@ -137,15 +140,25 @@ export function classifyFastPoolWarning(
     .map((finding) => finding.dataset);
 
   if (conflictingDatasets.length > 0) {
+    const hasBuildingOutlineConflict = placementLayerFindings.some(
+      (finding) =>
+        finding.key === "building_footprints" &&
+        finding.evidence === "reliable",
+    );
     const checkingText =
       checkingDatasets.length > 0
         ? ` Mapped ${formatDatasetList(checkingDatasets)} position also needs checking.`
         : "";
+    const text = hasBuildingOutlineConflict
+      ? `The selected pool area overlaps a mapped building outline. Try moving the pool to a clear part of the property and check again. This does not mean a pool cannot be built at this property.${checkingText}`
+      : `The selected pool area overlaps reliable mapped ${formatDatasetList(conflictingDatasets)}. Try moving the pool to another position, or confirm the mapped constraint and required clearance before progressing. This does not mean a pool cannot be built at this property.${checkingText}`;
     return {
       status: "blocked",
-      label: "Blocked",
-      text: `The pool overlaps reliable mapped ${formatDatasetList(conflictingDatasets)}.${checkingText}`,
-      recommendation: FAST_POOL_SERVICE_RECOMMENDATION,
+      label: "This pool position needs review",
+      text,
+      recommendation: hasBuildingOutlineConflict
+        ? FAST_POOL_BUILDING_RECOMMENDATION
+        : FAST_POOL_SERVICE_RECOMMENDATION,
       conflictingDatasets,
       checkingDatasets,
       placementLayerFindings,
