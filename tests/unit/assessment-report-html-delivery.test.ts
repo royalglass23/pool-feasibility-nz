@@ -38,6 +38,7 @@ describe("assessment report delivery", () => {
       store,
       send,
       from: "Royal Glass <reports@example.com>",
+      brandLogoUrl: "https://poolready.example/brand/pool-ready-logo.png",
       renderPdf,
       deliveryEnvironment: controlledTestDeliveryEnvironment,
     });
@@ -54,6 +55,16 @@ describe("assessment report delivery", () => {
     expect(renderPdf).toHaveBeenCalledOnce();
     expect(renderPdf).toHaveBeenCalledWith(report);
     expect(send).toHaveBeenCalledTimes(2);
+    for (const [email] of send.mock.calls) {
+      expect(email.html).toContain("PoolReady");
+      expect(email.text).toContain("PoolReady");
+      expect(email.html).toContain(
+        'src="https://poolready.example/brand/pool-ready-logo.png"',
+      );
+      expect(email.html).toContain(
+        'href="https://www.poolready.co.nz/" target="_blank"',
+      );
+    }
     expect(send.mock.calls).toEqual(
       expect.arrayContaining([
         [

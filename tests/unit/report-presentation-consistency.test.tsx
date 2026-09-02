@@ -142,10 +142,11 @@ describe("web, PDF and email report consistency", () => {
     expect(
       screen.getByRole("heading", { name: "How this assessment works" }),
     ).toBeVisible();
-    expect(screen.getByText("Check the mapped evidence")).toBeVisible();
+    expect(screen.getByText("Check the mapped evidence")).toBeInTheDocument();
+    expect(screen.getByText("Open guide")).toBeVisible();
     expect(
       screen.getByText(/This is not automatically a no\./i),
-    ).toBeVisible();
+    ).toBeInTheDocument();
     expect(
       screen.getByText(
         /This is an indicative desktop screen based on mapped information/i,
