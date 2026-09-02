@@ -55,7 +55,7 @@ export function FooterContactDialog() {
     return () => window.removeEventListener("hashchange", syncWithLocationHash);
   }, []);
 
-  function open() {
+  function openDialog() {
     setState("idle");
     setError(null);
     setOpen(true);
@@ -130,7 +130,7 @@ export function FooterContactDialog() {
               `${window.location.pathname}${window.location.search}${CONTACT_HASH}`,
             );
           }
-          open();
+          openDialog();
         }}
         className="mt-5 min-h-11 rounded-lg bg-[#062f5d] px-5 font-semibold text-white transition-colors hover:bg-[#074277] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd]"
       >
