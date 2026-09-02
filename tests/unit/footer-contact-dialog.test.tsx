@@ -26,6 +26,20 @@ describe("footer contact dialog", () => {
     expect(screen.queryByText(/Royal Glass/i)).not.toBeInTheDocument();
   });
 
+  it("opens from a #contact link and removes the fragment when closed", async () => {
+    const user = userEvent.setup();
+    window.history.replaceState({}, "", "/#contact");
+    render(<FooterContactDialog />);
+
+    await waitFor(() =>
+      expect(screen.getByRole("heading", { name: "Contact us" })).toBeVisible(),
+    );
+
+    await user.click(screen.getByRole("button", { name: "Close" }));
+
+    expect(window.location.hash).toBe("");
+  });
+
   it("submits only the three contact fields and confirms delivery", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn().mockResolvedValue(
