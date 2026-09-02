@@ -9,13 +9,12 @@ import type { BoundaryState } from "./run-data-access-spike";
 export const FAST_POOL_SERVICE_RECOMMENDATION =
   "Move the pool, or obtain an engineer-designed solution accepted by the relevant council or service owner.";
 
-export type FastPoolWarningStatus =
-  | "no_warning"
-  | "needs_checking"
-  | "blocked";
+export type FastPoolWarningStatus = "no_warning" | "needs_checking" | "blocked";
 
 export type PlacementLayerCategory =
   | "pool_fit"
+  | "electricity"
+  | "gas"
   | "water_wastewater"
   | "stormwater"
   | "flooding_drainage"
@@ -74,13 +73,11 @@ const placementLayerCategories: Partial<
   wastewater_manholes: "water_wastewater",
   water_fittings: "water_wastewater",
   wastewater_fittings: "water_wastewater",
-  electricity_feeder_lines: "pool_fit",
-  gas_distribution_lines: "pool_fit",
+  electricity_feeder_lines: "electricity",
+  gas_distribution_lines: "gas",
 };
 
-const placementDatasetKeys = new Set<
-  DetailedLayerResult["key"]
->([
+const placementDatasetKeys = new Set<DetailedLayerResult["key"]>([
   "building_footprints",
   "flood_plains",
   "flood_prone_areas",
@@ -188,11 +185,11 @@ export function classifyFastPoolWarning(
     status: "no_warning",
     label: "No Warning",
     text: "No mapped utility conflict was found in the loaded official checks.",
-      recommendation: null,
-      conflictingDatasets: [],
-      checkingDatasets: [],
-      placementLayerFindings: [],
-    };
+    recommendation: null,
+    conflictingDatasets: [],
+    checkingDatasets: [],
+    placementLayerFindings: [],
+  };
 }
 
 function isReliableIntersection(
@@ -216,8 +213,7 @@ function isMappedIntersection(
   pool: Feature<Polygon>,
 ): boolean {
   if (
-    (layer.state !== "returned" &&
-      layer.state !== "internal_reference_only") ||
+    (layer.state !== "returned" && layer.state !== "internal_reference_only") ||
     !layer.geometry
   )
     return false;
@@ -262,5 +258,8 @@ function formatDatasetList(datasets: string[]): string {
   if (datasets.length === 2) {
     return `${datasets[0].toLowerCase()} and ${datasets[1].toLowerCase()}`;
   }
-  return `${datasets.slice(0, -1).map((dataset) => dataset.toLowerCase()).join(", ")}, and ${datasets.at(-1)!.toLowerCase()}`;
+  return `${datasets
+    .slice(0, -1)
+    .map((dataset) => dataset.toLowerCase())
+    .join(", ")}, and ${datasets.at(-1)!.toLowerCase()}`;
 }

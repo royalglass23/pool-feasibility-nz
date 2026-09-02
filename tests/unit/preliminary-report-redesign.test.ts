@@ -200,6 +200,53 @@ describe("canonical homeowner feasibility report", () => {
     ).toHaveLength(0);
   });
 
+  it("shows gas and electricity separately in assessments and key findings", () => {
+    const report = buildReport((submission) => {
+      submission.report.feasibilityState = "blocked";
+      submission.report.summary =
+        "The pool overlaps reliable mapped electricity and gas infrastructure.";
+      submission.warnings = [
+        {
+          state: "blocked",
+          code: "POOL_BLOCKED",
+          title: "Blocked",
+          message: submission.report.summary,
+        },
+      ];
+      submission.report.reportData.placementLayerFindings = [
+        {
+          key: "electricity_feeder_lines",
+          dataset: "Electricity Distribution Feeder Network",
+          category: "electricity",
+          status: "potential_constraint",
+          evidence: "reliable",
+        },
+        {
+          key: "gas_distribution_lines",
+          dataset: "Gas Distribution Network",
+          category: "gas",
+          status: "further_investigation",
+          evidence: "needs_checking",
+        },
+      ];
+    });
+
+    expect(report.assessments.electricity.status).toBe("red");
+    expect(report.assessments.gas.status).toBe("amber");
+    expect(report.keyFindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "electricity",
+          title: "Electricity infrastructure near the proposed pool",
+        }),
+        expect.objectContaining({
+          category: "gas",
+          title: "Gas infrastructure near the proposed pool",
+        }),
+      ]),
+    );
+  });
+
   it("does not expose internal-reference vector geometry in the homeowner report", () => {
     const report = buildReport((submission) => {
       submission.layerStates = [
@@ -247,6 +294,7 @@ describe("canonical homeowner feasibility report", () => {
 
     expect(html.match(/<section class="page(?: page-two)?">/g)).toHaveLength(3);
     expect(html.match(/<img class="map"/g)).toHaveLength(1);
+    expect(html.match(/class="assessment-card"/g)).toHaveLength(10);
     expect(html).not.toContain("Page 1 of 3");
     expect(html).not.toContain("Page 2 of 3");
     expect(html).not.toContain("Page 3 of 3");

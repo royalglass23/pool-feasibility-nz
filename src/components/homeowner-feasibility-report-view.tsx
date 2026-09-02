@@ -141,18 +141,12 @@ export function HomeownerFeasibilityReportView({
 
       <div className="space-y-10 px-5 py-7 sm:px-8 lg:px-10 lg:py-10">
         <section
-          aria-labelledby="overall-result-heading"
+          aria-label="Overall assessment"
           className={`rounded-2xl border p-5 sm:p-6 ${statusPanelClasses(report.overall.status)}`}
         >
           <p className="text-sm font-bold">
             {assessmentStatusLabel(report.overall.status)}
           </p>
-          <h3
-            id="overall-result-heading"
-            className="mt-3 text-xl font-semibold tracking-[-0.02em] sm:text-2xl"
-          >
-            Does this property appear worth progressing?
-          </h3>
           <p className="mt-3 max-w-3xl text-base leading-7">
             {report.overall.summary}
           </p>

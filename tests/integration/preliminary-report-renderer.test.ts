@@ -50,6 +50,32 @@ describe("persisted preliminary report renderer", () => {
 
   it("keeps the saved map and clearances inside the fixed three-page A4 report", async () => {
     const sixStateReport = buildTestPreliminaryReport({
+      keyFindings: [
+        {
+          id: "pool_position_review",
+          category: "pool_fit",
+          severity: "red",
+          title: "Pool position needs review",
+          clientSummary:
+            "The selected pool layout overlaps reliable mapped building infrastructure.",
+        },
+        {
+          id: "placement_layer:electricity_feeder_lines",
+          category: "electricity",
+          severity: "red",
+          title: "Electricity infrastructure near the proposed pool",
+          clientSummary:
+            "The selected pool layout overlaps reliable mapped electricity infrastructure.",
+        },
+        {
+          id: "placement_layer:gas_distribution_lines",
+          category: "gas",
+          severity: "amber",
+          title: "Gas infrastructure near the proposed pool",
+          clientSummary:
+            "The selected pool layout overlaps mapped gas infrastructure that needs position confirmation.",
+        },
+      ],
       mapImageSource: "fast_property_view_capture",
       mapVisibleLayerKeys: [
         "contours",

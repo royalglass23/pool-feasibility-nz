@@ -153,18 +153,18 @@ export function renderCanonicalPreliminaryReportHtml(
     .map-clearances ul{display:grid;grid-template-columns:1fr 1fr;gap:.6mm 1mm;margin:1mm 0 0;padding:0;list-style:none;font-size:5.5pt;font-weight:700;line-height:1.2}
     .map-clearances p{margin-top:.8mm;color:#687780;font-size:5pt;line-height:1.25}
     .assessment-intro{margin-top:4.5mm;max-width:150mm;color:#53636d}
-    .assessment-grid{margin-top:3.5mm;display:grid;grid-template-columns:1fr 1fr;gap:2.5mm}
-    .assessment-card{break-inside:avoid;min-height:37mm;padding:3mm;border:.25mm solid #dce4e8;border-radius:2.5mm}
+    .assessment-grid{margin-top:3mm;display:grid;grid-template-columns:1fr 1fr;gap:2mm}
+    .assessment-card{break-inside:avoid;min-height:29mm;padding:2.5mm;border:.25mm solid #dce4e8;border-radius:2.5mm}
     .assessment-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:3mm}
     .assessment-card h2,.later h2,.plain-section h2,.disclaimer h2{font-size:11pt;line-height:1.25}
     .status-pill{max-width:43mm;padding:1mm 1.6mm;border-radius:99px;background:var(--state-soft);color:var(--state-ink);font-size:6.2pt;font-weight:700;text-align:center}
-    .assessment-card>p{margin-top:2mm;color:#44545e}
-    .detail-list{margin:2mm 0 0;padding:0;list-style:none}
+    .assessment-card>p{margin-top:1.5mm;color:#44545e}
+    .detail-list{margin:1.5mm 0 0;padding:0;list-style:none}
     .detail-list li{display:flex;justify-content:space-between;gap:3mm;padding-top:1mm;border-top:.2mm solid #edf0f2;font-size:6.8pt}
     .detail-list strong{text-align:right}
-    .later{margin-top:3mm;padding:3mm 3.5mm;background:#f3f6f7;border-radius:2.5mm}
-    .later ul{columns:2;column-gap:8mm;margin:2mm 0 0;padding-left:4mm}
-    .later li{break-inside:avoid;margin-bottom:1mm;font-size:7pt}
+    .later{margin-top:2mm;padding:2.5mm 3mm;background:#f3f6f7;border-radius:2.5mm}
+    .later ul{columns:2;column-gap:8mm;margin:1.5mm 0 0;padding-left:4mm}
+    .later li{break-inside:avoid;margin-bottom:.7mm;font-size:6.8pt}
     .next-stage{margin-top:4.5mm;padding:3.5mm 4mm;background:#13212a;color:#fff;border-radius:2.5mm;display:flex;align-items:center;justify-content:space-between;gap:8mm}
     .next-stage span{font-size:7pt;color:#cbd6db}
     .next-stage strong{font-size:11pt}

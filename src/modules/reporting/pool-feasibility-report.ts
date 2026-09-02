@@ -5,6 +5,8 @@ export type AssessmentStatus = "green" | "amber" | "red" | "unknown";
 
 export type ReportAssessmentId =
   | "pool_fit"
+  | "electricity"
+  | "gas"
   | "water_wastewater"
   | "stormwater"
   | "flooding_drainage"
@@ -18,6 +20,8 @@ export const REPORT_ASSESSMENT_ORDER: readonly ReportAssessmentId[] = [
   "water_wastewater",
   "stormwater",
   "flooding_drainage",
+  "electricity",
+  "gas",
   "terrain",
   "planning",
   "pool_barrier",
@@ -28,6 +32,8 @@ export type FeasibilityFinding = {
   id: string;
   category:
     | "pool_fit"
+    | "electricity"
+    | "gas"
     | "water"
     | "wastewater"
     | "water_wastewater"
@@ -116,6 +122,8 @@ type ReportLayer = {
 
 const ASSESSMENT_TITLES: Record<ReportAssessmentId, string> = {
   pool_fit: "Pool fit",
+  electricity: "Electricity",
+  gas: "Gas",
   water_wastewater: "Water & wastewater",
   stormwater: "Stormwater",
   flooding_drainage: "Flooding & drainage",
@@ -163,8 +171,7 @@ function buildFindings(
     (finding) => ({
       id: `placement_layer:${finding.key}`,
       category: finding.category,
-      severity:
-        finding.status === "potential_constraint" ? "red" : "amber",
+      severity: finding.status === "potential_constraint" ? "red" : "amber",
       title: clientFindingTitle(
         finding.category,
         `${finding.dataset} affects the proposed pool position`,
@@ -174,7 +181,8 @@ function buildFindings(
           ? `The selected pool layout overlaps reliable mapped ${finding.dataset.toLowerCase()} infrastructure.`
           : `The selected pool layout overlaps mapped ${finding.dataset.toLowerCase()} infrastructure that needs position confirmation.`,
       placementFinding: true,
-      keyFinding: false,
+      keyFinding:
+        finding.category === "electricity" || finding.category === "gas",
     }),
   );
   const riskFindings: FeasibilityFinding[] = reportData.risks
@@ -387,6 +395,28 @@ function buildAssessments(
       unknownSummary:
         "Stormwater information could not be fully assessed from the currently available mapped data.",
     }),
+    electricity: layerAssessment({
+      id: "electricity",
+      layers,
+      findings,
+      keys: ["electricity_feeder_lines"],
+      findingCategories: ["electricity"],
+      clearSummary:
+        "No mapped electricity conflict was identified for the proposed pool area.",
+      unknownSummary:
+        "Electricity information could not be fully assessed from the currently available mapped data.",
+    }),
+    gas: layerAssessment({
+      id: "gas",
+      layers,
+      findings,
+      keys: ["gas_distribution_lines"],
+      findingCategories: ["gas"],
+      clearSummary:
+        "No mapped gas conflict was identified for the proposed pool area.",
+      unknownSummary:
+        "Gas information could not be fully assessed from the currently available mapped data.",
+    }),
     flooding_drainage: layerAssessment({
       id: "flooding_drainage",
       layers,
@@ -502,8 +532,7 @@ function selectKeyFindings(
 ): FeasibilityFinding[] {
   const material = [...findings]
     .filter(
-      (finding) =>
-        finding.severity !== "green" && finding.keyFinding !== false,
+      (finding) => finding.severity !== "green" && finding.keyFinding !== false,
     )
     .sort(
       (left, right) =>
@@ -654,6 +683,8 @@ function findingCategory(
   if (/stormwater|catchpit|watercourse|culvert/.test(value))
     return "stormwater";
   if (/flood|overland flow|drainage/.test(value)) return "flooding";
+  if (/electricity|electric/.test(value)) return "electricity";
+  if (/gas distribution|\bgas\b/.test(value)) return "gas";
   if (/wastewater|sewer/.test(value)) return "wastewater";
   if (
     /watercare|public water|water main|underground service|infrastructure/.test(
@@ -685,6 +716,8 @@ function clientFindingTitle(
   fallback: string,
 ): string {
   const titles: Partial<Record<FeasibilityFinding["category"], string>> = {
+    electricity: "Electricity infrastructure near the proposed pool",
+    gas: "Gas infrastructure near the proposed pool",
     water: "Mapped water infrastructure requires checking",
     wastewater: "Wastewater infrastructure near the proposed pool",
     water_wastewater: "Water and wastewater infrastructure requires checking",
@@ -713,6 +746,12 @@ function clientFindingSummary(
   }
   if (category === "stormwater") {
     return "Mapped stormwater infrastructure may affect the proposed pool area and should be considered during detailed design.";
+  }
+  if (category === "electricity") {
+    return "Mapped electricity infrastructure may affect the proposed pool position and should be verified before the layout is finalised.";
+  }
+  if (category === "gas") {
+    return "Mapped gas infrastructure may affect the proposed pool position and should be verified before the layout is finalised.";
   }
   if (category === "flooding" || category === "flooding_drainage") {
     return "A mapped flooding or drainage condition may affect the proposed pool position and requires further review.";
@@ -772,6 +811,8 @@ function recommendationTitle(category: FeasibilityFinding["category"]): string {
     return "Verify water and wastewater infrastructure";
   }
   if (category === "stormwater") return "Verify stormwater infrastructure";
+  if (category === "electricity") return "Verify electricity infrastructure";
+  if (category === "gas") return "Verify gas infrastructure";
   if (category === "flooding" || category === "flooding_drainage") {
     return "Review flooding and drainage";
   }

@@ -17,7 +17,14 @@ function input(
     boundaryState: "confirmed",
     pool: feature<Polygon>({
       type: "Polygon",
-      coordinates: [[[174.6, -36.86], [174.601, -36.86], [174.601, -36.861], [174.6, -36.86]]],
+      coordinates: [
+        [
+          [174.6, -36.86],
+          [174.601, -36.86],
+          [174.601, -36.861],
+          [174.6, -36.86],
+        ],
+      ],
     }),
     detailedChecks: {
       status: "complete",
@@ -84,7 +91,9 @@ describe("classifyFastPoolWarning", () => {
       label: "Needs Checking",
     });
     expect(result.recommendation).toBeNull();
-    expect(result.text).toContain("Detailed official checks have not been loaded");
+    expect(result.text).toContain(
+      "Detailed official checks have not been loaded",
+    );
   });
 
   it("fails closed when complete evidence is empty or a returned layer has no geometry", () => {
@@ -184,6 +193,39 @@ describe("classifyFastPoolWarning", () => {
           key: "planning_overlays",
           category: "planning",
           status: "potential_constraint",
+        }),
+      ]),
+    );
+  });
+
+  it("classifies mapped electricity and gas overlaps as separate report categories", () => {
+    const result = classifyFastPoolWarning(
+      input({
+        detailedChecks: {
+          ...input().detailedChecks!,
+          layers: [
+            layer("electricity_feeder_lines", "returned", {
+              type: "FeatureCollection",
+              features: [point([174.6005, -36.8605])],
+            }),
+            layer("gas_distribution_lines", "returned", {
+              type: "FeatureCollection",
+              features: [point([174.6005, -36.8605])],
+            }),
+          ],
+        },
+      }),
+    );
+
+    expect(result.placementLayerFindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          key: "electricity_feeder_lines",
+          category: "electricity",
+        }),
+        expect.objectContaining({
+          key: "gas_distribution_lines",
+          category: "gas",
         }),
       ]),
     );

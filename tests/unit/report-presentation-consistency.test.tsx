@@ -145,10 +145,13 @@ describe("web, PDF and email report consistency", () => {
       ),
     ).toBeVisible();
     expect(screen.queryByText("Evidence to confirm")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Does this property appear worth progressing?"),
+    ).not.toBeInTheDocument();
     expect(screen.getByText(report.keyFindings[0]!.title)).toBeVisible();
     expect(
       screen.getByRole("region", {
-        name: "Does this property appear worth progressing?",
+        name: "Overall assessment",
       }),
     ).toHaveTextContent(report.overall.recommendedStage);
     expect(pdfHtml).toContain(assessmentStatusLabel(report.overall.status));

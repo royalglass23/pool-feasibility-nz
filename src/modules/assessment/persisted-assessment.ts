@@ -147,6 +147,8 @@ const placementLayerFinding = z.object({
   dataset: z.string().min(1).max(160),
   category: z.enum([
     "pool_fit",
+    "electricity",
+    "gas",
     "water_wastewater",
     "stormwater",
     "flooding_drainage",
