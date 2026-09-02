@@ -15,7 +15,6 @@ import {
   POOL_SHELL_CLEARANCE_LIMITATION,
   PRELIMINARY_FEASIBILITY_REPORT_FOOTER,
   PRELIMINARY_FEASIBILITY_REPORT_SCOPE,
-  preliminaryEvidenceActions,
 } from "@/modules/reporting/preliminary-feasibility-copy";
 import { escapeHtml } from "@/shared/html/escape-html";
 
@@ -47,13 +46,6 @@ export function renderCanonicalPreliminaryReportHtml(
     .join("");
   const clearances = reportPoolShellClearances(report);
   const { entries: mapLegendEntries } = reportMapLegend(report);
-  const evidenceActions = preliminaryEvidenceActions({
-    boundaryStatus: report.property.boundaryStatus,
-    sources: report.sources,
-  });
-  const evidenceActionsHtml = evidenceActions.length
-    ? `<section class="evidence-actions"><h2>Evidence to confirm</h2><ul>${evidenceActions.map((action) => `<li>${esc(action)}</li>`).join("")}</ul></section>`
-    : "";
   const clearanceCaption =
     clearances.length === 4
       ? `<section class="map-clearances"><h3>Pool-shell clearances</h3><ul>${clearances.map((clearance, index) => `<li>Side ${index + 1}: ${esc(clearance.label)}</li>`).join("")}</ul><p>${esc(POOL_SHELL_CLEARANCE_LIMITATION)}</p></section>`
@@ -161,10 +153,6 @@ export function renderCanonicalPreliminaryReportHtml(
     .map-clearances ul{display:grid;grid-template-columns:1fr 1fr;gap:.6mm 1mm;margin:1mm 0 0;padding:0;list-style:none;font-size:5.5pt;font-weight:700;line-height:1.2}
     .map-clearances p{margin-top:.8mm;color:#687780;font-size:5pt;line-height:1.25}
     .assessment-intro{margin-top:4.5mm;max-width:150mm;color:#53636d}
-    .evidence-actions{margin-top:2.5mm;padding:2.5mm 3mm;border:.25mm solid #dce4e8;border-radius:2.5mm;color:#44545e}
-    .evidence-actions h2{font-size:7.5pt}
-    .evidence-actions ul{margin:1.2mm 0 0;padding-left:4mm}
-    .evidence-actions li{margin-bottom:.7mm;font-size:6.5pt;line-height:1.35}
     .assessment-grid{margin-top:3.5mm;display:grid;grid-template-columns:1fr 1fr;gap:2.5mm}
     .assessment-card{break-inside:avoid;min-height:37mm;padding:3mm;border:.25mm solid #dce4e8;border-radius:2.5mm}
     .assessment-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:3mm}
@@ -204,7 +192,6 @@ export function renderCanonicalPreliminaryReportHtml(
       <p>${esc(report.overall.summary)}</p>
     </section>
     <p class="assessment-intro"><strong>Preliminary feasibility only.</strong> ${esc(PRELIMINARY_FEASIBILITY_REPORT_SCOPE)}</p>
-    ${evidenceActionsHtml}
     <div class="section-heading"><h2 class="primary-section-title">At a glance</h2><span>Status is shown by colour and description</span></div>
     <div class="glance-grid">${glance}</div>
     <figure class="map-panel">

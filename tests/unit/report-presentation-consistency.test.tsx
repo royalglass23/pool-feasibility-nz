@@ -144,26 +144,7 @@ describe("web, PDF and email report consistency", () => {
         /This is an indicative desktop screen based on mapped information/i,
       ),
     ).toBeVisible();
-    expect(
-      screen.getByText(
-        "Boundary source: provisional. Confirm boundary/title before design.",
-      ),
-    ).toBeVisible();
-    expect(
-      screen.getByText(
-        "Stormwater layer unavailable for this check; it was not assessed.",
-      ),
-    ).toBeVisible();
-    expect(
-      screen.getByText(
-        "Wastewater service did not return a result; it was not assessed.",
-      ),
-    ).toBeVisible();
-    expect(
-      screen.getByText(
-        "No Electricity feature was returned by this mapped-data query; this does not confirm that none are present.",
-      ),
-    ).toBeVisible();
+    expect(screen.queryByText("Evidence to confirm")).not.toBeInTheDocument();
     expect(screen.getByText(report.keyFindings[0]!.title)).toBeVisible();
     expect(
       screen.getByRole("region", {
@@ -174,18 +155,7 @@ describe("web, PDF and email report consistency", () => {
     expect(pdfHtml).toContain(
       "This preliminary feasibility report is an indicative desktop screen based on available mapped information.",
     );
-    expect(pdfHtml).toContain(
-      "Boundary source: provisional. Confirm boundary/title before design.",
-    );
-    expect(pdfHtml).toContain(
-      "Stormwater layer unavailable for this check; it was not assessed.",
-    );
-    expect(pdfHtml).toContain(
-      "Wastewater service did not return a result; it was not assessed.",
-    );
-    expect(pdfHtml).toContain(
-      "No Electricity feature was returned by this mapped-data query; this does not confirm that none are present.",
-    );
+    expect(pdfHtml).not.toContain("Evidence to confirm");
     expect(`${email.html}\n${email.text}`).toContain(
       assessmentStatusLabel(report.overall.status),
     );

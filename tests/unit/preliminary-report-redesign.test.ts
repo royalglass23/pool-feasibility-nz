@@ -266,6 +266,7 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).toContain(report.keyFindings[0]!.title);
     expect(html).toContain("Preliminary assessment");
     expect(html).toContain("Preliminary feasibility only.");
+    expect(html).not.toContain("Evidence to confirm");
     expect(html).toContain(
       "Preliminary Feasibility Report — indicative desktop screening",
     );
