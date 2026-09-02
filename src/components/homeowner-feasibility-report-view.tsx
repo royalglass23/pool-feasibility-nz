@@ -13,7 +13,10 @@ import {
   type ReportAssessment,
 } from "@/modules/reporting/pool-feasibility-report";
 import { formatReportGeneratedAt } from "@/modules/reporting/preliminary-report-presentation";
-import { PRELIMINARY_FEASIBILITY_SCOPE } from "@/modules/reporting/preliminary-feasibility-copy";
+import {
+  PRELIMINARY_FEASIBILITY_READING_GUIDE,
+  PRELIMINARY_FEASIBILITY_SCOPE,
+} from "@/modules/reporting/preliminary-feasibility-copy";
 
 export function HomeownerFeasibilityReportView({
   report,
@@ -193,6 +196,62 @@ export function HomeownerFeasibilityReportView({
               );
             })}
           </dl>
+        </section>
+
+        <section
+          aria-labelledby="how-to-read-heading"
+          className="border-pool-200 bg-pool-50 rounded-xl border px-5 py-5 sm:px-6"
+        >
+          <h3
+            id="how-to-read-heading"
+            className="text-pool-950 text-lg font-semibold"
+          >
+            {PRELIMINARY_FEASIBILITY_READING_GUIDE.title}
+          </h3>
+          <p className="text-pool-700 mt-2 max-w-4xl text-sm leading-6">
+            {PRELIMINARY_FEASIBILITY_READING_GUIDE.summary}
+          </p>
+          <ol className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-3">
+            {PRELIMINARY_FEASIBILITY_READING_GUIDE.workflow.map(
+              (step, index) => (
+                <li key={step.title} className="min-w-0">
+                  <div className="flex items-start gap-2">
+                    <span
+                      aria-hidden="true"
+                      className="bg-pool-blue-100 text-pool-blue-800 grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs font-bold"
+                    >
+                      {index + 1}
+                    </span>
+                    <div>
+                      <h4 className="text-pool-950 text-sm font-bold">
+                        {step.title}
+                      </h4>
+                      <p className="text-pool-700 mt-1 text-sm leading-6">
+                        {step.summary}
+                      </p>
+                    </div>
+                  </div>
+                </li>
+              ),
+            )}
+          </ol>
+          <h4 className="text-pool-950 mt-5 text-sm font-semibold">
+            {PRELIMINARY_FEASIBILITY_READING_GUIDE.statusTitle}
+          </h4>
+          <ul className="mt-4 grid gap-x-8 gap-y-4 sm:grid-cols-2">
+            {PRELIMINARY_FEASIBILITY_READING_GUIDE.statuses.map((status) => (
+              <li key={status.status} className="min-w-0">
+                <h4
+                  className={`text-sm font-bold ${statusTextClasses(status.status)}`}
+                >
+                  {status.title}
+                </h4>
+                <p className="text-pool-700 mt-1 text-sm leading-6">
+                  {status.summary}
+                </p>
+              </li>
+            ))}
+          </ul>
         </section>
 
         <section aria-labelledby="report-map-heading">
