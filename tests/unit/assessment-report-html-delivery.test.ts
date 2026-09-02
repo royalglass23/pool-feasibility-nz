@@ -64,6 +64,7 @@ describe("assessment report delivery", () => {
       expect(email.html).toContain(
         'href="https://www.poolready.co.nz/" target="_blank"',
       );
+      expect(email.html).toContain("background:#ffffff;border-radius:6px");
     }
     expect(send.mock.calls).toEqual(
       expect.arrayContaining([
