@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useId, useRef, useState, type FormEvent } from "react";
 
 type ContactDialogState = "idle" | "sending" | "sent";
+const CONTACT_HASH = "#contact";
 
 export function FooterContactDialog() {
   const [open, setOpen] = useState(false);
@@ -37,7 +38,37 @@ export function FooterContactDialog() {
     }
   }, [open]);
 
+  useEffect(() => {
+    function syncWithLocationHash() {
+      if (window.location.hash !== CONTACT_HASH) {
+        setOpen(false);
+        return;
+      }
+
+      setState("idle");
+      setError(null);
+      setOpen(true);
+    }
+
+    syncWithLocationHash();
+    window.addEventListener("hashchange", syncWithLocationHash);
+    return () => window.removeEventListener("hashchange", syncWithLocationHash);
+  }, []);
+
+  function open() {
+    setState("idle");
+    setError(null);
+    setOpen(true);
+  }
+
   function close() {
+    if (window.location.hash === CONTACT_HASH) {
+      window.history.replaceState(
+        window.history.state,
+        "",
+        `${window.location.pathname}${window.location.search}`,
+      );
+    }
     setOpen(false);
     window.setTimeout(() => triggerRef.current?.focus(), 0);
   }
@@ -92,9 +123,14 @@ export function FooterContactDialog() {
         ref={triggerRef}
         type="button"
         onClick={() => {
-          setState("idle");
-          setError(null);
-          setOpen(true);
+          if (window.location.hash !== CONTACT_HASH) {
+            window.history.replaceState(
+              window.history.state,
+              "",
+              `${window.location.pathname}${window.location.search}${CONTACT_HASH}`,
+            );
+          }
+          open();
         }}
         className="mt-5 min-h-11 rounded-lg bg-[#062f5d] px-5 font-semibold text-white transition-colors hover:bg-[#074277] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd]"
       >
