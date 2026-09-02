@@ -73,7 +73,7 @@ export default function PrivacyNoticePage() {
           <ul className="grid gap-3">
             <li>
               <strong className="text-[#062f5d]">Hotjar</strong> receives
-              anonymous Property Check interaction data only after you allow
+              anonymous PoolReady interaction data only after you allow
               analytics. It is not installed on staff pages.
             </li>
             <li>
@@ -105,8 +105,8 @@ export default function PrivacyNoticePage() {
 
         <NoticeSection title="Access, correction, or early deletion">
           <p>
-            Use the Contact us button at the bottom of the Property Check to ask
-            for access to your saved request, to correct it, or to ask for early
+            Use the Contact us button at the bottom of PoolReady to ask for
+            access to your saved request, to correct it, or to ask for early
             deletion. Include the report reference and the email address used
             for the request. We will verify that the request is from you or an
             authorised representative before disclosing or changing information.
@@ -117,7 +117,7 @@ export default function PrivacyNoticePage() {
           href="/"
           className="focus-visible:outline-pool-blue-700 mt-10 inline-flex min-h-11 items-center rounded-xl border border-[#9fc8df] px-4 text-sm font-semibold text-[#062f5d] outline-offset-4 transition hover:border-[#0077bd] hover:bg-[#e9f7ff] focus-visible:outline-2"
         >
-          Return to the Property Check
+          Return to PoolReady
         </Link>
       </article>
     </main>

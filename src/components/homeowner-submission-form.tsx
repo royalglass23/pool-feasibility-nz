@@ -222,7 +222,7 @@ export function HomeownerSubmissionForm({
             className="mt-1 size-4"
           />
           <span>
-            I consent to Royal Glass saving these details and this preliminary
+            I consent to PoolReady saving these details and this preliminary
             assessment, sending my report, and following up about this request.
             This is not marketing consent.
           </span>
