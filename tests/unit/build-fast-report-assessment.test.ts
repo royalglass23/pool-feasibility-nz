@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 import { createDataAccessGateway } from "../fixtures/normalized-data-access";
+import { splitDataAccessGateway } from "../fixtures/normalized-data-access";
 import { runFastPropertyView } from "@/modules/data-access-spike/fast-property-view";
 import { buildFastReportAssessment } from "@/modules/reporting/build-fast-report-assessment";
 
 describe("buildFastReportAssessment", () => {
   it("keeps a LINZ-resolved address available before detailed checks load", async () => {
+    const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
       requestedAddress: "42A Bahari Drive, Ranui, Auckland",
-      gateway: createDataAccessGateway(),
+      ...splitDataAccessGateway(gateway),
       basemapApiKey: "test-key",
       now: () => new Date("2026-08-13T00:00:00.000Z"),
     });

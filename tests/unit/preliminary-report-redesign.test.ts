@@ -151,6 +151,102 @@ describe("canonical homeowner feasibility report", () => {
     });
   });
 
+  it("uses saved placement-layer findings for the short category statuses and one combined key finding", () => {
+    const report = buildReport((submission) => {
+      submission.report.feasibilityState = "blocked";
+      submission.report.summary =
+        "The pool overlaps reliable mapped stormwater pipe infrastructure. Mapped wastewater pipe position also needs checking.";
+      submission.warnings = [
+        {
+          state: "blocked",
+          code: "POOL_BLOCKED",
+          title: "Blocked",
+          message: submission.report.summary,
+        },
+      ];
+      submission.report.reportData.placementLayerFindings = [
+        {
+          key: "public_stormwater_assets",
+          dataset: "Stormwater Pipes",
+          category: "stormwater",
+          status: "potential_constraint",
+          evidence: "reliable",
+        },
+        {
+          key: "wastewater_assets",
+          dataset: "Wastewater Pipes",
+          category: "water_wastewater",
+          status: "further_investigation",
+          evidence: "needs_checking",
+        },
+      ];
+    });
+
+    expect(report.assessments.pool_fit.status).toBe("red");
+    expect(report.assessments.stormwater.status).toBe("red");
+    expect(report.assessments.water_wastewater.status).toBe("amber");
+    expect(report.keyFindings[0]).toMatchObject({
+      id: "pool_position_review",
+      category: "pool_fit",
+      severity: "red",
+      title: "Pool position needs review",
+      clientSummary:
+        "The pool overlaps reliable mapped stormwater pipe infrastructure. Mapped wastewater pipe position also needs checking.",
+    });
+    expect(
+      report.keyFindings.filter((finding) =>
+        finding.id.startsWith("placement_layer:"),
+      ),
+    ).toHaveLength(0);
+  });
+
+  it("shows gas and electricity separately in assessments and key findings", () => {
+    const report = buildReport((submission) => {
+      submission.report.feasibilityState = "blocked";
+      submission.report.summary =
+        "The pool overlaps reliable mapped electricity and gas infrastructure.";
+      submission.warnings = [
+        {
+          state: "blocked",
+          code: "POOL_BLOCKED",
+          title: "Blocked",
+          message: submission.report.summary,
+        },
+      ];
+      submission.report.reportData.placementLayerFindings = [
+        {
+          key: "electricity_feeder_lines",
+          dataset: "Electricity Distribution Feeder Network",
+          category: "electricity",
+          status: "potential_constraint",
+          evidence: "reliable",
+        },
+        {
+          key: "gas_distribution_lines",
+          dataset: "Gas Distribution Network",
+          category: "gas",
+          status: "further_investigation",
+          evidence: "needs_checking",
+        },
+      ];
+    });
+
+    expect(report.assessments.electricity.status).toBe("red");
+    expect(report.assessments.gas.status).toBe("amber");
+    expect(report.keyFindings).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          category: "electricity",
+          title: "Electricity infrastructure near the proposed pool",
+        }),
+        expect.objectContaining({
+          category: "gas",
+          title: "Gas infrastructure near the proposed pool",
+        }),
+      ]),
+    );
+  });
+
   it("does not expose internal-reference vector geometry in the homeowner report", () => {
     const report = buildReport((submission) => {
       submission.layerStates = [
@@ -198,6 +294,7 @@ describe("canonical homeowner feasibility report", () => {
 
     expect(html.match(/<section class="page(?: page-two)?">/g)).toHaveLength(3);
     expect(html.match(/<img class="map"/g)).toHaveLength(1);
+    expect(html.match(/class="assessment-card"/g)).toHaveLength(10);
     expect(html).not.toContain("Page 1 of 3");
     expect(html).not.toContain("Page 2 of 3");
     expect(html).not.toContain("Page 3 of 3");
@@ -217,6 +314,7 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).toContain(report.keyFindings[0]!.title);
     expect(html).toContain("Preliminary assessment");
     expect(html).toContain("Preliminary feasibility only.");
+    expect(html).not.toContain("Evidence to confirm");
     expect(html).toContain(
       "Preliminary Feasibility Report — indicative desktop screening",
     );

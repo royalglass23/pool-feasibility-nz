@@ -2,8 +2,11 @@ import { z } from "zod";
 import type { FeatureCollection, Polygon } from "geojson";
 import type {
   AddressMatch,
-  DataAccessSpikeGateway,
+  AddressSearch,
+} from "@/modules/address-search/address-search";
+import type {
   DatasetEvidence,
+  OfficialPropertyLayers,
   ParcelMatch,
 } from "./data-access-gateway";
 import { providerEvidenceErrorCode } from "./data-access-gateway";
@@ -81,45 +84,46 @@ const addressSchema = z.string().trim().min(8).max(200);
 export async function resolveFastPropertyAddress(input: {
   requestedAddress: string;
   selectedAddressId?: string;
-  gateway: DataAccessSpikeGateway;
+  addressSearch: AddressSearch;
+  propertyLayers: OfficialPropertyLayers;
   now?: () => Date;
 }): Promise<FastPropertyViewResult> {
   const requestedAddress = addressSchema.parse(input.requestedAddress);
   const startedAt = (input.now?.() ?? new Date()).toISOString();
   const resolvedAddress = input.selectedAddressId
-    ? await input.gateway.getAddressById(input.selectedAddressId)
+    ? await input.addressSearch.getById(input.selectedAddressId)
     : resolveAddress(
-        await input.gateway.searchAddresses(requestedAddress),
+        await input.addressSearch.search(requestedAddress),
         requestedAddress,
       );
   if (!resolvedAddress) throw new DataAccessSpikeError("ADDRESS_NOT_FOUND");
-  const boundaryData = await loadFastPropertyBoundary({
-    resolvedAddress,
-    gateway: input.gateway,
-    retrievedAt: startedAt,
-  });
 
   return {
     requestedAddress,
     resolvedAddress,
-    boundary: boundaryData.boundary,
+    boundary: {
+      state: "loading",
+      geometry: null,
+      areaSquareMetres: null,
+      parcelId: null,
+    },
     aerial: {
       state: "loading",
       durationMs: null,
       attribution: null,
     },
     datasets: {
-      address_resolution: input.gateway.datasetEvidence(
+      address_resolution: input.propertyLayers.datasetEvidence(
         "address_resolution",
         startedAt,
       ),
-      legal_parcel: boundaryData.legalParcelEvidence,
+      legal_parcel: null,
       aerial_imagery: null,
     },
     defaultPool: FAST_COMPACT_POOL,
     progress: {
       address: "found",
-      boundary: boundaryData.progressBoundary,
+      boundary: "loading",
       aerial: "loading",
       detailedChecks: "not_loaded",
     },
@@ -130,7 +134,7 @@ export async function resolveFastPropertyAddress(input: {
 
 export async function loadFastPropertyStages(input: {
   resolvedAddress: AddressMatch;
-  gateway: DataAccessSpikeGateway;
+  propertyLayers: OfficialPropertyLayers;
   basemapApiKey?: string;
   initialBoundary?: FastPropertyBoundaryData;
   startedClock?: number;
@@ -142,12 +146,12 @@ export async function loadFastPropertyStages(input: {
     ? Promise.resolve(input.initialBoundary)
     : loadFastPropertyBoundary({
         resolvedAddress: input.resolvedAddress,
-        gateway: input.gateway,
+        propertyLayers: input.propertyLayers,
         retrievedAt,
       });
   const aerialPromise = Promise.allSettled([
     input.basemapApiKey
-      ? input.gateway.checkAerial(input.basemapApiKey)
+      ? input.propertyLayers.checkAerial(input.basemapApiKey)
       : Promise.reject(new Error("AERIAL_NOT_CONFIGURED")),
   ]).then(([outcome]) => outcome);
   const [boundaryData, aerialOutcome] = await Promise.all([
@@ -170,11 +174,11 @@ export async function loadFastPropertyStages(input: {
           durationMs: null,
           attribution: null,
         };
-  const aerialBase = input.gateway.datasetEvidence(
+  const aerialBase = input.propertyLayers.datasetEvidence(
     "aerial_imagery",
     retrievedAt,
   );
-  const addressEvidence = input.gateway.datasetEvidence(
+  const addressEvidence = input.propertyLayers.datasetEvidence(
     "address_resolution",
     retrievedAt,
   );
@@ -223,7 +227,8 @@ export async function loadFastPropertyStages(input: {
 export async function runFastPropertyView(input: {
   requestedAddress: string;
   selectedAddressId?: string;
-  gateway: DataAccessSpikeGateway;
+  addressSearch: AddressSearch;
+  propertyLayers: OfficialPropertyLayers;
   basemapApiKey?: string;
   now?: () => Date;
 }): Promise<FastPropertyViewResult> {
@@ -231,12 +236,13 @@ export async function runFastPropertyView(input: {
   const initial = await resolveFastPropertyAddress({
     requestedAddress: input.requestedAddress,
     selectedAddressId: input.selectedAddressId,
-    gateway: input.gateway,
+    addressSearch: input.addressSearch,
+    propertyLayers: input.propertyLayers,
     now: input.now,
   });
   const stage = await loadFastPropertyStages({
     resolvedAddress: initial.resolvedAddress,
-    gateway: input.gateway,
+    propertyLayers: input.propertyLayers,
     basemapApiKey: input.basemapApiKey,
     initialBoundary:
       initial.datasets.legal_parcel === null
@@ -254,15 +260,15 @@ export async function runFastPropertyView(input: {
 
 async function loadFastPropertyBoundary(input: {
   resolvedAddress: AddressMatch;
-  gateway: DataAccessSpikeGateway;
+  propertyLayers: OfficialPropertyLayers;
   retrievedAt: string;
 }): Promise<FastPropertyBoundaryData> {
   const [boundaryOutcome] = await Promise.allSettled([
-    input.gateway.findParcelsAt(input.resolvedAddress.coordinates),
+    input.propertyLayers.findParcelsAt(input.resolvedAddress.coordinates),
   ]);
   const parcels =
     boundaryOutcome.status === "fulfilled" ? boundaryOutcome.value.parcels : [];
-  const legalParcelBase = input.gateway.datasetEvidence(
+  const legalParcelBase = input.propertyLayers.datasetEvidence(
     "legal_parcel",
     input.retrievedAt,
   );

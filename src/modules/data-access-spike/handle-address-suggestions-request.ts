@@ -1,7 +1,8 @@
 import "server-only";
 
 import { z } from "zod";
-import { OfficialGisGateway } from "@/modules/providers/official-gis-gateway";
+import { AddressIndexUnavailableError } from "@/modules/address-search/address-search";
+import { NeonLinzAddressSearch } from "@/modules/address-search/neon-linz-address-search";
 import {
   apiErrorResponse,
   apiJsonResponse,
@@ -9,7 +10,6 @@ import {
 } from "@/shared/http/api-response";
 import {
   BodyLimitError,
-  providerTimeoutMs,
   readRequestBytesWithinLimit,
 } from "@/shared/http/provider-runtime";
 
@@ -55,9 +55,9 @@ export async function handleAddressSuggestionsRequest(
   }
 
   try {
-    const suggestions = await new OfficialGisGateway({
-      timeoutMs: providerTimeoutMs(),
-    }).suggestAddresses(parsed.data.query);
+    const suggestions = await new NeonLinzAddressSearch().search(
+      parsed.data.query,
+    );
     return apiJsonResponse(
       {
         suggestions: suggestions
@@ -69,14 +69,12 @@ export async function handleAddressSuggestionsRequest(
               fullAddressNumber,
               unit,
               territorialAuthority,
-              coordinates,
             }) => ({
               addressId,
               fullAddress,
               fullAddressNumber,
               unit,
               territorialAuthority,
-              coordinates,
             }),
           ),
       },
@@ -84,13 +82,19 @@ export async function handleAddressSuggestionsRequest(
       correlationId,
       { "Cache-Control": "no-store" },
     );
-  } catch {
+  } catch (error) {
     return apiErrorResponse(
       {
-        code: "DATA_PROVIDER_ERROR",
-        message: "The address suggestions are temporarily unavailable.",
+        code:
+          error instanceof AddressIndexUnavailableError
+            ? "TEMPORARILY_UNAVAILABLE"
+            : "DATA_PROVIDER_ERROR",
+        message:
+          error instanceof AddressIndexUnavailableError
+            ? "Please try again shortly."
+            : "The address suggestions are temporarily unavailable.",
       },
-      502,
+      error instanceof AddressIndexUnavailableError ? 503 : 502,
       correlationId,
       { "Cache-Control": "no-store" },
     );

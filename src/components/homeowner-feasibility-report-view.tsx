@@ -13,10 +13,7 @@ import {
   type ReportAssessment,
 } from "@/modules/reporting/pool-feasibility-report";
 import { formatReportGeneratedAt } from "@/modules/reporting/preliminary-report-presentation";
-import {
-  PRELIMINARY_FEASIBILITY_SCOPE,
-  preliminaryEvidenceActions,
-} from "@/modules/reporting/preliminary-feasibility-copy";
+import { PRELIMINARY_FEASIBILITY_SCOPE } from "@/modules/reporting/preliminary-feasibility-copy";
 
 export function HomeownerFeasibilityReportView({
   report,
@@ -37,10 +34,6 @@ export function HomeownerFeasibilityReportView({
   onStartAgain?: () => void;
 }) {
   void delivery;
-  const evidenceActions = preliminaryEvidenceActions({
-    boundaryStatus: report.property.boundaryStatus,
-    sources: report.sources,
-  });
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
 
@@ -115,7 +108,7 @@ export function HomeownerFeasibilityReportView({
                 type="button"
                 onClick={() => void downloadPdf()}
                 disabled={isDownloading}
-                className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl border bg-white px-4 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:text-pool-400"
+                className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 disabled:text-pool-400 min-h-11 rounded-xl border bg-white px-4 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
               >
                 {isDownloading ? "Downloading report…" : "Download PDF"}
               </button>
@@ -148,18 +141,12 @@ export function HomeownerFeasibilityReportView({
 
       <div className="space-y-10 px-5 py-7 sm:px-8 lg:px-10 lg:py-10">
         <section
-          aria-labelledby="overall-result-heading"
+          aria-label="Overall assessment"
           className={`rounded-2xl border p-5 sm:p-6 ${statusPanelClasses(report.overall.status)}`}
         >
           <p className="text-sm font-bold">
             {assessmentStatusLabel(report.overall.status)}
           </p>
-          <h3
-            id="overall-result-heading"
-            className="mt-3 text-xl font-semibold tracking-[-0.02em] sm:text-2xl"
-          >
-            Does this property appear worth progressing?
-          </h3>
           <p className="mt-3 max-w-3xl text-base leading-7">
             {report.overall.summary}
           </p>
@@ -170,30 +157,11 @@ export function HomeownerFeasibilityReportView({
 
         <section
           aria-label="Preliminary feasibility scope"
-          className="border-pool-blue-200 bg-pool-blue-50 rounded-xl border px-5 py-4 text-sm leading-6 text-pool-900"
+          className="border-pool-blue-200 bg-pool-blue-50 text-pool-900 rounded-xl border px-5 py-4 text-sm leading-6"
         >
           <strong>Preliminary feasibility only.</strong>{" "}
           {PRELIMINARY_FEASIBILITY_SCOPE}
         </section>
-
-        {evidenceActions.length > 0 && (
-          <section
-            aria-labelledby="evidence-actions-heading"
-            className="border-pool-200 rounded-xl border px-5 py-4"
-          >
-            <h3
-              id="evidence-actions-heading"
-              className="text-pool-950 font-semibold"
-            >
-              Evidence to confirm
-            </h3>
-            <ul className="text-pool-700 mt-2 space-y-2 text-sm leading-6">
-              {evidenceActions.map((action) => (
-                <li key={action}>{action}</li>
-              ))}
-            </ul>
-          </section>
-        )}
 
         <section aria-labelledby="at-a-glance-heading">
           <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">

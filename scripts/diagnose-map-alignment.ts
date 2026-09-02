@@ -150,10 +150,16 @@ type CameraCapture = {
 };
 
 async function main(): Promise<void> {
+  const gateway = createDataAccessGateway();
   const result = await runFastPropertyView({
     requestedAddress: "42A Bahari Drive, Ranui, Auckland",
     selectedAddressId: "2359811",
-    gateway: createDataAccessGateway(),
+    addressSearch: {
+      search: (query) => gateway.searchAddresses(query),
+      getById: (addressId) => gateway.getAddressById(addressId),
+      status: async () => ({ indexedAt: null, isFresh: false }),
+    },
+    propertyLayers: gateway,
     basemapApiKey: "diagnostic-fixture-key",
     now: () => new Date("2026-08-12T00:00:00.000Z"),
   });

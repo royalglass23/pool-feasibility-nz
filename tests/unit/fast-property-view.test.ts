@@ -7,7 +7,10 @@ import {
 } from "@/modules/data-access-spike/fast-property-view";
 import { distance } from "@turf/turf";
 import type { DataAccessSpikeGateway } from "@/modules/data-access-spike/data-access-gateway";
-import { createDataAccessGateway } from "../fixtures/normalized-data-access";
+import {
+  createDataAccessGateway,
+  splitDataAccessGateway,
+} from "../fixtures/normalized-data-access";
 import {
   FAST_POOL_CATALOGUE,
   findFastPoolDefaultPosition,
@@ -113,37 +116,54 @@ describe("runFastPropertyView", () => {
     ).toBe(false);
   });
 
-  it("returns the address and boundary before aerial stages complete", async () => {
+  it("loads parcel confirmation with the later property stage", async () => {
     const gateway = createDataAccessGateway();
     const findParcelsAt = vi.spyOn(gateway, "findParcelsAt");
     const initial = await resolveFastPropertyAddress({
       requestedAddress: "42A Bahari Drive, Ranui, Auckland",
-      gateway,
+      ...splitDataAccessGateway(gateway),
     });
 
     expect(initial.resolvedAddress.addressId).toBe("2359811");
-    expect(initial.progress.boundary).toBe("found");
-    expect(initial.boundary.geometry).not.toBeNull();
+    expect(initial.progress.boundary).toBe("loading");
+    expect(initial.boundary.geometry).toBeNull();
     expect(initial.progress.aerial).toBe("loading");
-    expect(findParcelsAt).toHaveBeenCalledOnce();
-
-    if (!initial.datasets.legal_parcel) {
-      throw new Error("Expected initial legal parcel evidence.");
-    }
+    expect(findParcelsAt).not.toHaveBeenCalled();
 
     const stage = await loadFastPropertyStages({
       resolvedAddress: initial.resolvedAddress,
-      gateway,
+      propertyLayers: gateway,
       basemapApiKey: "test-key",
-      initialBoundary: {
-        boundary: initial.boundary,
-        legalParcelEvidence: initial.datasets.legal_parcel,
-        progressBoundary: initial.progress.boundary,
-      },
     });
     expect(stage.progress.boundary).toBe("found");
     expect(stage.progress.aerial).toBe("ready");
     expect(findParcelsAt).toHaveBeenCalledOnce();
+  });
+
+  it("returns a selected address before a slow parcel confirmation starts", async () => {
+    const gateway = createDataAccessGateway();
+    gateway.findParcelsAt = vi.fn(
+      () => new Promise(() => undefined),
+    ) as DataAccessSpikeGateway["findParcelsAt"];
+
+    const initial = await Promise.race([
+      resolveFastPropertyAddress({
+        requestedAddress: "42A Bahari Drive, Ranui, Auckland",
+        selectedAddressId: "2359811",
+        ...splitDataAccessGateway(gateway),
+      }),
+      new Promise<"timed-out">((resolve) => {
+        setTimeout(() => resolve("timed-out"), 25);
+      }),
+    ]);
+
+    expect(initial).not.toBe("timed-out");
+    if (initial === "timed-out") return;
+    expect(initial.resolvedAddress.addressId).toBe("2359811");
+    expect(initial.boundary.state).toBe("loading");
+    expect(initial.progress.boundary).toBe("loading");
+    expect(initial.datasets.legal_parcel).toBeNull();
+    expect(gateway.findParcelsAt).not.toHaveBeenCalled();
   });
 
   it("uses the confirmed LINZ address ID without repeating the text lookup", async () => {
@@ -153,7 +173,7 @@ describe("runFastPropertyView", () => {
     const initial = await resolveFastPropertyAddress({
       requestedAddress: "42A Bahari Drive, Ranui, Auckland",
       selectedAddressId: "2359811",
-      gateway,
+      ...splitDataAccessGateway(gateway),
     });
 
     expect(initial.resolvedAddress.addressId).toBe("2359811");
@@ -174,7 +194,7 @@ describe("runFastPropertyView", () => {
 
     const result = await runFastPropertyView({
       requestedAddress: "42A Bahari Drive, Ranui, Auckland",
-      gateway,
+      ...splitDataAccessGateway(gateway),
       basemapApiKey: "test-key",
       now: () => new Date("2026-07-28T00:00:00.000Z"),
     });
@@ -205,7 +225,7 @@ describe("runFastPropertyView", () => {
 
     const result = await runFastPropertyView({
       requestedAddress: "42A Bahari Drive, Ranui, Auckland",
-      gateway,
+      ...splitDataAccessGateway(gateway),
       basemapApiKey: "test-key",
     });
 
@@ -225,7 +245,7 @@ describe("runFastPropertyView", () => {
 
     const result = await runFastPropertyView({
       requestedAddress: "42A Bahari Drive, Ranui, Auckland",
-      gateway,
+      ...splitDataAccessGateway(gateway),
       basemapApiKey: "test-key",
     });
 
@@ -252,7 +272,7 @@ describe("runFastPropertyView", () => {
 
     const result = await runFastPropertyView({
       requestedAddress: "42A Bahari Drive, Ranui, Auckland",
-      gateway,
+      ...splitDataAccessGateway(gateway),
       basemapApiKey: "test-key",
     });
 

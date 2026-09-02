@@ -154,6 +154,56 @@ describe("POST /api/internal/assessments", () => {
     });
   });
 
+  it("persists per-layer placement findings from the trusted map snapshot", async () => {
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const detailedChecks = completeDetailedChecks();
+    const stormwater = detailedChecks.layers.find(
+      (layer) => layer.key === "public_stormwater_assets",
+    );
+    if (!stormwater) throw new Error("TEST_STORMWATER_LAYER_MISSING");
+    stormwater.state = "returned";
+    stormwater.geometry = {
+      type: "FeatureCollection",
+      features: [
+        {
+          type: "Feature",
+          properties: {},
+          geometry: original.fastResult.boundary.geometry!,
+        },
+      ],
+    };
+    stormwater.evidence = {
+      ...stormwater.evidence,
+      dataset: "Stormwater Pipes",
+      status: "success",
+      evidenceUse: "report_allowed",
+      featureCount: 1,
+    };
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot: snapshotService.issue({
+        ...original.fastResult,
+        detailedChecks,
+      }),
+    });
+
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot: snapshotService.verify(request.assessmentSnapshot),
+      now: () => new Date("2026-07-30T00:00:00.000Z"),
+    });
+
+    expect(submission.report.reportData.placementLayerFindings).toEqual([
+      {
+        key: "public_stormwater_assets",
+        dataset: "Stormwater Pipes",
+        category: "stormwater",
+        status: "potential_constraint",
+        evidence: "reliable",
+      },
+    ]);
+  });
+
   it("rejects a browser map capture that is not a valid PNG", () => {
     expect(() =>
       parseBrowserAssessmentSaveRequest({

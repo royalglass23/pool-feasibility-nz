@@ -7,12 +7,15 @@ import * as schema from "@/db/schema";
 
 export function getDb() {
   const databaseUrl =
-    env.DATABASE_URL ??
-    (process.env.VERCEL_ENV === "preview"
+    process.env.VERCEL_ENV === "preview"
       ? process.env.DATABASE_URL_DEV?.trim()
-      : undefined);
+      : env.DATABASE_URL;
   if (!databaseUrl) {
-    throw new Error("DATABASE_URL is required for persisted assessments.");
+    throw new Error(
+      process.env.VERCEL_ENV === "preview"
+        ? "DATABASE_URL_DEV is required for persisted assessments in Vercel Preview."
+        : "DATABASE_URL is required for persisted assessments.",
+    );
   }
 
   return drizzle(neon(databaseUrl), { schema });
