@@ -148,7 +148,7 @@ test("shows Needs Checking before detailed evidence, then No Warning after a cle
   await expect(page.getByRole("heading", { name: "No Warning" })).toBeVisible();
 });
 
-test("shows Blocked while leaving the pool warning and recommendation visible", async ({
+test("shows friendly position-review guidance while leaving the pool controls available", async ({
   page,
 }) => {
   await openFastView(page);
@@ -167,10 +167,12 @@ test("shows Blocked while leaving the pool warning and recommendation visible", 
   await page
     .getByRole("button", { name: "Load detailed official checks" })
     .click();
-  await expect(page.getByRole("heading", { name: "Blocked" })).toBeVisible();
+  await expect(
+    page.getByRole("heading", { name: "This pool position needs review" }),
+  ).toBeVisible();
   await expect(
     page.getByText(
-      "Move the pool, or obtain an engineer-designed solution accepted by the relevant council or service owner.",
+      "Try a different pool position. If you want to keep this position, confirm the mapped constraint and required clearance with the relevant provider or a qualified pool professional.",
     ),
   ).toBeVisible();
   await expect(
