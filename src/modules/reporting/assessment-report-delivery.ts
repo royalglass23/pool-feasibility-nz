@@ -46,6 +46,7 @@ export type AssessmentReportDeliveryDependencies = {
   store: AssessmentDeliveryStore;
   send: (input: ReportEmailInput) => Promise<ReportEmailResult>;
   from: string;
+  brandLogoUrl?: string;
   renderPdf: (report: SavedPreliminaryReport) => Promise<Buffer>;
   deliveryEnvironment: ReportDeliveryEnvironment;
 };
@@ -122,7 +123,10 @@ export async function deliverAssessmentReport(
 
 function emailForHomeowner(
   claim: AssessmentDeliveryClaim,
-  dependencies: Pick<AssessmentReportDeliveryDependencies, "from">,
+  dependencies: Pick<
+    AssessmentReportDeliveryDependencies,
+    "from" | "brandLogoUrl"
+  >,
   pdf: Buffer,
 ): ReportEmailInput {
   const shortAddress = claim.report.property.address.split(",")[0]?.trim();
@@ -133,8 +137,11 @@ function emailForHomeowner(
   const mainFindingText = mainFinding
     ? `${mainFinding.title}: ${mainFinding.clientSummary}`
     : "No additional material mapped finding was identified.";
-  const text = `${greeting}\n\nPreliminary Pool Feasibility Report\n${claim.report.property.address}\n\nOverall result:\n${overallStatus}\n\n${claim.report.overall.summary}\n\nMain finding:\n${mainFindingText}\n\nRecommended next step:\n${claim.report.overall.recommendedStage}\n\nReference: ${claim.report.reference}\n\nThis is a preliminary desktop assessment, not surveying, engineering advice, consent or approval to undertake construction.`;
-  const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,sans-serif;color:#1f2937;background:#f1f5f9;padding:24px"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden"><tr><td style="background:#173755;color:#ffffff;padding:28px 32px"><p style="margin:0 0 8px;font-size:12px;font-weight:bold;letter-spacing:1px;text-transform:uppercase">Royal Glass</p><h1 style="margin:0;font-size:25px;line-height:1.3">Your preliminary pool feasibility report</h1></td></tr><tr><td style="padding:28px 32px"><p>${escapeHtml(greeting)}</p><p><strong>${escapeHtml(claim.report.property.address)}</strong></p><p style="padding:16px;background:#eff6ff;border-radius:8px"><strong>Overall result:</strong><br>${escapeHtml(overallStatus)}</p><p>${escapeHtml(claim.report.overall.summary)}</p><p><strong>Main finding:</strong><br>${escapeHtml(mainFindingText)}</p><p><strong>Recommended next step:</strong><br>${escapeHtml(claim.report.overall.recommendedStage)}</p><p style="font-size:12px;color:#4b5563">Reference: ${escapeHtml(claim.report.reference)}. This is a preliminary desktop assessment, not surveying, engineering advice, consent or approval to undertake construction.</p></td></tr></table></td></tr></table>`;
+  const brandLogoUrl = escapeHtml(
+    dependencies.brandLogoUrl ?? "/brand/pool-ready-logo.png",
+  );
+  const text = `${greeting}\n\nPoolReady preliminary pool feasibility report\n${claim.report.property.address}\n\nOverall result:\n${overallStatus}\n\n${claim.report.overall.summary}\n\nMain finding:\n${mainFindingText}\n\nRecommended next step:\n${claim.report.overall.recommendedStage}\n\nReference: ${claim.report.reference}\n\nThis is a preliminary desktop assessment, not surveying, engineering advice, consent or approval to undertake construction.`;
+  const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,sans-serif;color:#1f2937;background:#f1f5f9;padding:24px"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden"><tr><td style="background:#173755;color:#ffffff;padding:28px 32px"><a href="https://www.poolready.co.nz/" target="_blank" rel="noopener noreferrer" style="display:inline-block"><img src="${brandLogoUrl}" alt="PoolReady" width="176" style="display:block;width:176px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none"></a><h1 style="margin:20px 0 0;font-size:25px;line-height:1.3">Your preliminary pool feasibility report</h1></td></tr><tr><td style="padding:28px 32px"><p>${escapeHtml(greeting)}</p><p><strong>${escapeHtml(claim.report.property.address)}</strong></p><p style="padding:16px;background:#eff6ff;border-radius:8px"><strong>Overall result:</strong><br>${escapeHtml(overallStatus)}</p><p>${escapeHtml(claim.report.overall.summary)}</p><p><strong>Main finding:</strong><br>${escapeHtml(mainFindingText)}</p><p><strong>Recommended next step:</strong><br>${escapeHtml(claim.report.overall.recommendedStage)}</p><p style="font-size:12px;color:#4b5563">Reference: ${escapeHtml(claim.report.reference)}. This is a preliminary desktop assessment, not surveying, engineering advice, consent or approval to undertake construction.</p></td></tr></table></td></tr></table>`;
 
   return {
     from: dependencies.from,
@@ -150,7 +157,10 @@ function emailForHomeowner(
 
 function emailForInternalTestReport(
   claim: AssessmentDeliveryClaim,
-  dependencies: Pick<AssessmentReportDeliveryDependencies, "from">,
+  dependencies: Pick<
+    AssessmentReportDeliveryDependencies,
+    "from" | "brandLogoUrl"
+  >,
   pdf: Buffer,
 ): ReportEmailInput {
   const homeownerEmail = emailForHomeowner(claim, dependencies, pdf);
