@@ -104,6 +104,13 @@ export function buildTestPreliminaryReport(
           "unknown",
           "Flooding and drainage information was not assessed.",
         ],
+        [
+          "electricity",
+          "Electricity",
+          "unknown",
+          "Electricity information was not assessed.",
+        ],
+        ["gas", "Gas", "unknown", "Gas information was not assessed."],
         ["terrain", "Terrain", "unknown", "Terrain was not assessed."],
         ["planning", "Planning", "unknown", "Planning was not assessed."],
         [

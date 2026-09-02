@@ -1,21 +1,32 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const suggestAddresses = vi.hoisted(() => vi.fn());
+const search = vi.hoisted(() => vi.fn());
+const addressIndexConstructorError = vi.hoisted(() => ({
+  error: null as Error | null,
+}));
 
 vi.mock("server-only", () => ({}));
-vi.mock("@/modules/providers/official-gis-gateway", () => ({
-  OfficialGisGateway: class {
-    suggestAddresses = suggestAddresses;
+vi.mock("@/modules/address-search/neon-linz-address-search", () => ({
+  NeonLinzAddressSearch: class {
+    constructor() {
+      if (addressIndexConstructorError.error) {
+        throw addressIndexConstructorError.error;
+      }
+    }
+
+    search = search;
   },
 }));
 
 import { POST } from "@/app/api/internal/address-suggestions/route";
 import { POST as POST_PUBLIC } from "@/app/api/public/address-suggestions/route";
+import { AddressIndexUnavailableError } from "@/modules/address-search/address-search";
 
 const authHeader = `Basic ${Buffer.from("royal-glass:staff-secret").toString("base64")}`;
 
 afterEach(() => {
-  suggestAddresses.mockReset();
+  search.mockReset();
+  addressIndexConstructorError.error = null;
   vi.unstubAllEnvs();
 });
 
@@ -28,9 +39,25 @@ function suggestionRequest(path: string, query: string, headers?: HeadersInit) {
 }
 
 describe("POST /api/public/address-suggestions", () => {
+  it("returns a retryable response when address-index setup is unavailable", async () => {
+    addressIndexConstructorError.error = new AddressIndexUnavailableError();
+
+    const response = await POST_PUBLIC(
+      suggestionRequest("/api/public/address-suggestions", "bahari"),
+    );
+
+    expect(response.status).toBe(503);
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: "TEMPORARILY_UNAVAILABLE",
+        message: "Please try again shortly.",
+      },
+    });
+  });
+
   it("serves an anonymous visitor without Basic credentials", async () => {
     vi.stubEnv("NODE_ENV", "development");
-    suggestAddresses.mockResolvedValue([
+    search.mockResolvedValue([
       {
         addressId: "1",
         fullAddress: "1 Bahari Drive, Auckland",
@@ -55,11 +82,10 @@ describe("POST /api/public/address-suggestions", () => {
           fullAddressNumber: "1",
           unit: null,
           territorialAuthority: "Auckland",
-          coordinates: [174.6082, -36.8603],
         },
       ],
     });
-    expect(suggestAddresses).toHaveBeenCalledWith("bahari");
+    expect(search).toHaveBeenCalledWith("bahari");
   });
 });
 
@@ -74,7 +100,7 @@ describe("POST /api/internal/address-suggestions", () => {
     );
 
     expect(response.status).toBe(401);
-    expect(suggestAddresses).not.toHaveBeenCalled();
+    expect(search).not.toHaveBeenCalled();
   });
 
   it("validates the minimum query before calling LINZ", async () => {
@@ -89,7 +115,7 @@ describe("POST /api/internal/address-suggestions", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(suggestAddresses).not.toHaveBeenCalled();
+    expect(search).not.toHaveBeenCalled();
   });
 
   it("validates the maximum query before calling LINZ", async () => {
@@ -104,14 +130,14 @@ describe("POST /api/internal/address-suggestions", () => {
     );
 
     expect(response.status).toBe(400);
-    expect(suggestAddresses).not.toHaveBeenCalled();
+    expect(search).not.toHaveBeenCalled();
   });
 
   it("bounds the normalized response to eight suggestions", async () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("INTERNAL_ACCESS_USERNAME", "royal-glass");
     vi.stubEnv("INTERNAL_ACCESS_PASSWORD", "staff-secret");
-    suggestAddresses.mockResolvedValue(
+    search.mockResolvedValue(
       Array.from({ length: 10 }, (_, index) => ({
         addressId: String(index + 1),
         fullAddress: `${index + 1} Bahari Drive, Auckland`,
@@ -138,7 +164,7 @@ describe("POST /api/internal/address-suggestions", () => {
     vi.stubEnv("NODE_ENV", "production");
     vi.stubEnv("INTERNAL_ACCESS_USERNAME", "royal-glass");
     vi.stubEnv("INTERNAL_ACCESS_PASSWORD", "staff-secret");
-    suggestAddresses.mockRejectedValue(new Error("secret provider detail"));
+    search.mockRejectedValue(new Error("secret provider detail"));
 
     const response = await POST(
       suggestionRequest("/api/internal/address-suggestions", "bahari", {

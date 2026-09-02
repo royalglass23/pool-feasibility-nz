@@ -57,7 +57,7 @@ export async function executeFastPropertyStagesRequest(input: {
     status: 200,
     data: await loadFastPropertyStages({
       resolvedAddress,
-      gateway: input.gateway,
+      propertyLayers: input.gateway,
       basemapApiKey: input.basemapApiKey,
       initialBoundary: input.initialBoundary,
     }),

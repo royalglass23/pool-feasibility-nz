@@ -1,16 +1,13 @@
 import type { FeatureCollection, Geometry, Polygon } from "geojson";
+import type { AddressMatch } from "@/modules/address-search/address-search";
 import type { DatasetKey, QueryableDatasetKey } from "./dataset-catalog";
 
-export type Position = [longitude: number, latitude: number];
+export type {
+  AddressMatch,
+  AddressSearch,
+} from "@/modules/address-search/address-search";
 
-export interface AddressMatch {
-  addressId: string;
-  fullAddress: string;
-  fullAddressNumber: string;
-  unit: string | null;
-  territorialAuthority: string;
-  coordinates: Position;
-}
+export type Position = [longitude: number, latitude: number];
 
 export interface ParcelMatch {
   parcelId: string;
@@ -91,14 +88,12 @@ export function providerEvidenceErrorCode(
   );
 }
 
-export interface DataAccessSpikeGateway {
+export interface OfficialPropertyLayers {
   datasetEvidence(dataset: DatasetKey, retrievedAt: string): DatasetEvidence;
   datasetCapability(dataset: DatasetKey): {
     detailedQuery: boolean;
     reason: string | null;
   };
-  searchAddresses(requestedAddress: string): Promise<AddressMatch[]>;
-  getAddressById(addressId: string): Promise<AddressMatch | null>;
   findParcelsAt(position: Position): Promise<ParcelQueryResult>;
   countFeatures(
     dataset: QueryableDatasetKey,
@@ -111,4 +106,13 @@ export interface DataAccessSpikeGateway {
   checkAerial(
     apiKey: string,
   ): Promise<{ durationMs: number; attribution: AerialAttribution }>;
+}
+
+/**
+ * Legacy aggregate retained for the older data-access spike workflow.
+ * New Property Check code accepts the two specific interfaces separately.
+ */
+export interface DataAccessSpikeGateway extends OfficialPropertyLayers {
+  searchAddresses(requestedAddress: string): Promise<AddressMatch[]>;
+  getAddressById(addressId: string): Promise<AddressMatch | null>;
 }
