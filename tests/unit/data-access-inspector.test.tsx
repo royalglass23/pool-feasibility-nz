@@ -71,7 +71,12 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         { status: 502 },
       ),
     );
-    expect(await screen.findByText("Stopped")).toBeVisible();
+    expect(
+      await screen.findByText("We couldn't complete that property check"),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/Check your internet connection, then try again/i),
+    ).toBeVisible();
   });
 
   it("emits only anonymous funnel names for a completed property check", async () => {
@@ -647,12 +652,12 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       await screen.findByRole("heading", { name: requestedAddress }),
     ).toBeVisible();
     expect(JSON.parse(fetchMock.mock.calls[1]?.[1]?.body as string)).toEqual({
-      address: "Bahari Drive, Ranui, Auckland",
+      address: requestedAddress,
       selectedAddressId: "2359811",
     });
   });
 
-  it("lets the user select a LINZ address autocomplete suggestion", async () => {
+  it("uses the full selected LINZ address for the property check", async () => {
     const user = userEvent.setup();
     const result = await createResult();
     const fetchMock = vi
@@ -683,7 +688,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       await screen.findByRole("heading", { name: requestedAddress }),
     ).toBeVisible();
     expect(JSON.parse(fetchMock.mock.calls[1][1].body as string)).toEqual({
-      address: "42A Bahari",
+      address: requestedAddress,
       selectedAddressId: "2359811",
     });
   });
@@ -772,6 +777,10 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     expect(
       await screen.findByRole("button", { name: "Try again" }),
     ).toBeVisible();
+    expect(
+      screen.getByText("We couldn't load the property information"),
+    ).toBeVisible();
+    expect(screen.getByText(/Try again in a minute/i)).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Try again" }));
 
     expect(
@@ -821,11 +830,13 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
     await user.keyboard("{Enter}");
 
-    await screen.findByText(/Aerial imagery is not ready yet/);
+    await screen.findByText(/aerial photo is still loading/i);
     const stageRequestCountBeforeRetry = fetchMock.mock.calls.filter(
       ([input]) => String(input).includes("/api/public/property-check/stages"),
     ).length;
-    await user.click(screen.getByRole("button", { name: "Retry fast view" }));
+    await user.click(
+      screen.getByRole("button", { name: "Retry property check" }),
+    );
     await waitFor(() =>
       expect(
         fetchMock.mock.calls.filter(([input]) =>
@@ -937,14 +948,21 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     await user.keyboard("{Enter}");
 
     expect(
-      await screen.findByText("We couldn't finish every property check."),
+      await screen.findByText(
+        "Your property view is ready, but some map checks are not",
+      ),
     ).toBeVisible();
     expect(
       screen.getByText(
-        "Your preliminary property view is still available. Please search for the address again.",
+        "We could not load every detailed official map layer. Your preliminary property view is still available.",
       ),
     ).toBeVisible();
-    expect(screen.getByRole("button", { name: "Search again" })).toBeVisible();
+    expect(
+      screen.getByText(/Use the view as an early guide only/i),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Try property check again" }),
+    ).toBeVisible();
   });
 });
 
