@@ -165,25 +165,17 @@ export const linzAddressIndex = pgTable(
   "linz_address_index",
   {
     addressId: text("address_id").primaryKey(),
-    sourceObjectId: integer("source_object_id").notNull(),
     fullAddress: text("full_address").notNull(),
     fullAddressNumber: text("full_address_number").notNull(),
     unit: text("unit"),
     territorialAuthority: text("territorial_authority").notNull(),
-    suburbLocality: text("suburb_locality"),
-    townCity: text("town_city"),
-    postcode: text("postcode"),
     searchText: text("search_text").notNull(),
     longitude: doublePrecision("longitude").notNull(),
     latitude: doublePrecision("latitude").notNull(),
     isCurrent: boolean("is_current").notNull(),
-    sourceUpdatedAt: timestamp("source_updated_at", { withTimezone: true }),
-    syncedAt: timestamp("synced_at", { withTimezone: true }).notNull(),
+    lastSeenRunId: uuid("last_seen_run_id"),
   },
   (table) => [
-    uniqueIndex("linz_address_index_source_object_id_uq").on(
-      table.sourceObjectId,
-    ),
     index("linz_address_index_current_ta_idx").on(
       table.isCurrent,
       table.territorialAuthority,

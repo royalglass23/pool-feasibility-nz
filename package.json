@@ -30,6 +30,10 @@
     "addresses:status": "node --conditions=react-server --import tsx scripts/check-linz-address-index.ts",
     "addresses:reconcile-run": "node --conditions=react-server --import tsx scripts/check-linz-address-index.ts --reconcile-run-count",
     "addresses:probe": "node --conditions=react-server --import tsx scripts/probe-linz-address-index.ts",
+    "addresses:import:auckland:production": "tsx scripts/import-linz-address-index.ts --production --confirm-production-address-index",
+    "addresses:status:production": "node --conditions=react-server --import tsx scripts/check-linz-address-index.ts --production --confirm-production-address-index",
+    "addresses:probe:production": "node --conditions=react-server --import tsx scripts/probe-linz-address-index.ts --production --confirm-production-address-index",
+    "addresses:compact": "tsx scripts/compact-linz-address-index.ts",
     "staff:bootstrap": "node --conditions=react-server --import tsx scripts/bootstrap-staff-admin.ts",
     "staff:reset-password": "node --conditions=react-server --import tsx scripts/reset-staff-admin-password.ts"
   },
