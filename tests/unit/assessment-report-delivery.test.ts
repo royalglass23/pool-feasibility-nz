@@ -22,6 +22,12 @@ function createDeliveryStore(
   options: {
     report?: SavedPreliminaryReport;
     homeownerName?: string;
+    homeownerPhone?: string;
+    visitorType?: "homeowner" | "pool_builder" | "other" | null;
+    visitorTypeOtherDetail?: string | null;
+    desiredTiming?: "asap" | "3_months" | "6_months" | "12_months" | "other";
+    desiredTimingOtherDetail?: string | null;
+    additionalInfo?: string | null;
   } = {},
 ) {
   const states: Record<AssessmentDeliveryChannel, string> = { ...initial };
@@ -36,7 +42,13 @@ function createDeliveryStore(
             channel,
             claimToken: `${channel}-claim`,
             homeownerName: options.homeownerName ?? "Jane Homeowner",
+            homeownerPhone: options.homeownerPhone ?? "021 123 4567",
             homeownerEmail: "jane@example.com",
+            visitorType: options.visitorType ?? "homeowner",
+            visitorTypeOtherDetail: options.visitorTypeOtherDetail ?? null,
+            desiredTiming: options.desiredTiming ?? "3_months",
+            desiredTimingOtherDetail: options.desiredTimingOtherDetail ?? null,
+            additionalInfo: options.additionalInfo ?? null,
             report: options.report ?? report,
           };
         }
@@ -44,7 +56,13 @@ function createDeliveryStore(
           channel,
           claimToken: `${channel}-claim`,
           homeownerName: options.homeownerName ?? "Jane Homeowner",
+          homeownerPhone: options.homeownerPhone ?? "021 123 4567",
           homeownerEmail: "jane@example.com",
+          visitorType: options.visitorType ?? "homeowner",
+          visitorTypeOtherDetail: options.visitorTypeOtherDetail ?? null,
+          desiredTiming: options.desiredTiming ?? "3_months",
+          desiredTimingOtherDetail: options.desiredTimingOtherDetail ?? null,
+          additionalInfo: options.additionalInfo ?? null,
           report: options.report ?? report,
         };
       },
@@ -187,9 +205,16 @@ describe("PDF assessment report delivery", () => {
     expect(internalEmail).toMatchObject({
       attachment: pdf,
       filename: "preliminary-pool-feasibility-1-test-street.pdf",
-      subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
+      replyTo: "jane@example.com",
+      subject: "New PoolReady report request - 1 Test Street",
       idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
     });
+    expect(internalEmail?.text).toContain("Phone: 021 123 4567");
+    expect(internalEmail?.text).toContain("I am a: Homeowner");
+    expect(internalEmail?.text).toContain(
+      "When do you need it?: Within 3 months",
+    );
+    expect(internalEmail?.html).toContain("Additional info");
     expect(result).toEqual({
       homeowner: "sent",
       internal_test_report: "sent",
@@ -233,7 +258,7 @@ describe("PDF assessment report delivery", () => {
     });
     expect(internalEmail).toMatchObject({
       to: "support@royalglass.co.nz",
-      subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
+      subject: "New PoolReady report request - 1 Test Street",
       attachment: Buffer.from("%PDF-shared"),
       filename: "preliminary-pool-feasibility-1-test-street.pdf",
       idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
@@ -246,6 +271,53 @@ describe("PDF assessment report delivery", () => {
       homeowner: "failed",
       internal_test_report: "sent",
     });
+  });
+
+  it("includes every submitted report-form answer in the support email", async () => {
+    const { store } = createDeliveryStore(
+      { homeowner: "sent", internal_test_report: "pending" },
+      {
+        homeownerPhone: "027 123 4567",
+        visitorType: "other",
+        visitorTypeOtherDetail: "Landscape designer",
+        desiredTiming: "other",
+        desiredTimingOtherDetail: "After the new deck is complete",
+        additionalInfo: "Access is through the shared driveway.",
+      },
+    );
+    const send = vi.fn().mockResolvedValue({ id: "email-internal" });
+
+    await deliverAssessmentReport("GF-2026-000123", {
+      store,
+      renderPdf: vi.fn().mockResolvedValue(Buffer.from("%PDF-shared")),
+      send,
+      from: "Royal Glass <reports@example.com>",
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
+    });
+
+    const supportEmail = send.mock.calls[0]?.[0];
+    expect(supportEmail).toMatchObject({
+      to: "support@royalglass.co.nz",
+      replyTo: "jane@example.com",
+    });
+    expect(supportEmail.text).toContain("Name: Jane Homeowner");
+    expect(supportEmail.text).toContain("Phone: 027 123 4567");
+    expect(supportEmail.text).toContain("Email: jane@example.com");
+    expect(supportEmail.text).toContain("Property address: 1 Test Street");
+    expect(supportEmail.text).toContain(
+      "Overall result:\nFurther investigation required",
+    );
+    expect(supportEmail.text).toContain(
+      "Main finding:\nPool position requires checking: Some mapped evidence is unavailable or uncertain.",
+    );
+    expect(supportEmail.text).not.toContain("Recommended next step");
+    expect(supportEmail.text).toContain("I am a: Other: Landscape designer");
+    expect(supportEmail.text).toContain(
+      "When do you need it?: Other: After the new deck is complete",
+    );
+    expect(supportEmail.text).toContain(
+      "Additional info: Access is through the shared driveway.",
+    );
   });
 
   it("retries only the failed destination and never resends a completed destination", async () => {
@@ -449,9 +521,9 @@ describe("PDF assessment report delivery", () => {
     });
 
     const html = send.mock.calls[0]?.[0].html as string;
-    expect(html).not.toContain("<img");
+    expect(html).not.toContain("<img src=x");
     expect(html).not.toContain("<script");
-    expect(html).toContain("&lt;img");
+    expect(html).toContain("&lt;img src=x onerror=");
     expect(html).toContain("&lt;script");
   });
 });
