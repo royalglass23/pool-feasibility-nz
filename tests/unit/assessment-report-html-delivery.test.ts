@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 import {
   deliverAssessmentReport,
+  type AssessmentDeliveryClaim,
   type AssessmentDeliveryStore,
 } from "@/modules/reporting/assessment-report-delivery";
 
@@ -16,7 +17,7 @@ describe("assessment report delivery", () => {
     const report = buildTestPreliminaryReport();
     const store: AssessmentDeliveryStore = {
       claim: vi.fn((_: string, channel) =>
-        Promise.resolve({
+        Promise.resolve<AssessmentDeliveryClaim>({
           channel,
           claimToken: `${channel}-claim`,
           homeownerName: "Jane Homeowner",
@@ -125,7 +126,7 @@ describe("assessment report delivery", () => {
     const report = buildTestPreliminaryReport();
     const store: AssessmentDeliveryStore = {
       claim: vi.fn((_: string, channel) =>
-        Promise.resolve({
+        Promise.resolve<AssessmentDeliveryClaim>({
           channel,
           claimToken: `${channel}-claim`,
           homeownerName: "Jane Homeowner",

@@ -3,6 +3,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { HomeownerFeasibilityReportView } from "@/components/homeowner-feasibility-report-view";
 import {
   deliverAssessmentReport,
+  type AssessmentDeliveryClaim,
   type AssessmentDeliveryStore,
 } from "@/modules/reporting/assessment-report-delivery";
 import { renderCanonicalPreliminaryReportHtml } from "@/modules/reporting/preliminary-report-html";
@@ -90,16 +91,23 @@ describe("web, PDF and email report consistency", () => {
 
     const send = vi.fn().mockResolvedValue({ id: "email-1" });
     const store: AssessmentDeliveryStore = {
-      claim: vi.fn(async (_reference, channel) =>
-        channel === "homeowner"
-          ? {
-              channel,
-              claimToken: "homeowner-claim",
-              homeownerName: "Jane Homeowner",
-              homeownerEmail: "jane@example.com",
-              report,
-            }
-          : null,
+      claim: vi.fn(
+        async (_reference, channel): Promise<AssessmentDeliveryClaim | null> =>
+          channel === "homeowner"
+            ? {
+                channel,
+                claimToken: "homeowner-claim",
+                homeownerName: "Jane Homeowner",
+                homeownerPhone: "021 123 4567",
+                homeownerEmail: "jane@example.com",
+                visitorType: "homeowner",
+                visitorTypeOtherDetail: null,
+                desiredTiming: "3_months",
+                desiredTimingOtherDetail: null,
+                additionalInfo: null,
+                report,
+              }
+            : null,
       ),
       markSent: vi.fn(async () => undefined),
       markFailed: vi.fn(async () => undefined),
