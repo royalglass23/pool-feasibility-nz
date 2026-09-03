@@ -488,7 +488,21 @@ async function claimAssessmentDelivery(
     channel,
     claimToken,
     homeownerName: assessment.homeownerName,
+    homeownerPhone: assessment.homeownerPhone,
     homeownerEmail: assessment.homeownerEmail,
+    visitorType:
+      assessment.visitorType === null
+        ? null
+        : persistedAssessmentSubmissionSchema.shape.homeowner.shape.visitorType.parse(
+            assessment.visitorType,
+          ),
+    visitorTypeOtherDetail: assessment.visitorTypeOtherDetail,
+    desiredTiming:
+      persistedAssessmentSubmissionSchema.shape.homeowner.shape.desiredTiming.parse(
+        assessment.desiredTiming,
+      ),
+    desiredTimingOtherDetail: assessment.desiredTimingOtherDetail,
+    additionalInfo: assessment.additionalInfo,
     report: buildSavedPreliminaryReport({
       reference: assessment.reference,
       createdAt: assessment.createdAt.toISOString(),
