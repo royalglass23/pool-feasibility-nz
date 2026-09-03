@@ -71,7 +71,15 @@ describe.skipIf(!databaseUrl)(
         expect(internalReportClaim).toMatchObject({
           channel: "internal_test_report",
           homeownerName: submission.homeowner.name,
+          homeownerPhone: submission.homeowner.phone,
           homeownerEmail: submission.homeowner.email,
+          visitorType: submission.homeowner.visitorType,
+          visitorTypeOtherDetail:
+            submission.homeowner.visitorTypeOtherDetail ?? null,
+          desiredTiming: submission.homeowner.desiredTiming,
+          desiredTimingOtherDetail:
+            submission.homeowner.desiredTimingOtherDetail ?? null,
+          additionalInfo: submission.homeowner.additionalInfo ?? null,
           report: {
             reference: saved.assessment.reference,
             mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,

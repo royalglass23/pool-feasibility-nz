@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 import {
   deliverAssessmentReport,
+  type AssessmentDeliveryClaim,
   type AssessmentDeliveryStore,
 } from "@/modules/reporting/assessment-report-delivery";
 
@@ -16,11 +17,17 @@ describe("assessment report delivery", () => {
     const report = buildTestPreliminaryReport();
     const store: AssessmentDeliveryStore = {
       claim: vi.fn((_: string, channel) =>
-        Promise.resolve({
+        Promise.resolve<AssessmentDeliveryClaim>({
           channel,
           claimToken: `${channel}-claim`,
           homeownerName: "Jane Homeowner",
+          homeownerPhone: "021 123 4567",
           homeownerEmail: "jane@example.com",
+          visitorType: "homeowner",
+          visitorTypeOtherDetail: null,
+          desiredTiming: "3_months",
+          desiredTimingOtherDetail: null,
+          additionalInfo: null,
           report,
         }),
       ),
@@ -55,17 +62,43 @@ describe("assessment report delivery", () => {
     expect(renderPdf).toHaveBeenCalledOnce();
     expect(renderPdf).toHaveBeenCalledWith(report);
     expect(send).toHaveBeenCalledTimes(2);
-    for (const [email] of send.mock.calls) {
-      expect(email.html).toContain("PoolReady");
-      expect(email.text).toContain("PoolReady");
-      expect(email.html).toContain(
-        'src="https://poolready.example/brand/pool-ready-logo.png"',
-      );
-      expect(email.html).toContain(
-        'href="https://www.poolready.co.nz/" target="_blank"',
-      );
-      expect(email.html).toContain("background:#ffffff;border-radius:6px");
-    }
+    const homeownerEmail = send.mock.calls.find(
+      ([email]) => email.to === "jane@example.com",
+    )?.[0];
+    const supportEmail = send.mock.calls.find(
+      ([email]) => email.to === "support@royalglass.co.nz",
+    )?.[0];
+    expect(homeownerEmail?.html).toContain("PoolReady");
+    expect(homeownerEmail?.html).toContain(
+      'src="https://poolready.example/brand/pool-ready-logo.png"',
+    );
+    expect(homeownerEmail?.html).toContain(
+      'href="https://www.poolready.co.nz/" target="_blank"',
+    );
+    expect(homeownerEmail?.html).toContain(
+      "background:#ffffff;border-radius:6px",
+    );
+    expect(homeownerEmail).toMatchObject({
+      replyTo: "support@royalglass.co.nz",
+    });
+    expect(homeownerEmail?.html).toContain(
+      "Have questions? Let’s talk it through.",
+    );
+    expect(homeownerEmail?.html).toContain("Reply and talk with us");
+    expect(homeownerEmail?.html).not.toContain("Recommended next step");
+    expect(homeownerEmail?.text).toContain(
+      "Have questions? Let’s talk it through.",
+    );
+    expect(homeownerEmail?.text).not.toContain("Recommended next step");
+    expect(supportEmail).toMatchObject({
+      replyTo: "jane@example.com",
+      subject: "New PoolReady report request - 1 Test Street",
+    });
+    expect(supportEmail?.html).toContain("Overall result");
+    expect(supportEmail?.html).toContain("Main finding");
+    expect(supportEmail?.html).not.toContain("Recommended next step");
+    expect(supportEmail?.html).toContain("Submitted form answers");
+    expect(supportEmail?.text).toContain("Phone: 021 123 4567");
     expect(send.mock.calls).toEqual(
       expect.arrayContaining([
         [
@@ -93,11 +126,17 @@ describe("assessment report delivery", () => {
     const report = buildTestPreliminaryReport();
     const store: AssessmentDeliveryStore = {
       claim: vi.fn((_: string, channel) =>
-        Promise.resolve({
+        Promise.resolve<AssessmentDeliveryClaim>({
           channel,
           claimToken: `${channel}-claim`,
           homeownerName: "Jane Homeowner",
+          homeownerPhone: "021 123 4567",
           homeownerEmail: "jane@example.com",
+          visitorType: "homeowner",
+          visitorTypeOtherDetail: null,
+          desiredTiming: "3_months",
+          desiredTimingOtherDetail: null,
+          additionalInfo: null,
           report,
         }),
       ),
