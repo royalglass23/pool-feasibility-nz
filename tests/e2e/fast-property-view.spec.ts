@@ -124,10 +124,12 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
     await expect(
       page.getByRole("heading", { name: "42A Bahari Drive, Ranui, Auckland" }),
     ).toBeVisible();
-    await expect(page.getByText("Fast property view")).toBeVisible();
+    await expect(
+      page.getByText("Fast property view", { exact: true }),
+    ).toHaveCount(0);
     await expect(
       page.getByRole("list", { name: "Fast view progress" }),
-    ).toContainText("Address found");
+    ).toContainText("Address found. Choose a pool size and try a position.");
     await expect(page.getByText("Mapped boundary found")).toHaveCount(0);
     await expect(page.getByText("Aerial image ready")).toHaveCount(0);
     await expect(page.getByText("Detailed checks not loaded")).toHaveCount(0);

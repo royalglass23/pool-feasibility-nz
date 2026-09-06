@@ -896,20 +896,12 @@ export function FastPropertyView({
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-pool-blue-700 text-xs font-bold tracking-[0.18em] uppercase">
-            Fast property view
-          </p>
           <h2
             id="fast-view-heading"
-            className="text-pool-950 mt-2 text-2xl font-semibold"
+            className="text-pool-950 text-2xl font-semibold"
           >
             {result.resolvedAddress.fullAddress}
           </h2>
-          <p className="text-pool-600 mt-2 text-sm">
-            {isInitialAddressLoad
-              ? "Property found. We’re preparing your map."
-              : "Your property is ready. Choose a pool size and try a position."}
-          </p>
           <p className="text-pool-600 mt-2 max-w-3xl text-sm leading-6">
             <strong>Preliminary feasibility only.</strong>{" "}
             {PRELIMINARY_FEASIBILITY_SCOPE}
@@ -918,9 +910,16 @@ export function FastPropertyView({
       </div>
       <ol
         aria-label="Fast view progress"
-        className="grid gap-2 text-sm sm:max-w-xs"
+        className="grid gap-2 text-sm sm:max-w-xl"
       >
-        <Progress label="Address found" state="complete" />
+        <Progress
+          label={
+            isInitialAddressLoad
+              ? "Address found"
+              : "Address found. Choose a pool size and try a position."
+          }
+          state="complete"
+        />
         {isInitialAddressLoad && (
           <Progress label="Finding the property boundary…" state="pending" />
         )}
