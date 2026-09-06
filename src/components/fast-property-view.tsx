@@ -1170,7 +1170,7 @@ export function FastPropertyView({
             </>
           )}
         </p>
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+        <div className="flex flex-col gap-2 sm:flex-row">
           {onStartAgain && (
             <button
               type="button"
