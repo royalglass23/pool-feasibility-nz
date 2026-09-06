@@ -74,6 +74,19 @@ export function AnalyticsConsent({
 
   return (
     <>
+      {choice === "granted" && (
+        // Keep this pixel direct so the visitor's browser contacts Metricool.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="https://tracker.metricool.com/c3po.jpg?hash=ee5fad286a62e86c7cd7a56f6bc542ae"
+          width={1}
+          height={1}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute"
+          referrerPolicy="no-referrer"
+        />
+      )}
       {analyticsEnabled && (
         <>
           {safeMeasurementId && (

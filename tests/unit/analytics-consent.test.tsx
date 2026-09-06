@@ -66,9 +66,15 @@ describe("analytics consent", () => {
     ).toBe(true);
   });
 
-  it("stays safely disabled when no GA4 measurement ID is configured", async () => {
+  it("gates Metricool on consent even without GA4 or Hotjar configured", async () => {
     const user = userEvent.setup();
     const { container } = render(<AnalyticsConsent />);
+
+    const pixel = () => container.querySelector('img[src*="tracker.metricool.com"]');
+    expect(pixel()).toBeNull();
+    await user.click(await screen.findByRole("button", { name: "Reject analytics" }));
+    expect(pixel()).toBeNull();
+    await user.click(within(container).getByRole("button", { name: "Analytics settings" }));
 
     await user.click(
       await screen.findByRole("button", { name: "Allow analytics" }),
@@ -76,6 +82,11 @@ describe("analytics consent", () => {
 
     expect(localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY)).toBe("granted");
     expect(container.querySelector("script")).toBeNull();
+    expect(pixel()).toHaveAttribute("referrerpolicy", "no-referrer");
+
+    await user.click(within(container).getByRole("button", { name: "Analytics settings" }));
+    await user.click(screen.getByRole("button", { name: "Turn analytics off" }));
+    expect(pixel()).toBeNull();
   });
 
   it("loads Hotjar only after consent and clears its browser storage on withdrawal", async () => {

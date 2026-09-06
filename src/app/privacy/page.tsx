@@ -53,6 +53,14 @@ export default function PrivacyNoticePage() {
             Your property search, map, report, contact details, and free text
             are excluded from Hotjar.
           </p>
+          <p className="mt-4">
+            Metricool also loads a tracking pixel on the Property Check after
+            you allow analytics, to measure visits. The request shares your IP
+            address and browser request information with Metricool. We do not
+            include your property or contact details in the pixel URL, and we
+            suppress the page referrer. Turning analytics off prevents further
+            pixel loads.
+          </p>
         </NoticeSection>
 
         <NoticeSection title="How long we keep it">
@@ -71,6 +79,11 @@ export default function PrivacyNoticePage() {
 
         <NoticeSection title="Services that process a request">
           <ul className="grid gap-3">
+            <li>
+              <strong className="text-[#062f5d]">Metricool</strong> receives
+              the tracking pixel request only after you allow analytics. It is
+              not installed on staff pages.
+            </li>
             <li>
               <strong className="text-[#062f5d]">Hotjar</strong> receives
               anonymous PoolReady interaction data only after you allow

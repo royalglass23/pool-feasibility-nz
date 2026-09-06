@@ -597,6 +597,17 @@ export function FastPropertyView({
           },
         },
         {
+          id: "address",
+          type: "circle",
+          source: "address",
+          paint: {
+            "circle-color": "#f97316",
+            "circle-radius": 7,
+            "circle-stroke-color": "#fff",
+            "circle-stroke-width": 3,
+          },
+        },
+        {
           id: "pool-rotation-guide",
           type: "line",
           source: "pool-rotation",
@@ -608,21 +619,10 @@ export function FastPropertyView({
           source: "pool-rotation",
           filter: ["==", ["get", "kind"], "handle"],
           paint: {
-            "circle-color": "#9a3412",
+            "circle-color": "#fff",
             "circle-radius": 18,
-            "circle-stroke-color": "#fff",
-            "circle-stroke-width": 3,
-          },
-        },
-        {
-          id: "address",
-          type: "circle",
-          source: "address",
-          paint: {
-            "circle-color": "#f97316",
-            "circle-radius": 7,
-            "circle-stroke-color": "#fff",
-            "circle-stroke-width": 3,
+            "circle-stroke-color": "#0077bd",
+            "circle-stroke-width": 1,
           },
         },
       );
@@ -641,8 +641,8 @@ export function FastPropertyView({
           icon.width = icon.height = 48;
           const context = icon.getContext("2d");
           if (!context) return;
-          context.strokeStyle = "#fff";
-          context.lineWidth = 4;
+          context.strokeStyle = "#0077bd";
+          context.lineWidth = 3;
           context.lineCap = "round";
           context.lineJoin = "round";
           context.beginPath();
@@ -927,14 +927,90 @@ export function FastPropertyView({
       </ol>
       <div className="border-pool-200 overflow-hidden rounded-2xl border">
         <div className="grid lg:grid-cols-[minmax(0,1fr)_18rem]">
+          {!isInitialAddressLoad && (
+            <div
+              aria-label="Pool catalogue and placement controls"
+              className="border-pool-200 order-1 space-y-4 border-b bg-white p-4 lg:col-start-2 lg:row-start-1 lg:border-l"
+            >
+              <div>
+                <h3 className="text-pool-950 font-semibold">
+                  Choose a pool layout
+                </h3>
+                <p className="text-pool-600 mt-1 text-sm">
+                  Drag your pool to move it. Drag the rotate handle to turn it.
+                </p>
+              </div>
+              <div
+                className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1"
+                role="group"
+                aria-label="Pool catalogue"
+              >
+                {FAST_POOL_CATALOGUE.map((pool) => (
+                  <button
+                    key={pool.id}
+                    type="button"
+                    aria-pressed={selectedPoolId === pool.id}
+                    onClick={() => choosePool(pool.id)}
+                    className="border-pool-300 focus-visible:outline-pool-blue-700 aria-pressed:border-pool-blue-700 aria-pressed:bg-pool-blue-50 min-h-11 rounded-xl border bg-white px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+                  >
+                    {pool.label} ({pool.lengthMetres} × {pool.widthMetres} m)
+                  </button>
+                ))}
+              </div>
+              {selectedPoolId === "custom" && (
+                <div className="grid max-w-xl gap-3 sm:grid-cols-2">
+                  <DimensionInput
+                    label="Custom length (m)"
+                    value={customLength}
+                    min={2}
+                    max={20}
+                    onChange={setCustomLength}
+                    invalid={
+                      !validateFastCustomDimensions(
+                        Number(customLength),
+                        Number(customWidth),
+                      )
+                    }
+                  />
+                  <DimensionInput
+                    label="Custom width (m)"
+                    value={customWidth}
+                    min={1.5}
+                    max={10}
+                    onChange={setCustomWidth}
+                    invalid={
+                      !validateFastCustomDimensions(
+                        Number(customLength),
+                        Number(customWidth),
+                      )
+                    }
+                  />
+                </div>
+              )}
+              {!dimensions && (
+                <p role="alert" className="text-sm font-semibold text-red-700">
+                  Enter a length from 2–20 m and width from 1.5–10 m in 0.1 m
+                  increments.
+                </p>
+              )}
+              {placementMessage && (
+                <p
+                  role="alert"
+                  className="text-sm font-semibold text-amber-800"
+                >
+                  {placementMessage}
+                </p>
+              )}
+            </div>
+          )}
           <div
             ref={mapRef}
-            className="bg-pool-800 h-[min(62vw,600px)] min-h-[360px] w-full"
+            className="bg-pool-800 order-2 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-full lg:min-h-[600px]"
             aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
           />
           <aside
             aria-label="Map layers"
-            className="border-pool-200 border-t bg-white p-4 lg:border-t-0 lg:border-l"
+            className="border-pool-200 order-3 border-t bg-white p-4 lg:col-start-2 lg:row-start-2 lg:border-t-0 lg:border-l"
           >
             <h3 className="text-pool-950 font-semibold">Map layers</h3>
             <div className="border-pool-200 text-pool-700 mt-4 border-b pb-4 text-sm">
@@ -1060,82 +1136,7 @@ export function FastPropertyView({
           </div>
         )}
       </div>
-      {!isInitialAddressLoad && (
-        <>
-          <div
-            aria-label="Pool catalogue and placement controls"
-            className="border-pool-200 bg-pool-50 space-y-4 rounded-2xl border p-4"
-          >
-            <div>
-              <h3 className="text-pool-950 font-semibold">
-                Choose a pool layout
-              </h3>
-              <p className="text-pool-600 mt-1 text-sm">
-                Drag your pool to move it. Drag the rotate handle to turn it.
-              </p>
-            </div>
-            <div
-              className="grid grid-cols-1 gap-2 sm:grid-cols-3"
-              role="group"
-              aria-label="Pool catalogue"
-            >
-              {FAST_POOL_CATALOGUE.map((pool) => (
-                <button
-                  key={pool.id}
-                  type="button"
-                  aria-pressed={selectedPoolId === pool.id}
-                  onClick={() => choosePool(pool.id)}
-                  className="border-pool-300 focus-visible:outline-pool-blue-700 aria-pressed:border-pool-blue-700 aria-pressed:bg-pool-blue-50 min-h-11 rounded-xl border bg-white px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
-                >
-                  {pool.label} ({pool.lengthMetres} × {pool.widthMetres} m)
-                </button>
-              ))}
-            </div>
-            {selectedPoolId === "custom" && (
-              <div className="grid max-w-xl gap-3 sm:grid-cols-2">
-                <DimensionInput
-                  label="Custom length (m)"
-                  value={customLength}
-                  min={2}
-                  max={20}
-                  onChange={setCustomLength}
-                  invalid={
-                    !validateFastCustomDimensions(
-                      Number(customLength),
-                      Number(customWidth),
-                    )
-                  }
-                />
-                <DimensionInput
-                  label="Custom width (m)"
-                  value={customWidth}
-                  min={1.5}
-                  max={10}
-                  onChange={setCustomWidth}
-                  invalid={
-                    !validateFastCustomDimensions(
-                      Number(customLength),
-                      Number(customWidth),
-                    )
-                  }
-                />
-              </div>
-            )}
-            {!dimensions && (
-              <p role="alert" className="text-sm font-semibold text-red-700">
-                Enter a length from 2–20 m and width from 1.5–10 m in 0.1 m
-                increments.
-              </p>
-            )}
-            {placementMessage && (
-              <p role="alert" className="text-sm font-semibold text-amber-800">
-                {placementMessage}
-              </p>
-            )}
-          </div>
-          <FastPoolWarning warning={poolWarning} />
-        </>
-      )}
+      {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
       {mapError && (
         <p role="alert" className="text-sm font-semibold text-red-700">
           {mapError === "aerial"

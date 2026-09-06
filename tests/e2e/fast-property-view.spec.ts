@@ -231,6 +231,24 @@ test("supports the pool catalogue and bounded custom input", async ({
   const catalogue = page.getByRole("group", { name: "Pool catalogue" });
   await expect(catalogue).toBeVisible();
   await expect(catalogue).toHaveClass(/sm:grid-cols-3/);
+  const placementControls = page.getByLabel(
+    "Pool catalogue and placement controls",
+  );
+  const aerialMap = page.getByLabel(
+    "Fast aerial map for 42A Bahari Drive, Ranui, Auckland",
+  );
+  const desktopControls = await placementControls.boundingBox();
+  const desktopMap = await aerialMap.boundingBox();
+  expect(desktopControls!.x).toBeGreaterThanOrEqual(
+    desktopMap!.x + desktopMap!.width,
+  );
+  await page.setViewportSize({ width: 390, height: 844 });
+  const mobileControls = await placementControls.boundingBox();
+  const mobileMap = await aerialMap.boundingBox();
+  expect(mobileControls!.y + mobileControls!.height).toBeLessThanOrEqual(
+    mobileMap!.y,
+  );
+
   await expect(
     page.getByRole("button", { name: /Compact \(6.5/ }),
   ).toHaveAttribute("aria-pressed", "true");
