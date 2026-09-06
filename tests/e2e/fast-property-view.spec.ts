@@ -26,7 +26,7 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
               parcelId: null,
             },
             aerial: {
-              state: "ready",
+              state: "unavailable",
               durationMs: 120,
               attribution: { text: "LINZ", url: "https://www.linz.govt.nz" },
             },
@@ -111,6 +111,9 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
       });
     });
 
+    await page.addInitScript(() => {
+      HTMLCanvasElement.prototype.toDataURL = () => "";
+    });
     await page.goto("/");
     await page.getByRole("button", { name: "Not now" }).click();
     await page
@@ -160,6 +163,13 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
     await expect(
       page.getByRole("button", { name: "Map checks loaded", exact: true }),
     ).toBeDisabled();
+    await expect(
+      page.getByRole("button", { name: "Retry property check", exact: true }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByText(/Choose a valid pool placement, select/),
+    ).toHaveCount(0);
+
     await expect(
       page.getByRole("button", { name: "Start again", exact: true }),
     ).toBeEnabled();

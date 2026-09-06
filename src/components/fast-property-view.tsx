@@ -1205,18 +1205,19 @@ export function FastPropertyView({
           )}
         </div>
       </div>
-      {(mapError || result.aerial.state !== "ready") && (
-        <div className="flex justify-end">
-          <button
-            type="button"
-            disabled={isLoadingDetailed || isInitialAddressLoad}
-            onClick={onRetry}
-            className="text-pool-blue-800 text-sm font-semibold underline"
-          >
-            Retry property check
-          </button>
-        </div>
-      )}
+      {result.detailedChecks?.status !== "complete" &&
+        (mapError || result.aerial.state === "error") && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              disabled={isLoadingDetailed || isInitialAddressLoad}
+              onClick={onRetry}
+              className="text-pool-blue-800 text-sm font-semibold underline"
+            >
+              Retry property check
+            </button>
+          </div>
+        )}
     </section>
   );
 }
