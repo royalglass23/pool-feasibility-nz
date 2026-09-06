@@ -37,11 +37,7 @@ import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { bearing, point } from "@turf/turf";
 
 type UtilityCategory =
-  | "stormwater"
-  | "wastewater"
-  | "water"
-  | "electricity"
-  | "gas";
+  "stormwater" | "wastewater" | "water" | "electricity" | "gas";
 
 type UtilityLayerDefinition = {
   key: DatasetKey;
@@ -612,8 +608,8 @@ export function FastPropertyView({
           source: "pool-rotation",
           filter: ["==", ["get", "kind"], "handle"],
           paint: {
-            "circle-color": "#f97316",
-            "circle-radius": 8,
+            "circle-color": "#9a3412",
+            "circle-radius": 18,
             "circle-stroke-color": "#fff",
             "circle-stroke-width": 3,
           },
@@ -638,6 +634,39 @@ export function FastPropertyView({
           zoom: 15,
           attributionControl: { compact: true },
           canvasContextAttributes: { preserveDrawingBuffer: true },
+        });
+        map.on("load", () => {
+          if (!map) return;
+          const icon = document.createElement("canvas");
+          icon.width = icon.height = 48;
+          const context = icon.getContext("2d");
+          if (!context) return;
+          context.strokeStyle = "#fff";
+          context.lineWidth = 4;
+          context.lineCap = "round";
+          context.lineJoin = "round";
+          context.beginPath();
+          context.arc(24, 24, 14, Math.PI / 4, (7 * Math.PI) / 4);
+          context.stroke();
+          context.beginPath();
+          context.moveTo(25, 14);
+          context.lineTo(34, 14);
+          context.lineTo(34, 5);
+          context.stroke();
+          map.addImage("pool-rotate-icon", context.getImageData(0, 0, 48, 48), {
+            pixelRatio: 2,
+          });
+          map.addLayer({
+            id: "pool-rotation-icon",
+            type: "symbol",
+            source: "pool-rotation",
+            filter: ["==", ["get", "kind"], "handle"],
+            layout: {
+              "icon-image": "pool-rotate-icon",
+              "icon-allow-overlap": true,
+              "icon-ignore-placement": true,
+            },
+          });
         });
         mapInstanceRef.current = map;
         map.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -705,6 +734,16 @@ export function FastPropertyView({
           | import("maplibre-gl").MapMouseEvent
           | import("maplibre-gl").MapTouchEvent;
         const updateInteraction = (event: PoolInteractionEvent) => {
+          if (!interaction && event.type === "mousemove" && map) {
+            const target = map.queryRenderedFeatures(event.point, {
+              layers: ["pool-rotation-handle", "pool-fill"],
+            })[0];
+            map.getCanvas().style.cursor = target
+              ? target.layer.id === "pool-fill"
+                ? "move"
+                : "grab"
+              : "";
+          }
           if (interaction === "move") {
             positionHandlerRef.current(
               map!.unproject(event.point).toArray() as [number, number],
@@ -721,7 +760,7 @@ export function FastPropertyView({
         const beginInteraction = (
           nextInteraction: "move" | "rotate",
           event: PoolInteractionEvent,
-          cursor: "crosshair" | "grabbing" | null,
+          cursor: "grabbing" | null,
         ) => {
           interaction = nextInteraction;
           map?.dragPan.disable();
@@ -735,7 +774,7 @@ export function FastPropertyView({
           map?.getCanvas().style.setProperty("cursor", "");
         };
         map.on("mousedown", "pool-rotation-handle", (event) =>
-          beginInteraction("rotate", event, "crosshair"),
+          beginInteraction("rotate", event, "grabbing"),
         );
         map.on("touchstart", "pool-rotation-handle", (event) =>
           beginInteraction("rotate", event, null),
@@ -803,8 +842,7 @@ export function FastPropertyView({
       features: [],
     };
     const poolSource = map.getSource("pool") as
-      | import("maplibre-gl").GeoJSONSource
-      | undefined;
+      import("maplibre-gl").GeoJSONSource | undefined;
     poolSource?.setData(
       isInitialAddressLoad ? emptyGeometry : (poolGeometry ?? emptyGeometry),
     );
@@ -817,8 +855,7 @@ export function FastPropertyView({
         : (constructionEnvelopeGeometry ?? emptyGeometry),
     );
     const clearanceSource = map.getSource("pool-shell-clearances") as
-      | import("maplibre-gl").GeoJSONSource
-      | undefined;
+      import("maplibre-gl").GeoJSONSource | undefined;
     clearanceSource?.setData(
       clearancesVisible
         ? poolShellClearanceMapData(poolShellClearances)
@@ -835,8 +872,7 @@ export function FastPropertyView({
       });
     }
     const rotationSource = map.getSource("pool-rotation") as
-      | import("maplibre-gl").GeoJSONSource
-      | undefined;
+      import("maplibre-gl").GeoJSONSource | undefined;
     rotationSource?.setData(
       !isInitialAddressLoad && poolGeometry
         ? rotationHandleGeometry(position, rotationDegrees, dimensions)
@@ -871,39 +907,13 @@ export function FastPropertyView({
           </h2>
           <p className="text-pool-600 mt-2 text-sm">
             {isInitialAddressLoad
-              ? "The selected official address is ready."
-              : "A preliminary mapped view is ready."}
+              ? "Property found. We’re preparing your map."
+              : "Your property is ready. Choose a pool size and try a position."}
           </p>
           <p className="text-pool-600 mt-2 max-w-3xl text-sm leading-6">
             <strong>Preliminary feasibility only.</strong>{" "}
             {PRELIMINARY_FEASIBILITY_SCOPE}
           </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          {onStartAgain && (
-            <button
-              type="button"
-              onClick={onStartAgain}
-              disabled={isLoadingDetailed}
-              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Start again
-            </button>
-          )}
-          {onLoadDetailed && (
-            <button
-              type="button"
-              onClick={onLoadDetailed}
-              disabled={isInitialAddressLoad || isLoadingDetailed}
-              className="bg-pool-950 disabled:bg-pool-400 min-h-11 rounded-xl px-4 text-sm font-semibold text-white"
-            >
-              {isLoadingDetailed
-                ? "Loading detailed checks…"
-                : isInitialAddressLoad
-                  ? "Finding property boundary…"
-                  : "Load detailed official checks"}
-            </button>
-          )}
         </div>
       </div>
       <ol
@@ -1034,8 +1044,8 @@ export function FastPropertyView({
               </>
             ) : (
               <p className="text-pool-600 mt-4 text-sm leading-6">
-                Load detailed official checks to see contours and mapped utility
-                evidence.
+                Select “Check for constraints” to see terrain contours and
+                mapped services.
               </p>
             )}
           </aside>
@@ -1061,9 +1071,7 @@ export function FastPropertyView({
                 Choose a pool layout
               </h3>
               <p className="text-pool-600 mt-1 text-sm">
-                Drag the pool or rotate it with the orange handle. The
-                indicative construction envelope is constrained to the mapped
-                area.
+                Drag your pool to move it. Drag the rotate handle to turn it.
               </p>
             </div>
             <div
@@ -1141,15 +1149,73 @@ export function FastPropertyView({
           and mapped property area.
         </p>
       )}
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={onRetry}
-          className="text-pool-blue-800 text-sm font-semibold underline"
+      <div className="border-pool-200 space-y-3 border-t pt-4">
+        <p
+          className="text-pool-700 max-w-xl text-sm leading-6"
+          aria-live="polite"
         >
-          Retry property check
-        </button>
+          {result.detailedChecks?.status === "complete" ? (
+            "Available map checks loaded. You can still adjust your pool before creating your report."
+          ) : result.detailedChecks?.status === "partial" ? (
+            "Some map checks could not be loaded. Try again to check the missing information."
+          ) : (
+            <>
+              {" "}
+              <strong className="block font-semibold">
+                Happy with your pool position?
+              </strong>
+              Check for potential site constraints, or start again with another
+              property.
+            </>
+          )}
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
+          {onStartAgain && (
+            <button
+              type="button"
+              onClick={onStartAgain}
+              disabled={isLoadingDetailed}
+              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Start again
+            </button>
+          )}
+          {onLoadDetailed && (
+            <button
+              type="button"
+              onClick={onLoadDetailed}
+              disabled={
+                isInitialAddressLoad ||
+                isLoadingDetailed ||
+                result.detailedChecks?.status === "complete"
+              }
+              className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-xl px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
+            >
+              {isLoadingDetailed
+                ? "Checking constraints…"
+                : isInitialAddressLoad
+                  ? "Finding property boundary…"
+                  : result.detailedChecks?.status === "complete"
+                    ? "Map checks loaded"
+                    : result.detailedChecks?.status === "partial"
+                      ? "Retry missing checks"
+                      : "Check for constraints"}
+            </button>
+          )}
+        </div>
       </div>
+      {(mapError || result.aerial.state !== "ready") && (
+        <div className="flex justify-end">
+          <button
+            type="button"
+            disabled={isLoadingDetailed || isInitialAddressLoad}
+            onClick={onRetry}
+            className="text-pool-blue-800 text-sm font-semibold underline"
+          >
+            Retry property check
+          </button>
+        </div>
+      )}
     </section>
   );
 }

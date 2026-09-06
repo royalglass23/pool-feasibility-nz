@@ -469,9 +469,8 @@ export function DataAccessInspector() {
                 Your property address
               </h2>
               <p className="text-pool-500 text-sm">
-                Currently available for Auckland addresses only. We will match
-                your address against official data before showing the property
-                view.
+                Start typing your Auckland address, then choose the matching
+                address from the suggestions.
               </p>
             </div>
           </div>
@@ -646,8 +645,9 @@ export function DataAccessInspector() {
             />
           ) : (
             <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">
-              Choose a valid pool placement, load the detailed official checks,
-              and wait for the map capture before saving the report.
+              Choose a valid pool placement, select “Check for constraints”, and
+              wait for the map image to finish preparing before creating your
+              report.
             </p>
           )}
         </>

@@ -189,9 +189,7 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
   await page.keyboard.press("Enter");
-  await page
-    .getByRole("button", { name: "Load detailed official checks" })
-    .click();
+  await page.getByRole("button", { name: "Check for constraints" }).click();
   const clearanceToggle = page.getByRole("checkbox", {
     name: "Show pool-shell clearances",
   });
@@ -218,7 +216,7 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
   await homeownerForm.getByLabel("Phone").fill("021 555 1234");
   await homeownerForm.getByLabel("Email").fill("jane@example.com");
   await homeownerForm
-    .getByRole("checkbox", { name: /I consent to Royal Glass/i })
+    .getByRole("checkbox", { name: /I consent to PoolReady/i })
     .check();
   await homeownerForm
     .getByRole("button", { name: "Save and show my report" })
@@ -279,9 +277,7 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
   await page.keyboard.press("Enter");
-  await page
-    .getByRole("button", { name: "Load detailed official checks" })
-    .click();
+  await page.getByRole("button", { name: "Check for constraints" }).click();
   const hiddenClearanceToggle = page.getByRole("checkbox", {
     name: "Show pool-shell clearances",
   });
@@ -299,7 +295,7 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
   await secondHomeownerForm.getByLabel("Phone").fill("021 555 1234");
   await secondHomeownerForm.getByLabel("Email").fill("jane@example.com");
   await secondHomeownerForm
-    .getByRole("checkbox", { name: /I consent to Royal Glass/i })
+    .getByRole("checkbox", { name: /I consent to PoolReady/i })
     .check();
   await secondHomeownerForm
     .getByRole("button", { name: "Save and show my report" })

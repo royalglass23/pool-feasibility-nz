@@ -38,8 +38,8 @@ export default function Home() {
               How it works
             </h2>
             <p className="mt-4 max-w-xl text-base leading-7 text-pretty text-[#426b87] sm:text-lg sm:leading-8">
-              A practical first look at the property, the pool idea, and the
-              questions worth carrying forward.
+              Start with your address, try a pool position, check for potential
+              constraints, and get your preliminary report.
             </p>
           </div>
 
@@ -51,23 +51,23 @@ export default function Home() {
             <ol className="mx-auto flex w-full max-w-[480px] flex-col border-t border-[#c6dce9] lg:aspect-[480/445]">
               <ProcessStep
                 number="01"
-                title="Find the property"
-                text="It gives everyone a shared place to start, with the site and its available evidence in view."
+                title="Find your property"
+                text="Enter your Auckland address and select the matching property."
               />
               <ProcessStep
                 number="02"
-                title="Try a pool position"
-                text="Select a pool size, move, and rotate an indicative pool on the map."
+                title="Position your pool"
+                text="Choose a pool size, drag the pool to move it, and drag the rotate handle to turn it."
               />
               <ProcessStep
                 number="03"
-                title="See what needs checking"
-                text="Site context and usable space stay visible rather than becoming a false green light."
+                title="Check for constraints"
+                text="Select “Check for constraints” to load available mapped information about potential site constraints."
               />
               <ProcessStep
                 number="04"
                 title="Get your preliminary report"
-                text="When you are ready, request a detailed preliminary report to support the next conversation."
+                text="Enter your details to get your report, understand what needs checking, and prepare for your next conversation."
                 isLast
               />
             </ol>
@@ -87,11 +87,11 @@ export default function Home() {
               id="property-search-heading"
               className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[#062f5d] sm:text-3xl"
             >
-              Begin with a practical property check
+              Check your property
             </h2>
             <p className="mt-3 text-base leading-7 text-[#426b87]">
-              Start with the address, then use the map to make the next site
-              conversation more informed.
+              Enter the address of the property you want to check, then select
+              the matching address.
             </p>
           </div>
           <div data-hj-suppress>
