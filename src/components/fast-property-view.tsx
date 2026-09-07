@@ -32,10 +32,7 @@ import {
   POOL_SHELL_CLEARANCE_LIMITATION,
   PRELIMINARY_FEASIBILITY_SCOPE,
 } from "@/modules/reporting/preliminary-feasibility-copy";
-import {
-  captureFastPropertyViewMap,
-  captureWithoutRotationControls,
-} from "@/modules/reporting/fast-property-view-map-capture";
+import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-view-map-capture";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { bearing, point } from "@turf/turf";
 
@@ -162,6 +159,8 @@ export function FastPropertyView({
   onSnapshotReady?: (snapshot: FastPropertyViewMapSnapshot | null) => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
+  const rotationControlVisibleRef = useRef(false);
+  const syncRotationControlRef = useRef<() => void>(() => {});
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
   const mapLibreRef = useRef<typeof import("maplibre-gl") | null>(null);
   const clearanceLabelMarkersRef = useRef<import("maplibre-gl").Marker[]>([]);
@@ -179,7 +178,6 @@ export function FastPropertyView({
     () => undefined,
   );
   const snapshotHandlerRef = useRef(onSnapshotReady);
-  const snapshotRevisionRef = useRef(0);
   const [mapError, setMapError] = useState<"aerial" | "map" | null>(null);
   const [selectedPoolId, setSelectedPoolId] = useState<FastPoolId>("compact");
   const [customLength, setCustomLength] = useState("6.5");
@@ -361,7 +359,15 @@ export function FastPropertyView({
 
   useEffect(() => {
     placementRef.current = { position, rotationDegrees, dimensions };
-  }, [dimensions, position, rotationDegrees]);
+    rotationControlVisibleRef.current =
+      !isInitialAddressLoad && Boolean(poolGeometry);
+  }, [
+    dimensions,
+    position,
+    rotationDegrees,
+    isInitialAddressLoad,
+    poolGeometry,
+  ]);
 
   const setCandidatePosition = (candidate: [number, number]) => {
     if (isInitialAddressLoad) return;
@@ -444,6 +450,7 @@ export function FastPropertyView({
   useEffect(() => {
     let map: import("maplibre-gl").Map | null = null;
     let disposed = false;
+    let rotationMarker: import("maplibre-gl").Marker | null = null;
     const clearanceLabelMarkers = clearanceLabelMarkersRef.current;
     void import("maplibre-gl").then((maplibregl) => {
       if (disposed || !mapRef.current) return;
@@ -451,7 +458,6 @@ export function FastPropertyView({
       const boundary = result.boundary.geometry
         ? feature(result.boundary.geometry)
         : null;
-      const activePlacement = placementRef.current;
       const emptyGeometry = {
         type: "FeatureCollection" as const,
         features: [],
@@ -471,17 +477,6 @@ export function FastPropertyView({
             data: isInitialAddressLoad
               ? emptyGeometry
               : (constructionEnvelopeGeometry ?? emptyGeometry),
-          },
-          "pool-rotation": {
-            type: "geojson",
-            data: isInitialAddressLoad
-              ? emptyGeometry
-              : rotationHandleGeometry(
-                  activePlacement?.position ??
-                    result.resolvedAddress.coordinates,
-                  activePlacement?.rotationDegrees ?? 0,
-                  dimensions,
-                ),
           },
           "pool-shell-clearances": {
             type: "geojson",
@@ -578,7 +573,7 @@ export function FastPropertyView({
           id: "pool-line",
           type: "line",
           source: "pool",
-          paint: { "line-color": "#0f172a", "line-width": 3 },
+          paint: { "line-color": "#1e40af", "line-width": 3 },
         },
         {
           id: "pool-shell-clearance-lines",
@@ -611,24 +606,6 @@ export function FastPropertyView({
             "circle-stroke-width": 3,
           },
         },
-        {
-          id: "pool-rotation-guide",
-          type: "line",
-          source: "pool-rotation",
-          paint: { "line-color": "#f97316", "line-width": 2 },
-        },
-        {
-          id: "pool-rotation-handle",
-          type: "circle",
-          source: "pool-rotation",
-          filter: ["==", ["get", "kind"], "handle"],
-          paint: {
-            "circle-color": "#fff",
-            "circle-radius": 18,
-            "circle-stroke-color": "#0077bd",
-            "circle-stroke-width": 1,
-          },
-        },
       );
       try {
         map = new maplibregl.Map({
@@ -639,39 +616,41 @@ export function FastPropertyView({
           attributionControl: { compact: true },
           canvasContextAttributes: { preserveDrawingBuffer: true },
         });
-        map.on("load", () => {
-          if (!map) return;
-          const icon = document.createElement("canvas");
-          icon.width = icon.height = 48;
-          const context = icon.getContext("2d");
-          if (!context) return;
-          context.strokeStyle = "#0077bd";
-          context.lineWidth = 3;
-          context.lineCap = "round";
-          context.lineJoin = "round";
-          context.beginPath();
-          context.arc(24, 24, 14, Math.PI / 4, (7 * Math.PI) / 4);
-          context.stroke();
-          context.beginPath();
-          context.moveTo(25, 14);
-          context.lineTo(34, 14);
-          context.lineTo(34, 5);
-          context.stroke();
-          map.addImage("pool-rotate-icon", context.getImageData(0, 0, 48, 48), {
-            pixelRatio: 2,
-          });
-          map.addLayer({
-            id: "pool-rotation-icon",
-            type: "symbol",
-            source: "pool-rotation",
-            filter: ["==", ["get", "kind"], "handle"],
-            layout: {
-              "icon-image": "pool-rotate-icon",
-              "icon-allow-overlap": true,
-              "icon-ignore-placement": true,
-            },
-          });
-        });
+        // DOM overlays stay visible while canvas snapshots are captured.
+        const control = document.createElement("div");
+        control.dataset.testid = "pool-rotate-control";
+        control.title = "Drag to rotate pool";
+        control.style.cssText =
+          "width:44px;height:44px;border-radius:50%;background:white;border:1px solid #0077bd;display:grid;place-items:center;pointer-events:auto;touch-action:none;cursor:grab;";
+        control.innerHTML =
+          '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0077bd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v-5m0 5h-5M20 7a8 8 0 1 0 1 8"/></svg>';
+        rotationMarker = new maplibregl.Marker({
+          element: control,
+          anchor: "center",
+        })
+          .setLngLat(result.resolvedAddress.coordinates)
+          .addTo(map);
+        syncRotationControlRef.current = () => {
+          const active = placementRef.current;
+          if (!map || !active) return;
+          control.dataset.rotationDegrees = String(active.rotationDegrees);
+          const geometry = rotationHandleGeometry(
+            active.position,
+            active.rotationDegrees,
+            rotationControlVisibleRef.current ? active.dimensions : null,
+            map,
+          );
+          const handle = geometry.features.find(
+            (entry) => entry.geometry.type === "Point",
+          );
+          control.style.display = handle ? "grid" : "none";
+          if (handle?.geometry.type === "Point")
+            rotationMarker?.setLngLat(
+              handle.geometry.coordinates as [number, number],
+            );
+        };
+        syncRotationControlRef.current();
+        map.on("move", () => syncRotationControlRef.current());
         mapInstanceRef.current = map;
         map.addControl(new maplibregl.NavigationControl(), "top-right");
         syncPoolShellClearanceLabels({
@@ -705,7 +684,6 @@ export function FastPropertyView({
           );
         });
         map.on("movestart", () => {
-          snapshotRevisionRef.current += 1;
           snapshotHandlerRef.current?.(null);
         });
         map.on("move", () =>
@@ -715,37 +693,24 @@ export function FastPropertyView({
             poolShellClearancesRef.current,
           ),
         );
-        let capturingSnapshot = false;
-        map.on("idle", async () => {
-          if (capturingSnapshot || disposed || !map) return;
-          capturingSnapshot = true;
+        map.on("idle", () => {
+          if (disposed || !map) return;
           try {
-            while (!disposed) {
-              const revision = snapshotRevisionRef.current;
-              const snapshot = await captureWithoutRotationControls(map, () => {
-                const imageDataUrl = captureFastPropertyViewMap({
-                  map: map!,
-                  clearances: poolShellClearancesRef.current,
-                  visible: clearancesVisibleRef.current,
-                });
-                return imageDataUrl
-                  ? {
-                      imageDataUrl,
-                      visibleLayerKeys: [...visibleMapLayerKeysRef.current],
-                    }
-                  : null;
-              });
-              if (disposed) return;
-              // Idle events during restoration are suppressed; retry here if
-              // the user changed the map while this capture was in progress.
-              if (revision !== snapshotRevisionRef.current) continue;
-              snapshotHandlerRef.current?.(snapshot);
-              break;
-            }
+            const imageDataUrl = captureFastPropertyViewMap({
+              map,
+              clearances: poolShellClearancesRef.current,
+              visible: clearancesVisibleRef.current,
+            });
+            snapshotHandlerRef.current?.(
+              imageDataUrl
+                ? {
+                    imageDataUrl,
+                    visibleLayerKeys: [...visibleMapLayerKeysRef.current],
+                  }
+                : null,
+            );
           } catch {
-            if (!disposed) snapshotHandlerRef.current?.(null);
-          } finally {
-            capturingSnapshot = false;
+            snapshotHandlerRef.current?.(null);
           }
         });
         let interaction: "move" | "rotate" | null = null;
@@ -757,21 +722,14 @@ export function FastPropertyView({
             // Pointer events can arrive before the style's layers are ready.
             // Querying a missing layer emits a MapLibre error even when the
             // map subsequently loads successfully.
-            if (
-              !map.getLayer("pool-rotation-handle") ||
-              !map.getLayer("pool-fill")
-            ) {
+            if (!map.getLayer("pool-fill")) {
               map.getCanvas().style.cursor = "";
               return;
             }
             const target = map.queryRenderedFeatures(event.point, {
-              layers: ["pool-rotation-handle", "pool-fill"],
+              layers: ["pool-fill"],
             })[0];
-            map.getCanvas().style.cursor = target
-              ? target.layer.id === "pool-fill"
-                ? "move"
-                : "grab"
-              : "";
+            map.getCanvas().style.cursor = target ? "move" : "";
           }
           if (interaction === "move") {
             positionHandlerRef.current(
@@ -802,12 +760,37 @@ export function FastPropertyView({
           map?.dragPan.enable();
           map?.getCanvas().style.setProperty("cursor", "");
         };
-        map.on("mousedown", "pool-rotation-handle", (event) =>
-          beginInteraction("rotate", event, "grabbing"),
-        );
-        map.on("touchstart", "pool-rotation-handle", (event) =>
-          beginInteraction("rotate", event, null),
-        );
+        control.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          interaction = "rotate";
+          control.setPointerCapture(event.pointerId);
+          map?.dragPan.disable();
+          control.style.cursor = "grabbing";
+        });
+        control.addEventListener("pointermove", (event) => {
+          if (!control.hasPointerCapture(event.pointerId) || !map) return;
+          const active = placementRef.current;
+          if (!active) return;
+          const bounds = map.getCanvas().getBoundingClientRect();
+          const cursor = map
+            .unproject([
+              event.clientX - bounds.left,
+              event.clientY - bounds.top,
+            ])
+            .toArray();
+          rotationHandlerRef.current(
+            180 - bearing(point(active.position), point(cursor)),
+          );
+        });
+        const releaseRotation = (event: PointerEvent) => {
+          if (control.hasPointerCapture(event.pointerId))
+            control.releasePointerCapture(event.pointerId);
+          control.style.cursor = "grab";
+          endInteraction();
+        };
+        control.addEventListener("pointerup", releaseRotation);
+        control.addEventListener("pointercancel", releaseRotation);
         map.on("mousedown", "pool-fill", (event) =>
           beginInteraction("move", event, "grabbing"),
         );
@@ -829,6 +812,8 @@ export function FastPropertyView({
     });
     return () => {
       disposed = true;
+      rotationMarker?.remove();
+      syncRotationControlRef.current = () => {};
       removePoolShellClearanceLabels(clearanceLabelMarkers);
       map?.remove();
       mapInstanceRef.current = null;
@@ -842,7 +827,6 @@ export function FastPropertyView({
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
-    snapshotRevisionRef.current += 1;
     snapshotHandlerRef.current?.(null);
     if (map.getLayer("contours")) {
       map.setLayoutProperty(
@@ -866,7 +850,6 @@ export function FastPropertyView({
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
-    snapshotRevisionRef.current += 1;
     snapshotHandlerRef.current?.(null);
     const emptyGeometry = {
       type: "FeatureCollection" as const,
@@ -902,13 +885,7 @@ export function FastPropertyView({
         visible: clearancesVisible,
       });
     }
-    const rotationSource = map.getSource("pool-rotation") as
-      import("maplibre-gl").GeoJSONSource | undefined;
-    rotationSource?.setData(
-      !isInitialAddressLoad && poolGeometry
-        ? rotationHandleGeometry(position, rotationDegrees, dimensions)
-        : emptyGeometry,
-    );
+    syncRotationControlRef.current();
   }, [
     constructionEnvelopeGeometry,
     clearancesVisible,
@@ -1494,19 +1471,35 @@ function rotationHandleGeometry(
   position: [number, number],
   rotationDegrees: number,
   dimensions: { lengthMetres: number; widthMetres: number } | null | undefined,
+  map?: Pick<import("maplibre-gl").Map, "project" | "unproject">,
 ) {
   if (!dimensions) return { type: "FeatureCollection" as const, features: [] };
+  const envelope = fastPoolConstructionEnvelopeDimensions(dimensions);
   const pool = buildFastPoolGeometry(
     position,
-    dimensions.lengthMetres,
-    dimensions.widthMetres,
+    envelope.lengthMetres,
+    envelope.widthMetres,
     rotationDegrees,
   );
   const [first, second] = pool.geometry.coordinates[0];
-  const handle: [number, number] = [
+  let handle: [number, number] = [
     (first[0] + second[0]) / 2,
     (first[1] + second[1]) / 2,
   ];
+  if (map) {
+    const centre = map.project(position);
+    const edge = map.project(handle);
+    const distance = Math.hypot(edge.x - centre.x, edge.y - centre.y);
+    if (distance > 0) {
+      // 22px button radius, 8px gap, plus clearance for the orange stroke.
+      handle = map
+        .unproject([
+          edge.x + ((edge.x - centre.x) / distance) * 32,
+          edge.y + ((edge.y - centre.y) / distance) * 32,
+        ])
+        .toArray() as [number, number];
+    }
+  }
   return {
     type: "FeatureCollection" as const,
     features: [

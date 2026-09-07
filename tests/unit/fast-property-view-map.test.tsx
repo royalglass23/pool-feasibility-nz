@@ -79,8 +79,13 @@ vi.mock("maplibre-gl", () => {
       );
     }
     dragPan = { disable() {}, enable() {} };
-    unproject(point: { coordinates: [number, number] }) {
-      return { toArray: () => point.coordinates };
+    unproject(point: { coordinates: [number, number] } | [number, number]) {
+      return {
+        toArray: () =>
+          Array.isArray(point)
+            ? [point[0] / 1_000_000, point[1] / -1_000_000]
+            : point.coordinates,
+      };
     }
     remove() {}
     setLayoutProperty() {}
@@ -148,14 +153,25 @@ afterEach(() => {
   canvasSnapshot.mockReset().mockReturnValue("data:image/png;base64,");
 });
 
+it("keeps the rotate control visible and interactive while taking a snapshot", async () => {
+  const onSnapshotReady = vi.fn();
+  render(
+    <FastPropertyView
+      result={fastResult}
+      onRetry={() => {}}
+      onSnapshotReady={onSnapshotReady}
+    />,
+  );
+  await waitFor(() => expect(onSnapshotReady).toHaveBeenCalled());
+  expect(waitForIdle).not.toHaveBeenCalled();
+  expect(screen.getByTestId("pool-rotate-control")).toBeVisible();
+  mapEventHandlers.get("idle:map")?.({} as MapEvent);
+  expect(screen.getByTestId("pool-rotate-control")).toBeVisible();
+});
+
 it.each(["layer", "camera", "clearances"])(
-  "replaces a snapshot invalidated by a %s change during restoration",
+  "refreshes the snapshot after a %s change without hiding rotation",
   async (change) => {
-    const idleFrames: Array<() => void> = [];
-    waitForIdle.mockImplementation(
-      () => new Promise<void>((resolve) => idleFrames.push(resolve)),
-    );
-    canvasSnapshot.mockReturnValue("data:image/png;base64,old");
     const onSnapshotReady = vi.fn();
     render(
       <FastPropertyView
@@ -164,35 +180,24 @@ it.each(["layer", "camera", "clearances"])(
         onSnapshotReady={onSnapshotReady}
       />,
     );
-    await waitFor(() => expect(idleFrames).toHaveLength(1));
-    idleFrames.shift()!();
     await waitFor(() => expect(canvasSnapshot).toHaveBeenCalled());
-    if (change === "camera") {
+    if (change === "camera")
       mapEventHandlers.get("movestart:map")?.({} as MapEvent);
-    } else {
+    else
       await userEvent.setup().click(
         screen.getByRole("checkbox", {
           name:
             change === "layer" ? "Wastewater" : "Show pool-shell clearances",
         }),
       );
-    }
+    expect(onSnapshotReady).toHaveBeenLastCalledWith(null);
     canvasSnapshot.mockReturnValue("data:image/png;base64,new");
     mapEventHandlers.get("idle:map")?.({} as MapEvent);
-    idleFrames.shift()!();
-    await waitFor(() => expect(idleFrames).toHaveLength(1));
-    expect(
-      onSnapshotReady.mock.calls.some(([snapshot]) => snapshot !== null),
-    ).toBe(false);
-    idleFrames.shift()!();
-    await waitFor(() => expect(idleFrames).toHaveLength(1));
-    idleFrames.shift()!();
-    await waitFor(() =>
-      expect(onSnapshotReady).toHaveBeenLastCalledWith({
-        imageDataUrl: "data:image/png;base64,new",
-        visibleLayerKeys: change === "layer" ? [] : ["wastewater_assets"],
-      }),
-    );
+    expect(onSnapshotReady).toHaveBeenLastCalledWith({
+      imageDataUrl: "data:image/png;base64,new",
+      visibleLayerKeys: change === "layer" ? [] : ["wastewater_assets"],
+    });
+    expect(screen.getByTestId("pool-rotate-control")).toBeVisible();
   },
 );
 
@@ -574,7 +579,7 @@ it("keeps shell geometry separate when its construction envelope does not fit", 
   );
 });
 
-it("lets touch users move and rotate the pool layout", async () => {
+it("lets touch users move the pool layout", async () => {
   const onPlacementChange = vi.fn();
   render(
     <FastPropertyView
@@ -600,16 +605,6 @@ it("lets touch users move and rotate the pool layout", async () => {
     expect(onPlacementChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ position: [174.6083, -36.8602] }),
     ),
-  );
-
-  mapEventHandlers.get("touchstart:pool-rotation-handle")!(
-    event([174.6083, -36.8602]),
-  );
-  mapEventHandlers.get("touchmove:map")!(event([174.60835, -36.8602]));
-  mapEventHandlers.get("touchend:map")!(event([174.60835, -36.8602]));
-
-  await waitFor(() =>
-    expect(onPlacementChange.mock.lastCall?.[0]?.rotationDegrees).not.toBe(0),
   );
 });
 
@@ -699,15 +694,13 @@ it("waits for pool interaction layers before querying a hovering pointer", async
     originalEvent: { stopPropagation() {} },
   } as MapEvent;
   try {
-    getLayer.mockImplementation((id) =>
-      id === "pool-rotation-handle" ? undefined : {},
-    );
+    getLayer.mockImplementation((id) => (id === "pool-fill" ? undefined : {}));
     mapEventHandlers.get("mousemove:map")!(event);
     expect(queryRenderedFeatures).not.toHaveBeenCalled();
     getLayer.mockImplementation(() => ({}));
     mapEventHandlers.get("mousemove:map")!(event);
     expect(queryRenderedFeatures).toHaveBeenCalledWith(event.point, {
-      layers: ["pool-rotation-handle", "pool-fill"],
+      layers: ["pool-fill"],
     });
   } finally {
     getLayer.mockImplementation(() => ({}));

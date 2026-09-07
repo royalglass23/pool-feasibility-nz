@@ -1,49 +1,35 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { captureFastPropertyViewMap, captureWithoutRotationControls } from "@/modules/reporting/fast-property-view-map-capture";
+import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-view-map-capture";
 import type { PoolShellClearance } from "@/modules/spatial/pool-shell-clearances";
-import { Evented } from "maplibre-gl";
-
-it("captures a rendered controls-free frame when started inside MapLibre idle", async () => {
-  const events = new Evented();
-  let visibility = "visible";
-  let renderedVisibility = "visible";
-  const map = Object.assign(events, {
-    getLayer: () => ({}),
-    getLayoutProperty: () => visibility,
-    setLayoutProperty: (_id: string, _property: string, value: string) => {
-      visibility = value;
-    },
-  });
-  const capture = vi.fn(() => renderedVisibility);
-  let pending: Promise<string> | undefined;
-  let started = false;
-  events.on("idle", () => {
-    if (started) return;
-    started = true;
-    pending = captureWithoutRotationControls(
-      map as unknown as Parameters<typeof captureWithoutRotationControls>[0],
-      capture,
-    );
-  });
-  events.fire("idle");
-  await Promise.resolve();
-  await Promise.resolve();
-  expect(capture).not.toHaveBeenCalled();
-  renderedVisibility = visibility;
-  events.fire("idle");
-  await Promise.resolve();
-  expect(capture).toHaveReturnedWith("none");
-  renderedVisibility = visibility;
-  events.fire("idle");
-  await expect(pending).resolves.toBe("none");
-  expect(renderedVisibility).toBe("visible");
-});
-
 const clearances: PoolShellClearance[] = [
-  { id: "pool-shell-side-1", label: "1.2 m", metres: 1.2, start: [3, 3], end: [3, 2.5] },
-  { id: "pool-shell-side-2", label: "2.3 m", metres: 2.3, start: [3, 3], end: [3.5, 3] },
-  { id: "pool-shell-side-3", label: "3.4 m", metres: 3.4, start: [3, 3], end: [3, 3.5] },
-  { id: "pool-shell-side-4", label: "4.5 m", metres: 4.5, start: [3, 3], end: [2.5, 3] },
+  {
+    id: "pool-shell-side-1",
+    label: "1.2 m",
+    metres: 1.2,
+    start: [3, 3],
+    end: [3, 2.5],
+  },
+  {
+    id: "pool-shell-side-2",
+    label: "2.3 m",
+    metres: 2.3,
+    start: [3, 3],
+    end: [3.5, 3],
+  },
+  {
+    id: "pool-shell-side-3",
+    label: "3.4 m",
+    metres: 3.4,
+    start: [3, 3],
+    end: [3, 3.5],
+  },
+  {
+    id: "pool-shell-side-4",
+    label: "4.5 m",
+    metres: 4.5,
+    start: [3, 3],
+    end: [2.5, 3],
+  },
 ];
 
 afterEach(() => {
@@ -98,10 +84,26 @@ it("draws all four pool-shell clearance labels into the saved map image", () => 
 
   expect(imageDataUrl).toBe("data:image/png;base64,clearance-labels");
   expect(drawImage).toHaveBeenCalledWith(source, 0, 0);
-  expect(fillText).toHaveBeenCalledWith("Side 1 · 1.2 m", expect.any(Number), expect.any(Number));
-  expect(fillText).toHaveBeenCalledWith("Side 2 · 2.3 m", expect.any(Number), expect.any(Number));
-  expect(fillText).toHaveBeenCalledWith("Side 3 · 3.4 m", expect.any(Number), expect.any(Number));
-  expect(fillText).toHaveBeenCalledWith("Side 4 · 4.5 m", expect.any(Number), expect.any(Number));
+  expect(fillText).toHaveBeenCalledWith(
+    "Side 1 · 1.2 m",
+    expect.any(Number),
+    expect.any(Number),
+  );
+  expect(fillText).toHaveBeenCalledWith(
+    "Side 2 · 2.3 m",
+    expect.any(Number),
+    expect.any(Number),
+  );
+  expect(fillText).toHaveBeenCalledWith(
+    "Side 3 · 3.4 m",
+    expect.any(Number),
+    expect.any(Number),
+  );
+  expect(fillText).toHaveBeenCalledWith(
+    "Side 4 · 4.5 m",
+    expect.any(Number),
+    expect.any(Number),
+  );
   const labels = fillRect.mock.calls as Array<
     [left: number, top: number, width: number, height: number]
   >;
@@ -110,35 +112,3 @@ it("draws all four pool-shell clearance labels into the saved map image", () => 
   expect(labels[2]![1]).toBeGreaterThan(350);
   expect(labels[3]![0] + labels[3]![2]).toBeLessThan(250);
 });
-
-it.each([false, true])(
-  "excludes rotation controls and restores them after capture (failure: %s)",
-  async (fail) => {
-    const visibility: Record<string, string> = {
-      "pool-rotation-guide": "none",
-      "pool-rotation-handle": "visible",
-      "pool-rotation-icon": "visible",
-    };
-    const original = { ...visibility };
-    const once = vi.fn(async () => {});
-    const map = {
-      getLayer: (id: string) => (id in visibility ? {} : undefined),
-      getLayoutProperty: (id: string) => visibility[id],
-      setLayoutProperty: (id: string, _property: string, value: string) => {
-        visibility[id] = value;
-      },
-      once,
-    } as unknown as Parameters<typeof captureWithoutRotationControls>[0];
-    const capture = vi.fn(() => {
-      expect(Object.values(visibility)).toEqual(["none", "none", "none"]);
-      expect(once).toHaveBeenCalledTimes(1);
-      if (fail) throw new Error("Capture failed");
-      return "saved image";
-    });
-    const result = captureWithoutRotationControls(map, capture);
-    if (fail) await expect(result).rejects.toThrow("Capture failed");
-    else await expect(result).resolves.toBe("saved image");
-    expect(visibility).toEqual(original);
-    expect(once).toHaveBeenCalledTimes(2);
-  },
-);
