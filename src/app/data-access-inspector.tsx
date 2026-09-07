@@ -468,9 +468,9 @@ export function DataAccessInspector() {
               <h2 className="text-pool-950 font-semibold">
                 Your property address
               </h2>
-              <p className="text-pool-500 text-sm">
-                Start typing your Auckland address, then choose the matching
-                address from the suggestions.
+              <p id="property-address-help" className="text-pool-600 text-sm">
+                Start with your street number and street name, then choose the
+                matching address from the suggestions.
               </p>
             </div>
           </div>
@@ -500,8 +500,9 @@ export function DataAccessInspector() {
                 minLength={8}
                 maxLength={200}
                 autoComplete="street-address"
-                placeholder="Enter your Auckland property address"
-                className="border-pool-200 bg-pool-50 text-pool-950 placeholder:text-pool-400 focus:border-pool-blue-600 focus:ring-pool-blue-600/10 min-h-13 w-full rounded-2xl border px-4 text-base transition outline-none focus:bg-white focus:ring-4"
+                placeholder="e.g. 123 Example Street"
+                className="border-pool-200 bg-pool-50 text-pool-950 placeholder:text-pool-600 focus:border-pool-blue-600 focus:ring-pool-blue-600/10 min-h-13 w-full rounded-2xl border px-4 text-base transition outline-none focus:bg-white focus:ring-4"
+                aria-describedby="property-address-help"
                 aria-autocomplete="list"
                 aria-controls="address-suggestions"
               />
