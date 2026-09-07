@@ -223,7 +223,7 @@ export function StaffAssessmentDashboard({
                 </td>
                 <td className="px-4 py-3 align-top">
                   <span
-                    className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${feasibilityClasses[assessment.feasibilityState]}`}
+                    className={`inline-flex rounded-sm px-2.5 py-1 text-xs font-semibold ${feasibilityClasses[assessment.feasibilityState]}`}
                   >
                     {staffFeasibilityLabels[assessment.feasibilityState]}
                   </span>

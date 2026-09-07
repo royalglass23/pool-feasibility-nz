@@ -620,7 +620,7 @@ export function PropertyAerialMap({
                       className={
                         definition.kind === "circle"
                           ? "mt-1 size-3 shrink-0 rounded-full"
-                          : "mt-2 h-0.5 w-4 shrink-0 rounded-full"
+                          : "mt-2 h-0.5 w-4 shrink-0 rounded-sm"
                       }
                       style={{ backgroundColor: definition.color }}
                     />

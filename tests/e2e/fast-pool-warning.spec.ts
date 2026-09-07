@@ -142,9 +142,7 @@ test("shows Needs Checking before detailed evidence, then No Warning after a cle
       }),
     });
   });
-  await page
-    .getByRole("button", { name: "Load detailed official checks" })
-    .click();
+  await page.getByRole("button", { name: "Check for constraints" }).click();
   await expect(page.getByRole("heading", { name: "No Warning" })).toBeVisible();
 });
 
@@ -164,9 +162,7 @@ test("shows friendly position-review guidance while leaving the pool controls av
       }),
     });
   });
-  await page
-    .getByRole("button", { name: "Load detailed official checks" })
-    .click();
+  await page.getByRole("button", { name: "Check for constraints" }).click();
   await expect(
     page.getByRole("heading", { name: "This pool position needs review" }),
   ).toBeVisible();

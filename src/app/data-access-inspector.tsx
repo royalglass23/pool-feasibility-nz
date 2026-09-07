@@ -468,10 +468,9 @@ export function DataAccessInspector() {
               <h2 className="text-pool-950 font-semibold">
                 Your property address
               </h2>
-              <p className="text-pool-500 text-sm">
-                Currently available for Auckland addresses only. We will match
-                your address against official data before showing the property
-                view.
+              <p id="property-address-help" className="text-pool-600 text-sm">
+                Start with your street number and street name, then choose the
+                matching address from the suggestions.
               </p>
             </div>
           </div>
@@ -501,8 +500,9 @@ export function DataAccessInspector() {
                 minLength={8}
                 maxLength={200}
                 autoComplete="street-address"
-                placeholder="Enter your Auckland property address"
-                className="border-pool-200 bg-pool-50 text-pool-950 placeholder:text-pool-400 focus:border-pool-blue-600 focus:ring-pool-blue-600/10 min-h-13 w-full rounded-2xl border px-4 text-base transition outline-none focus:bg-white focus:ring-4"
+                placeholder="e.g. 123 Example Street"
+                className="border-pool-200 bg-pool-50 text-pool-950 placeholder:text-pool-600 focus:border-pool-blue-600 focus:ring-pool-blue-600/10 min-h-13 w-full rounded-2xl border px-4 text-base transition outline-none focus:bg-white focus:ring-4"
+                aria-describedby="property-address-help"
                 aria-autocomplete="list"
                 aria-controls="address-suggestions"
               />
@@ -644,12 +644,7 @@ export function DataAccessInspector() {
               placement={fastPlacementSnapshot}
               onSaved={fastSavedReport.saveAssessment}
             />
-          ) : (
-            <p className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm font-semibold text-amber-900">
-              Choose a valid pool placement, load the detailed official checks,
-              and wait for the map capture before saving the report.
-            </p>
-          )}
+          ) : null}
         </>
       )}
 
@@ -1120,7 +1115,7 @@ function StatusBadge({ status }: { status: string }) {
 
   return (
     <span
-      className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${className}`}
+      className={`inline-flex rounded-sm px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${className}`}
     >
       {humanize(status)}
     </span>

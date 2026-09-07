@@ -4,16 +4,30 @@ import userEvent from "@testing-library/user-event";
 import { FastPropertyView } from "@/components/fast-property-view";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 
-const { mapCreated, mapStyles, fitBounds, mapEventHandlers, markerOffsets } =
-  vi.hoisted(() => ({
-    mapCreated: vi.fn(),
-    mapStyles: vi.fn(),
-    fitBounds: vi.fn(),
-    mapEventHandlers: new globalThis.Map<string, (event: MapEvent) => void>(),
-    markerOffsets: [] as [number, number][],
-  }));
+const {
+  mapCreated,
+  mapStyles,
+  fitBounds,
+  mapEventHandlers,
+  markerOffsets,
+  getLayer,
+  queryRenderedFeatures,
+  waitForIdle,
+  canvasSnapshot,
+} = vi.hoisted(() => ({
+  waitForIdle: vi.fn<() => Promise<void>>(() => Promise.resolve()),
+  canvasSnapshot: vi.fn(() => "data:image/png;base64,"),
+  getLayer: vi.fn<(id: string) => object | undefined>(() => ({})),
+  queryRenderedFeatures: vi.fn<(...args: unknown[]) => unknown[]>(() => []),
+  mapCreated: vi.fn(),
+  mapStyles: vi.fn(),
+  fitBounds: vi.fn(),
+  mapEventHandlers: new globalThis.Map<string, (event: MapEvent) => void>(),
+  markerOffsets: [] as [number, number][],
+}));
 
 type MapEvent = {
+  type?: string;
   point: { coordinates: [number, number] };
   originalEvent: { stopPropagation: () => void };
   error?: { message: string };
@@ -30,7 +44,7 @@ vi.mock("maplibre-gl", () => {
     addControl() {}
     getCanvas() {
       return {
-        toDataURL: () => "data:image/png;base64,",
+        toDataURL: canvasSnapshot,
         style: { setProperty() {} },
       };
     }
@@ -40,8 +54,11 @@ vi.mock("maplibre-gl", () => {
     project([longitude, latitude]: [number, number]) {
       return { x: longitude * 1_000_000, y: latitude * -1_000_000 };
     }
-    getLayer() {
-      return {};
+    getLayer(id: string) {
+      return getLayer(id);
+    }
+    queryRenderedFeatures(...args: unknown[]) {
+      return queryRenderedFeatures(...args);
     }
     on(
       event: string,
@@ -52,6 +69,7 @@ vi.mock("maplibre-gl", () => {
         typeof layerOrHandler === "function" ? layerOrHandler : handler;
       if (!listener) return;
       if (event === "idle") {
+        mapEventHandlers.set("idle:map", listener);
         listener({} as MapEvent);
         return;
       }
@@ -61,11 +79,22 @@ vi.mock("maplibre-gl", () => {
       );
     }
     dragPan = { disable() {}, enable() {} };
-    unproject(point: { coordinates: [number, number] }) {
-      return { toArray: () => point.coordinates };
+    unproject(point: { coordinates: [number, number] } | [number, number]) {
+      return {
+        toArray: () =>
+          Array.isArray(point)
+            ? [point[0] / 1_000_000, point[1] / -1_000_000]
+            : point.coordinates,
+      };
     }
     remove() {}
     setLayoutProperty() {}
+    getLayoutProperty() {
+      return "visible";
+    }
+    once() {
+      return waitForIdle();
+    }
     fitBounds(...args: unknown[]) {
       fitBounds(...args);
     }
@@ -120,7 +149,57 @@ afterEach(() => {
   mapEventHandlers.clear();
   markerOffsets.length = 0;
   vi.unstubAllGlobals();
+  waitForIdle.mockReset().mockImplementation(() => Promise.resolve());
+  canvasSnapshot.mockReset().mockReturnValue("data:image/png;base64,");
 });
+
+it("keeps the rotate control visible and interactive while taking a snapshot", async () => {
+  const onSnapshotReady = vi.fn();
+  render(
+    <FastPropertyView
+      result={fastResult}
+      onRetry={() => {}}
+      onSnapshotReady={onSnapshotReady}
+    />,
+  );
+  await waitFor(() => expect(onSnapshotReady).toHaveBeenCalled());
+  expect(waitForIdle).not.toHaveBeenCalled();
+  expect(screen.getByTestId("pool-rotate-control")).toBeVisible();
+  mapEventHandlers.get("idle:map")?.({} as MapEvent);
+  expect(screen.getByTestId("pool-rotate-control")).toBeVisible();
+});
+
+it.each(["layer", "camera", "clearances"])(
+  "refreshes the snapshot after a %s change without hiding rotation",
+  async (change) => {
+    const onSnapshotReady = vi.fn();
+    render(
+      <FastPropertyView
+        result={fastResult}
+        onRetry={() => {}}
+        onSnapshotReady={onSnapshotReady}
+      />,
+    );
+    await waitFor(() => expect(canvasSnapshot).toHaveBeenCalled());
+    if (change === "camera")
+      mapEventHandlers.get("movestart:map")?.({} as MapEvent);
+    else
+      await userEvent.setup().click(
+        screen.getByRole("checkbox", {
+          name:
+            change === "layer" ? "Wastewater" : "Show pool-shell clearances",
+        }),
+      );
+    expect(onSnapshotReady).toHaveBeenLastCalledWith(null);
+    canvasSnapshot.mockReturnValue("data:image/png;base64,new");
+    mapEventHandlers.get("idle:map")?.({} as MapEvent);
+    expect(onSnapshotReady).toHaveBeenLastCalledWith({
+      imageDataUrl: "data:image/png;base64,new",
+      visibleLayerKeys: change === "layer" ? [] : ["wastewater_assets"],
+    });
+    expect(screen.getByTestId("pool-rotate-control")).toBeVisible();
+  },
+);
 
 it("shows detailed map controls without restoring the detailed checks panel", async () => {
   render(
@@ -190,7 +269,7 @@ it("explains an aerial tile failure instead of swallowing the MapLibre error", a
 
   expect(
     await screen.findByText(
-      "Aerial imagery could not be loaded. Check the LINZ imagery configuration and retry the fast view.",
+      "We couldn't load the aerial photo. You can still review the property boundary; try the property check again in a minute.",
     ),
   ).toBeVisible();
 });
@@ -500,7 +579,7 @@ it("keeps shell geometry separate when its construction envelope does not fit", 
   );
 });
 
-it("lets touch users move and rotate the pool layout", async () => {
+it("lets touch users move the pool layout", async () => {
   const onPlacementChange = vi.fn();
   render(
     <FastPropertyView
@@ -526,16 +605,6 @@ it("lets touch users move and rotate the pool layout", async () => {
     expect(onPlacementChange).toHaveBeenLastCalledWith(
       expect.objectContaining({ position: [174.6083, -36.8602] }),
     ),
-  );
-
-  mapEventHandlers.get("touchstart:pool-rotation-handle")!(
-    event([174.6083, -36.8602]),
-  );
-  mapEventHandlers.get("touchmove:map")!(event([174.60835, -36.8602]));
-  mapEventHandlers.get("touchend:map")!(event([174.60835, -36.8602]));
-
-  await waitFor(() =>
-    expect(onPlacementChange.mock.lastCall?.[0]?.rotationDegrees).not.toBe(0),
   );
 });
 
@@ -613,3 +682,27 @@ const fastResult = {
     ],
   },
 } as unknown as FastPropertyViewResult;
+
+it("waits for pool interaction layers before querying a hovering pointer", async () => {
+  render(<FastPropertyView result={fastResult} onRetry={() => {}} />);
+  await waitFor(() =>
+    expect(mapEventHandlers.get("mousemove:map")).toBeTypeOf("function"),
+  );
+  const event = {
+    type: "mousemove",
+    point: { coordinates: [174.6082, -36.8603] },
+    originalEvent: { stopPropagation() {} },
+  } as MapEvent;
+  try {
+    getLayer.mockImplementation((id) => (id === "pool-fill" ? undefined : {}));
+    mapEventHandlers.get("mousemove:map")!(event);
+    expect(queryRenderedFeatures).not.toHaveBeenCalled();
+    getLayer.mockImplementation(() => ({}));
+    mapEventHandlers.get("mousemove:map")!(event);
+    expect(queryRenderedFeatures).toHaveBeenCalledWith(event.point, {
+      layers: ["pool-fill"],
+    });
+  } finally {
+    getLayer.mockImplementation(() => ({}));
+  }
+});

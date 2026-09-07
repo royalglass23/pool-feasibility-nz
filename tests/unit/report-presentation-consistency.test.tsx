@@ -127,6 +127,7 @@ describe("web, PDF and email report consistency", () => {
       subject: string;
       html: string;
       text: string;
+      replyTo: string;
       attachment?: Buffer;
     };
 
@@ -135,11 +136,20 @@ describe("web, PDF and email report consistency", () => {
       report.property.address,
       report.overall.summary,
       report.keyFindings[0]!.title,
-      report.overall.recommendedStage,
     ]) {
       expect(pdfHtml).toContain(value);
-      expect(`${email.html}\n${email.text}`).toContain(value);
+      expect(email.html).toContain(value);
+      expect(email.text).toContain(value);
     }
+    expect(pdfHtml).toContain(report.overall.recommendedStage);
+    // The email invites a reply; the detailed report retains the recommended stage.
+    for (const body of [email.html, email.text]) {
+      expect(body).toContain("Have questions? Let’s talk it through.");
+      expect(body).toContain(
+        "Whether it’s about your report, your site or what to do next, simply reply to this email.",
+      );
+    }
+    expect(email.replyTo).toBe("support@royalglass.co.nz");
     expect(
       screen.getByRole("heading", {
         name: "Preliminary Pool Feasibility Report",

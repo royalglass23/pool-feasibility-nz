@@ -25,7 +25,7 @@ export default async function StaffPage() {
             </p>
             <form action={signOutStaffAdmin}>
               <button
-                className="border-pool-300 text-pool-700 hover:border-pool-blue-700/40 hover:text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-10 rounded-full border bg-white px-4 text-sm font-semibold shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2"
+                className="border-pool-300 text-pool-700 hover:border-pool-blue-700/40 hover:text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-10 rounded-sm border bg-white px-4 text-sm font-semibold shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2"
                 type="submit"
               >
                 Sign out

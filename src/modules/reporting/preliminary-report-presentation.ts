@@ -48,6 +48,8 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
   entries: ReportMapLegendEntry[];
   excludedLayers: string[];
 } {
+  const isFastPropertyViewCapture =
+    report.mapImageSource === "fast_property_view_capture";
   const entries: ReportMapLegendEntry[] = [
     {
       id: "property-boundary",
@@ -57,6 +59,8 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
     {
       id: "selected-pool",
       ...reportMapPoolStyle(report.warningState),
+      // Saved fast-view images use a blue pool, independent of the assessment result.
+      ...(isFastPropertyViewCapture ? { colour: "#2563eb" } : {}),
       kind: "area",
     },
     {
@@ -67,8 +71,6 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
   ];
   const seen = new Set(entries.map((entry) => entry.label));
   const excludedLayers: string[] = [];
-  const isFastPropertyViewCapture =
-    report.mapImageSource === "fast_property_view_capture";
   const visibleLayerKeys = new Set(report.mapVisibleLayerKeys ?? []);
 
   for (const layer of report.layers) {
