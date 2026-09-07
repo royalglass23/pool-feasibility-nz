@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-view-map-capture";
+import { captureFastPropertyViewMap, captureWithoutRotationControls } from "@/modules/reporting/fast-property-view-map-capture";
 import type { PoolShellClearance } from "@/modules/spatial/pool-shell-clearances";
 
 const clearances: PoolShellClearance[] = [
@@ -73,3 +73,35 @@ it("draws all four pool-shell clearance labels into the saved map image", () => 
   expect(labels[2]![1]).toBeGreaterThan(350);
   expect(labels[3]![0] + labels[3]![2]).toBeLessThan(250);
 });
+
+it.each([false, true])(
+  "excludes rotation controls and restores them after capture (failure: %s)",
+  async (fail) => {
+    const visibility: Record<string, string> = {
+      "pool-rotation-guide": "none",
+      "pool-rotation-handle": "visible",
+      "pool-rotation-icon": "visible",
+    };
+    const original = { ...visibility };
+    const once = vi.fn(async () => {});
+    const map = {
+      getLayer: (id: string) => (id in visibility ? {} : undefined),
+      getLayoutProperty: (id: string) => visibility[id],
+      setLayoutProperty: (id: string, _property: string, value: string) => {
+        visibility[id] = value;
+      },
+      once,
+    } as unknown as Parameters<typeof captureWithoutRotationControls>[0];
+    const capture = vi.fn(() => {
+      expect(Object.values(visibility)).toEqual(["none", "none", "none"]);
+      expect(once).toHaveBeenCalledTimes(1);
+      if (fail) throw new Error("Capture failed");
+      return "saved image";
+    });
+    const result = captureWithoutRotationControls(map, capture);
+    if (fail) await expect(result).rejects.toThrow("Capture failed");
+    else await expect(result).resolves.toBe("saved image");
+    expect(visibility).toEqual(original);
+    expect(once).toHaveBeenCalledTimes(2);
+  },
+);

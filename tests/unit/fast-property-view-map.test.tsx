@@ -79,6 +79,12 @@ vi.mock("maplibre-gl", () => {
     }
     remove() {}
     setLayoutProperty() {}
+    getLayoutProperty() {
+      return "visible";
+    }
+    once() {
+      return Promise.resolve();
+    }
     fitBounds(...args: unknown[]) {
       fitBounds(...args);
     }
@@ -203,7 +209,7 @@ it("explains an aerial tile failure instead of swallowing the MapLibre error", a
 
   expect(
     await screen.findByText(
-      "Aerial imagery could not be loaded. Check the LINZ imagery configuration and retry the fast view.",
+      "We couldn't load the aerial photo. You can still review the property boundary; try the property check again in a minute.",
     ),
   ).toBeVisible();
 });

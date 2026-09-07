@@ -32,7 +32,10 @@ import {
   POOL_SHELL_CLEARANCE_LIMITATION,
   PRELIMINARY_FEASIBILITY_SCOPE,
 } from "@/modules/reporting/preliminary-feasibility-copy";
-import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-view-map-capture";
+import {
+  captureFastPropertyViewMap,
+  captureWithoutRotationControls,
+} from "@/modules/reporting/fast-property-view-map-capture";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { bearing, point } from "@turf/turf";
 
@@ -708,15 +711,21 @@ export function FastPropertyView({
             poolShellClearancesRef.current,
           ),
         );
-        map.on("idle", () => {
+        let capturingSnapshot = false;
+        map.on("idle", async () => {
+          if (capturingSnapshot || disposed || !map) return;
+          capturingSnapshot = true;
           try {
             const imageDataUrl = map
-              ? captureFastPropertyViewMap({
-                  map,
-                  clearances: poolShellClearancesRef.current,
-                  visible: clearancesVisibleRef.current,
-                })
+              ? await captureWithoutRotationControls(map, () =>
+                  captureFastPropertyViewMap({
+                    map: map!,
+                    clearances: poolShellClearancesRef.current,
+                    visible: clearancesVisibleRef.current,
+                  }),
+                )
               : null;
+            if (disposed) return;
             snapshotHandlerRef.current?.(
               imageDataUrl
                 ? {
@@ -726,7 +735,9 @@ export function FastPropertyView({
                 : null,
             );
           } catch {
-            snapshotHandlerRef.current?.(null);
+            if (!disposed) snapshotHandlerRef.current?.(null);
+          } finally {
+            capturingSnapshot = false;
           }
         });
         let interaction: "move" | "rotate" | null = null;

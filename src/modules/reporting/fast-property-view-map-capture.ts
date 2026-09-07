@@ -1,3 +1,4 @@
+import type { Map as MapLibreMap } from "maplibre-gl";
 import {
   formatPoolShellClearanceLabel,
   type PoolShellClearance,
@@ -115,4 +116,34 @@ function drawPoolShellClearanceLabels({
 
 function clamp(value: number, minimum: number, maximum: number) {
   return Math.min(Math.max(value, minimum), maximum);
+}
+
+// Wait for the hidden controls to leave the canvas before copying its pixels.
+// The caller must skip idle-triggered captures until restoration has settled.
+export async function captureWithoutRotationControls<T>(
+  map: Pick<
+    MapLibreMap,
+    "getLayer" | "getLayoutProperty" | "setLayoutProperty" | "once"
+  >,
+  capture: () => T,
+): Promise<T> {
+  const layers = [
+    "pool-rotation-guide",
+    "pool-rotation-handle",
+    "pool-rotation-icon",
+  ].filter((id) => map.getLayer(id));
+  if (!layers.length) return capture();
+  const visibility = layers.map(
+    (id) => map.getLayoutProperty(id, "visibility") ?? "visible",
+  );
+  try {
+    layers.forEach((id) => map.setLayoutProperty(id, "visibility", "none"));
+    await map.once("idle");
+    return capture();
+  } finally {
+    layers.forEach((id, index) =>
+      map.setLayoutProperty(id, "visibility", visibility[index]),
+    );
+    await map.once("idle");
+  }
 }
