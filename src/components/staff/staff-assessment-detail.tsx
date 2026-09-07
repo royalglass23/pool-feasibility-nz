@@ -39,7 +39,7 @@ export function StaffAssessmentDetail({
               {assessment.homeownerAddress}
             </p>
           </div>
-          <p className="rounded-full border border-pool-200 bg-pool-50 px-3 py-1.5 text-xs font-bold tracking-wide text-pool-700 uppercase">
+          <p className="rounded-sm border border-pool-200 bg-pool-50 px-3 py-1.5 text-xs font-bold tracking-wide text-pool-700 uppercase">
             Read-only saved submission
           </p>
         </div>

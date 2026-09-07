@@ -74,6 +74,19 @@ export function AnalyticsConsent({
 
   return (
     <>
+      {choice === "granted" && (
+        // Keep this pixel direct so the visitor's browser contacts Metricool.
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src="https://tracker.metricool.com/c3po.jpg?hash=ee5fad286a62e86c7cd7a56f6bc542ae"
+          width={1}
+          height={1}
+          alt=""
+          aria-hidden="true"
+          className="pointer-events-none absolute"
+          referrerPolicy="no-referrer"
+        />
+      )}
       {analyticsEnabled && (
         <>
           {safeMeasurementId && (
@@ -152,7 +165,7 @@ export function AnalyticsConsent({
           type="button"
           aria-expanded={settingsOpen}
           onClick={() => setSettingsOverride(!settingsOpen)}
-          className="border-pool-300 text-pool-800 hover:border-pool-blue-700 hover:text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-11 rounded-full border bg-white px-4 text-sm font-semibold shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="border-pool-300 text-pool-800 hover:border-pool-blue-700 hover:text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           Analytics settings
         </button>

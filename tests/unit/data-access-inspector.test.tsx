@@ -7,7 +7,11 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { DataAccessInspector } from "@/app/data-access-inspector";
 import { runDataAccessSpike } from "@/modules/data-access-spike/run-data-access-spike";
-import { runFastPropertyView } from "@/modules/data-access-spike/fast-property-view";
+import {
+  loadFastPropertyStages,
+  resolveFastPropertyAddress,
+  runFastPropertyView,
+} from "@/modules/data-access-spike/fast-property-view";
 
 const trackAnonymousFunnelEvent = vi.hoisted(() => vi.fn());
 
@@ -40,10 +44,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
 
     const input = screen.getByLabelText("Auckland property address");
     expect(input).toHaveValue("");
-    expect(input).toHaveAttribute(
-      "placeholder",
-      "Enter your Auckland property address",
-    );
+    expect(input).toHaveAttribute("placeholder", "e.g. 123 Example Street");
 
     await user.type(input, requestedAddress);
     await user.keyboard("{Enter}");
@@ -247,22 +248,42 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     },
   );
 
-  it.each([
-    ["multiple", "PARCEL_AMBIGUOUS", 409, "More than one mapped boundary"],
-    ["unavailable", "PARCEL_NOT_FOUND", 404, "No mapped boundary was found"],
-  ] as const)(
-    "presents the %s boundary error state",
-    async (boundaryState, code, status, message) => {
+  it.each(["multiple", "unavailable"] as const)(
+    "keeps the property view usable with a %s boundary after stages load",
+    async (boundaryState) => {
       const user = userEvent.setup();
-      vi.stubGlobal(
-        "fetch",
-        vi.fn(async () =>
-          Response.json(
-            { error: { code, message, boundaryState } },
-            { status },
-          ),
-        ),
+      const gateway = createDataAccessGateway();
+      const parcels = await gateway.findParcelsAt([174.6082, -36.8603]);
+      gateway.findParcelsAt = vi.fn(async () => ({
+        parcels:
+          boundaryState === "multiple"
+            ? [
+                parcels.parcels[0],
+                { ...parcels.parcels[0], parcelId: "second-fixture-parcel" },
+              ]
+            : [],
+        duplicatesRemoved: 0,
+      }));
+      const initial = await resolveFastPropertyAddress({
+        requestedAddress,
+        ...splitDataAccessGateway(gateway),
+      });
+      const stages = await loadFastPropertyStages({
+        resolvedAddress: initial.resolvedAddress,
+        propertyLayers: gateway,
+        basemapApiKey: "test-key",
+      });
+      expect(initial.boundary.state).toBe("loading");
+      expect(stages.boundary.state).toBe(boundaryState);
+      const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
+        Response.json({
+          data: String(input).includes("/api/public/property-check/stages")
+            ? stages
+            : initial,
+          assessmentSnapshot: "server-issued-fixture-snapshot",
+        }),
       );
+      vi.stubGlobal("fetch", fetchMock);
 
       render(<DataAccessInspector />);
       await user.type(
@@ -271,7 +292,29 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       );
       await user.keyboard("{Enter}");
 
-      expect(await screen.findByText(message)).toBeVisible();
+      expect(
+        await screen.findByRole("button", { name: "Check for constraints" }),
+      ).toBeEnabled();
+      expect(
+        screen.getByRole("heading", { name: requestedAddress }),
+      ).toBeVisible();
+      expect(
+        screen.getByRole("heading", { name: "Needs Checking" }),
+      ).toBeVisible();
+      expect(
+        screen.getByText(
+          "The mapped property boundary or pool position needs checking before this layout can be assessed.",
+        ),
+      ).toBeVisible();
+      expect(
+        screen.queryByText("We couldn't complete that property check"),
+      ).not.toBeInTheDocument();
+      expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+        "/api/public/property-check",
+        "/api/public/property-check/stages",
+      ]);
+      await user.click(screen.getByRole("button", { name: "Start again" }));
+      expect(screen.getByLabelText("Auckland property address")).toBeVisible();
     },
   );
 

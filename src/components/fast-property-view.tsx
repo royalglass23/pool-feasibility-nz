@@ -37,11 +37,7 @@ import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { bearing, point } from "@turf/turf";
 
 type UtilityCategory =
-  | "stormwater"
-  | "wastewater"
-  | "water"
-  | "electricity"
-  | "gas";
+  "stormwater" | "wastewater" | "water" | "electricity" | "gas";
 
 type UtilityLayerDefinition = {
   key: DatasetKey;
@@ -163,6 +159,8 @@ export function FastPropertyView({
   onSnapshotReady?: (snapshot: FastPropertyViewMapSnapshot | null) => void;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
+  const rotationControlVisibleRef = useRef(false);
+  const syncRotationControlRef = useRef<() => void>(() => {});
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
   const mapLibreRef = useRef<typeof import("maplibre-gl") | null>(null);
   const clearanceLabelMarkersRef = useRef<import("maplibre-gl").Marker[]>([]);
@@ -361,7 +359,15 @@ export function FastPropertyView({
 
   useEffect(() => {
     placementRef.current = { position, rotationDegrees, dimensions };
-  }, [dimensions, position, rotationDegrees]);
+    rotationControlVisibleRef.current =
+      !isInitialAddressLoad && Boolean(poolGeometry);
+  }, [
+    dimensions,
+    position,
+    rotationDegrees,
+    isInitialAddressLoad,
+    poolGeometry,
+  ]);
 
   const setCandidatePosition = (candidate: [number, number]) => {
     if (isInitialAddressLoad) return;
@@ -444,6 +450,7 @@ export function FastPropertyView({
   useEffect(() => {
     let map: import("maplibre-gl").Map | null = null;
     let disposed = false;
+    let rotationMarker: import("maplibre-gl").Marker | null = null;
     const clearanceLabelMarkers = clearanceLabelMarkersRef.current;
     void import("maplibre-gl").then((maplibregl) => {
       if (disposed || !mapRef.current) return;
@@ -451,7 +458,6 @@ export function FastPropertyView({
       const boundary = result.boundary.geometry
         ? feature(result.boundary.geometry)
         : null;
-      const activePlacement = placementRef.current;
       const emptyGeometry = {
         type: "FeatureCollection" as const,
         features: [],
@@ -471,17 +477,6 @@ export function FastPropertyView({
             data: isInitialAddressLoad
               ? emptyGeometry
               : (constructionEnvelopeGeometry ?? emptyGeometry),
-          },
-          "pool-rotation": {
-            type: "geojson",
-            data: isInitialAddressLoad
-              ? emptyGeometry
-              : rotationHandleGeometry(
-                  activePlacement?.position ??
-                    result.resolvedAddress.coordinates,
-                  activePlacement?.rotationDegrees ?? 0,
-                  dimensions,
-                ),
           },
           "pool-shell-clearances": {
             type: "geojson",
@@ -578,7 +573,7 @@ export function FastPropertyView({
           id: "pool-line",
           type: "line",
           source: "pool",
-          paint: { "line-color": "#0f172a", "line-width": 3 },
+          paint: { "line-color": "#1e40af", "line-width": 3 },
         },
         {
           id: "pool-shell-clearance-lines",
@@ -598,24 +593,6 @@ export function FastPropertyView({
             "line-color": "#f97316",
             "line-width": 3,
             "line-dasharray": [3, 2],
-          },
-        },
-        {
-          id: "pool-rotation-guide",
-          type: "line",
-          source: "pool-rotation",
-          paint: { "line-color": "#f97316", "line-width": 2 },
-        },
-        {
-          id: "pool-rotation-handle",
-          type: "circle",
-          source: "pool-rotation",
-          filter: ["==", ["get", "kind"], "handle"],
-          paint: {
-            "circle-color": "#f97316",
-            "circle-radius": 8,
-            "circle-stroke-color": "#fff",
-            "circle-stroke-width": 3,
           },
         },
         {
@@ -639,6 +616,41 @@ export function FastPropertyView({
           attributionControl: { compact: true },
           canvasContextAttributes: { preserveDrawingBuffer: true },
         });
+        // DOM overlays stay visible while canvas snapshots are captured.
+        const control = document.createElement("div");
+        control.dataset.testid = "pool-rotate-control";
+        control.title = "Drag to rotate pool";
+        control.style.cssText =
+          "width:44px;height:44px;border-radius:50%;background:white;border:1px solid #0077bd;display:grid;place-items:center;pointer-events:auto;touch-action:none;cursor:grab;";
+        control.innerHTML =
+          '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0077bd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v-5m0 5h-5M20 7a8 8 0 1 0 1 8"/></svg>';
+        rotationMarker = new maplibregl.Marker({
+          element: control,
+          anchor: "center",
+        })
+          .setLngLat(result.resolvedAddress.coordinates)
+          .addTo(map);
+        syncRotationControlRef.current = () => {
+          const active = placementRef.current;
+          if (!map || !active) return;
+          control.dataset.rotationDegrees = String(active.rotationDegrees);
+          const geometry = rotationHandleGeometry(
+            active.position,
+            active.rotationDegrees,
+            rotationControlVisibleRef.current ? active.dimensions : null,
+            map,
+          );
+          const handle = geometry.features.find(
+            (entry) => entry.geometry.type === "Point",
+          );
+          control.style.display = handle ? "grid" : "none";
+          if (handle?.geometry.type === "Point")
+            rotationMarker?.setLngLat(
+              handle.geometry.coordinates as [number, number],
+            );
+        };
+        syncRotationControlRef.current();
+        map.on("move", () => syncRotationControlRef.current());
         mapInstanceRef.current = map;
         map.addControl(new maplibregl.NavigationControl(), "top-right");
         syncPoolShellClearanceLabels({
@@ -671,7 +683,9 @@ export function FastPropertyView({
               : "map",
           );
         });
-        map.on("movestart", () => snapshotHandlerRef.current?.(null));
+        map.on("movestart", () => {
+          snapshotHandlerRef.current?.(null);
+        });
         map.on("move", () =>
           positionPoolShellClearanceLabels(
             map!,
@@ -680,14 +694,13 @@ export function FastPropertyView({
           ),
         );
         map.on("idle", () => {
+          if (disposed || !map) return;
           try {
-            const imageDataUrl = map
-              ? captureFastPropertyViewMap({
-                  map,
-                  clearances: poolShellClearancesRef.current,
-                  visible: clearancesVisibleRef.current,
-                })
-              : null;
+            const imageDataUrl = captureFastPropertyViewMap({
+              map,
+              clearances: poolShellClearancesRef.current,
+              visible: clearancesVisibleRef.current,
+            });
             snapshotHandlerRef.current?.(
               imageDataUrl
                 ? {
@@ -705,6 +718,19 @@ export function FastPropertyView({
           | import("maplibre-gl").MapMouseEvent
           | import("maplibre-gl").MapTouchEvent;
         const updateInteraction = (event: PoolInteractionEvent) => {
+          if (!interaction && event.type === "mousemove" && map) {
+            // Pointer events can arrive before the style's layers are ready.
+            // Querying a missing layer emits a MapLibre error even when the
+            // map subsequently loads successfully.
+            if (!map.getLayer("pool-fill")) {
+              map.getCanvas().style.cursor = "";
+              return;
+            }
+            const target = map.queryRenderedFeatures(event.point, {
+              layers: ["pool-fill"],
+            })[0];
+            map.getCanvas().style.cursor = target ? "move" : "";
+          }
           if (interaction === "move") {
             positionHandlerRef.current(
               map!.unproject(event.point).toArray() as [number, number],
@@ -721,7 +747,7 @@ export function FastPropertyView({
         const beginInteraction = (
           nextInteraction: "move" | "rotate",
           event: PoolInteractionEvent,
-          cursor: "crosshair" | "grabbing" | null,
+          cursor: "grabbing" | null,
         ) => {
           interaction = nextInteraction;
           map?.dragPan.disable();
@@ -734,12 +760,37 @@ export function FastPropertyView({
           map?.dragPan.enable();
           map?.getCanvas().style.setProperty("cursor", "");
         };
-        map.on("mousedown", "pool-rotation-handle", (event) =>
-          beginInteraction("rotate", event, "crosshair"),
-        );
-        map.on("touchstart", "pool-rotation-handle", (event) =>
-          beginInteraction("rotate", event, null),
-        );
+        control.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          interaction = "rotate";
+          control.setPointerCapture(event.pointerId);
+          map?.dragPan.disable();
+          control.style.cursor = "grabbing";
+        });
+        control.addEventListener("pointermove", (event) => {
+          if (!control.hasPointerCapture(event.pointerId) || !map) return;
+          const active = placementRef.current;
+          if (!active) return;
+          const bounds = map.getCanvas().getBoundingClientRect();
+          const cursor = map
+            .unproject([
+              event.clientX - bounds.left,
+              event.clientY - bounds.top,
+            ])
+            .toArray();
+          rotationHandlerRef.current(
+            180 - bearing(point(active.position), point(cursor)),
+          );
+        });
+        const releaseRotation = (event: PointerEvent) => {
+          if (control.hasPointerCapture(event.pointerId))
+            control.releasePointerCapture(event.pointerId);
+          control.style.cursor = "grab";
+          endInteraction();
+        };
+        control.addEventListener("pointerup", releaseRotation);
+        control.addEventListener("pointercancel", releaseRotation);
         map.on("mousedown", "pool-fill", (event) =>
           beginInteraction("move", event, "grabbing"),
         );
@@ -761,6 +812,8 @@ export function FastPropertyView({
     });
     return () => {
       disposed = true;
+      rotationMarker?.remove();
+      syncRotationControlRef.current = () => {};
       removePoolShellClearanceLabels(clearanceLabelMarkers);
       map?.remove();
       mapInstanceRef.current = null;
@@ -803,8 +856,7 @@ export function FastPropertyView({
       features: [],
     };
     const poolSource = map.getSource("pool") as
-      | import("maplibre-gl").GeoJSONSource
-      | undefined;
+      import("maplibre-gl").GeoJSONSource | undefined;
     poolSource?.setData(
       isInitialAddressLoad ? emptyGeometry : (poolGeometry ?? emptyGeometry),
     );
@@ -817,8 +869,7 @@ export function FastPropertyView({
         : (constructionEnvelopeGeometry ?? emptyGeometry),
     );
     const clearanceSource = map.getSource("pool-shell-clearances") as
-      | import("maplibre-gl").GeoJSONSource
-      | undefined;
+      import("maplibre-gl").GeoJSONSource | undefined;
     clearanceSource?.setData(
       clearancesVisible
         ? poolShellClearanceMapData(poolShellClearances)
@@ -834,14 +885,7 @@ export function FastPropertyView({
         visible: clearancesVisible,
       });
     }
-    const rotationSource = map.getSource("pool-rotation") as
-      | import("maplibre-gl").GeoJSONSource
-      | undefined;
-    rotationSource?.setData(
-      !isInitialAddressLoad && poolGeometry
-        ? rotationHandleGeometry(position, rotationDegrees, dimensions)
-        : emptyGeometry,
-    );
+    syncRotationControlRef.current();
   }, [
     constructionEnvelopeGeometry,
     clearancesVisible,
@@ -856,75 +900,152 @@ export function FastPropertyView({
   return (
     <section
       aria-labelledby="fast-view-heading"
-      className="space-y-5 rounded-3xl border border-white/70 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.35)] sm:p-7"
+      className="space-y-5 rounded-sm border border-[#c8dce8] bg-white p-5 text-[#0d3050] sm:p-7"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <p className="text-pool-blue-700 text-xs font-bold tracking-[0.18em] uppercase">
-            Fast property view
-          </p>
           <h2
             id="fast-view-heading"
-            className="text-pool-950 mt-2 text-2xl font-semibold"
+            className="text-pool-950 text-2xl font-semibold"
           >
             {result.resolvedAddress.fullAddress}
           </h2>
-          <p className="text-pool-600 mt-2 text-sm">
-            {isInitialAddressLoad
-              ? "The selected official address is ready."
-              : "A preliminary mapped view is ready."}
-          </p>
           <p className="text-pool-600 mt-2 max-w-3xl text-sm leading-6">
             <strong>Preliminary feasibility only.</strong>{" "}
             {PRELIMINARY_FEASIBILITY_SCOPE}
           </p>
         </div>
-        <div className="flex flex-wrap gap-2">
-          {onStartAgain && (
-            <button
-              type="button"
-              onClick={onStartAgain}
-              disabled={isLoadingDetailed}
-              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Start again
-            </button>
-          )}
-          {onLoadDetailed && (
-            <button
-              type="button"
-              onClick={onLoadDetailed}
-              disabled={isInitialAddressLoad || isLoadingDetailed}
-              className="bg-pool-950 disabled:bg-pool-400 min-h-11 rounded-xl px-4 text-sm font-semibold text-white"
-            >
-              {isLoadingDetailed
-                ? "Loading detailed checks…"
-                : isInitialAddressLoad
-                  ? "Finding property boundary…"
-                  : "Load detailed official checks"}
-            </button>
-          )}
-        </div>
       </div>
       <ol
         aria-label="Fast view progress"
-        className="grid gap-2 text-sm sm:max-w-xs"
+        className="grid gap-2 text-sm lg:mr-[22rem]"
       >
-        <Progress label="Address found" state="complete" />
+        <Progress
+          label={
+            isInitialAddressLoad
+              ? "Address found"
+              : "Address found. Next, choose a pool size, then move and rotate it into your preferred position."
+          }
+          state="complete"
+        />
         {isInitialAddressLoad && (
           <Progress label="Finding the property boundary…" state="pending" />
         )}
       </ol>
-      <div className="border-pool-200 overflow-hidden rounded-2xl border">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="border-pool-200 overflow-hidden rounded-sm border">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_22rem]">
+          {!isInitialAddressLoad && (
+            <div
+              aria-label="Pool catalogue and placement controls"
+              className="border-pool-200 order-1 space-y-4 border-b bg-white p-4 lg:col-start-2 lg:row-start-1 lg:border-l"
+            >
+              <div>
+                <h3 className="text-pool-950 font-semibold">
+                  Choose a pool layout
+                </h3>
+                <p className="text-pool-600 mt-1 text-sm">
+                  Drag your pool to move it. Drag the rotate handle to turn it.
+                </p>
+              </div>
+              <div
+                className="grid grid-cols-1 border-t border-[#c8dce8]"
+                role="group"
+                aria-label="Pool catalogue"
+              >
+                {FAST_POOL_CATALOGUE.map((pool) => (
+                  <button
+                    key={pool.id}
+                    type="button"
+                    aria-pressed={selectedPoolId === pool.id}
+                    aria-label={`${pool.label} (${pool.lengthMetres} × ${pool.widthMetres} m)`}
+                    onClick={() => choosePool(pool.id)}
+                    className="group grid min-h-16 grid-cols-[3rem_1fr_auto_1rem] items-center gap-3 border-b border-[#c8dce8] bg-white px-3 py-3 text-left text-sm text-[#0d3050] transition-colors hover:bg-[#edf8fd] focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd] aria-pressed:bg-[#03a9ee]"
+                  >
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 52 30"
+                      className="h-8 w-12 text-[#0077bd] group-aria-pressed:text-[#0d3050]"
+                    >
+                      <rect
+                        x={(52 - (44 * pool.lengthMetres) / 10) / 2}
+                        y={(30 - (24 * pool.widthMetres) / 4.4) / 2}
+                        width={(44 * pool.lengthMetres) / 10}
+                        height={(24 * pool.widthMetres) / 4.4}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.25"
+                        strokeDasharray={
+                          pool.id === "custom" ? "2 2" : undefined
+                        }
+                      />
+                    </svg>
+                    <span className="font-semibold">{pool.label}</span>
+                    <span className="text-xs whitespace-nowrap tabular-nums">
+                      {pool.lengthMetres} × {pool.widthMetres} m
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="text-base font-semibold"
+                    >
+                      {selectedPoolId === pool.id ? "✓" : ""}
+                    </span>
+                  </button>
+                ))}
+              </div>
+              {selectedPoolId === "custom" && (
+                <div className="grid max-w-xl gap-3 sm:grid-cols-2">
+                  <DimensionInput
+                    label="Custom length (m)"
+                    value={customLength}
+                    min={2}
+                    max={20}
+                    onChange={setCustomLength}
+                    invalid={
+                      !validateFastCustomDimensions(
+                        Number(customLength),
+                        Number(customWidth),
+                      )
+                    }
+                  />
+                  <DimensionInput
+                    label="Custom width (m)"
+                    value={customWidth}
+                    min={1.5}
+                    max={10}
+                    onChange={setCustomWidth}
+                    invalid={
+                      !validateFastCustomDimensions(
+                        Number(customLength),
+                        Number(customWidth),
+                      )
+                    }
+                  />
+                </div>
+              )}
+              {!dimensions && (
+                <p role="alert" className="text-sm font-semibold text-red-700">
+                  Enter a length from 2–20 m and width from 1.5–10 m in 0.1 m
+                  increments.
+                </p>
+              )}
+              {placementMessage && (
+                <p
+                  role="alert"
+                  className="text-sm font-semibold text-amber-800"
+                >
+                  {placementMessage}
+                </p>
+              )}
+            </div>
+          )}
           <div
             ref={mapRef}
-            className="bg-pool-800 h-[min(62vw,600px)] min-h-[360px] w-full"
+            className="bg-pool-800 order-2 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-full lg:min-h-[600px]"
             aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
           />
           <aside
             aria-label="Map layers"
-            className="border-pool-200 border-t bg-white p-4 lg:border-t-0 lg:border-l"
+            className="border-pool-200 order-3 border-t bg-white p-4 lg:col-start-2 lg:row-start-2 lg:border-t-0 lg:border-l"
           >
             <h3 className="text-pool-950 font-semibold">Map layers</h3>
             <div className="border-pool-200 text-pool-700 mt-4 border-b pb-4 text-sm">
@@ -1033,9 +1154,9 @@ export function FastPropertyView({
                 </ul>
               </>
             ) : (
-              <p className="text-pool-600 mt-4 text-sm leading-6">
-                Load detailed official checks to see contours and mapped utility
-                evidence.
+              <p className="border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900 mt-4 rounded-sm border px-3 py-2 text-sm leading-6">
+                Select “Check for constraints” to see terrain contours and
+                mapped services.
               </p>
             )}
           </aside>
@@ -1050,84 +1171,7 @@ export function FastPropertyView({
           </div>
         )}
       </div>
-      {!isInitialAddressLoad && (
-        <>
-          <div
-            aria-label="Pool catalogue and placement controls"
-            className="border-pool-200 bg-pool-50 space-y-4 rounded-2xl border p-4"
-          >
-            <div>
-              <h3 className="text-pool-950 font-semibold">
-                Choose a pool layout
-              </h3>
-              <p className="text-pool-600 mt-1 text-sm">
-                Drag the pool or rotate it with the orange handle. The
-                indicative construction envelope is constrained to the mapped
-                area.
-              </p>
-            </div>
-            <div
-              className="grid grid-cols-1 gap-2 sm:grid-cols-3"
-              role="group"
-              aria-label="Pool catalogue"
-            >
-              {FAST_POOL_CATALOGUE.map((pool) => (
-                <button
-                  key={pool.id}
-                  type="button"
-                  aria-pressed={selectedPoolId === pool.id}
-                  onClick={() => choosePool(pool.id)}
-                  className="border-pool-300 focus-visible:outline-pool-blue-700 aria-pressed:border-pool-blue-700 aria-pressed:bg-pool-blue-50 min-h-11 rounded-xl border bg-white px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
-                >
-                  {pool.label} ({pool.lengthMetres} × {pool.widthMetres} m)
-                </button>
-              ))}
-            </div>
-            {selectedPoolId === "custom" && (
-              <div className="grid max-w-xl gap-3 sm:grid-cols-2">
-                <DimensionInput
-                  label="Custom length (m)"
-                  value={customLength}
-                  min={2}
-                  max={20}
-                  onChange={setCustomLength}
-                  invalid={
-                    !validateFastCustomDimensions(
-                      Number(customLength),
-                      Number(customWidth),
-                    )
-                  }
-                />
-                <DimensionInput
-                  label="Custom width (m)"
-                  value={customWidth}
-                  min={1.5}
-                  max={10}
-                  onChange={setCustomWidth}
-                  invalid={
-                    !validateFastCustomDimensions(
-                      Number(customLength),
-                      Number(customWidth),
-                    )
-                  }
-                />
-              </div>
-            )}
-            {!dimensions && (
-              <p role="alert" className="text-sm font-semibold text-red-700">
-                Enter a length from 2–20 m and width from 1.5–10 m in 0.1 m
-                increments.
-              </p>
-            )}
-            {placementMessage && (
-              <p role="alert" className="text-sm font-semibold text-amber-800">
-                {placementMessage}
-              </p>
-            )}
-          </div>
-          <FastPoolWarning warning={poolWarning} />
-        </>
-      )}
+      {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
       {mapError && (
         <p role="alert" className="text-sm font-semibold text-red-700">
           {mapError === "aerial"
@@ -1136,20 +1180,79 @@ export function FastPropertyView({
         </p>
       )}
       {result.aerial.state !== "ready" && (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+        <p className="rounded-sm border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
           The aerial photo is still loading. You can keep reviewing the address
           and mapped property area.
         </p>
       )}
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={onRetry}
-          className="text-pool-blue-800 text-sm font-semibold underline"
+      <div className="border-pool-200 space-y-3 border-t pt-4">
+        <p
+          className="text-pool-700 max-w-xl text-sm leading-6"
+          aria-live="polite"
         >
-          Retry property check
-        </button>
+          {result.detailedChecks?.status === "complete" ? (
+            "Available map checks loaded. You can still adjust your pool before creating your report."
+          ) : result.detailedChecks?.status === "partial" ? (
+            "Some map checks could not be loaded. Try again to check the missing information."
+          ) : (
+            <>
+              {" "}
+              <strong className="block font-semibold">
+                Happy with your pool position?
+              </strong>
+              Check for potential site constraints, or start again with another
+              property.
+            </>
+          )}
+        </p>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          {onStartAgain && (
+            <button
+              type="button"
+              onClick={onStartAgain}
+              disabled={isLoadingDetailed}
+              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              Start again
+            </button>
+          )}
+          {onLoadDetailed && (
+            <button
+              type="button"
+              onClick={onLoadDetailed}
+              disabled={
+                isInitialAddressLoad ||
+                isLoadingDetailed ||
+                result.detailedChecks?.status === "complete"
+              }
+              className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
+            >
+              {isLoadingDetailed
+                ? "Checking constraints…"
+                : isInitialAddressLoad
+                  ? "Finding property boundary…"
+                  : result.detailedChecks?.status === "complete"
+                    ? "Map checks loaded"
+                    : result.detailedChecks?.status === "partial"
+                      ? "Retry missing checks"
+                      : "Check for constraints"}
+            </button>
+          )}
+        </div>
       </div>
+      {result.detailedChecks?.status !== "complete" &&
+        (mapError || result.aerial.state === "error") && (
+          <div className="flex justify-end">
+            <button
+              type="button"
+              disabled={isLoadingDetailed || isInitialAddressLoad}
+              onClick={onRetry}
+              className="text-pool-blue-800 text-sm font-semibold underline"
+            >
+              Retry property check
+            </button>
+          </div>
+        )}
     </section>
   );
 }
@@ -1157,27 +1260,34 @@ export function FastPropertyView({
 function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
   const tone =
     warning.status === "blocked"
-      ? "border-red-200 bg-red-50 text-red-950"
+      ? "border-red-200 bg-red-50/60"
       : warning.status === "needs_checking"
-        ? "border-amber-200 bg-amber-50 text-amber-950"
-        : "border-emerald-200 bg-emerald-50 text-emerald-950";
+        ? "border-amber-200 bg-amber-50/60"
+        : "border-emerald-200 bg-emerald-50/60";
 
   return (
     <section
       aria-labelledby="pool-warning-heading"
-      className={`rounded-2xl border p-4 ${tone}`}
+      className={`rounded-sm border px-4 py-3 text-[#0d3050] ${tone}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id="pool-warning-heading" className="font-semibold">
+        <h3
+          id="pool-warning-heading"
+          className="flex items-center gap-3 font-semibold"
+        >
+          <span
+            aria-hidden="true"
+            className={`size-2 shrink-0 rounded-full ${warning.status === "blocked" ? "bg-red-600" : warning.status === "needs_checking" ? "bg-amber-600" : "bg-emerald-700"}`}
+          />
           {warning.label}
         </h3>
         <span className="text-xs font-bold tracking-wide uppercase">
           Live pool check
         </span>
       </div>
-      <p className="mt-2 text-sm leading-6">{warning.text}</p>
+      <p className="mt-2 pl-5 text-sm leading-6">{warning.text}</p>
       {warning.recommendation && (
-        <p className="mt-2 text-sm leading-6 font-semibold">
+        <p className="mt-2 pl-5 text-sm leading-6 font-semibold">
           Recommendation: {warning.recommendation}
         </p>
       )}
@@ -1194,7 +1304,7 @@ function Progress({
 }) {
   return (
     <li
-      className={`rounded-xl border px-3 py-2 ${state === "complete" ? "border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900" : state === "partial" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-pool-200 bg-pool-50 text-pool-700"}`}
+      className={`rounded-sm border px-3 py-2 ${state === "complete" ? "border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900" : state === "partial" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-pool-200 bg-pool-50 text-pool-700"}`}
     >
       {label}
     </li>
@@ -1361,19 +1471,35 @@ function rotationHandleGeometry(
   position: [number, number],
   rotationDegrees: number,
   dimensions: { lengthMetres: number; widthMetres: number } | null | undefined,
+  map?: Pick<import("maplibre-gl").Map, "project" | "unproject">,
 ) {
   if (!dimensions) return { type: "FeatureCollection" as const, features: [] };
+  const envelope = fastPoolConstructionEnvelopeDimensions(dimensions);
   const pool = buildFastPoolGeometry(
     position,
-    dimensions.lengthMetres,
-    dimensions.widthMetres,
+    envelope.lengthMetres,
+    envelope.widthMetres,
     rotationDegrees,
   );
   const [first, second] = pool.geometry.coordinates[0];
-  const handle: [number, number] = [
+  let handle: [number, number] = [
     (first[0] + second[0]) / 2,
     (first[1] + second[1]) / 2,
   ];
+  if (map) {
+    const centre = map.project(position);
+    const edge = map.project(handle);
+    const distance = Math.hypot(edge.x - centre.x, edge.y - centre.y);
+    if (distance > 0) {
+      // 22px button radius, 8px gap, plus clearance for the orange stroke.
+      handle = map
+        .unproject([
+          edge.x + ((edge.x - centre.x) / distance) * 32,
+          edge.y + ((edge.y - centre.y) / distance) * 32,
+        ])
+        .toArray() as [number, number];
+    }
+  }
   return {
     type: "FeatureCollection" as const,
     features: [
@@ -1422,7 +1548,7 @@ function DimensionInput({
         step="0.1"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="border-pool-300 focus:border-pool-blue-700 focus:outline-pool-blue-700 mt-1 block min-h-11 w-full rounded-xl border bg-white px-3 focus:outline-2 aria-[invalid=true]:border-red-500"
+        className="border-pool-300 focus:border-pool-blue-700 focus:outline-pool-blue-700 mt-1 block min-h-11 w-full rounded-sm border bg-white px-3 focus:outline-2 aria-[invalid=true]:border-red-500"
       />
     </label>
   );
