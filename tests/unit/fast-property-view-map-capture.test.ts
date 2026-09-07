@@ -1,6 +1,43 @@
 import { afterEach, expect, it, vi } from "vitest";
 import { captureFastPropertyViewMap, captureWithoutRotationControls } from "@/modules/reporting/fast-property-view-map-capture";
 import type { PoolShellClearance } from "@/modules/spatial/pool-shell-clearances";
+import { Evented } from "maplibre-gl";
+
+it("captures a rendered controls-free frame when started inside MapLibre idle", async () => {
+  const events = new Evented();
+  let visibility = "visible";
+  let renderedVisibility = "visible";
+  const map = Object.assign(events, {
+    getLayer: () => ({}),
+    getLayoutProperty: () => visibility,
+    setLayoutProperty: (_id: string, _property: string, value: string) => {
+      visibility = value;
+    },
+  });
+  const capture = vi.fn(() => renderedVisibility);
+  let pending: Promise<string> | undefined;
+  let started = false;
+  events.on("idle", () => {
+    if (started) return;
+    started = true;
+    pending = captureWithoutRotationControls(
+      map as unknown as Parameters<typeof captureWithoutRotationControls>[0],
+      capture,
+    );
+  });
+  events.fire("idle");
+  await Promise.resolve();
+  await Promise.resolve();
+  expect(capture).not.toHaveBeenCalled();
+  renderedVisibility = visibility;
+  events.fire("idle");
+  await Promise.resolve();
+  expect(capture).toHaveReturnedWith("none");
+  renderedVisibility = visibility;
+  events.fire("idle");
+  await expect(pending).resolves.toBe("none");
+  expect(renderedVisibility).toBe("visible");
+});
 
 const clearances: PoolShellClearance[] = [
   { id: "pool-shell-side-1", label: "1.2 m", metres: 1.2, start: [3, 3], end: [3, 2.5] },

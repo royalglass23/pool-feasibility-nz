@@ -179,6 +179,7 @@ export function FastPropertyView({
     () => undefined,
   );
   const snapshotHandlerRef = useRef(onSnapshotReady);
+  const snapshotRevisionRef = useRef(0);
   const [mapError, setMapError] = useState<"aerial" | "map" | null>(null);
   const [selectedPoolId, setSelectedPoolId] = useState<FastPoolId>("compact");
   const [customLength, setCustomLength] = useState("6.5");
@@ -703,7 +704,10 @@ export function FastPropertyView({
               : "map",
           );
         });
-        map.on("movestart", () => snapshotHandlerRef.current?.(null));
+        map.on("movestart", () => {
+          snapshotRevisionRef.current += 1;
+          snapshotHandlerRef.current?.(null);
+        });
         map.on("move", () =>
           positionPoolShellClearanceLabels(
             map!,
@@ -716,24 +720,28 @@ export function FastPropertyView({
           if (capturingSnapshot || disposed || !map) return;
           capturingSnapshot = true;
           try {
-            const imageDataUrl = map
-              ? await captureWithoutRotationControls(map, () =>
-                  captureFastPropertyViewMap({
-                    map: map!,
-                    clearances: poolShellClearancesRef.current,
-                    visible: clearancesVisibleRef.current,
-                  }),
-                )
-              : null;
-            if (disposed) return;
-            snapshotHandlerRef.current?.(
-              imageDataUrl
-                ? {
-                    imageDataUrl,
-                    visibleLayerKeys: [...visibleMapLayerKeysRef.current],
-                  }
-                : null,
-            );
+            while (!disposed) {
+              const revision = snapshotRevisionRef.current;
+              const snapshot = await captureWithoutRotationControls(map, () => {
+                const imageDataUrl = captureFastPropertyViewMap({
+                  map: map!,
+                  clearances: poolShellClearancesRef.current,
+                  visible: clearancesVisibleRef.current,
+                });
+                return imageDataUrl
+                  ? {
+                      imageDataUrl,
+                      visibleLayerKeys: [...visibleMapLayerKeysRef.current],
+                    }
+                  : null;
+              });
+              if (disposed) return;
+              // Idle events during restoration are suppressed; retry here if
+              // the user changed the map while this capture was in progress.
+              if (revision !== snapshotRevisionRef.current) continue;
+              snapshotHandlerRef.current?.(snapshot);
+              break;
+            }
           } catch {
             if (!disposed) snapshotHandlerRef.current?.(null);
           } finally {
@@ -834,6 +842,7 @@ export function FastPropertyView({
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
+    snapshotRevisionRef.current += 1;
     snapshotHandlerRef.current?.(null);
     if (map.getLayer("contours")) {
       map.setLayoutProperty(
@@ -857,6 +866,7 @@ export function FastPropertyView({
   useEffect(() => {
     const map = mapInstanceRef.current;
     if (!map) return;
+    snapshotRevisionRef.current += 1;
     snapshotHandlerRef.current?.(null);
     const emptyGeometry = {
       type: "FeatureCollection" as const,

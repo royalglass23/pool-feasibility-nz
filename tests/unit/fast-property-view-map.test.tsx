@@ -12,7 +12,11 @@ const {
   markerOffsets,
   getLayer,
   queryRenderedFeatures,
+  waitForIdle,
+  canvasSnapshot,
 } = vi.hoisted(() => ({
+  waitForIdle: vi.fn<() => Promise<void>>(() => Promise.resolve()),
+  canvasSnapshot: vi.fn(() => "data:image/png;base64,"),
   getLayer: vi.fn<(id: string) => object | undefined>(() => ({})),
   queryRenderedFeatures: vi.fn<(...args: unknown[]) => unknown[]>(() => []),
   mapCreated: vi.fn(),
@@ -40,7 +44,7 @@ vi.mock("maplibre-gl", () => {
     addControl() {}
     getCanvas() {
       return {
-        toDataURL: () => "data:image/png;base64,",
+        toDataURL: canvasSnapshot,
         style: { setProperty() {} },
       };
     }
@@ -65,6 +69,7 @@ vi.mock("maplibre-gl", () => {
         typeof layerOrHandler === "function" ? layerOrHandler : handler;
       if (!listener) return;
       if (event === "idle") {
+        mapEventHandlers.set("idle:map", listener);
         listener({} as MapEvent);
         return;
       }
@@ -83,7 +88,7 @@ vi.mock("maplibre-gl", () => {
       return "visible";
     }
     once() {
-      return Promise.resolve();
+      return waitForIdle();
     }
     fitBounds(...args: unknown[]) {
       fitBounds(...args);
@@ -139,7 +144,57 @@ afterEach(() => {
   mapEventHandlers.clear();
   markerOffsets.length = 0;
   vi.unstubAllGlobals();
+  waitForIdle.mockReset().mockImplementation(() => Promise.resolve());
+  canvasSnapshot.mockReset().mockReturnValue("data:image/png;base64,");
 });
+
+it.each(["layer", "camera", "clearances"])(
+  "replaces a snapshot invalidated by a %s change during restoration",
+  async (change) => {
+    const idleFrames: Array<() => void> = [];
+    waitForIdle.mockImplementation(
+      () => new Promise<void>((resolve) => idleFrames.push(resolve)),
+    );
+    canvasSnapshot.mockReturnValue("data:image/png;base64,old");
+    const onSnapshotReady = vi.fn();
+    render(
+      <FastPropertyView
+        result={fastResult}
+        onRetry={() => {}}
+        onSnapshotReady={onSnapshotReady}
+      />,
+    );
+    await waitFor(() => expect(idleFrames).toHaveLength(1));
+    idleFrames.shift()!();
+    await waitFor(() => expect(canvasSnapshot).toHaveBeenCalled());
+    if (change === "camera") {
+      mapEventHandlers.get("movestart:map")?.({} as MapEvent);
+    } else {
+      await userEvent.setup().click(
+        screen.getByRole("checkbox", {
+          name:
+            change === "layer" ? "Wastewater" : "Show pool-shell clearances",
+        }),
+      );
+    }
+    canvasSnapshot.mockReturnValue("data:image/png;base64,new");
+    mapEventHandlers.get("idle:map")?.({} as MapEvent);
+    idleFrames.shift()!();
+    await waitFor(() => expect(idleFrames).toHaveLength(1));
+    expect(
+      onSnapshotReady.mock.calls.some(([snapshot]) => snapshot !== null),
+    ).toBe(false);
+    idleFrames.shift()!();
+    await waitFor(() => expect(idleFrames).toHaveLength(1));
+    idleFrames.shift()!();
+    await waitFor(() =>
+      expect(onSnapshotReady).toHaveBeenLastCalledWith({
+        imageDataUrl: "data:image/png;base64,new",
+        visibleLayerKeys: change === "layer" ? [] : ["wastewater_assets"],
+      }),
+    );
+  },
+);
 
 it("shows detailed map controls without restoring the detailed checks panel", async () => {
   render(

@@ -137,6 +137,9 @@ export async function captureWithoutRotationControls<T>(
     (id) => map.getLayoutProperty(id, "visibility") ?? "visible",
   );
   try {
+    // MapLibre adds one-time listeners during the current idle dispatch.
+    // Leave that dispatch before waiting for the newly hidden frame.
+    await Promise.resolve();
     layers.forEach((id) => map.setLayoutProperty(id, "visibility", "none"));
     await map.once("idle");
     return capture();
