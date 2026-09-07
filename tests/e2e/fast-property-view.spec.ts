@@ -129,7 +129,9 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
     ).toHaveCount(0);
     await expect(
       page.getByRole("list", { name: "Fast view progress" }),
-    ).toContainText("Address found. Choose a pool size and try a position.");
+    ).toContainText(
+      "Address found. Next, choose a pool size, then move and rotate it into your preferred position.",
+    );
     await expect(page.getByText("Mapped boundary found")).toHaveCount(0);
     await expect(page.getByText("Aerial image ready")).toHaveCount(0);
     await expect(page.getByText("Detailed checks not loaded")).toHaveCount(0);

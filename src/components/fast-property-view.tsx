@@ -916,7 +916,7 @@ export function FastPropertyView({
           label={
             isInitialAddressLoad
               ? "Address found"
-              : "Address found. Choose a pool size and try a position."
+              : "Address found. Next, choose a pool size, then move and rotate it into your preferred position."
           }
           state="complete"
         />
@@ -1118,7 +1118,7 @@ export function FastPropertyView({
                 </ul>
               </>
             ) : (
-              <p className="text-pool-600 mt-4 text-sm leading-6">
+              <p className="border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900 mt-4 rounded-xl border px-3 py-2 text-sm leading-6">
                 Select “Check for constraints” to see terrain contours and
                 mapped services.
               </p>
