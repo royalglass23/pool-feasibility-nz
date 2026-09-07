@@ -892,7 +892,7 @@ export function FastPropertyView({
   return (
     <section
       aria-labelledby="fast-view-heading"
-      className="space-y-5 border border-[#c8dce8] bg-white p-5 text-[#0d3050] sm:p-7"
+      className="space-y-5 rounded-sm border border-[#c8dce8] bg-white p-5 text-[#0d3050] sm:p-7"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -924,7 +924,7 @@ export function FastPropertyView({
           <Progress label="Finding the property boundary…" state="pending" />
         )}
       </ol>
-      <div className="border-pool-200 overflow-hidden rounded-[2px] border">
+      <div className="border-pool-200 overflow-hidden rounded-sm border">
         <div className="grid lg:grid-cols-[minmax(0,1fr)_22rem]">
           {!isInitialAddressLoad && (
             <div
@@ -1146,7 +1146,7 @@ export function FastPropertyView({
                 </ul>
               </>
             ) : (
-              <p className="border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900 mt-4 rounded-[2px] border px-3 py-2 text-sm leading-6">
+              <p className="border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900 mt-4 rounded-sm border px-3 py-2 text-sm leading-6">
                 Select “Check for constraints” to see terrain contours and
                 mapped services.
               </p>
@@ -1172,7 +1172,7 @@ export function FastPropertyView({
         </p>
       )}
       {result.aerial.state !== "ready" && (
-        <p className="rounded-[2px] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+        <p className="rounded-sm border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
           The aerial photo is still loading. You can keep reviewing the address
           and mapped property area.
         </p>
@@ -1203,7 +1203,7 @@ export function FastPropertyView({
               type="button"
               onClick={onStartAgain}
               disabled={isLoadingDetailed}
-              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-[2px] border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Start again
             </button>
@@ -1217,7 +1217,7 @@ export function FastPropertyView({
                 isLoadingDetailed ||
                 result.detailedChecks?.status === "complete"
               }
-              className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-[2px] px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
+              className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
             >
               {isLoadingDetailed
                 ? "Checking constraints…"
@@ -1260,7 +1260,7 @@ function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
   return (
     <section
       aria-labelledby="pool-warning-heading"
-      className={`rounded-[2px] border px-4 py-3 text-[#0d3050] ${tone}`}
+      className={`rounded-sm border px-4 py-3 text-[#0d3050] ${tone}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h3
@@ -1296,7 +1296,7 @@ function Progress({
 }) {
   return (
     <li
-      className={`rounded-[2px] border px-3 py-2 ${state === "complete" ? "border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900" : state === "partial" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-pool-200 bg-pool-50 text-pool-700"}`}
+      className={`rounded-sm border px-3 py-2 ${state === "complete" ? "border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900" : state === "partial" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-pool-200 bg-pool-50 text-pool-700"}`}
     >
       {label}
     </li>
@@ -1524,7 +1524,7 @@ function DimensionInput({
         step="0.1"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="border-pool-300 focus:border-pool-blue-700 focus:outline-pool-blue-700 mt-1 block min-h-11 w-full rounded-[2px] border bg-white px-3 focus:outline-2 aria-[invalid=true]:border-red-500"
+        className="border-pool-300 focus:border-pool-blue-700 focus:outline-pool-blue-700 mt-1 block min-h-11 w-full rounded-sm border bg-white px-3 focus:outline-2 aria-[invalid=true]:border-red-500"
       />
     </label>
   );

@@ -85,7 +85,7 @@ export function FeasibilityAssessmentResult({
               <h4 className="font-semibold text-pool-950">
                 {humanize(category.id)}
               </h4>
-              <span className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-pool-700 ring-1 ring-pool-300">
+              <span className="rounded-sm bg-white px-2.5 py-1 text-xs font-bold text-pool-700 ring-1 ring-pool-300">
                 {category.awardedPoints === null
                   ? `Unknown / ${category.maximumPoints}`
                   : `${category.awardedPoints} / ${category.maximumPoints}`}

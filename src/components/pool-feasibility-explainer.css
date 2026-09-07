@@ -3,7 +3,7 @@
   max-width: 480px;
   aspect-ratio: 480 / 445;
   overflow: hidden;
-  border-radius: 18px;
+  border-radius: var(--radius);
   background: #dbe8f0;
   box-shadow: 0 14px 30px -24px rgb(8 39 34 / 65%);
   contain: layout paint;

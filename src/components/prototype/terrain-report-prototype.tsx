@@ -186,7 +186,7 @@ export function VariantC() {
     <main className="min-h-[calc(100vh-4rem)] bg-[#112a27] px-4 pt-5 pb-28 text-[#edf5f1] sm:px-7 lg:px-9">
       <div className="mx-auto max-w-[1500px]">
         <PrototypeHeader label="Decision dossier study" inverse />
-        <div className="mt-5 overflow-hidden rounded-[1.5rem] border border-white/14 bg-[#17332f] shadow-[0_32px_90px_rgba(0,0,0,0.22)]">
+        <div className="mt-5 overflow-hidden rounded-sm border border-white/14 bg-[#17332f] shadow-[0_32px_90px_rgba(0,0,0,0.22)]">
           <div className="grid lg:grid-cols-[minmax(0,1fr)_23rem]">
             <section
               className="relative min-h-[520px] lg:min-h-[720px]"
@@ -495,7 +495,7 @@ function MapPanel({
   children: React.ReactNode;
 }) {
   return (
-    <section className="overflow-hidden rounded-[1.15rem] border border-[#b7c9c2] bg-white shadow-[0_16px_45px_rgba(28,62,55,0.1)]">
+    <section className="overflow-hidden rounded-sm border border-[#b7c9c2] bg-white shadow-[0_16px_45px_rgba(28,62,55,0.1)]">
       <div className="flex items-end justify-between gap-4 border-b border-[#d4e0dc] px-4 py-3">
         <div>
           <p className="font-mono text-[0.6rem] tracking-[0.13em] text-[#72877f] uppercase">

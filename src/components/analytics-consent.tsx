@@ -165,7 +165,7 @@ export function AnalyticsConsent({
           type="button"
           aria-expanded={settingsOpen}
           onClick={() => setSettingsOverride(!settingsOpen)}
-          className="border-pool-300 text-pool-800 hover:border-pool-blue-700 hover:text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-11 rounded-full border bg-white px-4 text-sm font-semibold shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="border-pool-300 text-pool-800 hover:border-pool-blue-700 hover:text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           Analytics settings
         </button>

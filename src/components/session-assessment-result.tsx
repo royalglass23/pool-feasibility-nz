@@ -44,7 +44,7 @@ export function SessionAssessmentResult({
                     {risk.title}
                   </h5>
                 </div>
-                <p className="rounded-full bg-white px-2.5 py-1 text-xs font-bold text-pool-700 ring-1 ring-pool-300">
+                <p className="rounded-sm bg-white px-2.5 py-1 text-xs font-bold text-pool-700 ring-1 ring-pool-300">
                   {humanize(risk.severity)} severity ·{" "}
                   {humanize(risk.confidence)} confidence
                 </p>

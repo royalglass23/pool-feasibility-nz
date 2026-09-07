@@ -54,7 +54,7 @@ export function PrototypeSwitcher({
   return (
     <nav
       aria-label="Prototype variants"
-      className="fixed bottom-5 left-1/2 z-[100] flex -translate-x-1/2 items-center gap-2 rounded-full border border-white/20 bg-[#102523]/95 p-1.5 text-white shadow-[0_18px_55px_rgba(3,18,16,0.38)] backdrop-blur-md"
+      className="fixed bottom-5 left-1/2 z-[100] flex -translate-x-1/2 items-center gap-2 rounded-sm border border-white/20 bg-[#102523]/95 p-1.5 text-white shadow-[0_18px_55px_rgba(3,18,16,0.38)] backdrop-blur-md"
     >
       <button
         type="button"

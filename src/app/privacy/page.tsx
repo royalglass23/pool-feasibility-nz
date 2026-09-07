@@ -10,7 +10,7 @@ export const metadata: Metadata = {
 export default function PrivacyNoticePage() {
   return (
     <main className="min-h-screen bg-[#f5faff] px-4 py-10 text-[#062f5d] sm:px-6 sm:py-16">
-      <article className="mx-auto w-full max-w-3xl rounded-[1.75rem] border border-[#dbe8f0] bg-white p-6 shadow-[0_24px_70px_-48px_rgba(24,50,47,0.55)] sm:p-10">
+      <article className="mx-auto w-full max-w-3xl rounded-sm border border-[#dbe8f0] bg-white p-6 shadow-[0_24px_70px_-48px_rgba(24,50,47,0.55)] sm:p-10">
         <p className="text-sm font-semibold tracking-[0.02em] text-[#5c7e96]">
           PoolReady reports and enquiries
         </p>
