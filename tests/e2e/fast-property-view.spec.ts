@@ -244,7 +244,7 @@ test("supports the pool catalogue and bounded custom input", async ({
   await page.keyboard.press("Enter");
   const catalogue = page.getByRole("group", { name: "Pool catalogue" });
   await expect(catalogue).toBeVisible();
-  await expect(catalogue).toHaveClass(/sm:grid-cols-3/);
+
   const placementControls = page.getByLabel(
     "Pool catalogue and placement controls",
   );

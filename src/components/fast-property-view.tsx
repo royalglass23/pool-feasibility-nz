@@ -892,7 +892,7 @@ export function FastPropertyView({
   return (
     <section
       aria-labelledby="fast-view-heading"
-      className="space-y-5 rounded-3xl border border-white/70 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.35)] sm:p-7"
+      className="space-y-5 border border-[#c8dce8] bg-white p-5 text-[#0d3050] sm:p-7"
     >
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
@@ -910,7 +910,7 @@ export function FastPropertyView({
       </div>
       <ol
         aria-label="Fast view progress"
-        className="grid gap-2 text-sm sm:max-w-xl"
+        className="grid gap-2 text-sm lg:mr-[22rem]"
       >
         <Progress
           label={
@@ -924,8 +924,8 @@ export function FastPropertyView({
           <Progress label="Finding the property boundary…" state="pending" />
         )}
       </ol>
-      <div className="border-pool-200 overflow-hidden rounded-2xl border">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="border-pool-200 overflow-hidden rounded-[2px] border">
+        <div className="grid lg:grid-cols-[minmax(0,1fr)_22rem]">
           {!isInitialAddressLoad && (
             <div
               aria-label="Pool catalogue and placement controls"
@@ -940,7 +940,7 @@ export function FastPropertyView({
                 </p>
               </div>
               <div
-                className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:grid-cols-1"
+                className="grid grid-cols-1 border-t border-[#c8dce8]"
                 role="group"
                 aria-label="Pool catalogue"
               >
@@ -949,10 +949,38 @@ export function FastPropertyView({
                     key={pool.id}
                     type="button"
                     aria-pressed={selectedPoolId === pool.id}
+                    aria-label={`${pool.label} (${pool.lengthMetres} × ${pool.widthMetres} m)`}
                     onClick={() => choosePool(pool.id)}
-                    className="border-pool-300 focus-visible:outline-pool-blue-700 aria-pressed:border-pool-blue-700 aria-pressed:bg-pool-blue-50 min-h-11 rounded-xl border bg-white px-3 py-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+                    className="group grid min-h-16 grid-cols-[3rem_1fr_auto_1rem] items-center gap-3 border-b border-[#c8dce8] bg-white px-3 py-3 text-left text-sm text-[#0d3050] transition-colors hover:bg-[#edf8fd] focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd] aria-pressed:bg-[#03a9ee]"
                   >
-                    {pool.label} ({pool.lengthMetres} × {pool.widthMetres} m)
+                    <svg
+                      aria-hidden="true"
+                      viewBox="0 0 52 30"
+                      className="h-8 w-12 text-[#0077bd] group-aria-pressed:text-[#0d3050]"
+                    >
+                      <rect
+                        x={(52 - (44 * pool.lengthMetres) / 10) / 2}
+                        y={(30 - (24 * pool.widthMetres) / 4.4) / 2}
+                        width={(44 * pool.lengthMetres) / 10}
+                        height={(24 * pool.widthMetres) / 4.4}
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="1.25"
+                        strokeDasharray={
+                          pool.id === "custom" ? "2 2" : undefined
+                        }
+                      />
+                    </svg>
+                    <span className="font-semibold">{pool.label}</span>
+                    <span className="text-xs whitespace-nowrap tabular-nums">
+                      {pool.lengthMetres} × {pool.widthMetres} m
+                    </span>
+                    <span
+                      aria-hidden="true"
+                      className="text-base font-semibold"
+                    >
+                      {selectedPoolId === pool.id ? "✓" : ""}
+                    </span>
                   </button>
                 ))}
               </div>
@@ -1118,7 +1146,7 @@ export function FastPropertyView({
                 </ul>
               </>
             ) : (
-              <p className="border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900 mt-4 rounded-xl border px-3 py-2 text-sm leading-6">
+              <p className="border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900 mt-4 rounded-[2px] border px-3 py-2 text-sm leading-6">
                 Select “Check for constraints” to see terrain contours and
                 mapped services.
               </p>
@@ -1144,7 +1172,7 @@ export function FastPropertyView({
         </p>
       )}
       {result.aerial.state !== "ready" && (
-        <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+        <p className="rounded-[2px] border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
           The aerial photo is still loading. You can keep reviewing the address
           and mapped property area.
         </p>
@@ -1175,7 +1203,7 @@ export function FastPropertyView({
               type="button"
               onClick={onStartAgain}
               disabled={isLoadingDetailed}
-              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-[2px] border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
             >
               Start again
             </button>
@@ -1189,7 +1217,7 @@ export function FastPropertyView({
                 isLoadingDetailed ||
                 result.detailedChecks?.status === "complete"
               }
-              className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-xl px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
+              className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-[2px] px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
             >
               {isLoadingDetailed
                 ? "Checking constraints…"
@@ -1224,27 +1252,34 @@ export function FastPropertyView({
 function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
   const tone =
     warning.status === "blocked"
-      ? "border-red-200 bg-red-50 text-red-950"
+      ? "border-red-200 bg-red-50/60"
       : warning.status === "needs_checking"
-        ? "border-amber-200 bg-amber-50 text-amber-950"
-        : "border-emerald-200 bg-emerald-50 text-emerald-950";
+        ? "border-amber-200 bg-amber-50/60"
+        : "border-emerald-200 bg-emerald-50/60";
 
   return (
     <section
       aria-labelledby="pool-warning-heading"
-      className={`rounded-2xl border p-4 ${tone}`}
+      className={`rounded-[2px] border px-4 py-3 text-[#0d3050] ${tone}`}
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h3 id="pool-warning-heading" className="font-semibold">
+        <h3
+          id="pool-warning-heading"
+          className="flex items-center gap-3 font-semibold"
+        >
+          <span
+            aria-hidden="true"
+            className={`size-2 shrink-0 rounded-full ${warning.status === "blocked" ? "bg-red-600" : warning.status === "needs_checking" ? "bg-amber-600" : "bg-emerald-700"}`}
+          />
           {warning.label}
         </h3>
         <span className="text-xs font-bold tracking-wide uppercase">
           Live pool check
         </span>
       </div>
-      <p className="mt-2 text-sm leading-6">{warning.text}</p>
+      <p className="mt-2 pl-5 text-sm leading-6">{warning.text}</p>
       {warning.recommendation && (
-        <p className="mt-2 text-sm leading-6 font-semibold">
+        <p className="mt-2 pl-5 text-sm leading-6 font-semibold">
           Recommendation: {warning.recommendation}
         </p>
       )}
@@ -1261,7 +1296,7 @@ function Progress({
 }) {
   return (
     <li
-      className={`rounded-xl border px-3 py-2 ${state === "complete" ? "border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900" : state === "partial" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-pool-200 bg-pool-50 text-pool-700"}`}
+      className={`rounded-[2px] border px-3 py-2 ${state === "complete" ? "border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900" : state === "partial" ? "border-amber-200 bg-amber-50 text-amber-900" : "border-pool-200 bg-pool-50 text-pool-700"}`}
     >
       {label}
     </li>
@@ -1489,7 +1524,7 @@ function DimensionInput({
         step="0.1"
         value={value}
         onChange={(event) => onChange(event.target.value)}
-        className="border-pool-300 focus:border-pool-blue-700 focus:outline-pool-blue-700 mt-1 block min-h-11 w-full rounded-xl border bg-white px-3 focus:outline-2 aria-[invalid=true]:border-red-500"
+        className="border-pool-300 focus:border-pool-blue-700 focus:outline-pool-blue-700 mt-1 block min-h-11 w-full rounded-[2px] border bg-white px-3 focus:outline-2 aria-[invalid=true]:border-red-500"
       />
     </label>
   );
