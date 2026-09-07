@@ -5,6 +5,14 @@ export type ReportMapLayerStyle = {
   dashed?: boolean;
 };
 
+// Shared by the current property map and the legend for its saved captures.
+// Selection stays blue; assessment status is shown separately in the report.
+export const SELECTED_POOL_MAP_STYLE = {
+  colour: "#2563eb",
+  outline: "#1e40af",
+  opacity: 0.72,
+} as const;
+
 export const REPORT_MAP_BASE_STYLES = {
   boundary: {
     label: "Mapped property boundary",

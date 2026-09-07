@@ -6,6 +6,7 @@ import {
 } from "@/modules/spatial/pool-shell-clearances";
 import {
   REPORT_MAP_BASE_STYLES,
+  SELECTED_POOL_MAP_STYLE,
   reportMapLayerKey,
   reportMapLayerStyle,
   reportMapPoolStyle,
@@ -60,7 +61,9 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
       id: "selected-pool",
       ...reportMapPoolStyle(report.warningState),
       // Saved fast-view images use a blue pool, independent of the assessment result.
-      ...(isFastPropertyViewCapture ? { colour: "#2563eb" } : {}),
+      ...(isFastPropertyViewCapture
+        ? { colour: SELECTED_POOL_MAP_STYLE.colour }
+        : {}),
       kind: "area",
     },
     {
