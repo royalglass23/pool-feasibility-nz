@@ -4,16 +4,26 @@ import userEvent from "@testing-library/user-event";
 import { FastPropertyView } from "@/components/fast-property-view";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 
-const { mapCreated, mapStyles, fitBounds, mapEventHandlers, markerOffsets } =
-  vi.hoisted(() => ({
-    mapCreated: vi.fn(),
-    mapStyles: vi.fn(),
-    fitBounds: vi.fn(),
-    mapEventHandlers: new globalThis.Map<string, (event: MapEvent) => void>(),
-    markerOffsets: [] as [number, number][],
-  }));
+const {
+  mapCreated,
+  mapStyles,
+  fitBounds,
+  mapEventHandlers,
+  markerOffsets,
+  getLayer,
+  queryRenderedFeatures,
+} = vi.hoisted(() => ({
+  getLayer: vi.fn<(id: string) => object | undefined>(() => ({})),
+  queryRenderedFeatures: vi.fn<(...args: unknown[]) => unknown[]>(() => []),
+  mapCreated: vi.fn(),
+  mapStyles: vi.fn(),
+  fitBounds: vi.fn(),
+  mapEventHandlers: new globalThis.Map<string, (event: MapEvent) => void>(),
+  markerOffsets: [] as [number, number][],
+}));
 
 type MapEvent = {
+  type?: string;
   point: { coordinates: [number, number] };
   originalEvent: { stopPropagation: () => void };
   error?: { message: string };
@@ -40,8 +50,11 @@ vi.mock("maplibre-gl", () => {
     project([longitude, latitude]: [number, number]) {
       return { x: longitude * 1_000_000, y: latitude * -1_000_000 };
     }
-    getLayer() {
-      return {};
+    getLayer(id: string) {
+      return getLayer(id);
+    }
+    queryRenderedFeatures(...args: unknown[]) {
+      return queryRenderedFeatures(...args);
     }
     on(
       event: string,
@@ -613,3 +626,29 @@ const fastResult = {
     ],
   },
 } as unknown as FastPropertyViewResult;
+
+it("waits for pool interaction layers before querying a hovering pointer", async () => {
+  render(<FastPropertyView result={fastResult} onRetry={() => {}} />);
+  await waitFor(() =>
+    expect(mapEventHandlers.get("mousemove:map")).toBeTypeOf("function"),
+  );
+  const event = {
+    type: "mousemove",
+    point: { coordinates: [174.6082, -36.8603] },
+    originalEvent: { stopPropagation() {} },
+  } as MapEvent;
+  try {
+    getLayer.mockImplementation((id) =>
+      id === "pool-rotation-handle" ? undefined : {},
+    );
+    mapEventHandlers.get("mousemove:map")!(event);
+    expect(queryRenderedFeatures).not.toHaveBeenCalled();
+    getLayer.mockImplementation(() => ({}));
+    mapEventHandlers.get("mousemove:map")!(event);
+    expect(queryRenderedFeatures).toHaveBeenCalledWith(event.point, {
+      layers: ["pool-rotation-handle", "pool-fill"],
+    });
+  } finally {
+    getLayer.mockImplementation(() => ({}));
+  }
+});

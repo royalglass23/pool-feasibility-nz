@@ -735,6 +735,16 @@ export function FastPropertyView({
           | import("maplibre-gl").MapTouchEvent;
         const updateInteraction = (event: PoolInteractionEvent) => {
           if (!interaction && event.type === "mousemove" && map) {
+            // Pointer events can arrive before the style's layers are ready.
+            // Querying a missing layer emits a MapLibre error even when the
+            // map subsequently loads successfully.
+            if (
+              !map.getLayer("pool-rotation-handle") ||
+              !map.getLayer("pool-fill")
+            ) {
+              map.getCanvas().style.cursor = "";
+              return;
+            }
             const target = map.queryRenderedFeatures(event.point, {
               layers: ["pool-rotation-handle", "pool-fill"],
             })[0];
