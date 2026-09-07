@@ -97,6 +97,19 @@ pages and APIs validate the database-backed Admin session on the server.
 legacy `/api/internal/*` diagnostic endpoints. The public browser flow does not
 send or depend on those shared Basic credentials.
 
+## Speed Insights
+
+Vercel Speed Insights is installed on the public Property Check (`/`) through
+the existing analytics consent component. It loads only after **Allow analytics**,
+checks consent again before each event, and removes URL query strings and fragments.
+Staff, saved-report, and other routes are excluded. No additional environment
+variable is required, and this also works on the deployed custom domain.
+
+After deployment, open the Vercel project's **Speed Insights** tab to confirm
+collection (enable the free tier there if prompted). Visit the public site and
+allow analytics to generate measurements. This installation does not enable a
+paid Plus upgrade. Consent and low traffic can limit the available sample.
+
 ## Quality commands
 
 ```bash

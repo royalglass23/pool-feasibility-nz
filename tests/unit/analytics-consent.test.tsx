@@ -10,6 +10,10 @@ vi.mock("next/script", () => ({
   ),
 }));
 
+vi.mock("@vercel/speed-insights/next", () => ({
+  SpeedInsights: () => <span data-testid="speed-insights" />,
+}));
+
 describe("analytics consent", () => {
   beforeEach(() => {
     localStorage.clear();
@@ -72,8 +76,10 @@ describe("analytics consent", () => {
 
     const pixel = () => container.querySelector('img[src*="tracker.metricool.com"]');
     expect(pixel()).toBeNull();
+    expect(within(container).queryByTestId("speed-insights")).toBeNull();
     await user.click(await screen.findByRole("button", { name: "Reject analytics" }));
     expect(pixel()).toBeNull();
+    expect(within(container).queryByTestId("speed-insights")).toBeNull();
     await user.click(within(container).getByRole("button", { name: "Analytics settings" }));
 
     await user.click(
@@ -83,10 +89,12 @@ describe("analytics consent", () => {
     expect(localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY)).toBe("granted");
     expect(container.querySelector("script")).toBeNull();
     expect(pixel()).toHaveAttribute("referrerpolicy", "no-referrer");
+    expect(within(container).getByTestId("speed-insights")).toBeInTheDocument();
 
     await user.click(within(container).getByRole("button", { name: "Analytics settings" }));
     await user.click(screen.getByRole("button", { name: "Turn analytics off" }));
     expect(pixel()).toBeNull();
+    expect(within(container).queryByTestId("speed-insights")).toBeNull();
   });
 
   it("loads Hotjar only after consent and clears its browser storage on withdrawal", async () => {

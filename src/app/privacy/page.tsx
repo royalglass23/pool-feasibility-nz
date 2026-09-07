@@ -45,6 +45,14 @@ export default function PrivacyNoticePage() {
         </NoticeSection>
 
         <NoticeSection title="Optional analytics">
+          <p className="mb-4">
+            Vercel Speed Insights measures loading speed, responsiveness, and
+            visual stability on the Property Check after you allow analytics.
+            It receives performance measurements and browser, device, and
+            network information. We remove URL query strings and fragments,
+            exclude staff and saved-report pages, and stop sending measurements
+            when you turn analytics off.
+          </p>
           <p>
             If you choose <strong>Allow analytics</strong> on the Property
             Check, Hotjar records anonymous interaction patterns to help
@@ -79,6 +87,11 @@ export default function PrivacyNoticePage() {
 
         <NoticeSection title="Services that process a request">
           <ul className="grid gap-3">
+            <li>
+              <strong className="text-[#062f5d]">Vercel</strong> hosts PoolReady
+              and receives optional Speed Insights performance measurements
+              after you allow analytics.
+            </li>
             <li>
               <strong className="text-[#062f5d]">Metricool</strong> receives
               the tracking pixel request only after you allow analytics. It is
