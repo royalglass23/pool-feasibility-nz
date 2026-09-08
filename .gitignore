@@ -17,6 +17,12 @@
 /output/playwright/*
 !/output/playwright/2359811-aerial-alignment.png
 
+# Local research, temporary work, and generated review artifacts
+/.firecrawl/
+/tmp/
+/output/load-tests/
+/output/pdf/*-preview.pdf
+
 # next.js
 /.next/
 /out/
