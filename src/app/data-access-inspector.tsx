@@ -529,7 +529,7 @@ export function DataAccessInspector() {
               )}
               {isSuggesting && (
                 <p className="text-pool-500 mt-1 text-xs">
-                  Searching LINZ addresses…
+                  Searching addresses…
                 </p>
               )}
               {!isSuggesting && suggestionMessage && !selectedAddressId && (
