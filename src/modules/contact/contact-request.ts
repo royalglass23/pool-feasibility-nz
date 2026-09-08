@@ -18,7 +18,7 @@ import {
 import { resolveContactDeliveryPolicy } from "./contact-delivery-policy";
 
 const MAX_BODY_BYTES = 16_000;
-const SUPPORT_EMAIL = "support@royalglass.co.nz";
+const SUPPORT_EMAIL = "support@bluehaven.nz";
 const logger = pino({ base: undefined });
 
 const contactRequestSchema = z

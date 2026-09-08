@@ -66,7 +66,7 @@ describe("assessment report delivery", () => {
       ([email]) => email.to === "jane@example.com",
     )?.[0];
     const supportEmail = send.mock.calls.find(
-      ([email]) => email.to === "support@royalglass.co.nz",
+      ([email]) => email.to === "support@bluehaven.nz",
     )?.[0];
     expect(homeownerEmail?.html).toContain("PoolReady");
     expect(homeownerEmail?.html).toContain(
@@ -79,7 +79,7 @@ describe("assessment report delivery", () => {
       "background:#ffffff;border-radius:6px",
     );
     expect(homeownerEmail).toMatchObject({
-      replyTo: "support@royalglass.co.nz",
+      replyTo: "support@bluehaven.nz",
     });
     expect(homeownerEmail?.html).toContain(
       "Have questions? Let’s talk it through.",
@@ -112,7 +112,7 @@ describe("assessment report delivery", () => {
         ],
         [
           expect.objectContaining({
-            to: "support@royalglass.co.nz",
+            to: "support@bluehaven.nz",
             attachment: pdf,
             filename: "preliminary-pool-feasibility-1-test-street.pdf",
             idempotencyKey: `assessment-report/${report.reference}/internal_test_report`,

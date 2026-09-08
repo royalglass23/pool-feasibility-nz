@@ -42,7 +42,7 @@ describe("contact requests", () => {
     expect(await response.json()).toEqual({ sent: true });
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: "support@royalglass.co.nz",
+        to: "support@bluehaven.nz",
         replyTo: "casey@example.com",
         subject: "New PoolReady contact enquiry",
         idempotencyKey: `contact-form/${validRequest.idempotencyKey}`,

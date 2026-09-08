@@ -2,7 +2,7 @@
 
 This is the manual process for the single Royal Glass Admin/support operator handling access,
 correction, or early-deletion requests for preliminary report requests. The public channel is
-`support@royalglass.co.nz`. Do not ask a visitor to create an account.
+`support@bluehaven.nz`. Do not ask a visitor to create an account.
 
 The New Zealand Office of the Privacy Commissioner says people can ask an organisation for access
 to their personal information and to correct information that is wrong, incomplete, or misleading.

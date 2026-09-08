@@ -65,7 +65,7 @@ export type AssessmentReportDeliveryDependencies = {
   deliveryEnvironment: ReportDeliveryEnvironment;
 };
 
-const SUPPORT_REPORT_EMAIL = "support@royalglass.co.nz";
+const SUPPORT_REPORT_EMAIL = "support@bluehaven.nz";
 
 export async function deliverAssessmentReport(
   reference: string,

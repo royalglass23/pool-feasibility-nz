@@ -89,7 +89,7 @@ test("does not expose the delivery inbox or submitted details in the public dial
   await page.getByRole("button", { name: "Contact us" }).click();
 
   const dialog = page.getByRole("dialog");
-  await expect(dialog).not.toContainText("support@royalglass.co.nz");
+  await expect(dialog).not.toContainText("support@bluehaven.nz");
   await expect(dialog).not.toContainText("Royal Glass");
   await expect(
     dialog.getByRole("link", { name: "privacy notice" }),

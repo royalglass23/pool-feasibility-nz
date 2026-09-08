@@ -149,7 +149,7 @@ describe("web, PDF and email report consistency", () => {
         "Whether it’s about your report, your site or what to do next, simply reply to this email.",
       );
     }
-    expect(email.replyTo).toBe("support@royalglass.co.nz");
+    expect(email.replyTo).toBe("support@bluehaven.nz");
     expect(
       screen.getByRole("heading", {
         name: "Preliminary Pool Feasibility Report",

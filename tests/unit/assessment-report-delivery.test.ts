@@ -149,7 +149,7 @@ describe("PDF assessment report delivery", () => {
     );
     expect(send).toHaveBeenCalledWith(
       expect.objectContaining({
-        to: "support@royalglass.co.nz",
+        to: "support@bluehaven.nz",
         attachment: Buffer.from("%PDF-shared"),
         idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
       }),
@@ -195,7 +195,7 @@ describe("PDF assessment report delivery", () => {
       ([input]) => input.to === "jane@example.com",
     )?.[0];
     const internalEmail = send.mock.calls.find(
-      ([input]) => input.to === "support@royalglass.co.nz",
+      ([input]) => input.to === "support@bluehaven.nz",
     )?.[0];
     expect(homeownerEmail).toMatchObject({
       attachment: pdf,
@@ -248,7 +248,7 @@ describe("PDF assessment report delivery", () => {
       ([input]) => input.to === "jane@example.com",
     )?.[0];
     const internalEmail = send.mock.calls.find(
-      ([input]) => input.to === "support@royalglass.co.nz",
+      ([input]) => input.to === "support@bluehaven.nz",
     )?.[0];
     expect(homeownerEmail).toMatchObject({
       to: "jane@example.com",
@@ -257,7 +257,7 @@ describe("PDF assessment report delivery", () => {
       attachment: Buffer.from("%PDF-shared"),
     });
     expect(internalEmail).toMatchObject({
-      to: "support@royalglass.co.nz",
+      to: "support@bluehaven.nz",
       subject: "New PoolReady report request - 1 Test Street",
       attachment: Buffer.from("%PDF-shared"),
       filename: "preliminary-pool-feasibility-1-test-street.pdf",
@@ -297,7 +297,7 @@ describe("PDF assessment report delivery", () => {
 
     const supportEmail = send.mock.calls[0]?.[0];
     expect(supportEmail).toMatchObject({
-      to: "support@royalglass.co.nz",
+      to: "support@bluehaven.nz",
       replyTo: "jane@example.com",
     });
     expect(supportEmail.text).toContain("Name: Jane Homeowner");
@@ -403,7 +403,7 @@ describe("PDF assessment report delivery", () => {
     expect(renderPdf).toHaveBeenCalledWith(report);
     expect(send).toHaveBeenCalledOnce();
     expect(send.mock.calls[0]?.[0]).toMatchObject({
-      to: "support@royalglass.co.nz",
+      to: "support@bluehaven.nz",
       attachment: pdf,
       filename: "preliminary-pool-feasibility-1-test-street.pdf",
       idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
@@ -469,7 +469,7 @@ describe("PDF assessment report delivery", () => {
       {
         apiKey: "re_test",
         from: "Royal Glass <reports@example.com>",
-        to: "support@royalglass.co.nz",
+        to: "support@bluehaven.nz",
         subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
         html: "<p>Your report is attached.</p>",
         text: "Your report is attached.",
@@ -483,7 +483,7 @@ describe("PDF assessment report delivery", () => {
     const [, init] = fetchImplementation.mock.calls[0] ?? [];
     expect(JSON.parse(String(init?.body))).toEqual({
       from: "Royal Glass <reports@example.com>",
-      to: ["support@royalglass.co.nz"],
+      to: ["support@bluehaven.nz"],
       subject: "Your Preliminary Pool Feasibility Report - 1 Test Street",
       html: "<p>Your report is attached.</p>",
       text: "Your report is attached.",
