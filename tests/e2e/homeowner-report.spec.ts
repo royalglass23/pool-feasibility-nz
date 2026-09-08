@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 
-test("keeps the saved preliminary report clean and does not auto-download a PDF when background email delivery fails", async ({
+test("keeps the saved preliminary report available without PDF download controls when background email delivery fails", async ({
   page,
 }) => {
   let assessmentSubmissionCount = 0;
@@ -269,7 +269,7 @@ test("keeps the saved preliminary report clean and does not auto-download a PDF 
   ).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Download PDF" }),
-  ).toBeVisible();
+  ).toHaveCount(0);
   expect(publicPdfRequests).toBe(0);
 
   await page.goto("/");

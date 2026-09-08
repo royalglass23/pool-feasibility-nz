@@ -333,29 +333,8 @@ describe("homeowner report submission", () => {
     });
   });
 
-  it("downloads the saved report with its access token", async () => {
-    const user = userEvent.setup();
-    const createObjectUrl = vi.fn(() => "blob:report-pdf");
-    const revokeObjectUrl = vi.fn();
-    Object.defineProperties(URL, {
-      createObjectURL: { configurable: true, value: createObjectUrl },
-      revokeObjectURL: { configurable: true, value: revokeObjectUrl },
-    });
-    const request = vi.fn((url: string) =>
-      Promise.resolve(
-        url.endsWith("/delivery")
-          ? Response.json({
-              delivery: {
-                homeowner: "pending",
-                internal_test_report: "failed",
-              },
-            })
-          : new Response(new Blob(["%PDF-public"]), {
-              status: 200,
-              headers: { "Content-Type": "application/pdf" },
-            }),
-      ),
-    );
+  it("shows the saved report without PDF download controls or requests", () => {
+    const request = vi.fn();
     vi.stubGlobal("fetch", request);
 
     render(
@@ -414,18 +393,10 @@ describe("homeowner report submission", () => {
       within(reportMapPanel).queryByRole("checkbox"),
     ).not.toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Download PDF" }));
-
-    await waitFor(() => expect(request).toHaveBeenCalledOnce());
-    expect(request).toHaveBeenCalledWith(
-      "/api/public/assessments/report/pdf",
-      expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ accessToken: "saved-report-access-token" }),
-      }),
-    );
-    expect(createObjectUrl).toHaveBeenCalledWith(expect.any(Blob));
-    expect(revokeObjectUrl).toHaveBeenCalledWith("blob:report-pdf");
+    expect(
+      screen.queryByRole("button", { name: "Download PDF" }),
+    ).not.toBeInTheDocument();
+    expect(request).not.toHaveBeenCalled();
   });
 
   it("shows the background-email message without a confirmation request", async () => {
