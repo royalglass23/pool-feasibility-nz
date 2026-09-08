@@ -1,7 +1,7 @@
 import "server-only";
 
 import pino from "pino";
-import { z } from "zod";
+import { contactRequestSchema, type ContactRequest } from "./contact-fields";
 import { env } from "@/env";
 import {
   ReportEmailDeliveryError,
@@ -10,6 +10,7 @@ import {
   type ReportEmailResult,
 } from "@/modules/reporting/resend-email-gateway";
 import { escapeHtml } from "@/shared/html/escape-html";
+import { readRequestBytesWithinLimit } from "@/shared/http/provider-runtime";
 import {
   apiErrorResponse,
   apiJsonResponse,
@@ -20,18 +21,6 @@ import { resolveContactDeliveryPolicy } from "./contact-delivery-policy";
 const MAX_BODY_BYTES = 16_000;
 const SUPPORT_EMAIL = "support@bluehaven.nz";
 const logger = pino({ base: undefined });
-
-const contactRequestSchema = z
-  .object({
-    name: z.string().trim().min(1).max(120),
-    email: z.email().max(320),
-    message: z.string().trim().min(10).max(2_000),
-    idempotencyKey: z.uuid(),
-    website: z.string().max(2_000).optional(),
-  })
-  .strict();
-
-type ContactRequest = z.infer<typeof contactRequestSchema>;
 
 export type ContactRequestDependencies = {
   apiKey?: string;
@@ -44,13 +33,9 @@ export async function handleContactRequest(
   dependencies: ContactRequestDependencies = {},
 ): Promise<Response> {
   const correlationId = requestCorrelationId(request);
-  const body = await request.arrayBuffer();
-  if (body.byteLength > MAX_BODY_BYTES) {
-    return invalidRequestResponse(correlationId);
-  }
-
   let input: ContactRequest;
   try {
+    const body = await readRequestBytesWithinLimit(request, MAX_BODY_BYTES);
     input = contactRequestSchema.parse(
       JSON.parse(new TextDecoder().decode(body)),
     );
@@ -127,22 +112,30 @@ function emailForContactRequest(
   input: ContactRequest,
   from: string,
 ): ReportEmailInput {
+  const partnership = input.purpose === "partnership";
+  const subject = partnership
+    ? "[PoolReady] Founding Partner enquiry"
+    : "[PoolReady] General enquiry";
+  const fields: [string, string][] = [
+    ["Name", input.name],
+    ...(partnership ? [["Company", input.company] as [string, string]] : []),
+    ["Email", input.email],
+    ["Message", input.message || "Not provided"],
+  ];
   return {
     from,
     to: SUPPORT_EMAIL,
     replyTo: input.email,
-    subject: "New PoolReady contact enquiry",
+    subject,
     text: [
-      "New PoolReady contact enquiry",
+      subject,
       "",
-      `Name: ${input.name}`,
-      `Email: ${input.email}`,
+      ...fields.map(([label, value]) => `${label}: ${value}`),
       "",
-      "Message:",
-      input.message,
+      "PoolReady powered by BlueHaven",
     ].join("\n"),
-    html: `<h1>New PoolReady contact enquiry</h1><p><strong>Name:</strong> ${escapeHtml(input.name)}</p><p><strong>Email:</strong> ${escapeHtml(input.email)}</p><p><strong>Message:</strong></p><p style="white-space:pre-wrap">${escapeHtml(input.message)}</p>`,
-    idempotencyKey: `contact-form/${input.idempotencyKey}`,
+    html: `<h1>${subject}</h1>${fields.map(([label, value]) => `<p style="white-space:pre-wrap"><strong>${label}:</strong> ${escapeHtml(value)}</p>`).join("")}<p><a href="https://www.poolready.co.nz/">PoolReady</a> powered by <a href="https://www.bluehaven.nz/">BlueHaven</a></p>`,
+    idempotencyKey: `${partnership ? "partnership" : "contact"}-form/${input.idempotencyKey}`,
   };
 }
 
@@ -150,7 +143,7 @@ function invalidRequestResponse(correlationId: string) {
   return apiErrorResponse(
     {
       code: "INVALID_REQUEST",
-      message: "Enter your name, email address, and a short message.",
+      message: "Check the required fields and enter a valid email address.",
     },
     400,
     correlationId,

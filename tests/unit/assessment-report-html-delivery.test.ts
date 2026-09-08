@@ -92,7 +92,7 @@ describe("assessment report delivery", () => {
     expect(homeownerEmail?.text).not.toContain("Recommended next step");
     expect(supportEmail).toMatchObject({
       replyTo: "jane@example.com",
-      subject: "New PoolReady report request - 1 Test Street",
+      subject: "[PoolReady] Property check report requested - 1 Test Street",
     });
     expect(supportEmail?.html).toContain("Overall result");
     expect(supportEmail?.html).toContain("Main finding");

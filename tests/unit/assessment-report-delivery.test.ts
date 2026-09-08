@@ -206,7 +206,7 @@ describe("PDF assessment report delivery", () => {
       attachment: pdf,
       filename: "preliminary-pool-feasibility-1-test-street.pdf",
       replyTo: "jane@example.com",
-      subject: "New PoolReady report request - 1 Test Street",
+      subject: "[PoolReady] Property check report requested - 1 Test Street",
       idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
     });
     expect(internalEmail?.text).toContain("Phone: 021 123 4567");
@@ -258,7 +258,7 @@ describe("PDF assessment report delivery", () => {
     });
     expect(internalEmail).toMatchObject({
       to: "support@bluehaven.nz",
-      subject: "New PoolReady report request - 1 Test Street",
+      subject: "[PoolReady] Property check report requested - 1 Test Street",
       attachment: Buffer.from("%PDF-shared"),
       filename: "preliminary-pool-feasibility-1-test-street.pdf",
       idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
