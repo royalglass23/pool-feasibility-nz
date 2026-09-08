@@ -1,6 +1,16 @@
 import type { Metadata } from "next";
 import Image from "next/image";
-import { ArrowDownRight } from "lucide-react";
+import {
+  ArrowDownRight,
+  FileCheck2,
+  UsersRound,
+  Wrench,
+  BadgePercent,
+  Handshake,
+  MessageSquareText,
+  Images,
+  ShieldCheck,
+} from "lucide-react";
 import { ContactEnquiryForm } from "@/components/contact-enquiry-form";
 
 export const metadata: Metadata = {
@@ -13,22 +23,27 @@ const benefits = [
   [
     "Complimentary professional access",
     "Use PoolReady Professional and generate feasibility reports for your own clients during the early access period.",
+    FileCheck2,
   ],
   [
     "Priority access to suitable leads",
     "Receive priority consideration for genuine enquiries generated through PoolReady.",
+    UsersRound,
   ],
   [
     "Early access to new tools",
     "Be among the first to trial estimating, proposals, concept design and project workflow tools.",
+    Wrench,
   ],
   [
     "Founding Partner product pricing",
     "Access exclusive introductory offers on selected premium pool products.",
+    BadgePercent,
   ],
   [
     "Preferred supplier pricing",
     "Benefit from improved pricing tiers and commercial terms as the supplier network grows.",
+    Handshake,
   ],
 ] as const;
 
@@ -40,13 +55,13 @@ export default function PartnersPage() {
         aria-labelledby="partner-heading"
       >
         <Image
-          src="/pool-projects/founding-partner-pool.jpg"
+          src="/pool-projects/founding-partner-hero-v2.png"
           alt=""
           aria-hidden="true"
           fill
           preload
           sizes="100vw"
-          className="origin-right scale-[1.35] object-cover object-right"
+          className="object-cover object-[65%_center]"
         />
         <div
           aria-hidden="true"
@@ -116,14 +131,25 @@ export default function PartnersPage() {
             Value during early access, with advantages that grow as the network
             develops.
           </p>
-          <dl className="mt-8 divide-y divide-[#c6dce9] border-t border-[#c6dce9]">
-            {benefits.map(([title, detail]) => (
+          <dl className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
+            {benefits.map(([title, detail, Icon], index) => (
               <div
                 key={title}
-                className="grid gap-3 py-6 sm:grid-cols-[0.85fr_1.2fr] sm:gap-10"
+                className={`rounded-xl border p-6 sm:p-7 ${index < 2 ? "lg:col-span-3" : "lg:col-span-2"} ${index === 0 ? "border-[#062f5d] bg-[#062f5d] text-white" : "border-[#c6dce9] bg-white"}`}
               >
-                <dt className="text-lg font-semibold">{title}</dt>
-                <dd className="leading-7 text-[#426b87]">{detail}</dd>
+                <dt className="text-lg leading-7 font-semibold">
+                  <Icon
+                    aria-hidden="true"
+                    strokeWidth={1.5}
+                    className={`mb-6 size-9 ${index === 0 ? "text-[#94dff4]" : "text-[#006da9]"}`}
+                  />
+                  {title}
+                </dt>
+                <dd
+                  className={`mt-3 leading-7 ${index === 0 ? "text-[#d5e5ef]" : "text-[#426b87]"}`}
+                >
+                  {detail}
+                </dd>
               </div>
             ))}
           </dl>
@@ -135,8 +161,13 @@ export default function PartnersPage() {
           <p className="mt-4 leading-7 text-[#426b87]">
             A genuine two-way partnership.
           </p>
-          <div className="mt-8 grid gap-8 sm:grid-cols-2 sm:gap-12">
-            <div>
+          <div className="mt-8 grid gap-4 sm:grid-cols-2">
+            <div className="rounded-xl border border-[#c6dce9] bg-white p-6 sm:p-8">
+              <MessageSquareText
+                aria-hidden="true"
+                strokeWidth={1.5}
+                className="mb-6 size-9 text-[#006da9]"
+              />
               <h3 className="text-lg font-semibold">
                 Practical feedback from real use
               </h3>
@@ -145,7 +176,12 @@ export default function PartnersPage() {
                 so the platform reflects how pool professionals actually work.
               </p>
             </div>
-            <div>
+            <div className="rounded-xl border border-[#c6dce9] bg-white p-6 sm:p-8">
+              <Images
+                aria-hidden="true"
+                strokeWidth={1.5}
+                className="mb-6 size-9 text-[#006da9]"
+              />
               <h3 className="text-lg font-semibold">
                 Selected case studies, with approval
               </h3>
@@ -157,7 +193,11 @@ export default function PartnersPage() {
               </p>
             </div>
           </div>
-          <p className="mt-6 text-sm leading-6 text-[#426b87]">
+          <p className="mt-6 flex items-start gap-3 text-sm leading-6 text-[#426b87]">
+            <ShieldCheck
+              aria-hidden="true"
+              className="mt-0.5 size-5 shrink-0 text-[#006da9]"
+            />
             Every use of project material remains subject to prior approval.
           </p>
         </section>
