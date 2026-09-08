@@ -1,6 +1,7 @@
 import "server-only";
 
 import { z } from "zod";
+import { contactText } from "@/shared/validation/contact-text";
 import { AddressIndexUnavailableError } from "@/modules/address-search/address-search";
 import { NeonLinzAddressSearch } from "@/modules/address-search/neon-linz-address-search";
 import {
@@ -15,7 +16,7 @@ import {
 
 const MAX_REQUEST_BYTES = 512;
 const requestSchema = z
-  .object({ query: z.string().trim().min(3).max(100) })
+  .object({ query: contactText(100).pipe(z.string().min(3)) })
   .strict();
 
 export async function handleAddressSuggestionsRequest(

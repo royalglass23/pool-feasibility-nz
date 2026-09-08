@@ -13,7 +13,9 @@ import type { ReportDeliveryState } from "@/components/saved-preliminary-report-
 import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
 import { visitorTypeOptions } from "@/modules/assessment/visitor-type";
 import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
+import { homeownerContactSchema } from "@/modules/assessment/homeowner-contact";
 import { ActionProgressDialog } from "@/components/action-progress-dialog";
+import { isValidNzPhone, NZ_PHONE_ERROR } from "@/modules/assessment/nz-phone";
 
 export type AssessmentSubmissionContext = Omit<
   PersistedAssessmentSubmission,
@@ -49,6 +51,7 @@ export function HomeownerSubmissionForm({
   onSaved: (assessment: SavedAssessmentResponse) => void;
 }) {
   const [saving, setSaving] = useState(false);
+  const [phoneError, setPhoneError] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [visitorType, setVisitorType] = useState("homeowner");
   const [desiredTiming, setDesiredTiming] = useState("asap");
@@ -67,6 +70,32 @@ export function HomeownerSubmissionForm({
       return;
     }
     const form = new FormData(event.currentTarget);
+    if (!isValidNzPhone(String(form.get("phone") ?? ""))) {
+      setPhoneError(true);
+      event.currentTarget
+        .querySelector<HTMLInputElement>('input[name="phone"]')
+        ?.focus();
+      return;
+    }
+    const contact = homeownerContactSchema.safeParse({
+      name: form.get("name"),
+      phone: form.get("phone"),
+      email: form.get("email"),
+      visitorType: form.get("visitorType"),
+      visitorTypeOtherDetail: form.get("visitorTypeOtherDetail") || undefined,
+      desiredTiming: form.get("desiredTiming"),
+      desiredTimingOtherDetail:
+        form.get("desiredTimingOtherDetail") || undefined,
+      additionalInfo: form.get("additionalInfo") || undefined,
+      consentGiven: form.get("consent") === "on",
+    });
+    if (!contact.success) {
+      setError(
+        "Check your contact details and remove hidden control characters.",
+      );
+      return;
+    }
+    setPhoneError(false);
     setSaving(true);
     setError(null);
 
@@ -85,19 +114,7 @@ export function HomeownerSubmissionForm({
             position: placement.position,
             clearancesVisible: placement.clearancesVisible ?? true,
           },
-          homeowner: {
-            name: form.get("name"),
-            phone: form.get("phone"),
-            email: form.get("email"),
-            visitorType: form.get("visitorType"),
-            visitorTypeOtherDetail:
-              form.get("visitorTypeOtherDetail") || undefined,
-            desiredTiming: form.get("desiredTiming"),
-            desiredTimingOtherDetail:
-              form.get("desiredTimingOtherDetail") || undefined,
-            additionalInfo: form.get("additionalInfo") || undefined,
-            consentGiven: form.get("consent") === "on",
-          },
+          homeowner: contact.data,
         }),
       });
       const body = (await response.json().catch(() => null)) as {
@@ -146,7 +163,36 @@ export function HomeownerSubmissionForm({
       </p>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <Field label="Name" name="name" required />
-        <Field label="Phone" name="phone" type="tel" required />
+        <div className="text-pool-800 text-sm font-medium">
+          <label htmlFor="homeowner-phone">Phone</label>
+          <input
+            id="homeowner-phone"
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            required
+            maxLength={40}
+            aria-invalid={phoneError || undefined}
+            aria-describedby={phoneError ? "homeowner-phone-error" : undefined}
+            onChange={() => setPhoneError(false)}
+            onBlur={(event) => {
+              setPhoneError(
+                event.target.value.length > 0 &&
+                  !isValidNzPhone(event.target.value),
+              );
+            }}
+            className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3"
+          />
+          {phoneError && (
+            <span
+              id="homeowner-phone-error"
+              role="alert"
+              className="mt-1 block text-sm text-red-800"
+            >
+              {NZ_PHONE_ERROR}
+            </span>
+          )}
+        </div>
         <Field label="Email" name="email" type="email" required />
         <label className="text-pool-800 text-sm font-medium">
           I am a
@@ -233,7 +279,7 @@ export function HomeownerSubmissionForm({
           role="alert"
           className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-950"
         >
-          <p className="font-semibold">We couldn't save your report yet</p>
+          <p className="font-semibold">We couldn&apos;t save your report yet</p>
           <p>{error}</p>
           <p className="mt-1 text-red-800">
             <span className="font-semibold">What to try: </span>

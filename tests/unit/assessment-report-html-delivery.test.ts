@@ -13,6 +13,45 @@ const controlledTestDeliveryEnvironment = {
 } as const;
 
 describe("assessment report delivery", () => {
+  it("encodes submitted HTML as text in both delivery channels", async () => {
+    const payload = '<img src=x onerror="alert(1)">';
+    const report = buildTestPreliminaryReport();
+    const store: AssessmentDeliveryStore = {
+      claim: vi.fn((_: string, channel) =>
+        Promise.resolve<AssessmentDeliveryClaim>({
+          channel,
+          claimToken: `${channel}-claim`,
+          homeownerName: payload,
+          homeownerPhone: "0211234567",
+          homeownerEmail: "jane@example.com",
+          visitorType: "other",
+          visitorTypeOtherDetail: payload,
+          desiredTiming: "other",
+          desiredTimingOtherDetail: payload,
+          additionalInfo: payload,
+          report,
+        }),
+      ),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined),
+    };
+    const send = vi.fn().mockResolvedValue({ id: "test-email" });
+    await deliverAssessmentReport(report.reference, {
+      store,
+      send,
+      from: "PoolReady <reports@example.com>",
+      renderPdf: vi.fn().mockResolvedValue(Buffer.from("%PDF-test")),
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
+    });
+    expect(send).toHaveBeenCalledTimes(2);
+    for (const [email] of send.mock.calls) {
+      expect(email.html).not.toContain(payload);
+      expect(email.html).toContain(
+        "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;",
+      );
+    }
+  });
+
   it("sends the same PDF attachment to the synthetic test user and support", async () => {
     const report = buildTestPreliminaryReport();
     const store: AssessmentDeliveryStore = {

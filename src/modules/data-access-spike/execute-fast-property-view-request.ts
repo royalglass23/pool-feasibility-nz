@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { contactText } from "@/shared/validation/contact-text";
 import {
   DataAccessSpikeError,
   type BoundaryState,
@@ -16,8 +17,8 @@ import { isProviderEvidenceError } from "./data-access-gateway";
 
 const requestSchema = z
   .object({
-    address: z.string().trim().min(8).max(200),
-    selectedAddressId: z.string().trim().min(1).max(100).optional(),
+    address: contactText(200).pipe(z.string().min(8)),
+    selectedAddressId: contactText(100).pipe(z.string().min(1)).optional(),
   })
   .strict();
 

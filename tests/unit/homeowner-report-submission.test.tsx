@@ -158,9 +158,40 @@ describe("homeowner report submission", () => {
     });
 
     await user.type(screen.getByLabelText("Name"), "Jane Homeowner");
-    await user.type(screen.getByLabelText("Phone"), "021 555 1234");
+    await user.type(screen.getByLabelText("Phone"), "abcdefg");
     await user.type(screen.getByLabelText("Email"), "jane@example.com");
     await user.click(screen.getByRole("checkbox"));
+    await user.click(
+      screen.getByRole("button", { name: "Save and show my report" }),
+    );
+    expect(request).not.toHaveBeenCalled();
+    expect(screen.getByRole("textbox", { name: "Phone" })).toHaveFocus();
+    expect(screen.getByRole("textbox", { name: "Phone" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    expect(
+      screen.getByText(
+        "Enter a valid NZ mobile or landline number starting with 0.",
+      ),
+    ).toBeVisible();
+    await user.clear(screen.getByRole("textbox", { name: "Phone" }));
+    await user.type(screen.getByLabelText("Phone"), "+64 21 555 1234");
+    await user.click(
+      screen.getByRole("button", { name: "Save and show my report" }),
+    );
+    expect(request).not.toHaveBeenCalled();
+    expect(screen.getByRole("textbox", { name: "Phone" })).toHaveAttribute(
+      "aria-invalid",
+      "true",
+    );
+    await user.clear(screen.getByRole("textbox", { name: "Phone" }));
+    await user.type(screen.getByLabelText("Phone"), "021 555 1234");
+    expect(
+      screen.queryByText(
+        "Enter a valid NZ mobile or landline number starting with 0.",
+      ),
+    ).not.toBeInTheDocument();
     await user.click(
       screen.getByRole("button", { name: "Save and show my report" }),
     );
