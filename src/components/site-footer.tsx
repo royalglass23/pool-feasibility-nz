@@ -29,18 +29,12 @@ export function SiteFooter() {
           </div>
           <nav
             aria-label="Footer navigation"
-            className="flex shrink-0 flex-col gap-2"
+            className="flex shrink-0 flex-col items-start gap-2"
           >
-            <Link
-              href="/partners"
-              className="inline-flex min-h-11 items-center font-semibold text-[#006da9] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
+            <Link href="/partners" className="site-menu-link">
               Partnership Program
             </Link>
-            <Link
-              href="/privacy"
-              className="inline-flex min-h-11 items-center font-semibold text-[#006da9] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
+            <Link href="/privacy" className="site-menu-link">
               Privacy notice
             </Link>
           </nav>

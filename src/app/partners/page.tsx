@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+import { ArrowDownRight } from "lucide-react";
 import { ContactEnquiryForm } from "@/components/contact-enquiry-form";
 
 export const metadata: Metadata = {
@@ -35,43 +36,54 @@ export default function PartnersPage() {
   return (
     <main className="bg-[#f5faff] text-[#062f5d]">
       <section
-        className="bg-[#0c2b43] text-white"
+        className="relative isolate w-full overflow-hidden bg-[#dbe8f0]"
         aria-labelledby="partner-heading"
       >
-        <div className="mx-auto grid max-w-7xl md:grid-cols-[1.15fr_1fr]">
-          <div className="px-4 py-12 sm:px-6 sm:py-16 lg:py-20">
-            <h1
-              id="partner-heading"
-              className="max-w-xl text-4xl leading-[1.08] font-semibold tracking-[-0.03em] text-balance sm:text-5xl lg:text-6xl"
-            >
-              <span className="mb-5 block text-lg leading-7 tracking-normal text-[#94dff4]">
-                Founding Partner Program
-              </span>
-              Build PoolReady with us.
-            </h1>
-            <p className="mt-6 max-w-md text-lg leading-8 text-[#d5e5ef]">
-              An early access partnership for selected pool builders and pool
-              professionals.
-            </p>
-            <a
-              href="#partner-interest"
-              className="mt-8 inline-flex min-h-12 items-center rounded-xl bg-[#e5f7fc] px-5 py-3 font-semibold text-[#062f5d] hover:bg-white focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#94dff4]"
-            >
-              Let&apos;s discuss the partnership
-            </a>
-            <p className="mt-6 text-sm leading-6 text-[#b8d4e4]">
-              Professional access · Priority opportunities · Industry input
-            </p>
-          </div>
-          <div className="relative min-h-64 overflow-hidden md:min-h-full">
-            <Image
-              src="/pool-projects/founding-partner-pool.jpg"
-              alt="Pool and landscaped outdoor area"
-              fill
-              preload
-              sizes="(min-width: 1280px) 595px, (min-width: 768px) 47vw, 100vw"
-              className="origin-right scale-[1.35] object-cover"
-            />
+        <Image
+          src="/pool-projects/founding-partner-pool.jpg"
+          alt=""
+          aria-hidden="true"
+          fill
+          preload
+          sizes="100vw"
+          className="origin-right scale-[1.35] object-cover object-right"
+        />
+        <div
+          aria-hidden="true"
+          className="absolute inset-0 bg-[linear-gradient(180deg,rgba(245,250,255,0.98)_0%,rgba(245,250,255,0.93)_60%,rgba(245,250,255,0.46)_85%,rgba(245,250,255,0.10)_100%)] lg:bg-[linear-gradient(90deg,rgba(245,250,255,1)_0%,rgba(245,250,255,0.97)_31%,rgba(245,250,255,0.71)_46%,rgba(245,250,255,0.12)_65%,transparent_78%)]"
+        />
+        <div className="relative z-10 mx-auto w-full max-w-7xl px-4 sm:px-6">
+          <div className="flex min-h-[590px] max-w-xl flex-col py-8 sm:py-12 lg:min-h-[620px] lg:justify-between lg:py-14">
+            <div>
+              <h1
+                id="partner-heading"
+                className="max-w-xl text-4xl leading-[1.04] font-semibold tracking-[-0.035em] text-balance text-[#062f5d] sm:text-6xl"
+              >
+                <span className="mb-5 block text-sm leading-7 tracking-normal text-[#426b87]">
+                  Founding Partner Program
+                </span>
+                Build PoolReady with us.
+              </h1>
+              <p className="mt-6 max-w-md text-base leading-7 text-pretty text-[#426b87] sm:text-lg sm:leading-8">
+                An early access partnership for selected pool builders and pool
+                professionals.
+              </p>
+            </div>
+            <div className="mt-10">
+              <a
+                href="#partner-interest"
+                className="inline-flex min-h-13 items-center gap-3 rounded-xl bg-[#062f5d] px-5 py-3 text-base font-semibold text-white transition-colors duration-200 ease-out hover:bg-[#0b477a] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#062f5d] active:bg-[#001f3d] motion-reduce:transition-none"
+              >
+                Let&apos;s discuss the partnership
+                <ArrowDownRight
+                  aria-hidden="true"
+                  className="size-5 shrink-0"
+                />
+              </a>
+              <p className="mt-4 max-w-sm text-sm leading-6 text-[#426b87]">
+                Professional access · Priority opportunities · Industry input
+              </p>
+            </div>
           </div>
         </div>
       </section>

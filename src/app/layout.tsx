@@ -31,17 +31,11 @@ export default function RootLayout({
             className="mx-auto flex min-h-16 w-full max-w-7xl flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2"
           >
             <PoolReadyBrand />
-            <div className="flex flex-wrap items-center gap-x-4 text-sm sm:gap-x-6">
-              <Link
-                href="/#property-search"
-                className="inline-flex min-h-11 items-center font-semibold text-[#006da9] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
+            <div className="flex w-full items-center gap-1 text-xs sm:w-auto sm:gap-2 sm:text-sm">
+              <Link href="/#property-search" className="site-menu-link">
                 Check your property
               </Link>
-              <Link
-                href="/partners"
-                className="inline-flex min-h-11 items-center font-semibold text-[#062f5d] underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2"
-              >
+              <Link href="/partners" className="site-menu-link">
                 Partnership Program
               </Link>
             </div>
