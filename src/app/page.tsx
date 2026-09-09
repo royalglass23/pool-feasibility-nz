@@ -159,19 +159,21 @@ function ProcessStep({
 }) {
   return (
     <li
-      className={`grid flex-1 gap-4 border-b border-[#c6dce9] py-8 sm:grid-cols-[3.5rem_minmax(0,1fr)] sm:gap-5 sm:py-10 lg:grid-cols-[3rem_minmax(0,1fr)] lg:gap-3 lg:py-3 ${
+      className={`grid flex-1 grid-cols-[2rem_2.25rem_minmax(0,1fr)] items-start gap-3 border-b border-[#c6dce9] py-8 sm:grid-cols-[2rem_2.5rem_minmax(0,1fr)] sm:gap-4 sm:py-10 lg:gap-3 lg:py-3 ${
         isLast ? "border-b-0" : ""
       }`}
     >
-      <div
+      <span
         aria-hidden="true"
-        className="flex items-center gap-3 text-[#0077bd] sm:flex-col sm:items-start sm:gap-2"
+        className="flex h-9 items-center text-sm leading-5 font-semibold tracking-[-0.02em] text-[#0077bd]"
       >
-        <Icon strokeWidth={1.5} className="size-9 shrink-0" />
-        <span className="text-sm leading-5 font-semibold tracking-[-0.02em]">
-          {number}
-        </span>
-      </div>
+        {number}
+      </span>
+      <Icon
+        aria-hidden="true"
+        strokeWidth={1.5}
+        className="size-9 shrink-0 text-[#0077bd]"
+      />
       <div>
         <h3 className="text-xl leading-7 font-semibold text-balance text-[#062f5d] lg:text-lg lg:leading-6">
           {title}
