@@ -10,7 +10,9 @@ export const homeownerContactFields = {
   email: contactEmailSchema,
   ...visitorContextFields,
   additionalInfo: additionalInfoSchema,
-  consentGiven: z.literal(true),
+  consentGiven: z.literal(true, {
+    error: "Please confirm your consent before saving your report.",
+  }),
 };
 
 export const homeownerContactSchema = z

@@ -9,7 +9,7 @@ it("preserves legitimate Unicode and punctuation as plain text", () => {
     "Hēmi O’Connor-Smith",
   );
   expect(
-    additionalInfoSchema.parse("First line\nSecond line\t3m & 4m"),
+    additionalInfoSchema.parse("First line\nSecond line, 3m & 4m."),
   ).toContain("\n");
 });
 
@@ -27,3 +27,16 @@ it("rejects oversized input and hidden controls in notes", () => {
   expect(additionalInfoSchema.safeParse("a".repeat(4001)).success).toBe(false);
   expect(additionalInfoSchema.safeParse("text\u0000").success).toBe(false);
 });
+
+it.each([
+  "[sql] [sql]",
+  "<script>alert('x')</script>",
+  "${code}",
+  "SELECT * FROM users;",
+  "run_this()",
+])(
+  "rejects code-shaped special characters in additional information: %s",
+  (value) => {
+    expect(additionalInfoSchema.safeParse(value).success).toBe(false);
+  },
+);

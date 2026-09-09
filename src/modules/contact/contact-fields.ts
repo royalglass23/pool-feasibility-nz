@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   contactText,
   contactEmailSchema,
+  conversationalText,
 } from "@/shared/validation/contact-text";
 import { personName } from "./person-name";
 
@@ -17,15 +18,19 @@ export const contactSchemas = {
     .object({
       ...contactFields,
       purpose: z.literal("general").optional(),
-      message: contactText(2_000, true).pipe(z.string().min(10)),
+      message: conversationalText(2_000, true).pipe(
+        z.string().min(10, "Please enter at least 10 characters."),
+      ),
     })
     .strict(),
   partnership: z
     .object({
       ...contactFields,
       purpose: z.literal("partnership"),
-      company: contactText(160).pipe(z.string().min(1)),
-      message: contactText(2_000, true).default(""),
+      company: conversationalText(160).pipe(
+        z.string().min(1, "Please enter your company name."),
+      ),
+      message: conversationalText(2_000, true).default(""),
     })
     .strict(),
 };

@@ -203,13 +203,32 @@ test("partner browser rejects hidden controls then sends corrected Unicode detai
   await page.getByLabel("Work email", { exact: true }).fill(contact.email);
   await page.getByRole("button", { name: "Register your interest" }).click();
   await expect(
-    page.getByRole("alert").filter({ hasText: "Name:" }),
-  ).toContainText("Please type this again using plain text.");
+    page.getByLabel("Your name", { exact: true }),
+  ).toHaveAccessibleDescription("Please type this again using plain text.");
   await page.screenshot({
     path: "tmp/input-security/friendly-name-desktop.png",
     fullPage: true,
   });
   await page.getByLabel("Your name", { exact: true }).fill(contact.name);
+  const company = page.getByLabel("Company", { exact: true });
+  const email = page.getByLabel("Work email", { exact: true });
+  const details = page.getByLabel("Tell us about your business (optional)");
+  await company.fill("Example_Pools");
+  await email.fill("[sql]@email.com");
+  await details.fill("SELECT * FROM businesses;");
+  await page.getByRole("button", { name: "Register your interest" }).click();
+  await expect(company).toHaveAttribute("aria-invalid", "true");
+  await expect(email).toHaveAttribute("aria-invalid", "true");
+  await expect(details).toHaveAttribute("aria-invalid", "true");
+  await expect(company).toHaveAccessibleDescription(
+    "Please use letters, numbers, spaces, and common conversation punctuation only.",
+  );
+  await expect(email).toHaveAccessibleDescription(
+    "Please enter a valid email address, such as name@example.com.",
+  );
+  await company.fill("O’Connor & Sons");
+  await email.fill(contact.email);
+  await details.fill("We build family pools in Auckland.");
   const sent = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/public/contact") &&
@@ -239,9 +258,12 @@ test("general browser enquiry rejects HTML with helpful feedback and allows corr
   await dialog.getByLabel("Email", { exact: true }).fill(contact.email);
   await dialog.getByLabel("How can we help?", { exact: true }).fill(payload);
   await dialog.getByRole("button", { name: "Send message" }).click();
-  await expect(dialog.getByRole("alert")).toContainText(
-    "Message: Please use plain text without HTML tags.",
-  );
+  await expect(
+    dialog.getByText("Please use plain text without HTML tags."),
+  ).toBeVisible();
+  await expect(
+    dialog.getByLabel("How can we help?", { exact: true }),
+  ).toHaveAttribute("aria-invalid", "true");
   await page.screenshot({
     path: "tmp/input-security/friendly-message-mobile.png",
   });
@@ -283,7 +305,7 @@ for (const [field, value] of Object.entries({
   name: "bad\u0000name",
   email: "test@example.com\r\nBcc:other@example.com",
   phone: "0215551234<script>",
-  additionalInfo: "bad\u0000notes",
+  additionalInfo: "[sql] [sql]",
   visitorTypeOtherDetail: "bad\u0000detail",
   desiredTimingOtherDetail: "bad\u0000detail",
   visitorType: "admin",

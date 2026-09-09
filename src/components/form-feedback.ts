@@ -2,6 +2,24 @@ export function friendlyFieldError(
   issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>,
 ): string {
   const issue = issues[0];
+  const label = fieldLabel(issue);
+  if (!label) return "Please check your details and try again.";
+  return `${label}: ${friendlyIssueMessage(issue)}`;
+}
+
+export function friendlyFieldErrors(
+  issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>,
+): Record<string, string> {
+  return issues.reduce<Record<string, string>>((errors, issue) => {
+    const field = String(issue.path[0] ?? "");
+    if (field && !errors[field]) errors[field] = friendlyIssueMessage(issue);
+    return errors;
+  }, {});
+}
+
+function fieldLabel(
+  issue: { path: ReadonlyArray<PropertyKey> } | undefined,
+): string | undefined {
   const labels: Record<string, string> = {
     name: "Name",
     email: "Email",
@@ -15,14 +33,14 @@ export function friendlyFieldError(
     desiredTiming: "When you need it",
     consentGiven: "Consent",
   };
-  const label = labels[String(issue?.path[0])];
-  if (!label) return "Please check your details and try again.";
-  const message =
-    issue.message.startsWith("Please ") ||
-    issue.message.startsWith("Enter a valid NZ")
-      ? issue.message
-      : "Please check this field and try again.";
-  return `${label}: ${message}`;
+  return labels[String(issue?.path[0])];
+}
+
+function friendlyIssueMessage(issue: { message: string } | undefined): string {
+  return issue?.message.startsWith("Please ") ||
+    issue?.message.startsWith("Enter a valid NZ")
+    ? issue.message
+    : "Please check this field and try again.";
 }
 
 export function friendlyRequestError(

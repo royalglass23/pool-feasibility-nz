@@ -12,8 +12,25 @@ test("partner can submit the programme enquiry through the synthetic contact sin
     .getByRole("link", { name: "Let's discuss the partnership" })
     .click();
   await page.getByLabel("Your name").fill("Casey Partner");
-  await page.getByLabel("Company", { exact: true }).fill("Example Pools");
-  await page.getByLabel("Work email").fill("casey@example.test");
+  const company = page.getByLabel("Company", { exact: true });
+  const email = page.getByLabel("Work email");
+  const details = page.getByLabel("Tell us about your business (optional)");
+  await company.fill("Example_Pools");
+  await email.fill("[sql]@email.test");
+  await details.fill("SELECT * FROM businesses;");
+  await page.getByRole("button", { name: "Register your interest" }).click();
+  await expect(company).toHaveAttribute("aria-invalid", "true");
+  await expect(email).toHaveAttribute("aria-invalid", "true");
+  await expect(details).toHaveAttribute("aria-invalid", "true");
+  await expect(company).toHaveAccessibleDescription(
+    "Please use letters, numbers, spaces, and common conversation punctuation only.",
+  );
+  await expect(email).toHaveAccessibleDescription(
+    "Please enter a valid email address, such as name@example.com.",
+  );
+  await company.fill("Example Pools");
+  await email.fill("casey@example.test");
+  await details.fill("We build family pools in Auckland.");
   const responsePromise = page.waitForResponse(
     (response) =>
       response.url().endsWith("/api/public/contact") &&
@@ -24,7 +41,7 @@ test("partner can submit the programme enquiry through the synthetic contact sin
   expect(response.request().postDataJSON()).toMatchObject({
     purpose: "partnership",
     company: "Example Pools",
-    message: "",
+    message: "We build family pools in Auckland.",
   });
   expect(response.status()).toBe(202);
   await expect(page.getByRole("status")).toHaveText(

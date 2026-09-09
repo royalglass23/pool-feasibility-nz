@@ -192,6 +192,19 @@ describe("homeowner report submission", () => {
         "Enter a valid NZ mobile or landline number starting with 0.",
       ),
     ).not.toBeInTheDocument();
+    const additionalInfo = screen.getByLabelText("Additional Info (optional)");
+    await user.type(additionalInfo, "SELECT * FROM users;");
+    await user.click(
+      screen.getByRole("button", { name: "Save and show my report" }),
+    );
+    expect(request).not.toHaveBeenCalled();
+    expect(additionalInfo).toHaveFocus();
+    expect(additionalInfo).toHaveAttribute("aria-invalid", "true");
+    expect(additionalInfo).toHaveAccessibleDescription(
+      "Please use letters, numbers, spaces, and common conversation punctuation only.",
+    );
+    await user.clear(additionalInfo);
+    await user.type(additionalInfo, "Please call before visiting.");
     await user.click(
       screen.getByRole("button", { name: "Save and show my report" }),
     );

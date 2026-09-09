@@ -24,6 +24,21 @@ export function contactText(maxLength: number, multiline = false) {
     .transform((value) => value.trim());
 }
 
+const COMMON_CONVERSATION_CHARACTERS =
+  /^[\p{L}\p{M}\p{N}\p{Zs}\r\n.,!?"'’\-–—()&]*$/u;
+
+export function conversationalText(maxLength: number, multiline = false) {
+  return contactText(maxLength, multiline).refine(
+    (value) => COMMON_CONVERSATION_CHARACTERS.test(value),
+    "Please use letters, numbers, spaces, and common conversation punctuation only.",
+  );
+}
+
 export const contactEmailSchema = contactText(320).pipe(
-  z.email("Please enter a valid email address, such as name@example.com."),
+  z
+    .string()
+    .regex(
+      /^[A-Za-z0-9]+(?:[._+-][A-Za-z0-9]+)*@[A-Za-z0-9]+(?:[.-][A-Za-z0-9]+)*\.[A-Za-z]{2,}$/,
+      "Please enter a valid email address, such as name@example.com.",
+    ),
 );

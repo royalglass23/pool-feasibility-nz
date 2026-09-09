@@ -79,6 +79,39 @@ it("retains safe Unicode and rejects HTML in enquiry fields", async () => {
   expect(contactRequestSchema.parse(contact).name).toBe(contact.name);
 });
 
+it.each([
+  ["message", "[sql] [sql]"],
+  ["message", "SELECT * FROM users;"],
+  ["company", "Pools {admin}"],
+  ["company", "Example_Pools"],
+  ["email", "[sql]@email.com"],
+  ["email", "name<script>@example.com"],
+])(
+  "rejects uncommon or code-shaped characters in contact %s",
+  (field, value) => {
+    expect(
+      contactRequestSchema.safeParse({
+        ...contact,
+        purpose: "partnership",
+        company: "Example Pools & Landscaping",
+        [field]: value,
+      }).success,
+    ).toBe(false);
+  },
+);
+
+it("allows ordinary conversational punctuation and common email characters", () => {
+  expect(
+    contactRequestSchema.safeParse({
+      ...contact,
+      purpose: "partnership",
+      company: "O’Connor & Sons (Auckland)",
+      email: "hemi.oconnor+pool@example.co.nz",
+      message: "Hi, can we discuss a 3m-by-4m pool? We'd like help!",
+    }).success,
+  ).toBe(true);
+});
+
 it("rejects unknown fields, invalid selections and missing consent", () => {
   expect(
     contactRequestSchema.safeParse({ ...contact, admin: true }).success,

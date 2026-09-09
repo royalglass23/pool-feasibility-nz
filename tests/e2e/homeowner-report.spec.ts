@@ -215,9 +215,19 @@ test("keeps the saved preliminary report available without PDF download controls
   await homeownerForm.getByLabel("Name").fill("Jane Homeowner");
   await homeownerForm.getByLabel("Phone").fill("021 555 1234");
   await homeownerForm.getByLabel("Email").fill("jane@example.com");
+  const additionalInfo = homeownerForm.getByLabel("Additional Info (optional)");
+  await additionalInfo.fill("[sql] [sql]");
   await homeownerForm
     .getByRole("checkbox", { name: /I consent to PoolReady/i })
     .check();
+  await homeownerForm
+    .getByRole("button", { name: "Save and show my report" })
+    .click();
+  await expect(additionalInfo).toHaveAttribute("aria-invalid", "true");
+  await expect(additionalInfo).toHaveAccessibleDescription(
+    "Please use letters, numbers, spaces, and common conversation punctuation only.",
+  );
+  await additionalInfo.fill("Please call before visiting.");
   await homeownerForm
     .getByRole("button", { name: "Save and show my report" })
     .click();
@@ -267,9 +277,9 @@ test("keeps the saved preliminary report available without PDF download controls
       /We will email a summary of this preliminary report shortly/i,
     ),
   ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Download PDF" }),
-  ).toHaveCount(0);
+  await expect(page.getByRole("button", { name: "Download PDF" })).toHaveCount(
+    0,
+  );
   expect(publicPdfRequests).toBe(0);
 
   await page.goto("/");

@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
 import { contactSchemas } from "@/modules/contact/contact-fields";
 import {
-  friendlyFieldError,
+  friendlyFieldErrors,
   friendlyRequestError,
 } from "@/components/form-feedback";
+
+type ContactFieldName = "name" | "company" | "email" | "message";
 
 export function ContactEnquiryForm({
   purpose = "general",
@@ -18,6 +20,9 @@ export function ContactEnquiryForm({
   const partnership = purpose === "partnership";
   const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
   const [error, setError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<ContactFieldName, string>>
+  >({});
   const submissionRef = useRef<{ payload: string; key: string } | null>(null);
   const sendingRef = useRef(false);
 
@@ -43,7 +48,8 @@ export function ContactEnquiryForm({
       idempotencyKey: submissionRef.current.key,
     });
     if (!validated.success) {
-      setError(friendlyFieldError(validated.error.issues));
+      setFieldErrors(friendlyFieldErrors(validated.error.issues));
+      setError(null);
       const field = form.elements.namedItem(
         String(validated.error.issues[0]?.path[0]),
       );
@@ -52,6 +58,7 @@ export function ContactEnquiryForm({
     }
     sendingRef.current = true;
     setState("sending");
+    setFieldErrors({});
     setError(null);
     try {
       const response = await fetch("/api/public/contact", {
@@ -91,12 +98,24 @@ export function ContactEnquiryForm({
   }
 
   return (
-    <form onSubmit={submit} data-hj-suppress>
+    <form
+      onSubmit={submit}
+      onInput={(event) => {
+        const field = (event.target as HTMLInputElement | HTMLTextAreaElement)
+          .name as ContactFieldName;
+        if (fieldErrors[field]) {
+          setFieldErrors((current) => ({ ...current, [field]: undefined }));
+        }
+      }}
+      noValidate
+      data-hj-suppress
+    >
       <fieldset disabled={state === "sending"} className="grid min-w-0 gap-4">
         <Field
           label={partnership ? "Your name" : "Name"}
           name="name"
           autoComplete="name"
+          error={fieldErrors.name}
         />
         {partnership && (
           <Field
@@ -104,6 +123,7 @@ export function ContactEnquiryForm({
             name="company"
             autoComplete="organization"
             maxLength={160}
+            error={fieldErrors.company}
           />
         )}
         <Field
@@ -112,20 +132,39 @@ export function ContactEnquiryForm({
           autoComplete="email"
           type="email"
           maxLength={320}
+          error={fieldErrors.email}
         />
-        <label className="text-sm font-semibold">
-          {partnership
-            ? "Tell us about your business (optional)"
-            : "How can we help?"}
+        <div className="text-sm font-semibold">
+          <label htmlFor={`${purpose}-contact-message`}>
+            {partnership
+              ? "Tell us about your business (optional)"
+              : "How can we help?"}
+          </label>
           <textarea
+            id={`${purpose}-contact-message`}
             name="message"
             required={!partnership}
             minLength={partnership ? undefined : 10}
             maxLength={2_000}
             rows={4}
+            aria-invalid={fieldErrors.message ? true : undefined}
+            aria-describedby={
+              fieldErrors.message
+                ? `${purpose}-contact-message-error`
+                : undefined
+            }
             className="mt-1.5 block w-full resize-y rounded-lg border border-[#9fc8df] bg-white px-3 py-2.5 text-base font-normal outline-none focus:border-[#0077bd] focus:ring-2 focus:ring-[#a5d9f2]"
           />
-        </label>
+          {fieldErrors.message && (
+            <span
+              id={`${purpose}-contact-message-error`}
+              role="alert"
+              className="mt-1 block text-sm font-normal text-red-800"
+            >
+              {fieldErrors.message}
+            </span>
+          )}
+        </div>
         <label className="sr-only" aria-hidden="true">
           Website
           <input name="website" tabIndex={-1} autoComplete="off" />
@@ -174,24 +213,39 @@ function Field({
   autoComplete,
   type = "text",
   maxLength = 120,
+  error,
 }: {
   label: string;
   name: string;
   autoComplete: string;
   type?: string;
   maxLength?: number;
+  error?: string;
 }) {
+  const id = `contact-${name}`;
   return (
-    <label className="text-sm font-semibold">
-      {label}
+    <div className="text-sm font-semibold">
+      <label htmlFor={id}>{label}</label>
       <input
+        id={id}
         name={name}
         type={type}
         autoComplete={autoComplete}
         required
         maxLength={maxLength}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
         className="mt-1.5 block min-h-11 w-full rounded-lg border border-[#9fc8df] bg-white px-3 text-base font-normal outline-none focus:border-[#0077bd] focus:ring-2 focus:ring-[#a5d9f2]"
       />
-    </label>
+      {error && (
+        <span
+          id={`${id}-error`}
+          role="alert"
+          className="mt-1 block text-sm font-normal text-red-800"
+        >
+          {error}
+        </span>
+      )}
+    </div>
   );
 }
