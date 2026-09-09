@@ -220,6 +220,49 @@
   }
 }
 
+.partner-card {
+  background-color: white;
+  border-color: #c6dce9;
+  color: #062f5d;
+  transition:
+    background-color 200ms ease-out,
+    border-color 200ms ease-out,
+    color 200ms ease-out;
+}
+
+.partner-card-copy {
+  color: #426b87;
+}
+.partner-card-icon {
+  color: #006da9;
+}
+.partner-card-copy,
+.partner-card-icon {
+  transition: color 200ms ease-out;
+}
+
+@media (hover: hover) {
+  .partner-card:hover {
+    background-color: #062f5d;
+    border-color: #062f5d;
+    color: white;
+  }
+  .partner-card:hover .partner-card-copy {
+    color: #d5e5ef;
+  }
+  .partner-card:hover .partner-card-icon {
+    color: #94dff4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .partner-card,
+  .partner-card-copy,
+  .partner-card-icon {
+    transition: none;
+  }
+}
+
 /* Shared menu feedback follows the site's primary button colours. */
 .site-menu-link {
   display: inline-flex;

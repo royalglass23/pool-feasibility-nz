@@ -131,25 +131,21 @@ export default function PartnersPage() {
             Value during early access, with advantages that grow as the network
             develops.
           </p>
-          <dl className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-6">
-            {benefits.map(([title, detail, Icon], index) => (
+          <dl className="mt-8 grid auto-rows-fr gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {benefits.map(([title, detail, Icon]) => (
               <div
                 key={title}
-                className={`rounded-xl border p-6 sm:p-7 ${index < 2 ? "lg:col-span-3" : "lg:col-span-2"} ${index === 0 ? "border-[#062f5d] bg-[#062f5d] text-white" : "border-[#c6dce9] bg-white"}`}
+                className="partner-card rounded-xl border p-6 sm:p-7"
               >
                 <dt className="text-lg leading-7 font-semibold">
                   <Icon
                     aria-hidden="true"
                     strokeWidth={1.5}
-                    className={`mb-6 size-9 ${index === 0 ? "text-[#94dff4]" : "text-[#006da9]"}`}
+                    className="partner-card-icon mb-6 size-9"
                   />
                   {title}
                 </dt>
-                <dd
-                  className={`mt-3 leading-7 ${index === 0 ? "text-[#d5e5ef]" : "text-[#426b87]"}`}
-                >
-                  {detail}
-                </dd>
+                <dd className="partner-card-copy mt-3 leading-7">{detail}</dd>
               </div>
             ))}
           </dl>
@@ -161,31 +157,31 @@ export default function PartnersPage() {
           <p className="mt-4 leading-7 text-[#426b87]">
             A genuine two-way partnership.
           </p>
-          <div className="mt-8 grid gap-4 sm:grid-cols-2">
-            <div className="rounded-xl border border-[#c6dce9] bg-white p-6 sm:p-8">
+          <div className="mt-8 grid auto-rows-fr gap-4 sm:grid-cols-2">
+            <div className="partner-card rounded-xl border p-6 sm:p-8">
               <MessageSquareText
                 aria-hidden="true"
                 strokeWidth={1.5}
-                className="mb-6 size-9 text-[#006da9]"
+                className="partner-card-icon mb-6 size-9"
               />
               <h3 className="text-lg font-semibold">
                 Practical feedback from real use
               </h3>
-              <p className="mt-3 leading-7 text-[#426b87]">
+              <p className="partner-card-copy mt-3 leading-7">
                 Use PoolReady on suitable projects and share clear suggestions
                 so the platform reflects how pool professionals actually work.
               </p>
             </div>
-            <div className="rounded-xl border border-[#c6dce9] bg-white p-6 sm:p-8">
+            <div className="partner-card rounded-xl border p-6 sm:p-8">
               <Images
                 aria-hidden="true"
                 strokeWidth={1.5}
-                className="mb-6 size-9 text-[#006da9]"
+                className="partner-card-icon mb-6 size-9"
               />
               <h3 className="text-lg font-semibold">
                 Selected case studies, with approval
               </h3>
-              <p className="mt-3 leading-7 text-[#426b87]">
+              <p className="partner-card-copy mt-3 leading-7">
                 With prior approval, we may feature selected project photos,
                 your company name and our collaboration experience. We will also
                 look for opportunities to promote your business and completed
