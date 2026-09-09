@@ -2,6 +2,13 @@ import { AucklandPropertyJourney } from "@/components/auckland-property-journey"
 import { AnalyticsConsent } from "@/components/analytics-consent";
 import { PoolFeasibilityExplainer } from "@/components/pool-feasibility-explainer";
 import { env } from "@/env";
+import {
+  FileCheck2,
+  MapPinHouse,
+  Move,
+  ScanSearch,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { DataAccessInspector } from "./data-access-inspector";
 
@@ -49,21 +56,25 @@ export default function Home() {
 
             <ol className="mx-auto flex w-full max-w-[480px] flex-col border-t border-[#c6dce9] lg:aspect-[480/445]">
               <ProcessStep
+                icon={MapPinHouse}
                 number="01"
                 title="Find your property"
                 text="Enter your Auckland address and select the matching property."
               />
               <ProcessStep
+                icon={Move}
                 number="02"
                 title="Position your pool"
                 text="Choose a pool size, drag the pool to move it, and drag the rotate handle to turn it."
               />
               <ProcessStep
+                icon={ScanSearch}
                 number="03"
                 title="Check for constraints"
                 text="Select “Check for constraints” to load available mapped information about potential site constraints."
               />
               <ProcessStep
+                icon={FileCheck2}
                 number="04"
                 title="Get your preliminary report"
                 text="Enter your details to get your report, understand what needs checking, and prepare for your next conversation."
@@ -134,11 +145,13 @@ export default function Home() {
 }
 
 function ProcessStep({
+  icon: Icon,
   number,
   title,
   text,
   isLast = false,
 }: {
+  icon: LucideIcon;
   number: string;
   title: string;
   text: string;
@@ -150,12 +163,15 @@ function ProcessStep({
         isLast ? "border-b-0" : ""
       }`}
     >
-      <span
+      <div
         aria-hidden="true"
-        className="text-lg leading-7 font-semibold tracking-[-0.03em] text-[#0077bd] lg:text-base lg:leading-6"
+        className="flex items-center gap-3 text-[#0077bd] sm:flex-col sm:items-start sm:gap-2"
       >
-        {number}
-      </span>
+        <Icon strokeWidth={1.5} className="size-9 shrink-0" />
+        <span className="text-sm leading-5 font-semibold tracking-[-0.02em]">
+          {number}
+        </span>
+      </div>
       <div>
         <h3 className="text-xl leading-7 font-semibold text-balance text-[#062f5d] lg:text-lg lg:leading-6">
           {title}
