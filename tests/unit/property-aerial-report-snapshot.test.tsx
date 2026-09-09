@@ -28,6 +28,7 @@ const mapConstructorOptions = vi.hoisted(
       maxBounds: { toArray: () => [[number, number], [number, number]] };
     }>,
 );
+const setWorkerUrl = vi.hoisted(() => vi.fn<(url: string) => void>());
 
 vi.mock("maplibre-gl", () => {
   class Map {
@@ -183,11 +184,10 @@ vi.mock("maplibre-gl", () => {
   }
 
   return {
-    default: {
-      Map,
-      LngLatBounds,
-      NavigationControl: class NavigationControl {},
-    },
+    Map,
+    LngLatBounds,
+    NavigationControl: class NavigationControl {},
+    setWorkerUrl,
   };
 });
 
@@ -195,6 +195,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   mapInstances.length = 0;
   mapConstructorOptions.length = 0;
+  setWorkerUrl.mockClear();
 });
 
 it("keeps the property map camera locked while capturing report evidence", async () => {
@@ -268,6 +269,7 @@ it("keeps the property map camera locked while capturing report evidence", async
   );
 
   await waitFor(() => expect(onSnapshotReady).toHaveBeenCalledOnce());
+  expect(setWorkerUrl).toHaveBeenCalledWith("/maplibre/maplibre-gl-worker.mjs");
   const dataUrl = onSnapshotReady.mock.calls[0][0] as string;
   const layerIds = Buffer.from(dataUrl.split(",")[1], "base64")
     .toString()

@@ -31,21 +31,25 @@ No PostGIS dependency is proposed for the POC. Introduce it only after measured 
 
 ## Package hygiene
 
-The Job 01 remediation retains the current stable Next `16.2.10` and applies a
-lockfile-enforced global PostCSS `8.5.19` override. All PostCSS consumers resolve
-to that patched stable version, `npm ls` reports a valid tree, and
-`npm audit --omit=dev` reports zero production vulnerabilities. The production
-build must remain part of the gate because Next declares an older exact PostCSS
-dependency upstream.
+The dependency-remediation baseline uses Next `16.3.4`, MapLibre GL JS `6.8.0`,
+and Sharp `0.35.4`. Next resolves PostCSS `8.5.23`; both lockfiles resolve its
+Nano ID dependency to patched `3.3.18`. The npm lock resolves
+baseline-browser-mapping to `2.11.21`, while the pnpm lock resolves patched
+`2.11.4`. `npm audit --omit=dev` and `pnpm audit --prod` report zero production
+vulnerabilities. The production build remains part of the gate because Next
+declares exact transitive runtime dependencies upstream.
 
-The full audit still reports four moderate development-only findings through
-stable Drizzle Kit's legacy `@esbuild-kit` loader. The upstream stable Drizzle Kit
-release remains `0.31.10`; its beta removes that chain, but adopting a beta would
-violate the stable-dependency baseline. The cited esbuild advisory concerns an
-exposed development server, which this project does not start through Drizzle
-Kit. Treat this as a constrained build-tool residual risk: never expose local
-tooling servers, recheck each stable Drizzle Kit release, and remove the exception
-when a compatible stable path exists.
+MapLibre GL JS 6 requires an explicit worker URL when bundled by Next.js. The
+`predev` and `prebuild` lifecycle hooks copy the installed package's worker and
+shared ESM modules into `public/maplibre`, and the client map entry points set
+the worker URL before constructing a map. Keep both copied files together and
+generated from `node_modules` so they remain version-matched.
+
+The full audit can still report development-only findings through Drizzle Kit,
+Vitest, and their transitive tooling. They are absent from the production graph
+verified by both production-audit commands above. Treat these as constrained
+build-tool residual risk: never expose local tooling servers, recheck stable
+tooling releases, and remove each exception when a compatible stable path exists.
 
 Do not run `npm audit fix --force`; npm currently proposes incompatible Next and
 Drizzle downgrades.

@@ -35,6 +35,7 @@ import {
 import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-view-map-capture";
 import { SELECTED_POOL_MAP_STYLE } from "@/modules/reporting/report-map-style";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
+import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
 import { bearing, point } from "@turf/turf";
 
 type UtilityCategory =
@@ -455,6 +456,7 @@ export function FastPropertyView({
     const clearanceLabelMarkers = clearanceLabelMarkersRef.current;
     void import("maplibre-gl").then((maplibregl) => {
       if (disposed || !mapRef.current) return;
+      configureMapLibreWorker(maplibregl);
       mapLibreRef.current = maplibregl;
       const boundary = result.boundary.geometry
         ? feature(result.boundary.geometry)
