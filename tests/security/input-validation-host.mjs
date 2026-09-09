@@ -167,7 +167,7 @@ const child = spawn(
       : []),
     resolve(root, "node_modules/next/dist/bin/next"),
     ...(mode === "build"
-      ? ["build", "--webpack"]
+      ? ["build"]
       : mode === "diagnostic"
         ? ["dev", "--webpack", "--hostname", "127.0.0.1", "--port", "3217"]
         : ["start", "--hostname", "127.0.0.1", "--port", "3217"]),
