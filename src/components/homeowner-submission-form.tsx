@@ -14,6 +14,10 @@ import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assess
 import { visitorTypeOptions } from "@/modules/assessment/visitor-type";
 import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
 import { homeownerContactSchema } from "@/modules/assessment/homeowner-contact";
+import {
+  friendlyFieldError,
+  friendlyRequestError,
+} from "@/components/form-feedback";
 import { ActionProgressDialog } from "@/components/action-progress-dialog";
 import { isValidNzPhone, NZ_PHONE_ERROR } from "@/modules/assessment/nz-phone";
 
@@ -90,9 +94,7 @@ export function HomeownerSubmissionForm({
       consentGiven: form.get("consent") === "on",
     });
     if (!contact.success) {
-      setError(
-        "Check your contact details and remove hidden control characters.",
-      );
+      setError(friendlyFieldError(contact.error.issues));
       return;
     }
     setPhoneError(false);
@@ -122,18 +124,13 @@ export function HomeownerSubmissionForm({
         error?: { message?: string };
       } | null;
       if (!response.ok || !body?.assessment?.report) {
-        throw new Error(
-          body?.error?.message ?? "The assessment could not be saved.",
-        );
+        setError(friendlyRequestError(response.status, "save your report"));
+        return;
       }
       trackAnonymousFunnelEvent({ name: "report_request_submitted" });
       onSaved(body.assessment);
-    } catch (submissionError) {
-      setError(
-        submissionError instanceof Error
-          ? submissionError.message
-          : "The assessment could not be saved.",
-      );
+    } catch {
+      setError(friendlyRequestError(503, "save your report"));
     } finally {
       setSaving(false);
     }
@@ -279,13 +276,7 @@ export function HomeownerSubmissionForm({
           role="alert"
           className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-950"
         >
-          <p className="font-semibold">We couldn&apos;t save your report yet</p>
           <p>{error}</p>
-          <p className="mt-1 text-red-800">
-            <span className="font-semibold">What to try: </span>
-            Check the required fields and consent box, then try again. If they
-            are already complete, wait a minute and retry.
-          </p>
         </div>
       )}
       <button

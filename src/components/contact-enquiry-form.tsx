@@ -2,7 +2,11 @@
 
 import Link from "next/link";
 import { useRef, useState, type FormEvent } from "react";
-import { contactRequestSchema } from "@/modules/contact/contact-fields";
+import { contactSchemas } from "@/modules/contact/contact-fields";
+import {
+  friendlyFieldError,
+  friendlyRequestError,
+} from "@/components/form-feedback";
 
 export function ContactEnquiryForm({
   purpose = "general",
@@ -34,14 +38,16 @@ export function ContactEnquiryForm({
     if (submissionRef.current?.payload !== payload) {
       submissionRef.current = { payload, key: crypto.randomUUID() };
     }
-    const validated = contactRequestSchema.safeParse({
+    const validated = contactSchemas[purpose].safeParse({
       ...JSON.parse(payload),
       idempotencyKey: submissionRef.current.key,
     });
     if (!validated.success) {
-      setError(
-        "Check the required fields, remove hidden control characters, and use a valid email address.",
+      setError(friendlyFieldError(validated.error.issues));
+      const field = form.elements.namedItem(
+        String(validated.error.issues[0]?.path[0]),
       );
+      if (field instanceof HTMLElement) field.focus();
       return;
     }
     sendingRef.current = true;
@@ -58,21 +64,16 @@ export function ContactEnquiryForm({
         error?: { message?: string };
       } | null;
       if (!response.ok || !body?.sent) {
-        throw new Error(
-          body?.error?.message ??
-            "We could not send your message. Please try again shortly.",
-        );
+        setError(friendlyRequestError(response.status, "send your message"));
+        setState("idle");
+        return;
       }
       form.reset();
       submissionRef.current = null;
       setState("sent");
       onSent?.();
-    } catch (submissionError) {
-      setError(
-        submissionError instanceof Error
-          ? submissionError.message
-          : "We could not send your message. Please try again shortly.",
-      );
+    } catch {
+      setError(friendlyRequestError(503, "send your message"));
       setState("idle");
     } finally {
       sendingRef.current = false;
@@ -149,7 +150,6 @@ export function ContactEnquiryForm({
           role="alert"
           className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-950"
         >
-          <p className="font-semibold">We couldn&apos;t send your message</p>
           <p>{error}</p>
         </div>
       )}

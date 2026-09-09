@@ -18,6 +18,7 @@ export async function hasAuthenticatedStaffSession(
 export async function hasAuthenticatedStaffSessionToken(
   sessionToken: string | undefined,
 ): Promise<boolean> {
+  if (!sessionToken) return false;
   return hasActiveStaffSession(getDb(), sessionToken);
 }
 

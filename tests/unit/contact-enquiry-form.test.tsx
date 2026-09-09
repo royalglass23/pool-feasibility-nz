@@ -50,3 +50,32 @@ it("lets a partner enquire without a message and preserves the submission on ret
   });
   expect(retry.idempotencyKey).toBe(first.idempotencyKey);
 });
+
+it("explains invalid names without technical wording and accepts a corrected name", async () => {
+  const user = userEvent.setup();
+  const send = vi
+    .fn()
+    .mockResolvedValue(
+      new Response(JSON.stringify({ sent: true }), { status: 202 }),
+    );
+  vi.stubGlobal("fetch", send);
+  render(<ContactEnquiryForm />);
+  await user.type(screen.getByLabelText("Name"), "#$%");
+  await user.type(screen.getByLabelText("Email"), "test@example.com");
+  await user.type(
+    screen.getByLabelText("How can we help?"),
+    "Please help with our pool.",
+  );
+  await user.click(screen.getByRole("button", { name: "Send message" }));
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Name: Please use letters",
+  );
+  expect(screen.getByRole("alert")).not.toHaveTextContent("control characters");
+  expect(send).not.toHaveBeenCalled();
+  await user.clear(screen.getByLabelText("Name"));
+  await user.type(screen.getByLabelText("Name"), "Hēmi O’Connor");
+  await user.click(screen.getByRole("button", { name: "Send message" }));
+  expect(await screen.findByRole("status")).toHaveTextContent(
+    "message has been sent",
+  );
+});

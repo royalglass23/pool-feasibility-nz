@@ -2,6 +2,8 @@ import { test, expect } from "@playwright/test";
 import { createHash, createHmac, randomUUID } from "node:crypto";
 import { readFile } from "node:fs/promises";
 import { TEST_MAP_IMAGE_DATA_URL } from "../fixtures/preliminary-report";
+import { queryableDatasetKeys } from "../../src/modules/data-access-spike/dataset-catalog";
+import { officialDatasetEvidence } from "../../src/modules/providers/official-dataset-catalog";
 
 const contact = {
   purpose: "general",
@@ -18,7 +20,8 @@ const homeowner = {
   desiredTiming: "asap",
   consentGiven: true,
 };
-function reportInput() {
+function reportInput(persistable = false) {
+  const retrievedAt = new Date().toISOString();
   const payload = Buffer.from(
     JSON.stringify({
       submissionId: randomUUID(),
@@ -27,9 +30,95 @@ function reportInput() {
         resolvedAddress: {
           addressId: "test-only",
           fullAddress: "1 Synthetic Street, Auckland",
+          fullAddressNumber: "1",
+          unit: null,
+          territorialAuthority: "Auckland",
           coordinates: [174.76, -36.85],
         },
-        boundary: { state: "provisional" },
+        boundary: persistable
+          ? {
+              state: "confirmed",
+              parcelId: "security-synthetic-parcel",
+              areaSquareMetres: 900,
+              geometry: {
+                type: "Polygon",
+                coordinates: [
+                  [
+                    [174.75, -36.86],
+                    [174.77, -36.86],
+                    [174.77, -36.84],
+                    [174.75, -36.84],
+                    [174.75, -36.86],
+                  ],
+                ],
+              },
+            }
+          : { state: "provisional" },
+        ...(persistable
+          ? {
+              requestedAddress: "1 Synthetic Street, Auckland",
+              aerial: {
+                state: "unavailable",
+                durationMs: null,
+                attribution: null,
+              },
+              datasets: {
+                address_resolution: officialDatasetEvidence(
+                  "address_resolution",
+                  retrievedAt,
+                ),
+                legal_parcel: officialDatasetEvidence(
+                  "legal_parcel",
+                  retrievedAt,
+                ),
+                aerial_imagery: null,
+              },
+              defaultPool: {
+                id: "compact",
+                label: "Compact",
+                lengthMetres: 6.5,
+                widthMetres: 3,
+              },
+              progress: {
+                address: "found",
+                boundary: "found",
+                aerial: "unavailable",
+                detailedChecks: "loaded",
+              },
+              firstUsableViewStartedAt: retrievedAt,
+              fastPathDurationMs: 10,
+              detailedChecks: {
+                status: "complete",
+                retrievedAt,
+                durationMs: 10,
+                region: "Auckland",
+                limitations: ["Synthetic security fixture"],
+                layers: [...queryableDatasetKeys, "culverts"].map((key) => ({
+                  key,
+                  state: "verified_empty",
+                  geometry: null,
+                  message: "Synthetic empty result",
+                  evidence: {
+                    provider: "Synthetic provider",
+                    dataset: key,
+                    datasetIdentifier: key,
+                    status: "success",
+                    licenceStatus: "permitted",
+                    evidenceUse: "report_allowed",
+                    retrievedAt,
+                    datasetDate: null,
+                    licence: "Test licence",
+                    attribution: null,
+                    geometryUsed: "bounded query",
+                    attributesUsed: [],
+                    evidenceType: "vector",
+                    confidence: "limited",
+                    featureCount: 0,
+                  },
+                })),
+              },
+            }
+          : {}),
       },
     }),
   ).toString("base64url");
@@ -59,6 +148,52 @@ test.beforeEach(async ({ context }, info) => {
   });
 });
 
+test("dev report persists and an independent context retrieves the same report on resubmission", async ({
+  playwright,
+  page,
+}) => {
+  expect(process.env.INPUT_SECURITY_DATABASE).toBe("dev");
+  const input = reportInput(true);
+  await page.goto("/");
+  const first = await page.evaluate(async (data) => {
+    const response = await fetch("/api/public/assessments", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(data),
+    });
+    return { status: response.status, body: await response.json() };
+  }, input);
+  expect(first.status, JSON.stringify(first.body)).toBe(201);
+  const saved = first.body.assessment;
+  expect(saved.report).toBeTruthy();
+  await page.reload();
+  await expect(page.getByLabel("Auckland property address")).toBeVisible();
+  expect(await page.locator("body").innerText()).not.toContain(homeowner.email);
+  expect(await page.locator("body").innerText()).not.toContain(saved.reference);
+  expect(
+    await page.evaluate(() =>
+      JSON.stringify({
+        local: { ...localStorage },
+        session: { ...sessionStorage },
+      }),
+    ),
+  ).not.toContain(homeowner.email);
+  const fresh = await playwright.request.newContext({
+    baseURL: "http://127.0.0.1:3217",
+    extraHTTPHeaders: { "x-vercel-forwarded-for": "10.252.253.254" },
+  });
+  try {
+    const again = await fresh.post("/api/public/assessments", { data: input });
+    expect(again.status(), await again.text()).toBe(200);
+    const recovered = (await again.json()).assessment;
+    expect(recovered.id).toBe(saved.id);
+    expect(recovered.created).toBe(false);
+    expect(recovered.report).toEqual(saved.report);
+  } finally {
+    await fresh.dispose();
+  }
+});
+
 test("partner browser rejects hidden controls then sends corrected Unicode details", async ({
   page,
 }) => {
@@ -67,9 +202,13 @@ test("partner browser rejects hidden controls then sends corrected Unicode detai
   await page.getByLabel("Company", { exact: true }).fill("O’Connor & Sons");
   await page.getByLabel("Work email", { exact: true }).fill(contact.email);
   await page.getByRole("button", { name: "Register your interest" }).click();
-  await expect(page.getByRole("alert")).toContainText(
-    "hidden control characters",
-  );
+  await expect(
+    page.getByRole("alert").filter({ hasText: "Name:" }),
+  ).toContainText("Please type this again using plain text.");
+  await page.screenshot({
+    path: "tmp/input-security/friendly-name-desktop.png",
+    fullPage: true,
+  });
   await page.getByLabel("Your name", { exact: true }).fill(contact.name);
   const sent = page.waitForResponse(
     (response) =>
@@ -83,10 +222,11 @@ test("partner browser rejects hidden controls then sends corrected Unicode detai
   );
 });
 
-test("general browser enquiry keeps script-shaped text inert in email output", async ({
+test("general browser enquiry rejects HTML with helpful feedback and allows correction", async ({
   page,
 }) => {
   const payload = '<img src=x onerror="alert(1)">';
+  await page.setViewportSize({ width: 390, height: 844 });
   const dialogs: string[] = [];
   page.on("dialog", async (dialog) => {
     dialogs.push(dialog.message());
@@ -99,18 +239,25 @@ test("general browser enquiry keeps script-shaped text inert in email output", a
   await dialog.getByLabel("Email", { exact: true }).fill(contact.email);
   await dialog.getByLabel("How can we help?", { exact: true }).fill(payload);
   await dialog.getByRole("button", { name: "Send message" }).click();
+  await expect(dialog.getByRole("alert")).toContainText(
+    "Message: Please use plain text without HTML tags.",
+  );
+  await page.screenshot({
+    path: "tmp/input-security/friendly-message-mobile.png",
+  });
+  const corrected = "Please help with a pool & landscaping.";
+  await dialog.getByLabel("How can we help?", { exact: true }).fill(corrected);
+  await dialog.getByRole("button", { name: "Send message" }).click();
   await expect(dialog.getByText(/Thanks.*message has been sent/)).toBeVisible();
   expect(dialogs).toEqual([]);
   const emails = (await readFile("tmp/input-security/emails.jsonl", "utf8"))
     .trim()
     .split("\n")
     .map((line) => JSON.parse(line));
-  const email = emails.find((entry) => entry.text.includes(payload));
+  const email = emails.find((entry) => entry.text.includes(corrected));
   expect(email).toBeTruthy();
   expect(email.html).not.toContain(payload);
-  expect(email.html).toContain(
-    "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;",
-  );
+  expect(email.html).toContain("pool &amp; landscaping");
   expect(page.url()).not.toContain(contact.email);
   expect(await page.evaluate(() => JSON.stringify(localStorage))).not.toContain(
     contact.email,
@@ -209,6 +356,7 @@ test("contact rate limit denies the fourth attempt", async ({ context }) => {
 
 test("anonymous staff API access stays denied", async ({ context }) => {
   const response = await context.request.get("/api/internal/assessments");
-  expect([401, 403, 503]).toContain(response.status());
+  expect(response.status()).toBe(401);
+  expect(response.headers()["cache-control"]).toBe("no-store");
   expect(await response.text()).not.toContain("homeownerEmail");
 });

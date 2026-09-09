@@ -57,7 +57,7 @@ it.each([
   ).toBe(false);
 });
 
-it("retains safe Unicode and encodes script-shaped text in every enquiry email field", async () => {
+it("retains safe Unicode and rejects HTML in enquiry fields", async () => {
   vi.stubEnv("CONTACT_DELIVERY_MODE", "production");
   const payload = '<img src=x onerror="alert(1)">';
   const send = vi.fn().mockResolvedValue({ id: "test-only" });
@@ -74,9 +74,8 @@ it("retains safe Unicode and encodes script-shaped text in every enquiry email f
     }),
     { send, apiKey: "test-only", from: "test@example.com" },
   );
-  expect(response.status).toBe(202);
-  expect(send.mock.calls[0][0].html).not.toContain(payload);
-  expect(send.mock.calls[0][0].html.match(/&lt;img/g)).toHaveLength(3);
+  expect(response.status).toBe(400);
+  expect(send).not.toHaveBeenCalled();
   expect(contactRequestSchema.parse(contact).name).toBe(contact.name);
 });
 

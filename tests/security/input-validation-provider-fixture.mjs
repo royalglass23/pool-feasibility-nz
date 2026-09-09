@@ -41,6 +41,14 @@ globalThis.fetch = async (input, init) => {
     );
   }
   if (!["127.0.0.1", "localhost", "[::1]"].includes(url.hostname))
-    throw new Error("EXTERNAL_NETWORK_DISABLED_FOR_SECURITY_TEST");
+    if (
+      process.env.INPUT_SECURITY_DB_ENDPOINT &&
+      url.protocol === "https:" &&
+      url.href === process.env.INPUT_SECURITY_DB_ENDPOINT &&
+      new Headers(init?.headers).get("Neon-Connection-String") ===
+        process.env.DATABASE_URL
+    )
+      return originalFetch(input, init);
+    else throw new Error("EXTERNAL_NETWORK_DISABLED_FOR_SECURITY_TEST");
   return originalFetch(input, init);
 };

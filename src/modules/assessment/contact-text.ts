@@ -1,5 +1,5 @@
-import { z } from "zod";
 import { contactText } from "@/shared/validation/contact-text";
+import { personName } from "@/modules/contact/person-name";
 export { contactText } from "@/shared/validation/contact-text";
-export const homeownerNameSchema = contactText(160).pipe(z.string().min(1));
+export const homeownerNameSchema = personName(160);
 export const additionalInfoSchema = contactText(4_000, true).optional();

@@ -143,7 +143,7 @@ function invalidRequestResponse(correlationId: string) {
   return apiErrorResponse(
     {
       code: "INVALID_REQUEST",
-      message: "Check the required fields and enter a valid email address.",
+      message: "Please check your details and try again.",
     },
     400,
     correlationId,

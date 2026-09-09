@@ -35,7 +35,7 @@ describe("contact requests", () => {
     const response = await handleContactRequest(
       request({
         ...validRequest,
-        message: "<script>alert(1)</script> Enough text.",
+        message: "Could you help with a pool & landscaping?",
       }),
       dependencies,
     );
@@ -50,7 +50,7 @@ describe("contact requests", () => {
         idempotencyKey: `contact-form/${validRequest.idempotencyKey}`,
       }),
     );
-    expect(send.mock.calls[0]![0].html).toContain("&lt;script&gt;");
+    expect(send.mock.calls[0]![0].html).toContain("pool &amp; landscaping");
     expect(send.mock.calls[0]![0].html).not.toContain("<script>");
   });
 
