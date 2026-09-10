@@ -1,74 +1,101 @@
-# Internal POC release readiness
+# Release readiness and evidence map
 
-## Release boundary
+This page tells a reviewer what is currently known. It does not grant deployment,
+database-migration, credential, external-email, or production-test authority.
 
-This decision applies only to the internal, Auckland-only, no-database Royal
-Glass POC. It authorizes neither deployment nor customer/external use. The POC
-stores no assessment history and makes no approval, consent, engineering,
-survey, title, utility-location, or construction-safety claim.
+## Current position
 
-## Controlled release gates
+The `features` branch contains a deployment-shaped Auckland Property Check with
+anonymous public routes, persisted assessments, emailed PDFs, Admin-only saved
+records, shared rate limiting, retention, consent-gated analytics, and public
+contact/partnership forms.
 
-Run these against the committed dependency tree without live provider calls:
+The old July 2026 decision that described an internal, no-database,
+session-scoped POC is superseded as a product description. Its test results
+remain historical evidence only.
+
+There is no single release-evidence pack bound to the current `HEAD`:
+
+- dependency remediation is **PASS** for commit `5e34e16`;
+- the report-input remediation was independently reviewed as ready to commit,
+  and its production-like browser lane passed, but its formal sign-off predates
+  the dependency fix; and
+- later public form-feedback changes landed after the dependency evidence.
+
+Therefore, treat the present repository as **not yet covered by one complete
+current release sign-off**. Re-run the required gates against the exact commit
+selected for promotion and verify the target environment separately.
+
+## Required code gates
+
+Run from a clean checkout of the exact candidate commit:
 
 ```powershell
+npm install
 npm run typecheck
 npm run lint
 npm run format:check
 npm test -- --pool=threads --maxWorkers=1 --configLoader=runner
-npx playwright test --workers=1
+npm run test:e2e
+npm run test:e2e:contact
 npm run build
+npm audit --omit=dev --audit-level=high
+pnpm audit --prod --audit-level high
+pnpm install --frozen-lockfile --ignore-scripts
 ```
 
-Controlled fixtures must cover both `42A Bahari Drive, Ranui, Auckland` and
-`2/49 Pigeon Mountain Road, Half Moon Bay, Auckland`. The journey must expose
-progress, exact address/parcel identity, mapped attribution and constraints,
-candidates, calculated size range, assessment, narrative/fallback, and an
-address-specific download. Accessibility requires labelled controls, polite
-progress/error announcements, disabled duplicate submission, keyboard-operable
-retry and selection controls, and focus on the completed result heading.
+Use the dedicated security configurations/evidence validators for the feature
+being released. A passing focused test is evidence for that slice, not a waiver
+for a failed or missing full gate.
 
-## Separate live smoke checks
+## Required target checks
 
-Live checks are manual operational evidence and are never CI fixtures. With
-server-only provider credentials configured locally, run:
+Before calling a public deployment ready, verify all of the following on the
+actual target:
 
-```powershell
-npm run smoke:live-layers -- "42A Bahari Drive, Ranui, Auckland"
-npm run spike:verify-aerial -- "42A Bahari Drive, Ranui, Auckland"
-npm run smoke:live-layers -- "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland"
-npm run spike:verify-aerial -- "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland"
-```
+- the deployed revision matches the reviewed commit;
+- the production database schema and address index were applied to the approved
+  database, with no test or preview binding;
+- LINZ/Auckland Council credentials work and remain server-only;
+- Upstash-backed public limits fail closed and run before costly or persistent
+  work;
+- report signing, Chromium rendering, Resend sender identity, homeowner report
+  delivery, and the bounded support copy work without duplicate sends;
+- Admin sign-in, lockout, session expiry, sign-out, saved-record access, and
+  anonymous denial work against the production-shaped environment;
+- retention and privacy-request operations target only authorised records;
+- consent rejection leaves analytics unloaded and analytics payloads contain no
+  address, contact, map, report, or staff data;
+- headers, TLS, origin/host handling, indexing state, and the final public
+  hostname match the intended launch; and
+- an actual browser completes the address, placement, detailed-check, report,
+  and recovery journeys on the deployed site.
 
-Record only the safe normalized pass/fail summary, exact resolved address ID,
-parcel ID, visible attribution result, and check timestamp. Do not copy live
-responses into `tests/fixtures`, commit generic residential screenshots, or
-retain raw provider payloads. The approved 42A regression image remains the only
-retained residential screenshot in this POC.
+Live-provider and delivery checks are operational evidence and must not be
+converted into ordinary CI fixtures or run with production/customer data unless
+that exact use is authorised.
 
-## Evidence and decision
+## Evidence locations
 
-Controlled-candidate validation date: 2026-07-21 (Pacific/Auckland).
+| Area                           | Evidence                                                                                                                                 |
+| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Current dependency remediation | [`../security/dependency-remediation/signoff.md`](../security/dependency-remediation/signoff.md)                                         |
+| Public input validation        | [`../security/report-input-validation/signoff.md`](../security/report-input-validation/signoff.md)                                       |
+| Input-remediation review       | [`../security/report-input-validation/review/remediation-results.md`](../security/report-input-validation/review/remediation-results.md) |
+| Public lead-capture history    | [`../security/public-lead-capture/signoff.md`](../security/public-lead-capture/signoff.md)                                               |
+| Report-delivery history        | [`../security/production-report-delivery/signoff.md`](../security/production-report-delivery/signoff.md)                                 |
+| Traffic-launch history         | [`../security/mt-260/signoff.md`](../security/mt-260/signoff.md)                                                                         |
 
-- TypeScript, ESLint, and Prettier: pass.
-- Vitest: pass, 21 files and 124 tests using one serialized thread. The runner
-  config loader avoids the locked Vite temp-directory failure seen in the
-  current Windows workspace. Coverage includes fail-closed narrative
-  grounding, bounded OpenAI response handling, provider-host rejection, safe
-  narrative outcome logging, session-download completeness, and deterministic
-  front/rear/side-yard preference ranking.
-- Controlled Chromium Playwright: pass, 9 journeys using one worker.
-- Next.js production build: pass.
-- Live-provider evidence below was last refreshed on 2026-07-20 and is recorded
-  separately from the 2026-07-21 controlled candidate gates.
-- Live 42A layer smoke: pass at `2026-07-20T04:37:21.573Z`; LINZ
-  address `2359811`, parcel `8545868`.
-- Live 42A aerial check: pass; address point inside parcel, comparison address
-  outside it, tiles loaded at zoom 20, attribution visible.
-- Live second-address layer smoke: pass at `2026-07-20T04:40:04.690Z`;
-  LINZ address `2453674`, parcel `4789010`.
-- Live second-address aerial check: pass; address point inside parcel, tiles
-  loaded at zoom 20, attribution visible. Its residential screenshot was deleted
-  after verification and was not added to fixtures.
-- External/customer release: **NO-GO**.
-- Internal local POC: **GO within the release boundary above**.
+Older FAIL/BLOCKED evidence is not automatically a claim that the current code
+still has every recorded defect. It does prove that the named candidate was not
+approved at that time. A later implementation or focused PASS does not replace
+the need for an exact-commit, target-specific release decision.
+
+## Historical internal POC result
+
+The July candidate passed TypeScript, ESLint, Prettier, 124 Vitest tests, nine
+controlled Chromium journeys, a production build, and live layer/aerial checks
+for two Auckland fixtures on 20-21 July 2026. That result applied only to the
+then-current internal, no-database POC and authorised neither external use nor
+deployment. It is retained here to explain project history, not current
+readiness.
