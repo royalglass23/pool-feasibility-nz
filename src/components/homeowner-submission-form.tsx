@@ -19,6 +19,7 @@ import {
   friendlyRequestError,
 } from "@/components/form-feedback";
 import { ActionProgressDialog } from "@/components/action-progress-dialog";
+import { FieldValidationMessage } from "@/components/field-validation-message";
 import { isValidNzPhone, NZ_PHONE_ERROR } from "@/modules/assessment/nz-phone";
 
 export type AssessmentSubmissionContext = Omit<
@@ -191,16 +192,12 @@ export function HomeownerSubmissionForm({
                     : "",
               }));
             }}
-            className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3"
+            className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3 aria-[invalid=true]:border-orange-600 aria-[invalid=true]:outline-orange-100"
           />
           {fieldErrors.phone && (
-            <span
-              id="homeowner-phone-error"
-              role="alert"
-              className="mt-1 block text-sm text-red-800"
-            >
+            <FieldValidationMessage id="homeowner-phone-error">
               {NZ_PHONE_ERROR}
-            </span>
+            </FieldValidationMessage>
           )}
         </div>
         <Field
@@ -270,16 +267,12 @@ export function HomeownerSubmissionForm({
                 ? "homeowner-additionalInfo-error"
                 : undefined
             }
-            className="border-pool-300 mt-1 block w-full rounded-lg border bg-white px-3 py-2"
+            className="border-pool-300 mt-1 block w-full rounded-lg border bg-white px-3 py-2 aria-[invalid=true]:border-orange-600 aria-[invalid=true]:outline-orange-100"
           />
           {fieldErrors.additionalInfo && (
-            <span
-              id="homeowner-additionalInfo-error"
-              role="alert"
-              className="mt-1 block text-sm text-red-800"
-            >
+            <FieldValidationMessage id="homeowner-additionalInfo-error">
               {fieldErrors.additionalInfo}
-            </span>
+            </FieldValidationMessage>
           )}
         </label>
         <p className="text-pool-700 text-sm leading-6 sm:col-span-2">
@@ -312,13 +305,12 @@ export function HomeownerSubmissionForm({
             </span>
           </span>
           {fieldErrors.consentGiven && (
-            <span
+            <FieldValidationMessage
               id="homeowner-consent-error"
-              role="alert"
-              className="mt-1 ml-7 block text-sm text-red-800"
+              className="ml-7"
             >
               {fieldErrors.consentGiven}
-            </span>
+            </FieldValidationMessage>
           )}
         </label>
       </div>
@@ -365,16 +357,12 @@ function Field({
         required={required}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
-        className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3"
+        className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3 aria-[invalid=true]:border-orange-600 aria-[invalid=true]:outline-orange-100"
       />
       {error && (
-        <span
-          id={`${id}-error`}
-          role="alert"
-          className="mt-1 block text-sm text-red-800"
-        >
+        <FieldValidationMessage id={`${id}-error`}>
           {error}
-        </span>
+        </FieldValidationMessage>
       )}
     </div>
   );

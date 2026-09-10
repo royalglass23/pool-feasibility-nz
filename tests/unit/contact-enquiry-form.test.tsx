@@ -90,6 +90,10 @@ it("explains invalid names without technical wording and accepts a corrected nam
   );
   await user.click(screen.getByRole("button", { name: "Send message" }));
   expect(screen.getByRole("alert")).toHaveTextContent("Please use letters");
+  expect(screen.getByRole("alert")).toHaveAttribute(
+    "data-slot",
+    "field-validation-message",
+  );
   expect(screen.getByRole("alert")).not.toHaveTextContent("control characters");
   expect(send).not.toHaveBeenCalled();
   await user.clear(screen.getByLabelText("Name"));

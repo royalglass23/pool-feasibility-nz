@@ -175,6 +175,11 @@ describe("homeowner report submission", () => {
         "Enter a valid NZ mobile or landline number starting with 0.",
       ),
     ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Enter a valid NZ mobile or landline number starting with 0.",
+      ).parentElement,
+    ).toHaveAttribute("data-slot", "field-validation-message");
     await user.clear(screen.getByRole("textbox", { name: "Phone" }));
     await user.type(screen.getByLabelText("Phone"), "+64 21 555 1234");
     await user.click(

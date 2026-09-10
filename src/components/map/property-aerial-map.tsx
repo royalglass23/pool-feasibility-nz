@@ -16,6 +16,7 @@ import {
   spatialEvidenceForMap,
 } from "./map-evidence";
 import { configureMapLibreWorker } from "./configure-maplibre-worker";
+import { FieldValidationMessage } from "@/components/field-validation-message";
 
 type DatasetKey = keyof DataAccessSpikeResult["datasets"];
 type MapLayerDefinition = {
@@ -843,9 +844,9 @@ function PlacementControls({
         </div>
       )}
       {validationMessage && (
-        <p role="alert" className="mt-3 text-sm font-semibold text-red-700">
+        <FieldValidationMessage className="mt-3">
           {validationMessage}
-        </p>
+        </FieldValidationMessage>
       )}
       {dimensions && (
         <p className="text-pool-700 mt-3 text-sm">

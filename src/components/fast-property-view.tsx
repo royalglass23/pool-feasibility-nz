@@ -36,6 +36,7 @@ import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-vi
 import { SELECTED_POOL_MAP_STYLE } from "@/modules/reporting/report-map-style";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
+import { FieldValidationMessage } from "@/components/field-validation-message";
 import { bearing, point } from "@turf/turf";
 
 type UtilityCategory =
@@ -1032,10 +1033,10 @@ export function FastPropertyView({
                 </div>
               )}
               {!dimensions && (
-                <p role="alert" className="text-sm font-semibold text-red-700">
+                <FieldValidationMessage>
                   Enter a length from 2–20 m and width from 1.5–10 m in 0.1 m
                   increments.
-                </p>
+                </FieldValidationMessage>
               )}
               {placementMessage && (
                 <p

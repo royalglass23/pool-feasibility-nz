@@ -29,6 +29,25 @@ afterEach(() => {
 });
 
 describe("DataAccessInspector", { timeout: 10_000 }, () => {
+  it("shows the shared field validation treatment for an empty address", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    render(<DataAccessInspector />);
+
+    const input = screen.getByLabelText("Auckland property address");
+    await user.click(input);
+    await user.keyboard("{Enter}");
+
+    const message = screen
+      .getByText("Please fill in this field.")
+      .closest('[role="alert"]');
+    expect(message).toHaveAttribute("data-slot", "field-validation-message");
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    expect(input).toHaveAccessibleDescription(/Please fill in this field\./);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
   it("starts empty and prevents duplicate requests while loading", async () => {
     const user = userEvent.setup();
     let resolveRequest: ((response: Response) => void) | undefined;

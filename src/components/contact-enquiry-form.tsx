@@ -7,6 +7,7 @@ import {
   friendlyFieldErrors,
   friendlyRequestError,
 } from "@/components/form-feedback";
+import { FieldValidationMessage } from "@/components/field-validation-message";
 
 type ContactFieldName = "name" | "company" | "email" | "message";
 
@@ -155,16 +156,12 @@ export function ContactEnquiryForm({
             aria-describedby={
               fieldErrors.message ? `${formId}-message-error` : undefined
             }
-            className="mt-1.5 block w-full resize-y rounded-lg border border-[#9fc8df] bg-white px-3 py-2.5 text-base font-normal outline-none focus:border-[#0077bd] focus:ring-2 focus:ring-[#a5d9f2]"
+            className="mt-1.5 block w-full resize-y rounded-lg border border-[#9fc8df] bg-white px-3 py-2.5 text-base font-normal outline-none focus:border-[#0077bd] focus:ring-2 focus:ring-[#a5d9f2] aria-[invalid=true]:border-orange-600 aria-[invalid=true]:focus:border-orange-600 aria-[invalid=true]:focus:ring-orange-100"
           />
           {fieldErrors.message && (
-            <span
-              id={`${formId}-message-error`}
-              role="alert"
-              className="mt-1 block text-sm font-normal text-red-800"
-            >
+            <FieldValidationMessage id={`${formId}-message-error`}>
               {fieldErrors.message}
-            </span>
+            </FieldValidationMessage>
           )}
         </div>
         <label className="sr-only" aria-hidden="true">
@@ -238,16 +235,12 @@ function Field({
         maxLength={maxLength}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
-        className="mt-1.5 block min-h-11 w-full rounded-lg border border-[#9fc8df] bg-white px-3 text-base font-normal outline-none focus:border-[#0077bd] focus:ring-2 focus:ring-[#a5d9f2]"
+        className="mt-1.5 block min-h-11 w-full rounded-lg border border-[#9fc8df] bg-white px-3 text-base font-normal outline-none focus:border-[#0077bd] focus:ring-2 focus:ring-[#a5d9f2] aria-[invalid=true]:border-orange-600 aria-[invalid=true]:focus:border-orange-600 aria-[invalid=true]:focus:ring-orange-100"
       />
       {error && (
-        <span
-          id={`${id}-error`}
-          role="alert"
-          className="mt-1 block text-sm font-normal text-red-800"
-        >
+        <FieldValidationMessage id={`${id}-error`}>
           {error}
-        </span>
+        </FieldValidationMessage>
       )}
     </div>
   );
