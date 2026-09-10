@@ -17,7 +17,10 @@ export async function GET(
   { params }: { params: Promise<{ id: string }> },
 ) {
   const correlationId = requestCorrelationId(request);
-  const sessionDenied = await staffSessionDeniedResponse(request, correlationId);
+  const sessionDenied = await staffSessionDeniedResponse(
+    request,
+    correlationId,
+  );
   if (sessionDenied) return sessionDenied;
 
   const { id } = await params;

@@ -53,8 +53,10 @@ export function calculatePoolShellClearances(input: {
     const intersections = lineIntersect(
       lineString([start, rayEnd]),
       feature(input.boundaryGeometry),
-    ).features
-      .map((intersection) => intersection.geometry.coordinates as [number, number])
+    )
+      .features.map(
+        (intersection) => intersection.geometry.coordinates as [number, number],
+      )
       .map((candidate) => ({
         candidate,
         metres: distance(point(start), point(candidate), { units: "meters" }),

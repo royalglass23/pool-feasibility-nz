@@ -35,7 +35,11 @@ export async function attemptStaffSignIn(
     input.password,
     account?.passwordHash ?? DUMMY_PASSWORD_HASH,
   );
-  if (!account || !passwordMatches || !safeUsernameEqual(input.username, account.username)) {
+  if (
+    !account ||
+    !passwordMatches ||
+    !safeUsernameEqual(input.username, account.username)
+  ) {
     const failure = await store.recordFailedSignIn(input.now);
     return failure.locked ? { outcome: "locked" } : { outcome: "failed" };
   }

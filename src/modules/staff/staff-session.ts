@@ -23,7 +23,10 @@ export async function hasAuthenticatedStaffSessionToken(
 }
 
 export function readStaffSessionToken(request: Request): string | undefined {
-  return readCookie(request.headers.get("cookie"), staffSessionConfig.cookieName);
+  return readCookie(
+    request.headers.get("cookie"),
+    staffSessionConfig.cookieName,
+  );
 }
 
 export function staffSessionCookieOptions(
@@ -51,7 +54,10 @@ export async function staffSessionDeniedResponse(
   );
 }
 
-function readCookie(cookieHeader: string | null, name: string): string | undefined {
+function readCookie(
+  cookieHeader: string | null,
+  name: string,
+): string | undefined {
   if (!cookieHeader) return undefined;
   for (const part of cookieHeader.split(";")) {
     const [rawName, ...rawValue] = part.trim().split("=");

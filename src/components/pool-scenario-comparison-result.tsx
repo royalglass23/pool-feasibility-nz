@@ -48,25 +48,27 @@ export function PoolScenarioComparisonResult({
         <div>
           <h3
             id="pool-scenario-comparison-heading"
-            className="text-xl font-semibold text-balance text-pool-950"
+            className="text-pool-950 text-xl font-semibold text-balance"
           >
             Pool size screening
           </h3>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-pretty text-pool-700">
+          <p className="text-pool-700 mt-2 max-w-3xl text-sm leading-6 text-pretty">
             We checked {rankedScenarios.length} common pool sizes against the
             available property information. The largest size with a possible
             position is shown here. A site visit and specialist checks are still
             required before design or construction.
           </p>
         </div>
-        <div className="rounded-2xl bg-pool-blue-50 px-4 py-3 text-sm ring-1 ring-pool-blue-600/15 lg:min-w-80">
-          <p className="font-semibold text-pool-blue-950">Largest potential fit</p>
-          <p className="mt-1 text-lg font-bold text-pool-blue-800">
+        <div className="bg-pool-blue-50 ring-pool-blue-600/15 rounded-2xl px-4 py-3 text-sm ring-1 lg:min-w-80">
+          <p className="text-pool-blue-950 font-semibold">
+            Largest potential fit
+          </p>
+          <p className="text-pool-blue-800 mt-1 text-lg font-bold">
             {recommendedShell
               ? `${recommendedShell.label} · ${formatShell(recommendedShell)}`
               : "No pool size can be recommended yet"}
           </p>
-          <p className="mt-1 text-sm leading-5 text-pool-blue-900">
+          <p className="text-pool-blue-900 mt-1 text-sm leading-5">
             {recommendedShell
               ? "A possible position was found using the available property information."
               : "The available property information does not support a size recommendation."}
@@ -74,7 +76,7 @@ export function PoolScenarioComparisonResult({
         </div>
       </div>
 
-      <p className="mt-5 text-sm font-medium text-pool-800">
+      <p className="text-pool-800 mt-5 text-sm font-medium">
         {successfulCount > 0
           ? `Possible positions found for ${successfulCount} of ${rankedScenarios.length} sizes.`
           : `No possible positions found for the ${rankedScenarios.length} sizes checked.`}
@@ -94,8 +96,8 @@ export function PoolScenarioComparisonResult({
       {!sharedStatus && (
         <ul className="mt-4 space-y-2" aria-label="Results by pool size">
           {statusGroups.map(({ status, labels }) => (
-            <li key={status} className="text-sm leading-6 text-pool-700">
-              <span className="font-semibold text-pool-950">
+            <li key={status} className="text-pool-700 text-sm leading-6">
+              <span className="text-pool-950 font-semibold">
                 {formatList(labels)}:
               </span>{" "}
               <span className={statusTextClass(status)}>
@@ -106,21 +108,21 @@ export function PoolScenarioComparisonResult({
         </ul>
       )}
 
-      <div className="mt-5 overflow-hidden rounded-2xl border border-pool-200 bg-white">
-        <div className="grid grid-cols-[1fr_auto] gap-4 bg-pool-100 px-4 py-2.5 text-sm font-semibold text-pool-700 sm:grid-cols-[1fr_10rem]">
+      <div className="border-pool-200 mt-5 overflow-hidden rounded-2xl border bg-white">
+        <div className="bg-pool-100 text-pool-700 grid grid-cols-[1fr_auto] gap-4 px-4 py-2.5 text-sm font-semibold sm:grid-cols-[1fr_10rem]">
           <span>Pool size</span>
           <span>Dimensions</span>
         </div>
-        <ul className="divide-y divide-pool-200">
+        <ul className="divide-pool-200 divide-y">
           {rankedScenarios.map((analysis) => (
             <li
               key={analysis.scenario.id}
               className="grid grid-cols-[1fr_auto] items-center gap-4 px-4 py-3 sm:grid-cols-[1fr_10rem]"
             >
-              <h4 className="font-semibold text-pool-950">
+              <h4 className="text-pool-950 font-semibold">
                 {analysis.scenario.label}
               </h4>
-              <p className="text-sm font-medium whitespace-nowrap text-pool-800">
+              <p className="text-pool-800 text-sm font-medium whitespace-nowrap">
                 {formatShell({
                   lengthMetres: analysis.scenario.shellLengthMetres,
                   widthMetres: analysis.scenario.shellWidthMetres,

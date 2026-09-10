@@ -1,12 +1,25 @@
 import { describe, expect, it } from "vitest";
 import { feature, point } from "@turf/turf";
 import type { FeatureCollection, Polygon } from "geojson";
-import type { DetailedLayerResult, FastPropertyDetails } from "@/modules/data-access-spike/execute-fast-property-details";
-import { classifyFastPoolWarning, type FastPoolWarningInput } from "@/modules/data-access-spike/fast-pool-warning";
+import type {
+  DetailedLayerResult,
+  FastPropertyDetails,
+} from "@/modules/data-access-spike/execute-fast-property-details";
+import {
+  classifyFastPoolWarning,
+  type FastPoolWarningInput,
+} from "@/modules/data-access-spike/fast-pool-warning";
 
 const pool = feature<Polygon>({
   type: "Polygon",
-  coordinates: [[[174.6, -36.86], [174.601, -36.86], [174.601, -36.861], [174.6, -36.86]]],
+  coordinates: [
+    [
+      [174.6, -36.86],
+      [174.601, -36.86],
+      [174.601, -36.861],
+      [174.6, -36.86],
+    ],
+  ],
 });
 
 function details(layers: DetailedLayerResult[]): FastPropertyDetails {
@@ -49,7 +62,9 @@ function layer(
   };
 }
 
-function input(overrides: Partial<FastPoolWarningInput> = {}): FastPoolWarningInput {
+function input(
+  overrides: Partial<FastPoolWarningInput> = {},
+): FastPoolWarningInput {
   return {
     boundaryState: "confirmed",
     pool,
@@ -60,7 +75,9 @@ function input(overrides: Partial<FastPoolWarningInput> = {}): FastPoolWarningIn
 
 describe("fast pool warning integration contract", () => {
   it("transitions through Needs Checking, No Warning, and Blocked from loaded evidence", () => {
-    expect(classifyFastPoolWarning(input({ detailedChecks: undefined })).status).toBe("needs_checking");
+    expect(
+      classifyFastPoolWarning(input({ detailedChecks: undefined })).status,
+    ).toBe("needs_checking");
     expect(classifyFastPoolWarning(input()).status).toBe("no_warning");
     expect(
       classifyFastPoolWarning(

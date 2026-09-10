@@ -14,11 +14,11 @@ as the first traffic bet.
 
 ## What this conclusion means
 
-| Topic | Likely discovery reach | Fit with the product | Launch role |
-| --- | --- | --- | --- |
-| Pool cost / budget | Broadest early-research question | Good: budget is a natural first step before a site check | **Primary traffic pillar** |
-| Can my property suit a pool? | Narrower, but higher-intent | Excellent: this is the useful thing the product can do | **Primary conversion page and CTA** |
-| Consents / rules | Important, specific and long-tail | Useful, but time-sensitive and not a substitute for Council advice | **Supporting trust and FAQ cluster** |
+| Topic                        | Likely discovery reach            | Fit with the product                                               | Launch role                          |
+| ---------------------------- | --------------------------------- | ------------------------------------------------------------------ | ------------------------------------ |
+| Pool cost / budget           | Broadest early-research question  | Good: budget is a natural first step before a site check           | **Primary traffic pillar**           |
+| Can my property suit a pool? | Narrower, but higher-intent       | Excellent: this is the useful thing the product can do             | **Primary conversion page and CTA**  |
+| Consents / rules             | Important, specific and long-tail | Useful, but time-sensitive and not a substitute for Council advice | **Supporting trust and FAQ cluster** |
 
 Exact Auckland monthly search volumes, click-through rates, and ranking
 difficulty are **not verified in this note**. They are not publicly available
@@ -33,8 +33,8 @@ A person asking what a pool costs is usually at the earliest viable decision
 point: they are deciding whether a project is realistic at all. That makes an
 honest Auckland budget guide a broad, non-technical doorway into the subject.
 It can answer cost drivers without pretending every property or quote will be
-the same, then offer the next useful question: *what may affect this property's
-pool plan?*
+the same, then offer the next useful question: _what may affect this property's
+pool plan?_
 
 Suggested launch page and path:
 
@@ -70,7 +70,7 @@ view of your property before you plan a pool."
   and safety information. Its pool lodgement checklist also identifies
   property-specific complications such as public drains, flood/soil hazards,
   vegetation and resource-consent conditions. That supports a cautious,
-Auckland-specific Property Check rather than a blanket "you can build"
+  Auckland-specific Property Check rather than a blanket "you can build"
   claim. [Auckland Council: building and renovation projects](https://www.aucklandcouncil.govt.nz/en/building-and-consents/building-renovation-projects.html), [Auckland Council: swimming/spa pool lodgement checklist (PDF)](https://www.aucklandcouncil.govt.nz/building-and-consents/Documents/ac1032-lodgement-checklist-swimming-spa-pool.pdf)
 - Council publishes flood information through Flood Viewer and GeoMaps, but
   describes it as public hazard information rather than a site decision.
@@ -85,7 +85,7 @@ Auckland-specific Property Check rather than a blanket "you can build"
 1. Create a small, transparent budget guide plus the two supporting pages;
    connect every page to the Property Check with clear consent/privacy copy.
 2. In Google Keyword Planner, compare Auckland-targeted variants of `pool cost
-   auckland`, `swimming pool cost nz`, `can I build a pool on my property`, and
+auckland`, `swimming pool cost nz`, `can I build a pool on my property`, and
    `pool consent auckland`. Save the date, targeting and the returned ranges;
    do not present those estimates as actual traffic.
 3. Add Google Search Console at launch. Review weekly impressions, clicks,
@@ -93,7 +93,7 @@ Auckland-specific Property Check rather than a blanket "you can build"
    documents these as the site-specific source of truth for Google Search
    performance. [Google Ads: Keyword Planner](https://support.google.com/google-ads/answer/7337243), [Google Search Console: Performance report](https://support.google.com/webmasters/answer/7576553)
 4. After 8-12 weeks of sufficient impressions, promote the topic with the best
-combination of qualified search traffic and Property Check starts - not raw
+   combination of qualified search traffic and Property Check starts - not raw
    visits alone.
 
 ## Scope guardrails

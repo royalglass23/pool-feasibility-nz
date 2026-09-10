@@ -26,8 +26,8 @@ own delivery claim, token, attempt count, timestamp, provider message ID, and sa
 sent destination is never claimed again; failed and abandoned five-minute-old `sending` claims may
 be retried by repeating the original idempotent submission. Resend receives a deterministic
 `Idempotency-Key`, while the durable database `sent` state prevents resends after Resend's
-  provider-side idempotency window expires. Production delivery sends the same PDF to
-  `support@bluehaven.nz` as an independent internal notification.
+provider-side idempotency window expires. Production delivery sends the same PDF to
+`support@bluehaven.nz` as an independent internal notification.
 
 Report delivery needs these server-only settings:
 

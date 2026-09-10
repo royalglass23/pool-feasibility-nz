@@ -32,8 +32,11 @@ export function resolveAddressIndexTarget(input: {
   }
 
   const expectedHost = env.ADDRESS_INDEX_PRODUCTION_HOST?.trim();
-  if (!expectedHost) throw new Error("ADDRESS_INDEX_PRODUCTION_HOST is required.");
-  if (new URL(databaseUrl).hostname.toLowerCase() !== expectedHost.toLowerCase()) {
+  if (!expectedHost)
+    throw new Error("ADDRESS_INDEX_PRODUCTION_HOST is required.");
+  if (
+    new URL(databaseUrl).hostname.toLowerCase() !== expectedHost.toLowerCase()
+  ) {
     throw new Error("PRODUCTION_ADDRESS_INDEX_HOST_MISMATCH");
   }
   return { target, databaseUrl };

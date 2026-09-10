@@ -22,7 +22,8 @@ async function main(): Promise<void> {
   const verificationAddress = arguments_
     .filter(
       (_, index) =>
-        index !== selectedAddressIdIndex && index !== selectedAddressIdIndex + 1,
+        index !== selectedAddressIdIndex &&
+        index !== selectedAddressIdIndex + 1,
     )
     .join(" ")
     .trim();

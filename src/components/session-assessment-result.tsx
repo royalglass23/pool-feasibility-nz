@@ -9,18 +9,18 @@ export function SessionAssessmentResult({
   return (
     <section
       aria-labelledby="session-assessment-heading"
-      className="rounded-3xl border border-pool-200 bg-white p-5 shadow-sm sm:p-6"
+      className="border-pool-200 rounded-3xl border bg-white p-5 shadow-sm sm:p-6"
     >
-      <p className="text-xs font-bold tracking-[0.18em] text-pool-blue-700 uppercase">
+      <p className="text-pool-blue-700 text-xs font-bold tracking-[0.18em] uppercase">
         Preliminary feasibility only
       </p>
       <h3
         id="session-assessment-heading"
-        className="mt-2 text-xl font-semibold text-pool-950"
+        className="text-pool-950 mt-2 text-xl font-semibold"
       >
         Session assessment
       </h3>
-      <p className="mt-2 max-w-4xl text-sm leading-6 text-pool-600">
+      <p className="text-pool-600 mt-2 max-w-4xl text-sm leading-6">
         {assessment.preliminaryFeasibilityWording}
       </p>
       <p className="mt-4 rounded-2xl bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950 ring-1 ring-amber-600/20">
@@ -28,23 +28,23 @@ export function SessionAssessmentResult({
       </p>
 
       <div className="mt-6">
-        <h4 className="font-semibold text-pool-950">Sourced risks</h4>
+        <h4 className="text-pool-950 font-semibold">Sourced risks</h4>
         <div className="mt-3 space-y-3">
           {assessment.risks.map((risk) => (
             <article
               key={risk.id}
-              className="rounded-2xl border border-pool-200 bg-pool-50/70 p-4"
+              className="border-pool-200 bg-pool-50/70 rounded-2xl border p-4"
             >
               <div className="flex flex-wrap items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-bold tracking-wide text-pool-blue-700 uppercase">
+                  <p className="text-pool-blue-700 text-xs font-bold tracking-wide uppercase">
                     {risk.category}
                   </p>
-                  <h5 className="mt-1 font-semibold text-pool-950">
+                  <h5 className="text-pool-950 mt-1 font-semibold">
                     {risk.title}
                   </h5>
                 </div>
-                <p className="rounded-sm bg-white px-2.5 py-1 text-xs font-bold text-pool-700 ring-1 ring-pool-300">
+                <p className="text-pool-700 ring-pool-300 rounded-sm bg-white px-2.5 py-1 text-xs font-bold ring-1">
                   {humanize(risk.severity)} severity ·{" "}
                   {humanize(risk.confidence)} confidence
                 </p>
@@ -55,7 +55,7 @@ export function SessionAssessmentResult({
                 <RiskDetail label="Impact" value={risk.impact} />
                 <RiskDetail label="Action" value={risk.action} />
               </dl>
-              <p className="mt-3 text-xs font-semibold text-pool-600">
+              <p className="text-pool-600 mt-3 text-xs font-semibold">
                 Specialist review{" "}
                 {risk.specialistReviewRequired ? "required" : "not required"}
               </p>
@@ -65,17 +65,17 @@ export function SessionAssessmentResult({
       </div>
 
       <div className="mt-6">
-        <h4 className="font-semibold text-pool-950">Ordered actions</h4>
+        <h4 className="text-pool-950 font-semibold">Ordered actions</h4>
         <div className="mt-3 grid gap-3 lg:grid-cols-3">
           {assessment.actions.map((group) => (
             <article
               key={group.phase}
-              className="rounded-2xl border border-pool-200 p-4"
+              className="border-pool-200 rounded-2xl border p-4"
             >
-              <h5 className="font-semibold text-pool-950">
+              <h5 className="text-pool-950 font-semibold">
                 {humanize(group.phase)}
               </h5>
-              <ol className="mt-3 list-decimal space-y-2 pl-5 text-sm leading-6 text-pool-600">
+              <ol className="text-pool-600 mt-3 list-decimal space-y-2 pl-5 text-sm leading-6">
                 {group.items.map((item) => (
                   <li key={item}>{item}</li>
                 ))}
@@ -87,10 +87,10 @@ export function SessionAssessmentResult({
 
       <div className="mt-6 grid gap-5 lg:grid-cols-2">
         <div>
-          <h4 className="font-semibold text-pool-950">
+          <h4 className="text-pool-950 font-semibold">
             Unverified information
           </h4>
-          <ul className="mt-3 space-y-2 text-sm text-pool-700">
+          <ul className="text-pool-700 mt-3 space-y-2 text-sm">
             {assessment.missingInformation.map((item) => (
               <li key={item.id}>
                 {item.label} — <span className="font-semibold">unverified</span>
@@ -99,8 +99,8 @@ export function SessionAssessmentResult({
           </ul>
         </div>
         <div>
-          <h4 className="font-semibold text-pool-950">Limitations</h4>
-          <ul className="mt-3 space-y-2 text-sm leading-6 text-pool-700">
+          <h4 className="text-pool-950 font-semibold">Limitations</h4>
+          <ul className="text-pool-700 mt-3 space-y-2 text-sm leading-6">
             {assessment.limitations.map((limitation) => (
               <li key={limitation}>{limitation}</li>
             ))}
@@ -109,17 +109,17 @@ export function SessionAssessmentResult({
       </div>
 
       <div className="mt-6">
-        <h4 className="font-semibold text-pool-950">Dataset provenance</h4>
+        <h4 className="text-pool-950 font-semibold">Dataset provenance</h4>
         <div className="mt-3 grid gap-2 lg:grid-cols-2">
           {assessment.provenance.datasets.map((dataset) => (
             <details
               key={dataset.id}
-              className="rounded-2xl border border-pool-200 px-4 py-3"
+              className="border-pool-200 rounded-2xl border px-4 py-3"
             >
-              <summary className="cursor-pointer text-sm font-semibold text-pool-900">
+              <summary className="text-pool-900 cursor-pointer text-sm font-semibold">
                 {humanize(dataset.id)} — {humanize(dataset.status)}
               </summary>
-              <dl className="mt-3 space-y-2 text-xs text-pool-600">
+              <dl className="text-pool-600 mt-3 space-y-2 text-xs">
                 <RiskDetail label="Provider" value={dataset.provider} />
                 <RiskDetail label="Dataset" value={dataset.dataset} />
                 <RiskDetail
@@ -162,7 +162,7 @@ export function SessionAssessmentResult({
 function RiskDetail({ label, value }: { label: string; value: string }) {
   return (
     <div>
-      <dt className="font-semibold text-pool-800">{label}</dt>
+      <dt className="text-pool-800 font-semibold">{label}</dt>
       <dd className="mt-0.5 leading-5">{value}</dd>
     </div>
   );
