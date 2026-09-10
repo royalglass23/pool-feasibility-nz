@@ -11,6 +11,11 @@ it("preserves legitimate Unicode and punctuation as plain text", () => {
   expect(
     additionalInfoSchema.parse("First line\nSecond line, 3m & 4m."),
   ).toContain("\n");
+  expect(
+    additionalInfoSchema.parse(
+      "Budget: $80,000 / 10% deposit. Email plans@sample.co.nz",
+    ),
+  ).toBe("Budget: $80,000 / 10% deposit. Email plans@sample.co.nz");
 });
 
 it.each([
@@ -33,7 +38,6 @@ it.each([
   "<script>alert('x')</script>",
   "${code}",
   "SELECT * FROM users;",
-  "run_this()",
 ])(
   "rejects code-shaped special characters in additional information: %s",
   (value) => {

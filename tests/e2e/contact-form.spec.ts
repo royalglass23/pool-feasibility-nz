@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 const validContact = {
   name: "Taylor Visitor",
   email: "taylor@example.test",
-  message: "Could you help me understand the next step?",
+  message:
+    "Budget: $80,000 / 10% deposit. Email plans@sample.co.nz #Pool_Project",
 };
 
 function body(idempotencyKey: string, overrides = {}) {
@@ -22,9 +23,7 @@ test("allows an anonymous visitor to send a contact enquiry through the local sy
   await page.getByRole("button", { name: "Send message" }).click();
   await expect(message).toHaveAttribute("aria-invalid", "true");
   await expect(
-    page.getByText(
-      "Please use letters, numbers, spaces, and common conversation punctuation only.",
-    ),
+    page.getByText("Please use plain text and common punctuation only."),
   ).toBeVisible();
   await message.fill(validContact.message);
 

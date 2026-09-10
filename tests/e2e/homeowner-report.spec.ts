@@ -225,7 +225,7 @@ test("keeps the saved preliminary report available without PDF download controls
     .click();
   await expect(additionalInfo).toHaveAttribute("aria-invalid", "true");
   await expect(additionalInfo).toHaveAccessibleDescription(
-    "Please use letters, numbers, spaces, and common conversation punctuation only.",
+    "Please use plain text and common punctuation only.",
   );
   await additionalInfo.fill("Please call before visiting.");
   await homeownerForm

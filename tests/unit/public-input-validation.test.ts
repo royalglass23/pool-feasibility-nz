@@ -83,7 +83,7 @@ it.each([
   ["message", "[sql] [sql]"],
   ["message", "SELECT * FROM users;"],
   ["company", "Pools {admin}"],
-  ["company", "Example_Pools"],
+  ["company", "Example[Pools"],
   ["email", "[sql]@email.com"],
   ["email", "name<script>@example.com"],
 ])(
@@ -107,7 +107,8 @@ it("allows ordinary conversational punctuation and common email characters", () 
       purpose: "partnership",
       company: "O’Connor & Sons (Auckland)",
       email: "hemi.oconnor+pool@example.co.nz",
-      message: "Hi, can we discuss a 3m-by-4m pool? We'd like help!",
+      message:
+        "Budget: $80,000 / 10% deposit. Email plans@sample.co.nz #Pool_Project",
     }).success,
   ).toBe(true);
 });

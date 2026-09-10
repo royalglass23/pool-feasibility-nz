@@ -201,7 +201,7 @@ describe("homeowner report submission", () => {
     expect(additionalInfo).toHaveFocus();
     expect(additionalInfo).toHaveAttribute("aria-invalid", "true");
     expect(additionalInfo).toHaveAccessibleDescription(
-      "Please use letters, numbers, spaces, and common conversation punctuation only.",
+      "Please use plain text and common punctuation only.",
     );
     await user.clear(additionalInfo);
     await user.type(additionalInfo, "Please call before visiting.");

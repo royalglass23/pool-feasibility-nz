@@ -1,4 +1,10 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, expect, it, vi } from "vitest";
 import { ContactEnquiryForm } from "@/components/contact-enquiry-form";
@@ -6,6 +12,22 @@ import { ContactEnquiryForm } from "@/components/contact-enquiry-form";
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+});
+
+it("keeps labels connected to the correct fields when two contact forms are rendered", () => {
+  render(
+    <>
+      <ContactEnquiryForm />
+      <ContactEnquiryForm purpose="partnership" />
+    </>,
+  );
+
+  expect(screen.getByLabelText("Name").id).not.toBe(
+    screen.getByLabelText("Your name").id,
+  );
+  expect(screen.getByLabelText("Email").id).not.toBe(
+    screen.getByLabelText("Work email").id,
+  );
 });
 
 it("lets a partner enquire without a message and preserves the submission on retry", async () => {
@@ -89,7 +111,9 @@ it("points partnership character errors to company, email, and business details"
   render(<ContactEnquiryForm purpose="partnership" />);
 
   await user.type(screen.getByLabelText("Your name"), "Casey Visitor");
-  await user.type(screen.getByLabelText("Company"), "Example_Pools");
+  fireEvent.input(screen.getByLabelText("Company"), {
+    target: { value: "Example[Pools" },
+  });
   await user.type(screen.getByLabelText("Work email"), "[sql]@email.com");
   await user.type(
     screen.getByLabelText("Tell us about your business (optional)"),
@@ -122,7 +146,7 @@ it("shows the conversation-character error directly below How can we help", asyn
 
   expect(message).toHaveAttribute("aria-invalid", "true");
   expect(message).toHaveAccessibleDescription(
-    "Please use letters, numbers, spaces, and common conversation punctuation only.",
+    "Please use plain text and common punctuation only.",
   );
   expect(message).toHaveFocus();
 });

@@ -25,12 +25,12 @@ export function contactText(maxLength: number, multiline = false) {
 }
 
 const COMMON_CONVERSATION_CHARACTERS =
-  /^[\p{L}\p{M}\p{N}\p{Zs}\r\n.,!?"'’\-–—()&]*$/u;
+  /^[\p{L}\p{M}\p{N}\p{Zs}\p{Sc}\r\n.,!?:;"'’–—()&%\/@#+=_-]*$/u;
 
 export function conversationalText(maxLength: number, multiline = false) {
   return contactText(maxLength, multiline).refine(
     (value) => COMMON_CONVERSATION_CHARACTERS.test(value),
-    "Please use letters, numbers, spaces, and common conversation punctuation only.",
+    "Please use plain text and common punctuation only.",
   );
 }
 

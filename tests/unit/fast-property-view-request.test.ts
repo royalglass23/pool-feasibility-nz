@@ -43,4 +43,26 @@ describe("selected-address Property Check request", () => {
       },
     });
   });
+
+  it("returns a provider error when the address provider cannot start", async () => {
+    const response = await executeFastPropertyViewRequest({
+      body: {
+        address: "42A Bahari Drive, Ranui, Auckland",
+        selectedAddressId: "2359811",
+      },
+      addressSearch: () => {
+        throw new Error("provider startup failed");
+      },
+      propertyLayers: createDataAccessGateway(),
+    });
+
+    expect(response).toEqual({
+      ok: false,
+      status: 502,
+      error: {
+        code: "DATA_PROVIDER_ERROR",
+        message: "The Property Check is temporarily unavailable.",
+      },
+    });
+  });
 });

@@ -213,7 +213,7 @@ test("partner browser rejects hidden controls then sends corrected Unicode detai
   const company = page.getByLabel("Company", { exact: true });
   const email = page.getByLabel("Work email", { exact: true });
   const details = page.getByLabel("Tell us about your business (optional)");
-  await company.fill("Example_Pools");
+  await company.fill("Example[Pools");
   await email.fill("[sql]@email.com");
   await details.fill("SELECT * FROM businesses;");
   await page.getByRole("button", { name: "Register your interest" }).click();
@@ -221,7 +221,7 @@ test("partner browser rejects hidden controls then sends corrected Unicode detai
   await expect(email).toHaveAttribute("aria-invalid", "true");
   await expect(details).toHaveAttribute("aria-invalid", "true");
   await expect(company).toHaveAccessibleDescription(
-    "Please use letters, numbers, spaces, and common conversation punctuation only.",
+    "Please use plain text and common punctuation only.",
   );
   await expect(email).toHaveAccessibleDescription(
     "Please enter a valid email address, such as name@example.com.",

@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useRef, useState, type FormEvent } from "react";
+import { useId, useRef, useState, type FormEvent } from "react";
 import { contactSchemas } from "@/modules/contact/contact-fields";
 import {
   friendlyFieldErrors,
@@ -18,6 +18,7 @@ export function ContactEnquiryForm({
   onSent?: () => void;
 }) {
   const partnership = purpose === "partnership";
+  const formId = useId();
   const [state, setState] = useState<"idle" | "sending" | "sent">("idle");
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<
@@ -112,6 +113,7 @@ export function ContactEnquiryForm({
     >
       <fieldset disabled={state === "sending"} className="grid min-w-0 gap-4">
         <Field
+          id={`${formId}-name`}
           label={partnership ? "Your name" : "Name"}
           name="name"
           autoComplete="name"
@@ -119,6 +121,7 @@ export function ContactEnquiryForm({
         />
         {partnership && (
           <Field
+            id={`${formId}-company`}
             label="Company"
             name="company"
             autoComplete="organization"
@@ -127,6 +130,7 @@ export function ContactEnquiryForm({
           />
         )}
         <Field
+          id={`${formId}-email`}
           label={partnership ? "Work email" : "Email"}
           name="email"
           autoComplete="email"
@@ -135,13 +139,13 @@ export function ContactEnquiryForm({
           error={fieldErrors.email}
         />
         <div className="text-sm font-semibold">
-          <label htmlFor={`${purpose}-contact-message`}>
+          <label htmlFor={`${formId}-message`}>
             {partnership
               ? "Tell us about your business (optional)"
               : "How can we help?"}
           </label>
           <textarea
-            id={`${purpose}-contact-message`}
+            id={`${formId}-message`}
             name="message"
             required={!partnership}
             minLength={partnership ? undefined : 10}
@@ -149,15 +153,13 @@ export function ContactEnquiryForm({
             rows={4}
             aria-invalid={fieldErrors.message ? true : undefined}
             aria-describedby={
-              fieldErrors.message
-                ? `${purpose}-contact-message-error`
-                : undefined
+              fieldErrors.message ? `${formId}-message-error` : undefined
             }
             className="mt-1.5 block w-full resize-y rounded-lg border border-[#9fc8df] bg-white px-3 py-2.5 text-base font-normal outline-none focus:border-[#0077bd] focus:ring-2 focus:ring-[#a5d9f2]"
           />
           {fieldErrors.message && (
             <span
-              id={`${purpose}-contact-message-error`}
+              id={`${formId}-message-error`}
               role="alert"
               className="mt-1 block text-sm font-normal text-red-800"
             >
@@ -208,6 +210,7 @@ export function ContactEnquiryForm({
 }
 
 function Field({
+  id,
   label,
   name,
   autoComplete,
@@ -215,6 +218,7 @@ function Field({
   maxLength = 120,
   error,
 }: {
+  id: string;
   label: string;
   name: string;
   autoComplete: string;
@@ -222,7 +226,6 @@ function Field({
   maxLength?: number;
   error?: string;
 }) {
-  const id = `contact-${name}`;
   return (
     <div className="text-sm font-semibold">
       <label htmlFor={id}>{label}</label>
