@@ -40,7 +40,12 @@ function suggestionRequest(path: string, query: string, headers?: HeadersInit) {
 
 describe("POST /api/public/address-suggestions", () => {
   it("rejects hidden controls before searching", async () => {
-    const response = await POST_PUBLIC(suggestionRequest("/api/public/address-suggestions", "1 Test\u0000Street"));
+    const response = await POST_PUBLIC(
+      suggestionRequest(
+        "/api/public/address-suggestions",
+        "1 Test\u0000Street",
+      ),
+    );
     expect(response.status).toBe(400);
     expect(search).not.toHaveBeenCalled();
   });

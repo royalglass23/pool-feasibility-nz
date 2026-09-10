@@ -35,12 +35,7 @@ const invalidPostRoutes = [
   ["aerial conflicts", aerialConflicts, "/api/public/aerial-conflicts", {}],
   ["assessment submission", assessments, "/api/public/assessments", {}],
   ["property check", propertyCheck, "/api/public/property-check", {}],
-  [
-    "property stages",
-    propertyStages,
-    "/api/public/property-check/stages",
-    {},
-  ],
+  ["property stages", propertyStages, "/api/public/property-check/stages", {}],
   ["PDF report", reportPdf, "/api/public/report/pdf", {}],
 ] as const;
 

@@ -5,7 +5,7 @@ database-migration, credential, external-email, or production-test authority.
 
 ## Current position
 
-The `features` branch contains a deployment-shaped Auckland Property Check with
+The codebase contains a deployment-shaped Auckland Property Check with
 anonymous public routes, persisted assessments, emailed PDFs, Admin-only saved
 records, shared rate limiting, retention, consent-gated analytics, and public
 contact/partnership forms.
@@ -14,17 +14,33 @@ The old July 2026 decision that described an internal, no-database,
 session-scoped POC is superseded as a product description. Its test results
 remain historical evidence only.
 
-There is no single release-evidence pack bound to the current `HEAD`:
+A candidate based on shared commit `6f97d6c` passed the complete local code gate
+below on 11 September 2026, including the dedicated public-input safety lane.
+The documentation refresh that followed passed repository formatting and
+relative-link checks. This remains development evidence rather than an exact
+deployed-revision sign-off.
 
-- dependency remediation is **PASS** for commit `5e34e16`;
-- the report-input remediation was independently reviewed as ready to commit,
-  and its production-like browser lane passed, but its formal sign-off predates
-  the dependency fix; and
-- later public form-feedback changes landed after the dependency evidence.
+Latest local candidate results:
 
-Therefore, treat the present repository as **not yet covered by one complete
-current release sign-off**. Re-run the required gates against the exact commit
-selected for promotion and verify the target environment separately.
+| Gate                                         | Result                                                                                               |
+| -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| npm install, typecheck, lint, and formatting | PASS; lint reported four warnings and no errors                                                      |
+| Vitest                                       | PASS; 608 passed and two predefined tests skipped                                                    |
+| General Playwright E2E                       | PASS; 15 passed, zero retries                                                                        |
+| Contact/partnership Playwright E2E           | PASS; eight passed, zero retries                                                                     |
+| Production build                             | PASS                                                                                                 |
+| npm and pnpm production audits               | PASS; zero known production vulnerabilities                                                          |
+| Frozen pnpm install                          | PASS                                                                                                 |
+| Public-input safety E2E                      | PASS; 22 passed across the database-disabled and authorised development-database modes, zero retries |
+
+One synthetic idempotent assessment was written to the approved development
+database by the security persistence lane. No production database or real email
+delivery was used by this local rerun.
+
+The overall release position remains **BLOCKED**. Re-run or bind the evidence to
+the exact commit selected for promotion and complete the target checks below.
+Follow [`testing.md`](testing.md) for lane isolation and
+[`deployment-runbook.md`](deployment-runbook.md) for the target procedure.
 
 ## Required code gates
 
@@ -44,9 +60,9 @@ pnpm audit --prod --audit-level high
 pnpm install --frozen-lockfile --ignore-scripts
 ```
 
-Use the dedicated security configurations/evidence validators for the feature
-being released. A passing focused test is evidence for that slice, not a waiver
-for a failed or missing full gate.
+Run the public-input safety suite separately as documented in
+[`testing.md`](testing.md). A passing focused test is evidence for that slice,
+not a waiver for a failed or missing full gate.
 
 ## Required target checks
 
@@ -77,14 +93,19 @@ that exact use is authorised.
 
 ## Evidence locations
 
-| Area                           | Evidence                                                                                                                                 |
-| ------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| Current dependency remediation | [`../security/dependency-remediation/signoff.md`](../security/dependency-remediation/signoff.md)                                         |
-| Public input validation        | [`../security/report-input-validation/signoff.md`](../security/report-input-validation/signoff.md)                                       |
-| Input-remediation review       | [`../security/report-input-validation/review/remediation-results.md`](../security/report-input-validation/review/remediation-results.md) |
-| Public lead-capture history    | [`../security/public-lead-capture/signoff.md`](../security/public-lead-capture/signoff.md)                                               |
-| Report-delivery history        | [`../security/production-report-delivery/signoff.md`](../security/production-report-delivery/signoff.md)                                 |
-| Traffic-launch history         | [`../security/mt-260/signoff.md`](../security/mt-260/signoff.md)                                                                         |
+Security evidence packs are intentionally ignored by repository policy and may
+exist only in an authorised reviewer's local checkout. The paths below identify
+the expected local records; they are not durable links in Git.
+
+| Area                           | Expected local record                                            |
+| ------------------------------ | ---------------------------------------------------------------- |
+| Current dependency remediation | `security/dependency-remediation/signoff.md`                     |
+| Public-input safety            | `security/public-input-safety/signoff.md`                        |
+| Public input validation        | `security/report-input-validation/signoff.md`                    |
+| Input-remediation review       | `security/report-input-validation/review/remediation-results.md` |
+| Public lead-capture history    | `security/public-lead-capture/signoff.md`                        |
+| Report-delivery history        | `security/production-report-delivery/signoff.md`                 |
+| Traffic-launch history         | `security/mt-260/signoff.md`                                     |
 
 Older FAIL/BLOCKED evidence is not automatically a claim that the current code
 still has every recorded defect. It does prove that the named candidate was not

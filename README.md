@@ -16,11 +16,13 @@ application must not turn unavailable data into a clear result.
 - What changed: [`CHANGELOG.md`](CHANGELOG.md)
 - Documentation map: [`docs/README.md`](docs/README.md)
 - Architecture and trust boundaries: [`docs/architecture.md`](docs/architecture.md)
+- Test lanes and clean-gate commands: [`docs/testing.md`](docs/testing.md)
 - Current validation and release evidence: [`docs/release-readiness.md`](docs/release-readiness.md)
+- Deployment and rollback procedure: [`docs/deployment-runbook.md`](docs/deployment-runbook.md)
 
 ## What exists now
 
-The current `features` branch contains:
+The current codebase contains:
 
 - an anonymous Auckland Property Check journey at `/`;
 - indexed LINZ address suggestions and official parcel/aerial evidence;
@@ -52,9 +54,9 @@ migrations, provider credentials, email delivery, DNS, analytics collection,
 and security sign-off must each be verified separately for the exact target and
 commit.
 
-The latest dependency-remediation evidence passes for commit `5e34e16`. The
-current branch also contains later form-feedback changes, so there is not yet a
-single complete release-evidence pack bound to `HEAD`. See
+A candidate based on shared commit `6f97d6c` passed the complete local code gate
+on 11 September 2026. That development result is not an exact deployed-revision
+sign-off, and the target-environment checks remain incomplete. See
 [`docs/release-readiness.md`](docs/release-readiness.md) before promoting a
 build.
 
@@ -138,6 +140,12 @@ npm run build
 npm run test:e2e
 npm run test:e2e:contact
 ```
+
+The public-input attack suite is deliberately separate from general E2E because
+it runs an isolated production build with synthetic provider fixtures and an
+optional, explicitly selected development database. Follow
+[`docs/testing.md`](docs/testing.md) instead of adding it to the ordinary E2E
+command.
 
 Live GIS checks are manual operational evidence, not CI fixtures:
 

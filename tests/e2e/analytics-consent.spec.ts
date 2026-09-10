@@ -51,9 +51,7 @@ test("keeps the test site noindex and analytics behind reversible consent", asyn
     )
     .toBe(true);
   expect(
-    await page.evaluate(() =>
-      localStorage.getItem("rg_analytics_consent_v1"),
-    ),
+    await page.evaluate(() => localStorage.getItem("rg_analytics_consent_v1")),
   ).toBe("denied");
 });
 

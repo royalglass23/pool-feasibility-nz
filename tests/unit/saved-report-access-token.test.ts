@@ -49,8 +49,8 @@ describe("saved report access token", () => {
       reference: "GF-2026-000123",
     };
 
-    expect(verifySavedReportAccessToken(issueSavedReportAccessToken(access))).toEqual(
-      access,
-    );
+    expect(
+      verifySavedReportAccessToken(issueSavedReportAccessToken(access)),
+    ).toEqual(access);
   });
 });

@@ -7,11 +7,7 @@ import {
 
 describe("pool-shell clearances", () => {
   it("measures the four outward side-centre distances to the mapped boundary and rounds them to one decimal metre", () => {
-    const boundary = buildFastPoolGeometry(
-      [174.76, -36.85],
-      20,
-      20,
-    ).geometry;
+    const boundary = buildFastPoolGeometry([174.76, -36.85], 20, 20).geometry;
     const shell = buildFastPoolGeometry([174.76, -36.85], 6, 4).geometry;
 
     const clearances = calculatePoolShellClearances({
@@ -21,10 +17,7 @@ describe("pool-shell clearances", () => {
 
     expect(clearances).toHaveLength(4);
     expect(clearances.map((clearance) => clearance.metres).sort()).toEqual([
-      7,
-      7,
-      8,
-      8,
+      7, 7, 8, 8,
     ]);
     expect(clearances.map((clearance) => clearance.label)).toEqual([
       "8.0 m",
@@ -45,11 +38,7 @@ describe("pool-shell clearances", () => {
   });
 
   it("returns no measurements for malformed polygon coordinates", () => {
-    const boundary = buildFastPoolGeometry(
-      [174.76, -36.85],
-      20,
-      20,
-    ).geometry;
+    const boundary = buildFastPoolGeometry([174.76, -36.85], 20, 20).geometry;
     const malformedShell = {
       type: "Polygon" as const,
       coordinates: [["not a position"]],

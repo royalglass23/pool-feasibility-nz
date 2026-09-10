@@ -135,10 +135,9 @@ export function AnalyticsConsent({
               Analytics cookies
             </h2>
             <p className="mt-2 text-sm leading-6">
-              Help us improve the Property Check with anonymous interaction
-              and performance analytics. We never send your contact details,
-              property address,
-              map, report, coordinates, or free text.
+              Help us improve the Property Check with anonymous interaction and
+              performance analytics. We never send your contact details,
+              property address, map, report, coordinates, or free text.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <button

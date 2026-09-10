@@ -113,11 +113,11 @@ function normalizeFastDatasets(
         key === "address_resolution"
           ? result.datasets.address_resolution
           : key === "legal_parcel"
-          ? (result.datasets.legal_parcel ??
-            legalParcelEvidence(result, assessedAt))
-          : key === "aerial_imagery"
-            ? result.datasets.aerial_imagery
-            : null;
+            ? (result.datasets.legal_parcel ??
+              legalParcelEvidence(result, assessedAt))
+            : key === "aerial_imagery"
+              ? result.datasets.aerial_imagery
+              : null;
       const layer = detailed.get(key);
       const evidence =
         direct ?? layer?.evidence ?? unavailableEvidence(key, assessedAt);

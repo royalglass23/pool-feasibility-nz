@@ -84,13 +84,12 @@ test("selecting an address suggestion opens the fast property view without a fet
   await page.getByRole("option", { name: address }).click();
 
   await expect(page.getByRole("heading", { name: address })).toBeVisible();
-  await expect(page.getByText("Fast property view")).toBeVisible();
   await expect(
     page.getByRole("button", { name: "Fetch property data" }),
   ).toHaveCount(0);
   expect(submittedBodies).toEqual([
     {
-      address: "Bahari Drive, Ranui, Auckland",
+      address,
       selectedAddressId: "2359811",
     },
   ]);

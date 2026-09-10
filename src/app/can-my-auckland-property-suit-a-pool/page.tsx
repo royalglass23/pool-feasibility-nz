@@ -12,11 +12,13 @@ export default function PropertySuitabilityPage() {
   return (
     <main className="min-h-screen bg-[#f5faff] px-4 py-12 text-[#062f5d] sm:px-6 sm:py-20">
       <article className="mx-auto max-w-3xl">
-        <p className="text-sm font-semibold text-[#0077bd]">Auckland pool planning</p>
-        <h1 className="mt-4 text-balance text-4xl leading-tight font-semibold tracking-[-0.035em] sm:text-5xl">
+        <p className="text-sm font-semibold text-[#0077bd]">
+          Auckland pool planning
+        </p>
+        <h1 className="mt-4 text-4xl leading-tight font-semibold tracking-[-0.035em] text-balance sm:text-5xl">
           Can my Auckland property suit a pool?
         </h1>
-        <p className="mt-6 max-w-2xl text-pretty text-lg leading-8 text-[#426b87]">
+        <p className="mt-6 max-w-2xl text-lg leading-8 text-pretty text-[#426b87]">
           A pool project starts with more than a backyard measurement. A useful
           first look brings the property, access, practical layout, and local
           planning context into the same conversation.
@@ -24,8 +26,8 @@ export default function PropertySuitabilityPage() {
         <div className="mt-12 space-y-8 border-y border-[#c6dce9] py-8">
           <Section title="Start with usable space">
             Try an indicative pool layout against the mapped property. The
-            layout is yours to move and rotate; it is not a final placement or
-            a design recommendation.
+            layout is yours to move and rotate; it is not a final placement or a
+            design recommendation.
           </Section>
           <Section title="Look beyond the pool shell">
             Access for people and machinery, slope, ground conditions, drainage,
@@ -38,7 +40,10 @@ export default function PropertySuitabilityPage() {
             with the right on-site or professional advice.
           </Section>
         </div>
-        <Link href="/#property-search" className="mt-10 inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#062f5d] px-5 font-semibold text-white transition hover:bg-[#0077bd] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-pool-blue-700">
+        <Link
+          href="/#property-search"
+          className="focus-visible:outline-pool-blue-700 mt-10 inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#062f5d] px-5 font-semibold text-white transition hover:bg-[#0077bd] focus-visible:outline-2 focus-visible:outline-offset-4"
+        >
           Check my property <ArrowRight aria-hidden="true" className="size-4" />
         </Link>
       </article>
@@ -46,6 +51,19 @@ export default function PropertySuitabilityPage() {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
-  return <section><h2 className="text-xl font-semibold tracking-[-0.02em]">{title}</h2><p className="mt-2 max-w-2xl text-pretty leading-7 text-[#426b87]">{children}</p></section>;
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <h2 className="text-xl font-semibold tracking-[-0.02em]">{title}</h2>
+      <p className="mt-2 max-w-2xl leading-7 text-pretty text-[#426b87]">
+        {children}
+      </p>
+    </section>
+  );
 }
