@@ -13,7 +13,14 @@ import type { ReportDeliveryState } from "@/components/saved-preliminary-report-
 import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
 import { visitorTypeOptions } from "@/modules/assessment/visitor-type";
 import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
+import { homeownerContactSchema } from "@/modules/assessment/homeowner-contact";
+import {
+  friendlyFieldErrors,
+  friendlyRequestError,
+} from "@/components/form-feedback";
 import { ActionProgressDialog } from "@/components/action-progress-dialog";
+import { FieldValidationMessage } from "@/components/field-validation-message";
+import { isValidNzPhone, NZ_PHONE_ERROR } from "@/modules/assessment/nz-phone";
 
 export type AssessmentSubmissionContext = Omit<
   PersistedAssessmentSubmission,
@@ -49,6 +56,7 @@ export function HomeownerSubmissionForm({
   onSaved: (assessment: SavedAssessmentResponse) => void;
 }) {
   const [saving, setSaving] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [visitorType, setVisitorType] = useState("homeowner");
   const [desiredTiming, setDesiredTiming] = useState("asap");
@@ -67,6 +75,28 @@ export function HomeownerSubmissionForm({
       return;
     }
     const form = new FormData(event.currentTarget);
+    const contact = homeownerContactSchema.safeParse({
+      name: form.get("name"),
+      phone: form.get("phone"),
+      email: form.get("email"),
+      visitorType: form.get("visitorType"),
+      visitorTypeOtherDetail: form.get("visitorTypeOtherDetail") || undefined,
+      desiredTiming: form.get("desiredTiming"),
+      desiredTimingOtherDetail:
+        form.get("desiredTimingOtherDetail") || undefined,
+      additionalInfo: form.get("additionalInfo") || undefined,
+      consentGiven: form.get("consent") === "on",
+    });
+    if (!contact.success) {
+      setFieldErrors(friendlyFieldErrors(contact.error.issues));
+      setError(null);
+      const field = event.currentTarget.elements.namedItem(
+        String(contact.error.issues[0]?.path[0]),
+      );
+      if (field instanceof HTMLElement) field.focus();
+      return;
+    }
+    setFieldErrors({});
     setSaving(true);
     setError(null);
 
@@ -85,19 +115,7 @@ export function HomeownerSubmissionForm({
             position: placement.position,
             clearancesVisible: placement.clearancesVisible ?? true,
           },
-          homeowner: {
-            name: form.get("name"),
-            phone: form.get("phone"),
-            email: form.get("email"),
-            visitorType: form.get("visitorType"),
-            visitorTypeOtherDetail:
-              form.get("visitorTypeOtherDetail") || undefined,
-            desiredTiming: form.get("desiredTiming"),
-            desiredTimingOtherDetail:
-              form.get("desiredTimingOtherDetail") || undefined,
-            additionalInfo: form.get("additionalInfo") || undefined,
-            consentGiven: form.get("consent") === "on",
-          },
+          homeowner: contact.data,
         }),
       });
       const body = (await response.json().catch(() => null)) as {
@@ -105,18 +123,13 @@ export function HomeownerSubmissionForm({
         error?: { message?: string };
       } | null;
       if (!response.ok || !body?.assessment?.report) {
-        throw new Error(
-          body?.error?.message ?? "The assessment could not be saved.",
-        );
+        setError(friendlyRequestError(response.status, "save your report"));
+        return;
       }
       trackAnonymousFunnelEvent({ name: "report_request_submitted" });
       onSaved(body.assessment);
-    } catch (submissionError) {
-      setError(
-        submissionError instanceof Error
-          ? submissionError.message
-          : "The assessment could not be saved.",
-      );
+    } catch {
+      setError(friendlyRequestError(503, "save your report"));
     } finally {
       setSaving(false);
     }
@@ -125,6 +138,16 @@ export function HomeownerSubmissionForm({
   return (
     <form
       onSubmit={submit}
+      onInput={(event) => {
+        const inputName = (
+          event.target as HTMLInputElement | HTMLTextAreaElement
+        ).name;
+        const field = inputName === "consent" ? "consentGiven" : inputName;
+        if (fieldErrors[field]) {
+          setFieldErrors((current) => ({ ...current, [field]: "" }));
+        }
+      }}
+      noValidate
       className="border-pool-blue-200 bg-pool-blue-50/60 rounded-2xl border p-5 sm:p-7"
       aria-labelledby="homeowner-details-heading"
     >
@@ -145,9 +168,45 @@ export function HomeownerSubmissionForm({
         preliminary assessment, not approval or construction advice.
       </p>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <Field label="Name" name="name" required />
-        <Field label="Phone" name="phone" type="tel" required />
-        <Field label="Email" name="email" type="email" required />
+        <Field label="Name" name="name" required error={fieldErrors.name} />
+        <div className="text-pool-800 text-sm font-medium">
+          <label htmlFor="homeowner-phone">Phone</label>
+          <input
+            id="homeowner-phone"
+            name="phone"
+            type="tel"
+            autoComplete="tel"
+            required
+            maxLength={40}
+            aria-invalid={fieldErrors.phone ? true : undefined}
+            aria-describedby={
+              fieldErrors.phone ? "homeowner-phone-error" : undefined
+            }
+            onBlur={(event) => {
+              setFieldErrors((current) => ({
+                ...current,
+                phone:
+                  event.target.value.length > 0 &&
+                  !isValidNzPhone(event.target.value)
+                    ? NZ_PHONE_ERROR
+                    : "",
+              }));
+            }}
+            className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3 aria-[invalid=true]:border-orange-600 aria-[invalid=true]:outline-orange-100"
+          />
+          {fieldErrors.phone && (
+            <FieldValidationMessage id="homeowner-phone-error">
+              {NZ_PHONE_ERROR}
+            </FieldValidationMessage>
+          )}
+        </div>
+        <Field
+          label="Email"
+          name="email"
+          type="email"
+          required
+          error={fieldErrors.email}
+        />
         <label className="text-pool-800 text-sm font-medium">
           I am a
           <select
@@ -185,6 +244,7 @@ export function HomeownerSubmissionForm({
             label="Tell us who you are"
             name="visitorTypeOtherDetail"
             required
+            error={fieldErrors.visitorTypeOtherDetail}
           />
         )}
         {desiredTiming === "other" && (
@@ -192,6 +252,7 @@ export function HomeownerSubmissionForm({
             label="Tell us when you need it"
             name="desiredTimingOtherDetail"
             required
+            error={fieldErrors.desiredTimingOtherDetail}
           />
         )}
         <label className="text-pool-800 text-sm font-medium sm:col-span-2">
@@ -200,8 +261,19 @@ export function HomeownerSubmissionForm({
             name="additionalInfo"
             maxLength={4000}
             rows={3}
-            className="border-pool-300 mt-1 block w-full rounded-lg border bg-white px-3 py-2"
+            aria-invalid={fieldErrors.additionalInfo ? true : undefined}
+            aria-describedby={
+              fieldErrors.additionalInfo
+                ? "homeowner-additionalInfo-error"
+                : undefined
+            }
+            className="border-pool-300 mt-1 block w-full rounded-lg border bg-white px-3 py-2 aria-[invalid=true]:border-orange-600 aria-[invalid=true]:outline-orange-100"
           />
+          {fieldErrors.additionalInfo && (
+            <FieldValidationMessage id="homeowner-additionalInfo-error">
+              {fieldErrors.additionalInfo}
+            </FieldValidationMessage>
+          )}
         </label>
         <p className="text-pool-700 text-sm leading-6 sm:col-span-2">
           Before submitting, read our{" "}
@@ -214,18 +286,32 @@ export function HomeownerSubmissionForm({
           . It explains what we collect, the 12-month retention period, and how
           to ask for access, correction, or early deletion.
         </p>
-        <label className="text-pool-800 flex gap-3 text-sm leading-6 sm:col-span-2">
-          <input
-            name="consent"
-            type="checkbox"
-            required
-            className="mt-1 size-4"
-          />
-          <span>
-            I consent to PoolReady saving these details and this preliminary
-            assessment, sending my report, and following up about this request.
-            This is not marketing consent.
+        <label className="text-pool-800 text-sm leading-6 sm:col-span-2">
+          <span className="flex gap-3">
+            <input
+              name="consent"
+              type="checkbox"
+              required
+              aria-invalid={fieldErrors.consentGiven ? true : undefined}
+              aria-describedby={
+                fieldErrors.consentGiven ? "homeowner-consent-error" : undefined
+              }
+              className="mt-1 size-4"
+            />
+            <span>
+              I consent to PoolReady saving these details and this preliminary
+              assessment, sending my report, and following up about this
+              request. This is not marketing consent.
+            </span>
           </span>
+          {fieldErrors.consentGiven && (
+            <FieldValidationMessage
+              id="homeowner-consent-error"
+              className="ml-7"
+            >
+              {fieldErrors.consentGiven}
+            </FieldValidationMessage>
+          )}
         </label>
       </div>
       {error && (
@@ -233,13 +319,7 @@ export function HomeownerSubmissionForm({
           role="alert"
           className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-950"
         >
-          <p className="font-semibold">We couldn't save your report yet</p>
           <p>{error}</p>
-          <p className="mt-1 text-red-800">
-            <span className="font-semibold">What to try: </span>
-            Check the required fields and consent box, then try again. If they
-            are already complete, wait a minute and retry.
-          </p>
         </div>
       )}
       <button
@@ -258,22 +338,33 @@ function Field({
   name,
   type = "text",
   required,
+  error,
 }: {
   label: string;
   name: string;
   type?: string;
   required?: boolean;
+  error?: string;
 }) {
+  const id = `homeowner-${name}`;
   return (
-    <label className="text-pool-800 text-sm font-medium">
-      {label}
+    <div className="text-pool-800 text-sm font-medium">
+      <label htmlFor={id}>{label}</label>
       <input
+        id={id}
         name={name}
         type={type}
         required={required}
-        className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3"
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? `${id}-error` : undefined}
+        className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3 aria-[invalid=true]:border-orange-600 aria-[invalid=true]:outline-orange-100"
       />
-    </label>
+      {error && (
+        <FieldValidationMessage id={`${id}-error`}>
+          {error}
+        </FieldValidationMessage>
+      )}
+    </div>
   );
 }
 

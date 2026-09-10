@@ -27,7 +27,7 @@ sent destination is never claimed again; failed and abandoned five-minute-old `s
 be retried by repeating the original idempotent submission. Resend receives a deterministic
 `Idempotency-Key`, while the durable database `sent` state prevents resends after Resend's
   provider-side idempotency window expires. Production delivery sends the same PDF to
-  `support@royalglass.co.nz` as an independent internal notification.
+  `support@bluehaven.nz` as an independent internal notification.
 
 Report delivery needs these server-only settings:
 

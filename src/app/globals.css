@@ -220,6 +220,96 @@
   }
 }
 
+.partner-card {
+  background-color: white;
+  border-color: #c6dce9;
+  color: #062f5d;
+  transition:
+    background-color 200ms ease-out,
+    border-color 200ms ease-out,
+    color 200ms ease-out;
+}
+
+.partner-card-copy {
+  color: #426b87;
+}
+.partner-card-icon {
+  color: #006da9;
+}
+.partner-card-copy,
+.partner-card-icon {
+  transition: color 200ms ease-out;
+}
+
+@media (hover: hover) {
+  .partner-card:hover {
+    background-color: #062f5d;
+    border-color: #062f5d;
+    color: white;
+  }
+  .partner-card:hover .partner-card-copy {
+    color: #d5e5ef;
+  }
+  .partner-card:hover .partner-card-icon {
+    color: #94dff4;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .partner-card,
+  .partner-card-copy,
+  .partner-card-icon {
+    transition: none;
+  }
+}
+
+/* Shared menu feedback follows the site's primary button colours. */
+.site-menu-link {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 8px 12px;
+  border-radius: var(--radius);
+  color: #062f5d;
+  font-weight: 600;
+  text-decoration: none;
+  transition:
+    background-color 200ms ease-out,
+    color 200ms ease-out,
+    transform 200ms ease-out;
+}
+
+@media (hover: hover) {
+  .site-menu-link:hover {
+    background-color: #0b477a;
+    color: white;
+    transform: translateY(-1px);
+  }
+}
+
+.site-menu-link:focus-visible {
+  background-color: #0b477a;
+  color: white;
+  outline: 2px solid #0077bd;
+  outline-offset: 3px;
+}
+
+.site-menu-link:active {
+  background-color: #001f3d;
+  color: white;
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-menu-link {
+    transition: none;
+    transform: none;
+  }
+  .site-menu-link:hover {
+    transform: none;
+  }
+}
+
 /* Keep third-party map controls aligned with the site radius. */
 .maplibregl-ctrl-group,
 .maplibregl-popup-content {

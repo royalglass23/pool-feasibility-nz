@@ -24,8 +24,10 @@ This keeps limits consistent across Vercel function instances.
   the email flow can be tested repeatedly; 3 attempts per client IP in a
   rolling one-hour window in Production.
 - `POST /api/public/contact`: 3 attempts per client IP in a rolling one-hour
-  window in every environment. The contact form sends only a name, email, and
-  message to the support inbox; it does not create an assessment.
+  window in every environment, shared by general and partnership enquiries.
+  Both send a name, email, and message to the support inbox; partnership
+  enquiries also include a company name and allow an optional message.
+  Neither creates an assessment.
 - A signed Property Check session receives two stage operations in 15 minutes:
   automatic enrichment plus the optional detailed check. The allowance is
   scoped by client IP and signed snapshot ID, so replay cannot create unbounded

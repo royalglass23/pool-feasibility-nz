@@ -65,7 +65,7 @@ export type AssessmentReportDeliveryDependencies = {
   deliveryEnvironment: ReportDeliveryEnvironment;
 };
 
-const SUPPORT_REPORT_EMAIL = "support@royalglass.co.nz";
+const SUPPORT_REPORT_EMAIL = "support@bluehaven.nz";
 
 export async function deliverAssessmentReport(
   reference: string,
@@ -181,7 +181,7 @@ function emailForInternalTestReport(
   pdf: Buffer,
 ): ReportEmailInput {
   const shortAddress = claim.report.property.address.split(",")[0]?.trim();
-  const subject = `New PoolReady report request - ${shortAddress || claim.report.property.address}`;
+  const subject = `[PoolReady] Property check report requested - ${shortAddress || claim.report.property.address}`;
   const formAnswers = supportFormAnswers(claim);
   const overallStatus = assessmentStatusLabel(claim.report.overall.status);
   const mainFinding = claim.report.keyFindings[0];

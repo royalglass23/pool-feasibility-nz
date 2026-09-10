@@ -19,7 +19,11 @@ import {
 } from "@/modules/assessment/assessment-snapshot";
 import { executeFastPropertyDetailsRequest } from "@/modules/data-access-spike/execute-fast-property-details";
 import { OfficialGisGateway } from "@/modules/providers/official-gis-gateway";
-import { providerTimeoutMs } from "@/shared/http/provider-runtime";
+import {
+  BodyLimitError,
+  readRequestBytesWithinLimit,
+  providerTimeoutMs,
+} from "@/shared/http/provider-runtime";
 import { issueSavedReportAccessToken } from "@/modules/reporting/saved-report-access-token";
 import { deliverAssessmentReportByReference } from "@/modules/reporting/deliver-assessment-report";
 import { staffSessionDeniedResponse } from "@/modules/staff/staff-session";
@@ -49,14 +53,20 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   const correlationId = requestCorrelationId(request);
-  const body = await request.arrayBuffer();
-  if (body.byteLength > MAX_BODY_BYTES) {
+  let body: Uint8Array;
+  try {
+    body = await readRequestBytesWithinLimit(request, MAX_BODY_BYTES);
+  } catch (error) {
+    const tooLarge =
+      error instanceof BodyLimitError && error.code === "BODY_TOO_LARGE";
     return apiErrorResponse(
       {
-        code: "REQUEST_TOO_LARGE",
-        message: "The submitted assessment is too large.",
+        code: tooLarge ? "REQUEST_TOO_LARGE" : "INVALID_REQUEST",
+        message: tooLarge
+          ? "The submitted assessment is too large."
+          : "Submit one valid assessment.",
       },
-      413,
+      tooLarge ? 413 : 400,
       correlationId,
       { "Cache-Control": "no-store" },
     );

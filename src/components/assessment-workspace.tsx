@@ -13,7 +13,6 @@ import {
   ChevronDown,
   Download,
   FileText,
-  LoaderCircle,
   Printer,
 } from "lucide-react";
 import Image from "next/image";
@@ -35,7 +34,6 @@ import {
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
 import type { AssessmentExplanation } from "@/modules/recommendations/generate-assessment-explanation";
 import { humanizeIdentifierTitleCase as humanize } from "@/shared/text/humanize-identifier";
-import { ActionProgressDialog } from "@/components/action-progress-dialog";
 
 export type AssessmentWorkspaceResult = DataAccessSpikeResult & {
   assessmentExplanation?: AssessmentExplanation;
@@ -66,8 +64,6 @@ export function AssessmentWorkspace({
   const [mapImage, setMapImage] = useState<string | null>(null);
   const [preview, setPreview] = useState(false);
   const [page, setPage] = useState(1);
-  const [generating, setGenerating] = useState(false);
-  const [pdfError, setPdfError] = useState<string | null>(null);
   const [placement, setPlacement] = useState<PropertyPoolPlacement | null>(
     null,
   );
@@ -108,46 +104,6 @@ export function AssessmentWorkspace({
     });
   }
 
-  async function downloadPdf() {
-    if (!mapImage || generating) return;
-    setGenerating(true);
-    setPdfError(null);
-    try {
-      const response = await fetch("/api/public/report/pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          reportToken: result.reportToken,
-          mapImageDataUrl: mapImage,
-        }),
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          error?: { message?: string };
-        } | null;
-        throw new Error(
-          body?.error?.message ?? "The PDF could not be generated.",
-        );
-      }
-      const url = URL.createObjectURL(await response.blob());
-      const anchor = document.createElement("a");
-      anchor.href = url;
-      anchor.download = `pool-feasibility-${result.resolvedAddress.addressId}.pdf`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(url);
-    } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "The PDF could not be generated. Your assessment remains available.";
-      setPdfError(`${message} Use Print / save PDF instead.`);
-    } finally {
-      setGenerating(false);
-    }
-  }
-
   if (savedReport.showReport && savedReport.assessment) {
     return (
       <SavedAssessmentReportPanel
@@ -168,21 +124,13 @@ export function AssessmentWorkspace({
         page={page}
         onPage={setPage}
         onBack={() => setPreview(false)}
-        onDownload={() => void downloadPdf()}
         onPrint={() => window.print()}
-        generating={generating}
-        error={pdfError}
       />
     );
   }
 
   return (
     <section aria-labelledby="assessment-heading" className="space-y-6">
-      <ActionProgressDialog
-        open={generating}
-        title="Preparing your PDF"
-        description="Generating your preliminary property assessment report."
-      />
       <div className="border-b border-pool-200 pb-5">
         <h2
           ref={headingRef}
@@ -584,10 +532,7 @@ function ReportPreview({
   page,
   onPage,
   onBack,
-  onDownload,
   onPrint,
-  generating,
-  error,
 }: {
   assessment: SessionAssessment;
   savedReference: string | null;
@@ -595,10 +540,7 @@ function ReportPreview({
   page: number;
   onPage: (page: number) => void;
   onBack: () => void;
-  onDownload: () => void;
   onPrint: () => void;
-  generating: boolean;
-  error: string | null;
 }) {
   return (
     <section aria-labelledby="report-preview-heading" className="space-y-4">
@@ -630,36 +572,12 @@ function ReportPreview({
             <Printer className="size-4" aria-hidden="true" />
             Print / save PDF
           </button>
-          <button
-            type="button"
-            disabled={!mapImage || generating}
-            onClick={onDownload}
-            className="inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-pool-950 px-4 font-semibold text-white disabled:cursor-not-allowed disabled:bg-pool-400"
-          >
-            {generating ? (
-              <LoaderCircle
-                className="size-4 animate-spin"
-                aria-hidden="true"
-              />
-            ) : (
-              <Download className="size-4" aria-hidden="true" />
-            )}
-            {generating ? "Generating…" : "Download PDF"}
-          </button>
         </div>
       </div>
       {!mapImage && (
         <p className="rounded-xl border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
-          Open the property map once before downloading so the report can
+          Open the property map once before printing so the report can
           capture the official map evidence.
-        </p>
-      )}
-      {error && (
-        <p
-          role="alert"
-          className="rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-800"
-        >
-          {error}
         </p>
       )}
       <div className="overflow-auto rounded-3xl bg-pool-200 p-3 sm:p-8">

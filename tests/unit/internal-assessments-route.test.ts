@@ -134,6 +134,81 @@ afterEach(() => {
 });
 
 describe("POST /api/internal/assessments", () => {
+  it.each([
+    { name: "Jane\u0000Smith" },
+    { name: "Jane\r\nBcc:other@example.com" },
+    { email: "jane@example.com\r\nBcc:other@example.com" },
+    { additionalInfo: "text\u0000" },
+    { visitorTypeOtherDetail: "text\u0000" },
+    { desiredTimingOtherDetail: "text\u0000" },
+    { phone: "0215551234<script>alert(1)</script>" },
+    { name: "a".repeat(161) },
+    { admin: true },
+  ])("rejects unsafe contact input before database access", async (fields) => {
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/assessments", {
+        method: "POST",
+        body: JSON.stringify({
+          ...validSubmission,
+          homeowner: { ...validSubmission.homeowner, ...fields },
+        }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(getDb).not.toHaveBeenCalled();
+    expect(saveHomeownerAssessment).not.toHaveBeenCalled();
+  });
+
+  it("stops reading an oversized body without trusting content-length", async () => {
+    const cancel = vi.fn();
+    const body = new ReadableStream<Uint8Array>({
+      pull(controller) {
+        controller.enqueue(new Uint8Array(1_000_000));
+      },
+      cancel,
+    });
+    const request = new Request("https://pool.example/api/public/assessments", {
+      method: "POST",
+      body,
+      duplex: "half",
+    } as RequestInit);
+    const response = await POST_PUBLIC(request);
+    expect(response.status).toBe(413);
+    expect(cancel).toHaveBeenCalled();
+    expect(getDb).not.toHaveBeenCalled();
+  });
+
+  it("returns a controlled error for an unreadable body", async () => {
+    const request = new Request("https://pool.example/api/public/assessments", {
+      method: "POST",
+      body: new ReadableStream({
+        start(controller) {
+          controller.error(new Error("private transport failure"));
+        },
+      }),
+      duplex: "half",
+    } as RequestInit);
+    const response = await POST_PUBLIC(request);
+    expect(response.status).toBe(400);
+    expect(await response.text()).not.toContain("private transport failure");
+    expect(getDb).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    "abcdefg",
+    "0000000",
+    "+61 412 345 678",
+    "+64 21 555 1234",
+    "6495551234",
+  ])("rejects invalid phone %s at the request boundary", (phone) => {
+    expect(() =>
+      parseBrowserAssessmentSaveRequest({
+        ...validSubmission,
+        homeowner: { ...validSubmission.homeowner, phone },
+      }),
+    ).toThrow("Enter a valid NZ mobile or landline number starting with 0.");
+  });
+
   it("builds canonical saved facts from the server snapshot", async () => {
     const request = parseBrowserAssessmentSaveRequest(validSubmission);
     const snapshot = snapshotService.verify(request.assessmentSnapshot);
@@ -590,7 +665,10 @@ describe("POST /api/internal/assessments", () => {
       .mockResolvedValueOnce(existingAssessment);
     saveHomeownerAssessment
       .mockResolvedValueOnce({ assessment: existingAssessment, created: true })
-      .mockResolvedValueOnce({ assessment: existingAssessment, created: false });
+      .mockResolvedValueOnce({
+        assessment: existingAssessment,
+        created: false,
+      });
     getSavedPreliminaryReportById.mockResolvedValue({
       reference: "GF-2026-000001",
       generatedAt: "2026-07-29T02:03:04.000Z",

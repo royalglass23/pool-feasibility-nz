@@ -1,4 +1,5 @@
 import { z, type RefinementCtx } from "zod";
+import { contactText } from "./contact-text";
 
 export const visitorTypeSchema = z.enum(["homeowner", "pool_builder", "other"]);
 
@@ -25,7 +26,7 @@ export function getProjectTimingLabel(
   return projectTimingLabels[timing];
 }
 
-const otherDetailSchema = z.string().trim().min(1).max(4_000).optional();
+const otherDetailSchema = contactText(4_000).pipe(z.string().min(1)).optional();
 
 export const visitorContextFields = {
   visitorType: visitorTypeSchema,

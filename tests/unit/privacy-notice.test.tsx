@@ -77,7 +77,7 @@ describe("report-request privacy notice", () => {
     ).toBeVisible();
     expect(
       notice.getByText(
-        /contact enquiry includes only the name, email address, and message/i,
+        /For a contact enquiry, we collect only your name, email address, and message/i,
       ),
     ).toBeVisible();
     expect(

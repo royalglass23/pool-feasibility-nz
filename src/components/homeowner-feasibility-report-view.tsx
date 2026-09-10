@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { SavedReportInteractiveMap } from "@/components/saved-report-interactive-map";
 import type { ReportDeliveryState } from "@/components/saved-preliminary-report-view";
 import { type SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
@@ -23,7 +22,6 @@ export function HomeownerFeasibilityReportView({
   delivery,
   onBack,
   showBackAction = true,
-  downloadAccessToken,
   onStartAgain,
 }: {
   report: SavedPreliminaryReport;
@@ -33,51 +31,9 @@ export function HomeownerFeasibilityReportView({
   };
   onBack: () => void;
   showBackAction?: boolean;
-  downloadAccessToken?: string;
   onStartAgain?: () => void;
 }) {
   void delivery;
-  const [isDownloading, setIsDownloading] = useState(false);
-  const [downloadError, setDownloadError] = useState<string | null>(null);
-
-  async function downloadPdf() {
-    if (!downloadAccessToken || isDownloading) return;
-
-    setIsDownloading(true);
-    setDownloadError(null);
-    try {
-      const response = await fetch("/api/public/assessments/report/pdf", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ accessToken: downloadAccessToken }),
-      });
-      if (!response.ok) {
-        const body = (await response.json().catch(() => null)) as {
-          error?: { message?: string };
-        } | null;
-        throw new Error(
-          body?.error?.message ?? "The PDF could not be generated.",
-        );
-      }
-
-      const objectUrl = URL.createObjectURL(await response.blob());
-      const anchor = document.createElement("a");
-      anchor.href = objectUrl;
-      anchor.download = `${report.reference}-preliminary-pool-feasibility-report.pdf`;
-      document.body.appendChild(anchor);
-      anchor.click();
-      anchor.remove();
-      URL.revokeObjectURL(objectUrl);
-    } catch (error) {
-      setDownloadError(
-        error instanceof Error
-          ? error.message
-          : "The PDF could not be generated. Your saved report remains available.",
-      );
-    } finally {
-      setIsDownloading(false);
-    }
-  }
 
   return (
     <article
@@ -106,18 +62,8 @@ export function HomeownerFeasibilityReportView({
               {formatReportGeneratedAt(report.generatedAt)}
             </p>
           </div>
-          <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row lg:justify-end">
-            {downloadAccessToken && (
-              <button
-                type="button"
-                onClick={() => void downloadPdf()}
-                disabled={isDownloading}
-                className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 disabled:text-pool-400 min-h-11 rounded-xl border bg-white px-4 font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
-              >
-                {isDownloading ? "Downloading report…" : "Download PDF"}
-              </button>
-            )}
-            {showBackAction && (
+          {showBackAction && (
+            <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row lg:justify-end">
               <button
                 type="button"
                 onClick={onBack}
@@ -125,27 +71,14 @@ export function HomeownerFeasibilityReportView({
               >
                 Back to assessment
               </button>
-            )}
-          </div>
+            </div>
+          )}
         </div>
 
         <p className="text-pool-blue-800 mt-4 text-sm font-semibold">
           We will email a summary of this preliminary report shortly. Check Spam
           or Promotions if it is not in your inbox.
         </p>
-        {downloadError && (
-          <div
-            role="alert"
-            className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-semibold text-amber-950"
-          >
-            <p>Your saved report is still available here.</p>
-            <p className="mt-1 font-normal">{downloadError}</p>
-            <p className="mt-1 font-normal">
-              <span className="font-semibold">What to try: </span>
-              Wait a minute, then select Download PDF again.
-            </p>
-          </div>
-        )}
       </header>
 
       <div className="space-y-10 px-5 py-7 sm:px-8 lg:px-10 lg:py-10">

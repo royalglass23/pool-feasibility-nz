@@ -14,6 +14,7 @@ const {
   queryRenderedFeatures,
   waitForIdle,
   canvasSnapshot,
+  setWorkerUrl,
 } = vi.hoisted(() => ({
   waitForIdle: vi.fn<() => Promise<void>>(() => Promise.resolve()),
   canvasSnapshot: vi.fn(() => "data:image/png;base64,"),
@@ -24,6 +25,7 @@ const {
   fitBounds: vi.fn(),
   mapEventHandlers: new globalThis.Map<string, (event: MapEvent) => void>(),
   markerOffsets: [] as [number, number][],
+  setWorkerUrl: vi.fn<(url: string) => void>(),
 }));
 
 type MapEvent = {
@@ -133,6 +135,7 @@ vi.mock("maplibre-gl", () => {
     Map,
     Marker,
     NavigationControl: class NavigationControl {},
+    setWorkerUrl,
     default: {
       Map,
       Marker,
@@ -151,6 +154,7 @@ afterEach(() => {
   vi.unstubAllGlobals();
   waitForIdle.mockReset().mockImplementation(() => Promise.resolve());
   canvasSnapshot.mockReset().mockReturnValue("data:image/png;base64,");
+  setWorkerUrl.mockClear();
 });
 
 it("keeps the rotate control visible and interactive while taking a snapshot", async () => {
@@ -163,6 +167,7 @@ it("keeps the rotate control visible and interactive while taking a snapshot", a
     />,
   );
   await waitFor(() => expect(onSnapshotReady).toHaveBeenCalled());
+  expect(setWorkerUrl).toHaveBeenCalledWith("/maplibre/maplibre-gl-worker.mjs");
   expect(waitForIdle).not.toHaveBeenCalled();
   expect(screen.getByTestId("pool-rotate-control")).toBeVisible();
   mapEventHandlers.get("idle:map")?.({} as MapEvent);

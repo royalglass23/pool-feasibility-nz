@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { homeownerContactSchema } from "./homeowner-contact";
 import type { Geometry } from "geojson";
 import {
   buildFastPoolGeometry,
@@ -10,10 +11,6 @@ import { classifyFastPoolWarning } from "@/modules/data-access-spike/fast-pool-w
 import { buildFastReportAssessment } from "@/modules/reporting/build-fast-report-assessment";
 import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
 import { isValidPngMapImageDataUrl } from "@/modules/reporting/map-image";
-import {
-  requireOtherDetails,
-  visitorContextFields,
-} from "@/modules/assessment/visitor-context";
 import type { TrustedAssessmentSnapshot } from "./assessment-snapshot";
 import {
   parsePersistedAssessmentSubmission,
@@ -32,17 +29,7 @@ const browserSubmissionSchema = z
       .array(z.string().trim().min(1).max(80))
       .max(50)
       .default([]),
-    homeowner: z
-      .object({
-        name: z.string().trim().min(1).max(160),
-        phone: z.string().trim().min(7).max(40),
-        email: z.email().max(320),
-        ...visitorContextFields,
-        additionalInfo: z.string().trim().max(4_000).optional(),
-        consentGiven: z.literal(true),
-      })
-      .superRefine(requireOtherDetails)
-      .strict(),
+    homeowner: homeownerContactSchema,
     poolLayout: z
       .object({
         lengthMetres: z.number().finite().min(2).max(20),

@@ -12,15 +12,12 @@ import {
   reportWarningLabel,
 } from "@/modules/reporting/preliminary-report-presentation";
 
-const pdfDownloadsEnabled = false;
-
 export type ReportDeliveryState = "pending" | "sending" | "sent" | "failed";
 
 export function SavedPreliminaryReportView({
   report,
   delivery,
   onBack,
-  downloadAccessToken,
 }: {
   report: SavedPreliminaryReport;
   delivery: {
@@ -28,10 +25,7 @@ export function SavedPreliminaryReportView({
     internal_test_report: ReportDeliveryState;
   };
   onBack: () => void;
-  downloadAccessToken?: string;
 }) {
-  const [downloading] = useState(false);
-  const [downloadError] = useState<string | null>(null);
   const [deliveryState] = useState(delivery);
   const mapLegend = reportMapLegend(report);
 
@@ -64,26 +58,8 @@ export function SavedPreliminaryReportView({
           >
             Back to assessment
           </button>
-          {pdfDownloadsEnabled && downloadAccessToken && (
-            <button
-              type="button"
-              disabled
-              className="bg-pool-950 disabled:bg-pool-500 inline-flex min-h-10 items-center justify-center rounded-xl px-4 font-semibold text-white"
-            >
-              {downloading ? "Preparing PDF…" : "Download PDF"}
-            </button>
-          )}
         </div>
       </div>
-
-      {downloadError && (
-        <p
-          role="alert"
-          className="text-center text-sm font-semibold text-red-700"
-        >
-          {downloadError}
-        </p>
-      )}
 
       <p className="text-pool-blue-800 text-center text-sm font-semibold">
         We will email a summary of this preliminary report shortly. Check Spam

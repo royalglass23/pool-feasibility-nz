@@ -1,184 +1,184 @@
-# pool-feasibility-nz
+# PoolReady
 
-`pool-feasibility-nz` is a standalone Auckland-only proof of concept for generating preliminary residential swimming-pool feasibility reports from official mapped information and deterministic spatial analysis.
+PoolReady is an Auckland-first property discovery tool for early swimming-pool
+conversations. A homeowner or pool professional can find a property, position
+an indicative pool shell, inspect available mapped constraints, and request a
+preliminary feasibility report.
 
-The product is a desktop screening tool, not an approval, consent, engineering, title, utility-location, or construction-safety service. It must report unknown information as unknown and must never replace missing GIS data with invented geometry or findings.
+The result is a screening aid, not an approval, quote, design, survey,
+engineering opinion, title review, utility-location service, or confirmation
+that a pool can be built. Missing evidence remains **Needs checking**; the
+application must not turn unavailable data into a clear result.
 
-## Current status
+## Start here
 
-The internal Auckland POC now covers the complete session journey: exact LINZ
-address and parcel selection, official mapped evidence and attribution,
-deterministic multi-scenario candidates and calculated shell range, feasibility
-score, separate data confidence, sourced risks and ordered actions, optional
-constrained AI explanation with deterministic fallback, and an immediate JSON
-session-assessment download.
+- Product and domain language: [`CONTEXT.md`](CONTEXT.md)
+- What changed: [`CHANGELOG.md`](CHANGELOG.md)
+- Documentation map: [`docs/README.md`](docs/README.md)
+- Architecture and trust boundaries: [`docs/architecture.md`](docs/architecture.md)
+- Current validation and release evidence: [`docs/release-readiness.md`](docs/release-readiness.md)
 
-It remains an **internal-only, no-database, session-scoped POC**. It is not
-deployed, does not retain assessments, and does not generate a durable or public
-PDF report. See [release readiness](docs/release-readiness.md) for the current
-GO/BLOCKED decision and validation evidence.
+## What exists now
 
-## Technology baseline
+The current `features` branch contains:
 
-- Next.js App Router, React, strict TypeScript, Tailwind CSS, and shadcn/ui
-- MapLibre GL JS, Turf.js, and Zod
-- A deferred PostgreSQL/Drizzle proposal; no database is used by this POC
-- Vitest, Testing Library, and Playwright
-- ESLint and Prettier
+- an anonymous Auckland Property Check journey at `/`;
+- indexed LINZ address suggestions and official parcel/aerial evidence;
+- interactive pool-size, placement, and rotation controls;
+- an opt-in detailed constraint check with deterministic overlap reporting;
+- preliminary web reports and server-rendered PDF email attachments;
+- persisted assessment requests backed by PostgreSQL/Neon;
+- an Admin-only Staff Workspace at `/staff` for saved assessments;
+- privacy controls, scheduled retention, shared public rate limits, and
+  consent-gated analytics;
+- public information pages and a BlueHaven-backed Founding Partner Program at
+  `/partners`; and
+- privacy-safe general and partnership enquiry forms.
 
-Exact installed versions are recorded in `package-lock.json`. See [dependencies](docs/dependencies.md) for the role of each package and deferred decisions.
+Browser PDF download controls were removed on 8 September 2026. The supported
+visitor flow is to request the report by email; staff can review saved records
+through the protected workspace.
+
+This repository is no longer the session-only, no-database POC described by the
+old README. Some documents under `docs/` and `security/` deliberately preserve
+earlier proposals or point-in-time audit evidence. Read their date and reviewed
+commit before treating them as current.
+
+## Current delivery boundary
+
+The codebase is shaped for a public Auckland discovery site, but repository
+state is not proof of the live environment. Deployment, production database
+migrations, provider credentials, email delivery, DNS, analytics collection,
+and security sign-off must each be verified separately for the exact target and
+commit.
+
+The latest dependency-remediation evidence passes for commit `5e34e16`. The
+current branch also contains later form-feedback changes, so there is not yet a
+single complete release-evidence pack bound to `HEAD`. See
+[`docs/release-readiness.md`](docs/release-readiness.md) before promoting a
+build.
+
+## Main journeys
+
+| Route                                   | Audience                          | Purpose                                                                               |
+| --------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------- |
+| `/`                                     | Homeowners and pool professionals | Find a property, position a pool, check constraints, and request a preliminary report |
+| `/auckland-pool-planning-for-builders`  | Pool professionals                | Explain the early builder conversation                                                |
+| `/can-my-auckland-property-suit-a-pool` | Search/discovery visitors         | Explain the Auckland property-check use case                                          |
+| `/partners`                             | Prospective industry partners     | Founding Partner Program and enquiry form                                             |
+| `/privacy`                              | Public visitors                   | Privacy information and request guidance                                              |
+| `/staff`                                | Provisioned Admin                 | Search and review saved assessments                                                   |
+
+Public pages and `/api/public/*` are anonymous by design. Staff pages and saved
+assessment reads require the database-backed Admin session. The older
+`/api/internal/*` endpoints are diagnostic seams protected by separate legacy
+credentials; they are not the public browser journey.
+
+## Technology
+
+- Next.js 16.3, React 19, strict TypeScript, Tailwind CSS, and Base UI
+- MapLibre GL JS and Turf.js for the mapped property experience
+- PostgreSQL/Neon with Drizzle ORM for address indexing, assessments, and staff
+  access
+- Puppeteer Core with `@sparticuz/chromium` for PDF rendering
+- Resend for report and enquiry email delivery
+- Upstash Redis-compatible rate limiting for deployed public routes
+- Vitest, Testing Library, Playwright, ESLint, and Prettier
+
+Exact versions are locked in `package-lock.json` and `pnpm-lock.yaml`. The npm
+lockfile is the documented local workflow; the pnpm lockfile is retained and
+validated for Vercel installs.
 
 ## Local setup
 
-Prerequisites:
+Use Node.js 24 (the current verified development baseline) and npm 11 or a
+compatible release.
 
-- Node.js 24 or a supported active-LTS release compatible with the locked dependency tree
-- npm 11+
-
-```bash
+```powershell
 npm install
-copy .env.example .env.local
+Copy-Item .env.example .env.local
 npm run dev
 ```
 
-No database is required. Results exist only in the current browser session and
-the downloaded JSON selected by the staff user.
+Open <http://localhost:3000>. The app can start without production credentials,
+but live property data requires LINZ and Auckland Council keys. Saving reports,
+staff access, and the local address index require an explicitly approved
+database target. Real email delivery requires an approved Resend configuration.
 
-## Environment variables
+Do not copy a production database URL into local test configuration. Database
+migrations, production address-index imports, credential provisioning, and
+external email tests are separate authorised operations.
 
-Copy `.env.example` to `.env.local`. Staff-access, GIS, and optional AI
-credentials are server-only. No provider key uses a `NEXT_PUBLIC_` prefix.
-`DATABASE_URL` and the deferred rate-limit/storage variables are optional and
-unused by the current POC.
+## Environment configuration
 
-See [environment variables](docs/architecture.md#environment-boundary) for the proposed contract.
+Use [`.env.example`](.env.example) as the inventory. Important groups are:
 
-## Property data inspector
+- application URL, analysis version, logging, provider timeout, and indexing;
+- server-only LINZ and Auckland Council credentials;
+- `DATABASE_URL`, with separate guarded preview/production address-index
+  variables;
+- Upstash REST credentials, required for deployed public routes;
+- report-signing, Resend, sender, and delivery-mode settings;
+- Admin bootstrap/reset inputs supplied interactively, never committed; and
+- optional GA4 and Hotjar identifiers, both still gated by visitor consent.
 
-Start the local application:
+See [`docs/staff-admin-access.md`](docs/staff-admin-access.md),
+[`docs/public-rate-limiting.md`](docs/public-rate-limiting.md), and
+[`docs/analytics-and-search.md`](docs/analytics-and-search.md) for operational
+details.
 
-```bash
-npm run dev
-```
+## Common commands
 
-Open <http://localhost:3000>, enter a supported Auckland property address, and
-select **Fetch property data**. The page displays the resolved LINZ address,
-mapped parcel identity, dataset availability, evidence-use status, all configured
-pool scenarios, calculated size range, deterministic score and confidence,
-sourced risks/actions, and the AI or deterministic explanation. Candidate shells
-and their indicative construction envelopes are drawn only when verified
-geometry produces a tested placement. **Download session assessment** saves a
-bounded JSON assessment without raw provider payloads or geometry.
-
-Staff size preferences are limited to Compact, Standard, Large, or no
-preference; intermediate shells remain deterministic comparison scenarios. A
-front, rear, or side-yard preference requires the staff user to supply the
-known cardinal direction of the property's front boundary. The POC never
-infers frontage from an address point, parcel shape, or private access leg.
-
-The browser calls `POST /api/internal/data-access`. Provider credentials remain
-server-side, requests and provider responses are bounded, and duplicate form
-submissions are disabled while an analysis is running. Provider hosts, retries,
-timeouts, concurrency, request/response bytes, and returned geometry are bounded.
-Safe API errors contain stable codes and correlation IDs, not provider payloads,
-credentials, or stack traces.
-
-The result map uses MapLibre to show authenticated LINZ aerial imagery, the
-confirmed parcel boundary, and the resolved address point with visible LINZ
-attribution. A server-side tile route keeps the LINZ Basemaps key out of browser
-requests.
-
-Discovery pages and `/api/public/*` Property Check endpoints are anonymous in
-all environments. The Staff Workspace uses the Admin sign-in documented in
-[`docs/staff-admin-access.md`](docs/staff-admin-access.md), and its saved-record
-pages and APIs validate the database-backed Admin session on the server.
-
-`INTERNAL_ACCESS_USERNAME` and `INTERNAL_ACCESS_PASSWORD` remain only for
-legacy `/api/internal/*` diagnostic endpoints. The public browser flow does not
-send or depend on those shared Basic credentials.
-
-## Quality commands
-
-```bash
+```powershell
 npm run typecheck
 npm run lint
 npm run format:check
 npm test
 npm run build
-```
-
-Playwright covers controlled complete journeys for `42A Bahari Drive` and
-`2/49 Pigeon Mountain Road`, plus ambiguity, duplicate submission, retry,
-imagery failure, AI/fallback, no-clear-candidate, and download behavior:
-
-```bash
 npm run test:e2e
+npm run test:e2e:contact
 ```
 
-## Database
+Live GIS checks are manual operational evidence, not CI fixtures:
 
-The current POC has no database and no durable report history. The optional
-future PostgreSQL model is documented in [database.md](docs/database.md), but no
-schema or migration is part of this release.
-
-Planned commands:
-
-```bash
-npm run db:generate
-npm run db:migrate
-npm run db:studio
-```
-
-## Test property
-
-The application accepts different Auckland property addresses. Controlled tests
-cover `42A Bahari Drive, Ranui, Auckland`, distinguish it from `42 Bahari Drive`,
-and separately cover `2/49 Pigeon Mountain Road, Half Moon Bay, Auckland`.
-Fixtures are test inputs only and never become product defaults.
-
-Run the internal spike with an explicit address:
-
-```bash
-npm run spike:data-access -- "42A Bahari Drive, Ranui, Auckland"
-npm run spike:verify-aerial -- "42A Bahari Drive, Ranui, Auckland"
+```powershell
 npm run smoke:live-layers -- "42A Bahari Drive, Ranui, Auckland"
-npm run smoke:live-layers -- "2/49 Pigeon Mountain Road, Half Moon Bay, Auckland"
+npm run spike:verify-aerial -- "42A Bahari Drive, Ranui, Auckland"
 ```
 
-The aerial verifier accepts any supported address, performs the same live
-address/parcel resolution, checks point-in-parcel alignment, loads real LINZ
-aerial tiles, and saves a local verification screenshot under `output/playwright/`.
-It is an internal data-access check, not a pool-feasibility finding.
+Address-index and Admin commands can mutate the configured database. Read the
+relevant guide and confirm the target before running them:
 
-The live-layer smoke is a separate manual provider check. It prints only safe,
-normalized availability and feature-count evidence; automated tests use local
-fixtures and do not call live GIS services.
+```powershell
+npm run addresses:status
+npm run addresses:probe -- "42A Bahari Drive, Ranui, Auckland"
+npm run staff:bootstrap
+npm run staff:reset-password
+```
 
-Generic verification screenshots can contain a full residential address and
-precise imagery, so they are ignored by Git and should be deleted after the local
-check. Only the approved `2359811-aerial-alignment.png` regression artifact is
-eligible for retention in this POC repository.
+The production address-index commands contain an additional explicit guard;
+their presence is not permission to run them.
 
-There is deliberately no default property. Standard street addresses and
-LINZ-style unit forms are accepted, and ambiguous matches require explicit staff
-selection before parcel analysis.
+## Architecture in one paragraph
 
-## Deployment
+PoolReady is a modular Next.js monolith. Route handlers are thin adapters.
+Official provider responses are validated and normalised before the domain
+layer uses them. Deterministic spatial analysis, scoring, confidence, risks,
+and recommendations operate on internal evidence models. A completed assessment
+is persisted as a versioned snapshot and reused by the web report, map capture,
+PDF renderer, email delivery, and staff view; report rendering does not repeat
+live GIS analysis.
 
-Deployment and audience widening are outside this release. Any later deployment
-must retain fail-closed staff access and server-only credentials, and separately
-resolve distributed rate limiting, Council generated-report reuse, Watercare
-licence restrictions, retention, durable storage, and rollback.
+## Project rules
 
-## Planning documents
-
-- [Architecture](docs/architecture.md)
-- [Dependencies](docs/dependencies.md)
-- [Database proposal](docs/database.md)
-- [Data-source investigation](docs/data-sources.md)
-- [Scoring](docs/scoring.md)
-- [Report format](docs/report-format.md)
-- [Limitations](docs/limitations.md)
-- [Regional expansion](docs/regional-expansion.md)
-- [Implementation plan](docs/implementation-plan.md)
-- [Release readiness](docs/release-readiness.md)
+- Auckland is the supported assessment region; address search may recognise
+  wider LINZ coverage without implying regional assessment support.
+- Unknown or unavailable evidence is shown as unknown/Needs checking.
+- Provider keys, raw payloads, stack traces, personal data, and report content
+  must not enter public errors, analytics, or routine logs.
+- Public limits run before provider calls, database writes, PDF work, or email
+  delivery.
+- Generated screenshots may contain residential information and are local-only
+  unless explicitly approved as a fixture.
+- No document in this repository grants authority to migrate, deploy, send live
+  customer email, or widen the audience.

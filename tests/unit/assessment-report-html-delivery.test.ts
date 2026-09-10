@@ -13,6 +13,45 @@ const controlledTestDeliveryEnvironment = {
 } as const;
 
 describe("assessment report delivery", () => {
+  it("encodes submitted HTML as text in both delivery channels", async () => {
+    const payload = '<img src=x onerror="alert(1)">';
+    const report = buildTestPreliminaryReport();
+    const store: AssessmentDeliveryStore = {
+      claim: vi.fn((_: string, channel) =>
+        Promise.resolve<AssessmentDeliveryClaim>({
+          channel,
+          claimToken: `${channel}-claim`,
+          homeownerName: payload,
+          homeownerPhone: "0211234567",
+          homeownerEmail: "jane@example.com",
+          visitorType: "other",
+          visitorTypeOtherDetail: payload,
+          desiredTiming: "other",
+          desiredTimingOtherDetail: payload,
+          additionalInfo: payload,
+          report,
+        }),
+      ),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined),
+    };
+    const send = vi.fn().mockResolvedValue({ id: "test-email" });
+    await deliverAssessmentReport(report.reference, {
+      store,
+      send,
+      from: "PoolReady <reports@example.com>",
+      renderPdf: vi.fn().mockResolvedValue(Buffer.from("%PDF-test")),
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
+    });
+    expect(send).toHaveBeenCalledTimes(2);
+    for (const [email] of send.mock.calls) {
+      expect(email.html).not.toContain(payload);
+      expect(email.html).toContain(
+        "&lt;img src=x onerror=&quot;alert(1)&quot;&gt;",
+      );
+    }
+  });
+
   it("sends the same PDF attachment to the synthetic test user and support", async () => {
     const report = buildTestPreliminaryReport();
     const store: AssessmentDeliveryStore = {
@@ -66,7 +105,7 @@ describe("assessment report delivery", () => {
       ([email]) => email.to === "jane@example.com",
     )?.[0];
     const supportEmail = send.mock.calls.find(
-      ([email]) => email.to === "support@royalglass.co.nz",
+      ([email]) => email.to === "support@bluehaven.nz",
     )?.[0];
     expect(homeownerEmail?.html).toContain("PoolReady");
     expect(homeownerEmail?.html).toContain(
@@ -79,7 +118,7 @@ describe("assessment report delivery", () => {
       "background:#ffffff;border-radius:6px",
     );
     expect(homeownerEmail).toMatchObject({
-      replyTo: "support@royalglass.co.nz",
+      replyTo: "support@bluehaven.nz",
     });
     expect(homeownerEmail?.html).toContain(
       "Have questions? Let’s talk it through.",
@@ -92,7 +131,7 @@ describe("assessment report delivery", () => {
     expect(homeownerEmail?.text).not.toContain("Recommended next step");
     expect(supportEmail).toMatchObject({
       replyTo: "jane@example.com",
-      subject: "New PoolReady report request - 1 Test Street",
+      subject: "[PoolReady] Property check report requested - 1 Test Street",
     });
     expect(supportEmail?.html).toContain("Overall result");
     expect(supportEmail?.html).toContain("Main finding");
@@ -112,7 +151,7 @@ describe("assessment report delivery", () => {
         ],
         [
           expect.objectContaining({
-            to: "support@royalglass.co.nz",
+            to: "support@bluehaven.nz",
             attachment: pdf,
             filename: "preliminary-pool-feasibility-1-test-street.pdf",
             idempotencyKey: `assessment-report/${report.reference}/internal_test_report`,
