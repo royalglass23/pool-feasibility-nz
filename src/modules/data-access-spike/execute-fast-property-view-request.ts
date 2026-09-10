@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { contactText } from "@/shared/validation/contact-text";
 import {
   DataAccessSpikeError,
   type BoundaryState,
@@ -16,8 +17,8 @@ import { isProviderEvidenceError } from "./data-access-gateway";
 
 const requestSchema = z
   .object({
-    address: z.string().trim().min(8).max(200),
-    selectedAddressId: z.string().trim().min(1).max(100).optional(),
+    address: contactText(200).pipe(z.string().min(8)),
+    selectedAddressId: contactText(100).pipe(z.string().min(1)).optional(),
   })
   .strict();
 
@@ -44,8 +45,8 @@ export type FastPropertyViewRequestResponse =
 
 export async function executeFastPropertyViewRequest(input: {
   body: unknown;
-  addressSearch: AddressSearch;
-  propertyLayers: OfficialPropertyLayers;
+  addressSearch: AddressSearch | (() => AddressSearch);
+  propertyLayers: OfficialPropertyLayers | (() => OfficialPropertyLayers);
   basemapApiKey?: string;
   now?: () => Date;
 }): Promise<FastPropertyViewRequestResponse> {
@@ -56,15 +57,25 @@ export async function executeFastPropertyViewRequest(input: {
       "INVALID_ADDRESS",
       "Enter a complete New Zealand property address.",
     );
+  let providersReady = false;
   try {
+    const addressSearch =
+      typeof input.addressSearch === "function"
+        ? input.addressSearch()
+        : input.addressSearch;
+    const propertyLayers =
+      typeof input.propertyLayers === "function"
+        ? input.propertyLayers()
+        : input.propertyLayers;
+    providersReady = true;
     return {
       ok: true,
       status: 200,
       data: await resolveFastPropertyAddress({
         requestedAddress: request.data.address,
         selectedAddressId: request.data.selectedAddressId,
-        addressSearch: input.addressSearch,
-        propertyLayers: input.propertyLayers,
+        addressSearch,
+        propertyLayers,
         now: input.now,
       }),
     };
@@ -92,6 +103,12 @@ export async function executeFastPropertyViewRequest(input: {
         503,
         "TEMPORARILY_UNAVAILABLE",
         "Please try again shortly.",
+      );
+    if (!providersReady)
+      return failure(
+        502,
+        "DATA_PROVIDER_ERROR",
+        "The Property Check is temporarily unavailable.",
       );
     if (isProviderEvidenceError(error))
       return failure(

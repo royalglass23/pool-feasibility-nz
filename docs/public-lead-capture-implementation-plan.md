@@ -10,7 +10,7 @@ Move the Auckland-first Property Check from a protected internal workflow to a s
 - The checked address stays server-derived from the signed Property Check snapshot.
 - A visitor receives the preliminary report as a PDF email attachment.
 - ServiceM8 receives a concise saved-lead notification: reference, contact details, checked address, visitor type, and timing; never a report link, PDF, or map attachment.
-- Report-request data is retained for 12 months. `support@royalglass.co.nz` handles manual access, correction, and early-deletion requests.
+- Report-request data is retained for 12 months. `support@bluehaven.nz` handles manual access, correction, and early-deletion requests.
 - The privacy notice names Neon, Resend, and ServiceM8 only when forwarding is enabled.
 - Vercel remains a noindex test deployment until a final hostname is selected.
 - GA4 requires separate analytics-cookie consent and receives no personal/property/report data. Search Console is configured only for the final hostname.
@@ -35,7 +35,7 @@ Move the Auckland-first Property Check from a protected internal workflow to a s
    - send the visitor PDF attachment;
    - send the reduced ServiceM8 notification, with no attachment or report link;
    - preserve idempotency so a retry does not duplicate a saved request or already-completed destination.
-3. Add an explicit privacy notice immediately before Report Delivery Consent. It covers purpose, the 12-month retention period, declared processors, `support@royalglass.co.nz`, and no marketing consent.
+3. Add an explicit privacy notice immediately before Report Delivery Consent. It covers purpose, the 12-month retention period, declared processors, `support@bluehaven.nz`, and no marketing consent.
 4. Implement a scheduled retention path that deletes expired report requests and a controlled Admin workflow for a verified Privacy Request.
 
 **Acceptance evidence:** a saved request has the complete visitor context; visitor and ServiceM8 messages have their correct, different payloads; deletion/retention removes the expected personal/property data without affecting unrelated fixtures.

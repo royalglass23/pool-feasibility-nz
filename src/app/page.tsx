@@ -1,8 +1,14 @@
 import { AucklandPropertyJourney } from "@/components/auckland-property-journey";
 import { AnalyticsConsent } from "@/components/analytics-consent";
 import { PoolFeasibilityExplainer } from "@/components/pool-feasibility-explainer";
-import { FooterContactDialog } from "@/components/footer-contact-dialog";
 import { env } from "@/env";
+import {
+  FileCheck2,
+  MapPinHouse,
+  Move,
+  ScanSearch,
+  type LucideIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { DataAccessInspector } from "./data-access-inspector";
 
@@ -50,21 +56,25 @@ export default function Home() {
 
             <ol className="mx-auto flex w-full max-w-[480px] flex-col border-t border-[#c6dce9] lg:aspect-[480/445]">
               <ProcessStep
+                icon={MapPinHouse}
                 number="01"
                 title="Find your property"
                 text="Enter your Auckland address and select the matching property."
               />
               <ProcessStep
+                icon={Move}
                 number="02"
                 title="Position your pool"
                 text="Choose a pool size, drag the pool to move it, and drag the rotate handle to turn it."
               />
               <ProcessStep
+                icon={ScanSearch}
                 number="03"
                 title="Check for constraints"
                 text="Select “Check for constraints” to load available mapped information about potential site constraints."
               />
               <ProcessStep
+                icon={FileCheck2}
                 number="04"
                 title="Get your preliminary report"
                 text="Enter your details to get your report, understand what needs checking, and prepare for your next conversation."
@@ -76,7 +86,7 @@ export default function Home() {
 
         <section
           id="property-search"
-          className="scroll-mt-24 border-t border-[#dbe8f0] pt-10 sm:pt-12"
+          className="scroll-mt-40 border-t border-[#dbe8f0] pt-10 sm:pt-12"
           aria-label="Property check"
         >
           <div id="property-search-intro" className="mb-6 max-w-2xl">
@@ -125,40 +135,6 @@ export default function Home() {
             </Link>
           </div>
         </section>
-
-        <footer
-          className="mt-14 border-t border-[#c6dce9] py-8 text-sm leading-6 text-[#426b87] sm:mt-20 sm:py-10"
-          aria-label="Site information"
-        >
-          <div className="flex flex-col gap-8 sm:flex-row sm:items-start sm:justify-between sm:gap-12">
-            <div className="max-w-xl">
-              <p className="font-semibold text-[#062f5d]">
-                Need help with your property check?
-              </p>
-              <p className="mt-2 text-pretty">
-                Get in touch about a preliminary report or the next best step
-                for your property.
-              </p>
-              <FooterContactDialog />
-            </div>
-
-            <nav aria-label="Footer navigation" className="shrink-0">
-              <a
-                className="font-semibold text-[#006da9] underline decoration-[#85b8d4] underline-offset-4 transition-colors hover:text-[#062f5d] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd]"
-                href="/privacy"
-              >
-                Privacy notice
-              </a>
-            </nav>
-          </div>
-
-          <p className="mt-8 border-t border-[#dbe8f0] pt-5 text-xs leading-5 text-[#5c7e96]">
-            © {new Date().getFullYear()} PoolReady. Preliminary property
-            guidance only. This tool does not determine pool feasibility,
-            construction safety, consent requirements, title interests,
-            easements, or exact underground service positions.
-          </p>
-        </footer>
       </div>
       <AnalyticsConsent
         measurementId={env.NEXT_PUBLIC_GA4_MEASUREMENT_ID}
@@ -169,11 +145,13 @@ export default function Home() {
 }
 
 function ProcessStep({
+  icon: Icon,
   number,
   title,
   text,
   isLast = false,
 }: {
+  icon: LucideIcon;
   number: string;
   title: string;
   text: string;
@@ -181,16 +159,21 @@ function ProcessStep({
 }) {
   return (
     <li
-      className={`grid flex-1 gap-4 border-b border-[#c6dce9] py-8 sm:grid-cols-[3.5rem_minmax(0,1fr)] sm:gap-5 sm:py-10 lg:grid-cols-[3rem_minmax(0,1fr)] lg:gap-3 lg:py-3 ${
+      className={`grid flex-1 grid-cols-[2rem_2.25rem_minmax(0,1fr)] items-start gap-3 border-b border-[#c6dce9] py-8 sm:grid-cols-[2rem_2.5rem_minmax(0,1fr)] sm:gap-4 sm:py-10 lg:gap-3 lg:py-3 ${
         isLast ? "border-b-0" : ""
       }`}
     >
       <span
         aria-hidden="true"
-        className="text-lg leading-7 font-semibold tracking-[-0.03em] text-[#0077bd] lg:text-base lg:leading-6"
+        className="flex h-9 items-center text-sm leading-5 font-semibold tracking-[-0.02em] text-[#0077bd]"
       >
         {number}
       </span>
+      <Icon
+        aria-hidden="true"
+        strokeWidth={1.5}
+        className="size-9 shrink-0 text-[#0077bd]"
+      />
       <div>
         <h3 className="text-xl leading-7 font-semibold text-balance text-[#062f5d] lg:text-lg lg:leading-6">
           {title}

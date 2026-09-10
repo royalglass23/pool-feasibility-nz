@@ -1,7 +1,11 @@
 ---
-status: accepted
+status: superseded
 ---
 
 # Use simple dual-email delivery for controlled testing
 
-For now, a saved report is emailed immediately as the same PDF to the address entered by the synthetic test user and to `royalglass666@gmail.com`, with no email-verification step. This deliberately favours simple end-to-end testing; it is restricted to synthetic non-production data, does not enable ServiceM8, and does not approve the same unverified delivery model for a public production launch.
+This controlled-test decision has been superseded by the current report-delivery
+contract in `docs/report-format.md`. Internal report copies now go to the approved
+`support@bluehaven.nz` inbox. The synthetic delivery mode remains restricted to
+non-production data and does not authorize public delivery without the current
+release gates.

@@ -1,8 +1,10 @@
 "use client";
 
 import Script from "next/script";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { useEffect, useState, useSyncExternalStore } from "react";
 import { ANALYTICS_CONSENT_STORAGE_KEY } from "@/modules/anonymous-funnel-analytics";
+import { prepareSpeedInsightsEvent } from "@/modules/speed-insights";
 
 type ConsentChoice = "granted" | "denied" | null;
 type AnalyticsWindow = Window & {
@@ -75,6 +77,9 @@ export function AnalyticsConsent({
   return (
     <>
       {choice === "granted" && (
+        <SpeedInsights beforeSend={prepareSpeedInsightsEvent} debug={false} />
+      )}
+      {choice === "granted" && (
         // Keep this pixel direct so the visitor's browser contacts Metricool.
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -131,7 +136,8 @@ export function AnalyticsConsent({
             </h2>
             <p className="mt-2 text-sm leading-6">
               Help us improve the Property Check with anonymous interaction
-              analytics. We never send your contact details, property address,
+              and performance analytics. We never send your contact details,
+              property address,
               map, report, coordinates, or free text.
             </p>
             <div className="mt-4 flex flex-wrap gap-2">

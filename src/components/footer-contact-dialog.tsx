@@ -1,18 +1,16 @@
 "use client";
 
-import Link from "next/link";
-import { useEffect, useId, useRef, useState, type FormEvent } from "react";
+import { ContactEnquiryForm } from "@/components/contact-enquiry-form";
+import { useEffect, useId, useRef, useState } from "react";
 
-type ContactDialogState = "idle" | "sending" | "sent";
+type ContactDialogState = "idle" | "sent";
 const CONTACT_HASH = "#contact";
 
 export function FooterContactDialog() {
   const [open, setOpen] = useState(false);
   const [state, setState] = useState<ContactDialogState>("idle");
-  const [error, setError] = useState<string | null>(null);
   const dialogRef = useRef<HTMLDialogElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
-  const idempotencyKeyRef = useRef<string | null>(null);
   const headingId = useId();
   const descriptionId = useId();
 
@@ -46,7 +44,6 @@ export function FooterContactDialog() {
       }
 
       setState("idle");
-      setError(null);
       setOpen(true);
     }
 
@@ -57,7 +54,6 @@ export function FooterContactDialog() {
 
   function openDialog() {
     setState("idle");
-    setError(null);
     setOpen(true);
   }
 
@@ -71,50 +67,6 @@ export function FooterContactDialog() {
     }
     setOpen(false);
     window.setTimeout(() => triggerRef.current?.focus(), 0);
-  }
-
-  async function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (state === "sending") return;
-
-    const form = event.currentTarget;
-    const fields = new FormData(form);
-    idempotencyKeyRef.current ??= crypto.randomUUID();
-    setState("sending");
-    setError(null);
-
-    try {
-      const response = await fetch("/api/public/contact", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: fields.get("name"),
-          email: fields.get("email"),
-          message: fields.get("message"),
-          website: fields.get("website"),
-          idempotencyKey: idempotencyKeyRef.current,
-        }),
-      });
-      const body = (await response.json().catch(() => null)) as {
-        sent?: boolean;
-        error?: { message?: string };
-      } | null;
-      if (!response.ok || !body?.sent) {
-        throw new Error(
-          body?.error?.message ?? "We could not send your message.",
-        );
-      }
-      form.reset();
-      idempotencyKeyRef.current = null;
-      setState("sent");
-    } catch (submissionError) {
-      setError(
-        submissionError instanceof Error
-          ? submissionError.message
-          : "We could not send your message.",
-      );
-      setState("idle");
-    }
   }
 
   return (
@@ -180,95 +132,12 @@ export function FooterContactDialog() {
               </button>
             </div>
           ) : (
-            <form onSubmit={submit} className="mt-6">
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="Name" name="name" autoComplete="name" />
-                <Field
-                  label="Email"
-                  name="email"
-                  type="email"
-                  autoComplete="email"
-                />
-                <label className="text-sm font-semibold sm:col-span-2">
-                  How can we help?
-                  <textarea
-                    name="message"
-                    required
-                    minLength={10}
-                    maxLength={2_000}
-                    rows={4}
-                    className="mt-1.5 block w-full resize-y rounded-lg border border-[#9fc8df] bg-white px-3 py-2.5 text-base font-normal transition outline-none focus:border-[#0077bd] focus:ring-2 focus:ring-[#a5d9f2]"
-                  />
-                </label>
-              </div>
-              <label className="sr-only" aria-hidden="true">
-                Website
-                <input name="website" tabIndex={-1} autoComplete="off" />
-              </label>
-              <p className="mt-3 text-xs leading-5 text-[#5c7e96]">
-                We use these details only to respond to your enquiry. This is
-                not marketing consent. Read our{" "}
-                <Link
-                  href="/privacy"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="font-semibold text-[#006da9] underline decoration-[#85b8d4] underline-offset-4 hover:text-[#062f5d] focus-visible:rounded-sm focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd]"
-                >
-                  privacy notice
-                </Link>
-                .
-              </p>
-              {error && (
-                <div
-                  role="alert"
-                  className="mt-3 rounded-lg border border-red-200 bg-red-50 p-3 text-sm leading-6 text-red-950"
-                >
-                  <p className="font-semibold">We couldn't send your message</p>
-                  <p>{error}</p>
-                  <p className="mt-1 text-red-800">
-                    <span className="font-semibold">What to try: </span>
-                    Check your email address and message, then try again. If it
-                    still does not send, come back in a few minutes.
-                  </p>
-                </div>
-              )}
-              <button
-                type="submit"
-                disabled={state === "sending"}
-                className="mt-5 min-h-11 rounded-lg bg-[#062f5d] px-5 font-semibold text-white transition-colors hover:bg-[#074277] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd] disabled:cursor-not-allowed disabled:bg-[#5c7e96]"
-              >
-                {state === "sending" ? "Sending message…" : "Send message"}
-              </button>
-            </form>
+            <div className="mt-6">
+              <ContactEnquiryForm onSent={() => setState("sent")} />
+            </div>
           )}
         </div>
       </dialog>
     </>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type = "text",
-  autoComplete,
-}: {
-  label: string;
-  name: string;
-  type?: string;
-  autoComplete: string;
-}) {
-  return (
-    <label className="text-sm font-semibold">
-      {label}
-      <input
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        required
-        maxLength={type === "email" ? 320 : 120}
-        className="mt-1.5 block min-h-11 w-full rounded-lg border border-[#9fc8df] bg-white px-3 text-base font-normal transition outline-none focus:border-[#0077bd] focus:ring-2 focus:ring-[#a5d9f2]"
-      />
-    </label>
   );
 }

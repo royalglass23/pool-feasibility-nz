@@ -23,6 +23,7 @@ import { FeasibilityAssessmentResult } from "@/components/feasibility-assessment
 import { SessionAssessmentResult } from "@/components/session-assessment-result";
 import { AssessmentExplanationResult } from "@/components/assessment-explanation-result";
 import { AssessmentWorkspace } from "@/components/assessment-workspace";
+import { FieldValidationMessage } from "@/components/field-validation-message";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
 import type { AddressMatch } from "@/modules/data-access-spike/data-access-gateway";
 import type { DataAccessRequestError } from "@/modules/data-access-spike/execute-data-access-request";
@@ -93,6 +94,7 @@ export function DataAccessInspector() {
     useState<FastPropertyViewMapSnapshot | null>(null);
   const fastSavedReport = useSavedAssessmentReport();
   const [error, setError] = useState<PropertyCheckIssue | null>(null);
+  const [addressError, setAddressError] = useState<string | null>(null);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
   const [canRetry, setCanRetry] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -171,6 +173,7 @@ export function DataAccessInspector() {
 
   function selectAddress(option: AddressOption) {
     setAddress(option.fullAddress);
+    setAddressError(null);
     setSelectedAddressId(option.addressId);
     setPendingSelectedAddress({
       addressId: option.addressId,
@@ -183,6 +186,17 @@ export function DataAccessInspector() {
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (isLoading) return;
+
+    const requestedAddress = address.trim();
+    if (requestedAddress.length < 8) {
+      setAddressError(
+        requestedAddress.length === 0
+          ? "Please fill in this field."
+          : "Enter your full street address, including the street number.",
+      );
+      return;
+    }
+    setAddressError(null);
 
     const onlyAddress = addressOptions.length === 1 ? addressOptions[0] : null;
     await requestPropertyData(
@@ -458,6 +472,7 @@ export function DataAccessInspector() {
       {isEnteringAddress && (
         <form
           onSubmit={handleSubmit}
+          noValidate
           className="rounded-3xl border border-white/70 bg-white p-5 shadow-[0_24px_80px_-36px_rgba(15,23,42,0.35)] sm:p-7"
         >
           <div className="mb-4 flex items-center gap-3">
@@ -489,6 +504,8 @@ export function DataAccessInspector() {
                   setSelectedAddressId(null);
                   setAddressOptions([]);
                   setSuggestionMessage(null);
+                  setIsSuggesting(false);
+                  setAddressError(null);
                 }}
                 onKeyDown={(event) => {
                   if (event.key === "Enter" && addressOptions.length > 0) {
@@ -501,11 +518,21 @@ export function DataAccessInspector() {
                 maxLength={200}
                 autoComplete="street-address"
                 placeholder="e.g. 123 Example Street"
-                className="border-pool-200 bg-pool-50 text-pool-950 placeholder:text-pool-600 focus:border-pool-blue-600 focus:ring-pool-blue-600/10 min-h-13 w-full rounded-2xl border px-4 text-base transition outline-none focus:bg-white focus:ring-4"
-                aria-describedby="property-address-help"
+                className="border-pool-200 bg-pool-50 text-pool-950 placeholder:text-pool-600 focus:border-pool-blue-600 focus:ring-pool-blue-600/10 min-h-13 w-full rounded-2xl border px-4 text-base transition outline-none focus:bg-white focus:ring-4 aria-[invalid=true]:border-orange-600 aria-[invalid=true]:focus:border-orange-600 aria-[invalid=true]:focus:ring-orange-100"
+                aria-invalid={addressError ? true : undefined}
+                aria-describedby={
+                  addressError
+                    ? "property-address-help property-address-error"
+                    : "property-address-help"
+                }
                 aria-autocomplete="list"
                 aria-controls="address-suggestions"
               />
+              {addressError && (
+                <FieldValidationMessage id="property-address-error">
+                  {addressError}
+                </FieldValidationMessage>
+              )}
               {addressOptions.length > 0 && !selectedAddressId && !result && (
                 <div
                   id="address-suggestions"
@@ -529,7 +556,7 @@ export function DataAccessInspector() {
               )}
               {isSuggesting && (
                 <p className="text-pool-500 mt-1 text-xs">
-                  Searching LINZ addresses…
+                  Searching addresses…
                 </p>
               )}
               {!isSuggesting && suggestionMessage && !selectedAddressId && (

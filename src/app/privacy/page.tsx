@@ -31,7 +31,8 @@ export default function PrivacyNoticePage() {
             selected address and parcel evidence, your chosen pool layout,
             mapped warnings and measurements, the report content, and the map
             image used in the report. For a contact enquiry, we collect only
-            your name, email address, and message.
+            your name, email address, and message. For a Founding Partner
+            enquiry, we also collect your company name; a message is optional.
           </p>
         </NoticeSection>
 
@@ -39,12 +40,21 @@ export default function PrivacyNoticePage() {
           <p>
             We use report-request information to prepare, display, and email
             your preliminary report and keep the submitted layout consistent. We
-            use contact-enquiry information only to respond to your message.
-            Neither route signs you up for marketing or grants tracking consent.
+            use contact-enquiry information only to respond to your message or
+            discuss your interest in the Founding Partner Program. Neither route
+            signs you up for marketing or grants tracking consent.
           </p>
         </NoticeSection>
 
         <NoticeSection title="Optional analytics">
+          <p className="mb-4">
+            Vercel Speed Insights measures loading speed, responsiveness, and
+            visual stability on the Property Check after you allow analytics. It
+            receives performance measurements and browser, device, and network
+            information. We remove URL query strings and fragments, exclude
+            staff and saved-report pages, and stop sending measurements when you
+            turn analytics off.
+          </p>
           <p>
             If you choose <strong>Allow analytics</strong> on the Property
             Check, Hotjar records anonymous interaction patterns to help
@@ -80,9 +90,14 @@ export default function PrivacyNoticePage() {
         <NoticeSection title="Services that process a request">
           <ul className="grid gap-3">
             <li>
-              <strong className="text-[#062f5d]">Metricool</strong> receives
-              the tracking pixel request only after you allow analytics. It is
-              not installed on staff pages.
+              <strong className="text-[#062f5d]">Vercel</strong> hosts PoolReady
+              and receives optional Speed Insights performance measurements
+              after you allow analytics.
+            </li>
+            <li>
+              <strong className="text-[#062f5d]">Metricool</strong> receives the
+              tracking pixel request only after you allow analytics. It is not
+              installed on staff pages.
             </li>
             <li>
               <strong className="text-[#062f5d]">Hotjar</strong> receives
@@ -97,8 +112,9 @@ export default function PrivacyNoticePage() {
               <strong className="text-[#062f5d]">Resend</strong> receives the
               data needed to send the homeowner report email and the ServiceM8
               notification when those deliveries are enabled. It also delivers
-              contact enquiries to the support inbox. A contact enquiry includes
-              only the name, email address, and message entered in the form.
+              contact and partnership enquiries to the support inbox. These
+              enquiries include the name, email address, message, and, for
+              partnership enquiries, company name entered in the form.
             </li>
             <li>
               <strong className="text-[#062f5d]">ServiceM8</strong> receives a

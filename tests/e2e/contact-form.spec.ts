@@ -3,7 +3,8 @@ import { expect, test } from "@playwright/test";
 const validContact = {
   name: "Taylor Visitor",
   email: "taylor@example.test",
-  message: "Could you help me understand the next step?",
+  message:
+    "Budget: $80,000 / 10% deposit. Email plans@sample.co.nz #Pool_Project",
 };
 
 function body(idempotencyKey: string, overrides = {}) {
@@ -17,7 +18,14 @@ test("allows an anonymous visitor to send a contact enquiry through the local sy
   await page.getByRole("button", { name: "Contact us" }).click();
   await page.getByLabel("Name").fill(validContact.name);
   await page.getByLabel("Email").fill(validContact.email);
-  await page.getByLabel("How can we help?").fill(validContact.message);
+  const message = page.getByLabel("How can we help?");
+  await message.fill("SELECT * FROM users;");
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(message).toHaveAttribute("aria-invalid", "true");
+  await expect(
+    page.getByText("Please use plain text and common punctuation only."),
+  ).toBeVisible();
+  await message.fill(validContact.message);
 
   const responsePromise = page.waitForResponse(
     (response) =>
@@ -52,7 +60,7 @@ test("rejects malformed and injection-shaped contact requests without reflecting
     headers: { "x-forwarded-for": "198.51.100.11" },
     data: body("b554b60f-88bf-455d-9e71-7c9da830d46d", { message: injection }),
   });
-  expect(shaped.status()).toBe(202);
+  expect(shaped.status()).toBe(400);
   expect(await shaped.text()).not.toContain(injection);
 });
 
@@ -89,7 +97,7 @@ test("does not expose the delivery inbox or submitted details in the public dial
   await page.getByRole("button", { name: "Contact us" }).click();
 
   const dialog = page.getByRole("dialog");
-  await expect(dialog).not.toContainText("support@royalglass.co.nz");
+  await expect(dialog).not.toContainText("support@bluehaven.nz");
   await expect(dialog).not.toContainText("Royal Glass");
   await expect(
     dialog.getByRole("link", { name: "privacy notice" }),

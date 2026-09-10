@@ -1,8 +1,6 @@
 import { z } from "zod";
-import {
-  requireOtherDetails,
-  visitorContextFields,
-} from "@/modules/assessment/visitor-context";
+import { homeownerContactFields } from "./homeowner-contact";
+import { requireOtherDetails } from "@/modules/assessment/visitor-context";
 import { isValidPngMapImageDataUrl } from "@/modules/reporting/map-image";
 import { reportAssessmentSnapshotSchema } from "@/modules/reporting/report-assessment-snapshot";
 
@@ -187,13 +185,8 @@ export const persistedAssessmentSubmissionSchema = z
     idempotencyKey: z.string().trim().min(16).max(128),
     homeowner: z
       .object({
-        name: z.string().trim().min(1).max(160),
-        phone: z.string().trim().min(7).max(40),
-        email: z.email().max(320),
+        ...homeownerContactFields,
         address: z.string().trim().min(1).max(500),
-        ...visitorContextFields,
-        additionalInfo: z.string().trim().max(4_000).optional(),
-        consentGiven: z.literal(true),
         consentVersion: z.string().trim().min(1).max(80),
         consentedAt: isoDateTime,
       })

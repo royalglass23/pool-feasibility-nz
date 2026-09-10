@@ -33,7 +33,10 @@ import {
   PRELIMINARY_FEASIBILITY_SCOPE,
 } from "@/modules/reporting/preliminary-feasibility-copy";
 import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-view-map-capture";
+import { SELECTED_POOL_MAP_STYLE } from "@/modules/reporting/report-map-style";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
+import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
+import { FieldValidationMessage } from "@/components/field-validation-message";
 import { bearing, point } from "@turf/turf";
 
 type UtilityCategory =
@@ -454,6 +457,7 @@ export function FastPropertyView({
     const clearanceLabelMarkers = clearanceLabelMarkersRef.current;
     void import("maplibre-gl").then((maplibregl) => {
       if (disposed || !mapRef.current) return;
+      configureMapLibreWorker(maplibregl);
       mapLibreRef.current = maplibregl;
       const boundary = result.boundary.geometry
         ? feature(result.boundary.geometry)
@@ -567,13 +571,19 @@ export function FastPropertyView({
           id: "pool-fill",
           type: "fill",
           source: "pool",
-          paint: { "fill-color": "#2563eb", "fill-opacity": 0.72 },
+          paint: {
+            "fill-color": SELECTED_POOL_MAP_STYLE.colour,
+            "fill-opacity": SELECTED_POOL_MAP_STYLE.opacity,
+          },
         },
         {
           id: "pool-line",
           type: "line",
           source: "pool",
-          paint: { "line-color": "#1e40af", "line-width": 3 },
+          paint: {
+            "line-color": SELECTED_POOL_MAP_STYLE.outline,
+            "line-width": 3,
+          },
         },
         {
           id: "pool-shell-clearance-lines",
@@ -1023,10 +1033,10 @@ export function FastPropertyView({
                 </div>
               )}
               {!dimensions && (
-                <p role="alert" className="text-sm font-semibold text-red-700">
+                <FieldValidationMessage>
                   Enter a length from 2–20 m and width from 1.5–10 m in 0.1 m
                   increments.
-                </p>
+                </FieldValidationMessage>
               )}
               {placementMessage && (
                 <p

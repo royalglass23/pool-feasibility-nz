@@ -75,6 +75,21 @@ const validSubmission = {
 };
 
 describe("persisted homeowner assessment contract", () => {
+  it.each([
+    "abcdefg",
+    "0000000",
+    "+61 412 345 678",
+    "+64 21 555 1234",
+    "6495551234",
+  ])("rejects invalid phone %s before persistence", (phone) => {
+    expect(() =>
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        homeowner: { ...validSubmission.homeowner, phone },
+      }),
+    ).toThrow("Enter a valid NZ mobile or landline number starting with 0.");
+  });
+
   it("requires the complete contact and consent contract while keeping additional info optional", () => {
     const parsed = parsePersistedAssessmentSubmission(validSubmission);
     expect(parsed.homeowner.additionalInfo).toBeUndefined();

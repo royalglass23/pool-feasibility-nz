@@ -6,15 +6,14 @@
 import { useEffect, useRef } from "react";
 import type { Feature, FeatureCollection, Polygon } from "geojson";
 import { AlertTriangle, Compass, Layers3, Mountain, Ruler } from "lucide-react";
-import maplibregl, {
-  type LayerSpecification,
-  type StyleSpecification,
-} from "maplibre-gl";
+import * as maplibregl from "maplibre-gl";
+import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import { useSearchParams } from "next/navigation";
 import {
   PrototypeSwitcher,
   type PrototypeVariant,
 } from "@/components/prototype/prototype-switcher";
+import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
 
 const ADDRESS = "135 Fiddlers Hill Road, Puhoi";
 const MAP_CENTER: [number, number] = [174.64675, -36.52442];
@@ -358,6 +357,7 @@ function TerrainMap({
       ...(topDown ? {} : { terrain: { source: "terrain", exaggeration: 1 } }),
     };
 
+    configureMapLibreWorker(maplibregl);
     const map = new maplibregl.Map({
       container,
       style,
