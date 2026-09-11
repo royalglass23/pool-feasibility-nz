@@ -26,6 +26,9 @@ async function main() {
     where: eq(schema.linzAddressIndexRuns.status, "running"),
     orderBy: [desc(schema.linzAddressIndexRuns.startedAt)],
   });
+  if (previous && previous.sourceSnapshotUrl !== linzAddressQueryUrl) {
+    throw new Error("LINZ_ADDRESS_REFRESH_RUNNING");
+  }
   const runId = previous?.id ?? randomUUID();
   let afterObjectId = previous?.lastObjectId ?? 0;
   if (!previous) {
@@ -85,11 +88,12 @@ async function main() {
     if (Number(indexed.rows[0]?.count) !== sourceCount) {
       throw new Error("LINZ_ADDRESS_IMPORT_COUNT_MISMATCH");
     }
+    const completedAt = new Date();
     await db
       .update(schema.linzAddressIndexRuns)
       .set({
         status: "completed",
-        completedAt: new Date(),
+        completedAt,
         acceptedCount: sourceCount,
         errorCode: null,
       })

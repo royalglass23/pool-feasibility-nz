@@ -68,14 +68,58 @@ export async function fetchAucklandAddressPage(input: {
   url.searchParams.set("orderByFields", "OBJECTID ASC");
   url.searchParams.set("f", "geojson");
 
-  const page = pageSchema.safeParse(
+  return parseAddressPage(
     await fetchLinzAddressJson(
       url,
       input.fetch ?? fetch,
       "application/geo+json",
     ),
+    "LINZ_ADDRESS_IMPORT_INVALID_RESPONSE",
   );
-  if (!page.success) throw new Error("LINZ_ADDRESS_IMPORT_INVALID_RESPONSE");
+}
+
+export async function fetchCurrentAucklandAddressesByIds(input: {
+  addressIds: string[];
+  fetch?: typeof fetch;
+}): Promise<IndexedLinzAddress[]> {
+  if (input.addressIds.length === 0) return [];
+  if (
+    input.addressIds.length > 250 ||
+    input.addressIds.some((addressId) => !/^\d+$/.test(addressId))
+  ) {
+    throw new Error("LINZ_ADDRESS_REFRESH_INVALID_IDS");
+  }
+
+  const url = new URL(linzAddressQueryUrl);
+  url.searchParams.set(
+    "where",
+    `territorial_authority='Auckland' AND address_lifecycle='Current' AND address_id IN (${input.addressIds.join(",")})`,
+  );
+  url.searchParams.set(
+    "outFields",
+    "OBJECTID,address_id,full_address,full_address_ascii,full_address_number,unit,territorial_authority,suburb_locality,town_city,address_lifecycle",
+  );
+  url.searchParams.set("returnGeometry", "true");
+  url.searchParams.set("outSR", "4326");
+  url.searchParams.set("resultRecordCount", String(input.addressIds.length));
+  url.searchParams.set("f", "geojson");
+
+  return parseAddressPage(
+    await fetchLinzAddressJson(
+      url,
+      input.fetch ?? fetch,
+      "application/geo+json",
+    ),
+    "LINZ_ADDRESS_REFRESH_INVALID_RESPONSE",
+  );
+}
+
+function parseAddressPage(
+  body: unknown,
+  errorCode: string,
+): IndexedLinzAddress[] {
+  const page = pageSchema.safeParse(body);
+  if (!page.success) throw new Error(errorCode);
   return page.data.features.map((feature) => ({
     addressId: String(feature.properties.address_id),
     sourceObjectId: feature.properties.OBJECTID,
