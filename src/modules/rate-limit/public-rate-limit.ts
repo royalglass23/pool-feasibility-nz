@@ -38,9 +38,26 @@ type PublicRateLimitLog = (event: {
   event: "public_rate_limit";
   action: PublicRateLimitAction;
   outcome: "allowed" | "rate_limited" | "unavailable";
+  reason?: PublicRateLimitUnavailableReason;
   correlationId: string;
   status: number;
 }) => void;
+
+type PublicRateLimitUnavailableReason =
+  | "client_ip_missing"
+  | "configuration_missing"
+  | "store_timeout"
+  | "store_error";
+
+class PublicRateLimitUnavailableError extends Error {
+  constructor(
+    readonly reason: PublicRateLimitUnavailableReason,
+    message: string,
+  ) {
+    super(message);
+    this.name = "PublicRateLimitUnavailableError";
+  }
+}
 
 type PublicRateLimitRuntimeOptions = {
   limiter?: PublicRateLimiter;
@@ -170,7 +187,10 @@ export function createUpstashPublicRateLimiter(input: {
     async limit(action, identifier) {
       const result = await limiters[action].limit(identifier);
       if (result.reason === "timeout") {
-        throw new Error("Managed public rate-limit store timed out.");
+        throw new PublicRateLimitUnavailableError(
+          "store_timeout",
+          "Managed public rate-limit store timed out.",
+        );
       }
       return {
         success: result.success,
@@ -253,15 +273,22 @@ async function publicRateLimitDeniedResponse(
   if (isUnlimitedPreviewReportRequest(input.action)) return null;
 
   const clientIp = trustedClientIp(input.request);
-  if (!clientIp) return unavailableResponseAndLog(input, log);
+  if (!clientIp)
+    return unavailableResponseAndLog(input, log, "client_ip_missing");
 
   let decision: PublicRateLimitDecision;
   try {
     const limiter = options?.limiter ?? configuredPublicRateLimiter();
     const identifier = input.scope ? `${clientIp}:${input.scope}` : clientIp;
     decision = await limiter.limit(input.action, hashClientIp(identifier));
-  } catch {
-    return unavailableResponseAndLog(input, log);
+  } catch (error) {
+    return unavailableResponseAndLog(
+      input,
+      log,
+      error instanceof PublicRateLimitUnavailableError
+        ? error.reason
+        : "store_error",
+    );
   }
 
   if (!decision.success) {
@@ -307,12 +334,14 @@ function isUnlimitedPreviewReportRequest(
 function unavailableResponseAndLog(
   input: { action: PublicRateLimitAction; correlationId: string },
   log: PublicRateLimitLog,
+  reason: PublicRateLimitUnavailableReason,
 ): Response {
   const response = unavailableResponse(input.correlationId);
   log({
     event: "public_rate_limit",
     action: input.action,
     outcome: "unavailable",
+    reason,
     correlationId: input.correlationId,
     status: response.status,
   });
@@ -344,7 +373,10 @@ function configuredPublicRateLimiter(): PublicRateLimiter {
     return managedProductionLimiter;
   }
   if (process.env.NODE_ENV === "production") {
-    throw new Error("Managed public rate-limit credentials are required.");
+    throw new PublicRateLimitUnavailableError(
+      "configuration_missing",
+      "Managed public rate-limit credentials are required.",
+    );
   }
   localDevelopmentLimiter ??= createLocalPublicRateLimiter();
   return localDevelopmentLimiter;
@@ -393,7 +425,7 @@ function hashClientIp(clientIp: string): string {
 
 function unavailableResponse(correlationId: string): Response {
   return apiErrorResponse(
-    { code: "TEMPORARILY_UNAVAILABLE", message: "Please try again shortly." },
+    { code: "RATE_LIMIT_UNAVAILABLE", message: "Please try again shortly." },
     503,
     correlationId,
     { "Cache-Control": "no-store" },

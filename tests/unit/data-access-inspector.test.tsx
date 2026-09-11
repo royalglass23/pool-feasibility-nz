@@ -99,6 +99,56 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     ).toBeVisible();
   });
 
+  it.each([
+    [
+      429,
+      "RATE_LIMITED",
+      "Too many property checks for now",
+      "property-rate-reference",
+    ],
+    [
+      503,
+      "RATE_LIMIT_UNAVAILABLE",
+      "Property check protection is temporarily unavailable",
+      "limiter-failure-reference",
+    ],
+  ])(
+    "explains a %s rate-limit response without mislabelling it as a property provider failure",
+    async (status, code, expectedTitle, correlationId) => {
+      const user = userEvent.setup();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json(
+            {
+              error: {
+                code,
+                message: "Please try again shortly.",
+                correlationId,
+              },
+            },
+            { status },
+          ),
+        ),
+      );
+      render(<DataAccessInspector />);
+
+      await user.type(
+        screen.getByLabelText("Auckland property address"),
+        requestedAddress,
+      );
+      await user.keyboard("{Enter}");
+
+      expect(await screen.findByText(expectedTitle)).toBeVisible();
+      expect(screen.getByText(new RegExp(correlationId))).toBeVisible();
+      expect(
+        screen.queryByText(
+          "One of the official map services did not respond in time.",
+        ),
+      ).not.toBeInTheDocument();
+    },
+  );
+
   it("emits only anonymous funnel names for a completed property check", async () => {
     const user = userEvent.setup();
     const result = await createResult();

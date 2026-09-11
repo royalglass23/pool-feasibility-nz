@@ -36,7 +36,13 @@ it("lets a partner enquire without a message and preserves the submission on ret
     .fn()
     .mockResolvedValueOnce(
       new Response(
-        JSON.stringify({ error: { message: "Please try again shortly." } }),
+        JSON.stringify({
+          error: {
+            code: "RATE_LIMIT_UNAVAILABLE",
+            message: "Please try again shortly.",
+            correlationId: "contact-rate-limit-reference",
+          },
+        }),
         { status: 503 },
       ),
     )
@@ -52,7 +58,10 @@ it("lets a partner enquire without a message and preserves the submission on ret
     screen.getByRole("button", { name: "Register your interest" }),
   );
   expect(await screen.findByRole("alert")).toHaveTextContent(
-    "Please try again shortly.",
+    "We couldn't verify the request limit just now.",
+  );
+  expect(screen.getByRole("alert")).toHaveTextContent(
+    "Reference: contact-rate-limit-reference.",
   );
   expect(screen.getByLabelText("Company")).toHaveValue("Example Pools");
   await user.click(

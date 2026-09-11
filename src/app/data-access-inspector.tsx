@@ -46,6 +46,11 @@ import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fa
 import type { FastPropertyViewRequestError } from "@/modules/data-access-spike/execute-fast-property-view-request";
 import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
 import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
+import {
+  readClientApiError,
+  withErrorReference,
+  type ClientApiError,
+} from "@/shared/http/client-api-error";
 
 type DataAccessApiResult = DataAccessSpikeResult & {
   assessmentExplanation?: AssessmentExplanation;
@@ -54,7 +59,12 @@ type DataAccessApiResult = DataAccessSpikeResult & {
 
 type FastApiResponse =
   | { data: FastPropertyViewResult; assessmentSnapshot: string }
-  | { error: FastPropertyViewRequestError };
+  | {
+      error: ClientApiError &
+        Partial<
+          Pick<FastPropertyViewRequestError, "options" | "boundaryState">
+        >;
+    };
 
 type ApiResponse =
   | {
@@ -135,13 +145,18 @@ export function DataAccessInspector() {
           body: JSON.stringify({ query }),
           signal: controller.signal,
         });
+        const body = await response.json().catch(() => null);
         if (!response.ok) {
-          throw new Error("Address suggestions are temporarily unavailable.");
+          setAddressOptions([]);
+          setSuggestionMessage(
+            addressSuggestionIssue(readClientApiError(body)),
+          );
+          return;
         }
-        const body = (await response.json()) as {
+        const successBody = body as {
           suggestions?: AddressOption[];
         };
-        const nextSuggestions = body.suggestions ?? [];
+        const nextSuggestions = successBody.suggestions ?? [];
         setAddressOptions(nextSuggestions);
         setSuggestionMessage(
           nextSuggestions.length === 0
@@ -252,23 +267,26 @@ export function DataAccessInspector() {
             : {}),
         }),
       });
-      const body = (await response.json()) as FastApiResponse;
+      const body = (await response
+        .json()
+        .catch(() => null)) as FastApiResponse | null;
+      const responseError = readClientApiError(body);
 
-      if (!response.ok || "error" in body) {
+      if (!response.ok || !body || "error" in body) {
         if (
+          body &&
           "error" in body &&
-          body.error.code === "ADDRESS_AMBIGUOUS" &&
+          responseError?.code === "ADDRESS_AMBIGUOUS" &&
           body.error.options?.length
         ) {
           setAddressOptions(body.error.options);
           setSuggestionMessage("Choose the right address from the list.");
         } else {
-          const responseError = "error" in body ? body.error : null;
           setError(propertyCheckIssue(responseError));
           setCanRetry(
-            "error" in body &&
-              (body.error.code === "DATA_PROVIDER_ERROR" ||
-                body.error.code === "ANALYSIS_FAILED"),
+            responseError?.code === "DATA_PROVIDER_ERROR" ||
+              responseError?.code === "ANALYSIS_FAILED" ||
+              responseError?.code === "RATE_LIMIT_UNAVAILABLE",
           );
         }
         return;
@@ -328,23 +346,24 @@ export function DataAccessInspector() {
           assessmentSnapshot,
         }),
       });
-      const body = (await response.json()) as {
+      const body = (await response.json().catch(() => null)) as {
         data?: Pick<
           FastPropertyViewResult,
           "boundary" | "aerial" | "datasets" | "progress" | "fastPathDurationMs"
         >;
         assessmentSnapshot?: string;
-        error?: { code?: string; message?: string };
-      };
+        error?: { code?: string; message?: string; correlationId?: string };
+      } | null;
+      const responseError = readClientApiError(body);
       if (
         !response.ok ||
-        !body.data ||
+        !body?.data ||
         !body.assessmentSnapshot ||
         fastRequestIdRef.current !== requestId
       ) {
         if (fastRequestIdRef.current === requestId) {
-          setError(detailedChecksIssue());
-          setCanRetry(true);
+          setError(detailedChecksIssue(responseError));
+          setCanRetry(responseError?.code !== "RATE_LIMITED");
         }
         return;
       }
@@ -390,19 +409,20 @@ export function DataAccessInspector() {
           assessmentSnapshot: fastAssessmentSnapshot,
         }),
       });
-      const body = (await response.json()) as {
+      const body = (await response.json().catch(() => null)) as {
         data?: FastPropertyDetails;
         assessmentSnapshot?: string;
-        error?: { message: string };
-      };
+        error?: { code?: string; message?: string; correlationId?: string };
+      } | null;
+      const responseError = readClientApiError(body);
       if (
         !response.ok ||
-        !body.data ||
+        !body?.data ||
         !body.assessmentSnapshot ||
         fastRequestIdRef.current !== requestId
       ) {
-        setError(detailedChecksIssue());
-        setCanRetry(true);
+        setError(detailedChecksIssue(responseError));
+        setCanRetry(responseError?.code !== "RATE_LIMITED");
         return;
       }
       setFastMapSnapshot(null);
@@ -697,9 +717,7 @@ export function DataAccessInspector() {
   );
 }
 
-function propertyCheckIssue(
-  error: FastPropertyViewRequestError | null,
-): PropertyCheckIssue {
+function propertyCheckIssue(error: ClientApiError | null): PropertyCheckIssue {
   switch (error?.code) {
     case "INVALID_ADDRESS":
       return {
@@ -723,6 +741,26 @@ function propertyCheckIssue(
         message: "The official address service is not responding right now.",
         troubleshooting:
           "Check your internet connection, wait a minute, then try again.",
+      };
+    case "RATE_LIMITED":
+      return {
+        title: "Too many property checks for now",
+        message:
+          "This connection has reached the temporary Property Check limit.",
+        troubleshooting: withErrorReference(
+          "Wait for the limit to reset before trying again.",
+          error,
+        ),
+      };
+    case "RATE_LIMIT_UNAVAILABLE":
+      return {
+        title: "Property check protection is temporarily unavailable",
+        message:
+          "The request limit service did not respond, so we did not start the property check.",
+        troubleshooting: withErrorReference(
+          "Try again shortly. If it keeps happening, share this reference with us.",
+          error,
+        ),
       };
     case "DATA_PROVIDER_ERROR":
       return {
@@ -748,7 +786,29 @@ function propertyCheckIssue(
   }
 }
 
-function detailedChecksIssue(): PropertyCheckIssue {
+function detailedChecksIssue(
+  error?: ClientApiError | null,
+): PropertyCheckIssue {
+  if (error?.code === "RATE_LIMITED")
+    return {
+      title: "Detailed checks have reached their temporary limit",
+      message:
+        "Your preliminary property view is still available, but no more mapped checks can run yet.",
+      troubleshooting: withErrorReference(
+        "Wait for the limit to reset before trying the detailed checks again.",
+        error,
+      ),
+    };
+  if (error?.code === "RATE_LIMIT_UNAVAILABLE")
+    return {
+      title: "Detailed-check protection is temporarily unavailable",
+      message:
+        "Your preliminary property view is still available, but the request limit service did not respond.",
+      troubleshooting: withErrorReference(
+        "Try again shortly. If it keeps happening, share this reference with us.",
+        error,
+      ),
+    };
   return {
     title: "Your property view is ready, but some map checks are not",
     message:
@@ -756,6 +816,23 @@ function detailedChecksIssue(): PropertyCheckIssue {
     troubleshooting:
       "Use the view as an early guide only, then try the property check again in a minute to load the missing detail.",
   };
+}
+
+function addressSuggestionIssue(error: ClientApiError | null): string {
+  if (error?.code === "RATE_LIMITED")
+    return withErrorReference(
+      "Address suggestions are paused because this connection has reached its temporary limit. Please wait before trying again.",
+      error,
+    );
+  if (error?.code === "RATE_LIMIT_UNAVAILABLE")
+    return withErrorReference(
+      "Address suggestions are paused because the request limit service is unavailable. Please try again shortly.",
+      error,
+    );
+  return withErrorReference(
+    "Address suggestions are temporarily unavailable.",
+    error,
+  );
 }
 
 function SelectedAddressPending({

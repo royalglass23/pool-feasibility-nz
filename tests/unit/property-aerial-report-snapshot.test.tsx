@@ -1,5 +1,5 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { render, waitFor } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import { createDataAccessGateway } from "../fixtures/normalized-data-access";
 import { PropertyAerialMap } from "@/components/map/property-aerial-map";
 import { runDataAccessSpike } from "@/modules/data-access-spike/run-data-access-spike";
@@ -20,6 +20,11 @@ const mapInstances = vi.hoisted(
       ) => void;
       triggerMouseMove: (point: [number, number]) => void;
       triggerMouseUp: () => void;
+      triggerError: (error: {
+        message: string;
+        status?: number;
+        body?: Blob;
+      }) => void;
     }>,
 );
 const mapConstructorOptions = vi.hoisted(
@@ -44,6 +49,11 @@ vi.mock("maplibre-gl", () => {
     private mouseMoveHandler:
       ((event: { point: [number, number] }) => void) | undefined;
     private mouseUpHandler: (() => void) | undefined;
+    private errorHandler:
+      | ((event: {
+          error: { message: string; status?: number; body?: Blob };
+        }) => void)
+      | undefined;
     readonly minZooms: number[] = [];
     readonly dragPan = {
       enabled: true,
@@ -97,6 +107,11 @@ vi.mock("maplibre-gl", () => {
       if (event === "mouseup") {
         this.mouseUpHandler = handlers.at(-1) as () => void;
       }
+      if (event === "error") {
+        this.errorHandler = handlers[0] as (event: {
+          error: { message: string; status?: number; body?: Blob };
+        }) => void;
+      }
     }
     remove() {}
     setMinZoom(zoom: number) {
@@ -105,6 +120,10 @@ vi.mock("maplibre-gl", () => {
 
     triggerMouseUp() {
       this.mouseUpHandler?.();
+    }
+
+    triggerError(error: { message: string; status?: number; body?: Blob }) {
+      this.errorHandler?.({ error });
     }
 
     triggerLayerMouseDown(
@@ -328,6 +347,56 @@ it("keeps the property map camera locked while capturing report evidence", async
   mapInstances[0].triggerMouseUp();
   expect(mapInstances[0].dragPan.isEnabled()).toBe(false);
 });
+
+it.each([
+  [
+    429,
+    "RATE_LIMITED",
+    "aerial-rate-reference",
+    "Aerial photo requests have reached their temporary limit. You can still review the property boundary; please wait before trying again. Reference: aerial-rate-reference.",
+  ],
+  [
+    503,
+    "RATE_LIMIT_UNAVAILABLE",
+    "aerial-limiter-reference",
+    "Aerial photo requests are paused because the request limit service is unavailable. You can still review the property boundary; please try again shortly. Reference: aerial-limiter-reference.",
+  ],
+])(
+  "identifies an aerial tile limiter response (%s) without suggesting a LINZ failure",
+  async (status, code, correlationId, expectedMessage) => {
+    vi.stubGlobal("WebGLRenderingContext", class WebGLRenderingContext {});
+    const result = await runDataAccessSpike({
+      requestedAddress: "42A Bahari Drive, Ranui, Auckland",
+      gateway: createDataAccessGateway(),
+      now: () => new Date("2026-07-20T01:02:03.000Z"),
+    });
+    result.datasets.aerial_imagery = {
+      ...result.datasets.aerial_imagery,
+      status: "available",
+      evidenceUse: "report_allowed",
+    };
+
+    render(<PropertyAerialMap result={result} onRetry={() => {}} />);
+
+    await waitFor(() => expect(mapInstances).toHaveLength(1));
+    mapInstances[0].triggerError({
+      message: `AJAXError (${status})`,
+      status,
+      body: new Blob([
+        JSON.stringify({
+          error: {
+            code,
+            message: "Please try again shortly.",
+            correlationId,
+          },
+        }),
+      ]),
+    });
+
+    expect(await screen.findByText(expectedMessage)).toBeVisible();
+    expect(screen.queryByText(/check the LINZ key/i)).not.toBeInTheDocument();
+  },
+);
 
 function polygonFeatures(id: string) {
   return {

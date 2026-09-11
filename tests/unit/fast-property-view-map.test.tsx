@@ -32,7 +32,7 @@ type MapEvent = {
   type?: string;
   point: { coordinates: [number, number] };
   originalEvent: { stopPropagation: () => void };
-  error?: { message: string };
+  error?: { message: string; status?: number; body?: Blob };
   sourceId?: string;
 };
 
@@ -278,6 +278,47 @@ it("explains an aerial tile failure instead of swallowing the MapLibre error", a
     ),
   ).toBeVisible();
 });
+
+it.each([
+  [
+    429,
+    "RATE_LIMITED",
+    "aerial-rate-reference",
+    "Aerial photo requests have reached their temporary limit. You can still review the property boundary; please wait before trying again. Reference: aerial-rate-reference.",
+  ],
+  [
+    503,
+    "RATE_LIMIT_UNAVAILABLE",
+    "aerial-limiter-reference",
+    "Aerial photo requests are paused because the request limit service is unavailable. You can still review the property boundary; please try again shortly. Reference: aerial-limiter-reference.",
+  ],
+])(
+  "identifies an aerial tile limiter response (%s) without blaming the imagery provider",
+  async (status, code, correlationId, expectedMessage) => {
+    render(<FastPropertyView result={fastResult} onRetry={() => {}} />);
+
+    await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+    mapEventHandlers.get("error:map")?.({
+      error: {
+        message: `AJAXError (${status})`,
+        status,
+        body: new Blob([
+          JSON.stringify({
+            error: {
+              code,
+              message: "Please try again shortly.",
+              correlationId,
+            },
+          }),
+        ]),
+      },
+      sourceId: "aerial",
+    } as MapEvent);
+
+    expect(await screen.findByText(expectedMessage)).toBeVisible();
+    expect(screen.queryByText(/LINZ key/i)).not.toBeInTheDocument();
+  },
+);
 
 it("captures the completed Fast Property View canvas for report reuse", async () => {
   const onSnapshotReady = vi.fn();

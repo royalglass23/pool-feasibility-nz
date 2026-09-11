@@ -36,7 +36,12 @@ import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-vi
 import { SELECTED_POOL_MAP_STYLE } from "@/modules/reporting/report-map-style";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
+import { aerialTileRateLimitMessage } from "@/components/map/aerial-tile-error";
 import { FieldValidationMessage } from "@/components/field-validation-message";
+import {
+  readClientApiErrorFromBlobError,
+  type ClientApiError,
+} from "@/shared/http/client-api-error";
 import { bearing, point } from "@turf/turf";
 
 type UtilityCategory =
@@ -182,6 +187,7 @@ export function FastPropertyView({
   );
   const snapshotHandlerRef = useRef(onSnapshotReady);
   const [mapError, setMapError] = useState<"aerial" | "map" | null>(null);
+  const [mapApiError, setMapApiError] = useState<ClientApiError | null>(null);
   const [selectedPoolId, setSelectedPoolId] = useState<FastPoolId>("compact");
   const [customLength, setCustomLength] = useState("6.5");
   const [customWidth, setCustomWidth] = useState("3");
@@ -687,11 +693,16 @@ export function FastPropertyView({
             sourceId,
             message,
           });
-          setMapError(
+          const errorKind =
             sourceId === "aerial" || /aerial|tile/i.test(message)
               ? "aerial"
-              : "map",
-          );
+              : "map";
+          setMapError(errorKind);
+          setMapApiError(null);
+          if (errorKind === "aerial")
+            void readClientApiErrorFromBlobError(event.error).then((error) => {
+              if (!disposed) setMapApiError(error);
+            });
         });
         map.on("movestart", () => {
           snapshotHandlerRef.current?.(null);
@@ -1185,7 +1196,8 @@ export function FastPropertyView({
       {mapError && (
         <p role="alert" className="text-sm font-semibold text-red-700">
           {mapError === "aerial"
-            ? "We couldn't load the aerial photo. You can still review the property boundary; try the property check again in a minute."
+            ? (aerialTileRateLimitMessage(mapApiError) ??
+              "We couldn't load the aerial photo. You can still review the property boundary; try the property check again in a minute.")
             : "We couldn't load the interactive map. Try the property check again in a minute."}
         </p>
       )}

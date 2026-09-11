@@ -21,6 +21,7 @@ import {
 import { ActionProgressDialog } from "@/components/action-progress-dialog";
 import { FieldValidationMessage } from "@/components/field-validation-message";
 import { isValidNzPhone, NZ_PHONE_ERROR } from "@/modules/assessment/nz-phone";
+import { readClientApiError } from "@/shared/http/client-api-error";
 
 export type AssessmentSubmissionContext = Omit<
   PersistedAssessmentSubmission,
@@ -120,10 +121,16 @@ export function HomeownerSubmissionForm({
       });
       const body = (await response.json().catch(() => null)) as {
         assessment?: SavedAssessmentResponse;
-        error?: { message?: string };
+        error?: { code?: string; message?: string; correlationId?: string };
       } | null;
       if (!response.ok || !body?.assessment?.report) {
-        setError(friendlyRequestError(response.status, "save your report"));
+        setError(
+          friendlyRequestError(
+            response.status,
+            "save your report",
+            readClientApiError(body),
+          ),
+        );
         return;
       }
       trackAnonymousFunnelEvent({ name: "report_request_submitted" });
