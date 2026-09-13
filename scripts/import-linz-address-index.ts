@@ -9,11 +9,14 @@ import {
   fetchAucklandAddressPage,
   linzAddressQueryUrl,
 } from "@/modules/address-search/linz-address-import";
-import { resolveAddressIndexTarget } from "./address-index-target";
+import {
+  requireFullAddressImport,
+  resolveAddressIndexTarget,
+} from "./address-index-target";
 
-const { databaseUrl, target } = resolveAddressIndexTarget({
-  argv: process.argv.slice(2),
-});
+const argv = process.argv.slice(2);
+requireFullAddressImport(argv);
+const { databaseUrl, target } = resolveAddressIndexTarget({ argv });
 
 const db = drizzle(neon(databaseUrl), { schema });
 const now = new Date();
