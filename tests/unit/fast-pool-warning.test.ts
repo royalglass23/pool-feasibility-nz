@@ -30,6 +30,11 @@ function input(
     }),
     detailedChecks: {
       status: "complete",
+      constraints: {
+        status: "complete",
+        retryableLayerKeys: [],
+        unavailableLayerKeys: [],
+      },
       layers: [layer("contours", "verified_empty")],
       retrievedAt: "2026-07-28T00:00:00.000Z",
       durationMs: 1,

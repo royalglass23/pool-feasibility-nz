@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-for (const initialOutcome of ["complete", "partial", "error"] as const) {
+for (const initialOutcome of ["complete", "retryable", "error"] as const) {
   test(`loads detailed mapping evidence after ${initialOutcome} response`, async ({
     page,
   }) => {
@@ -55,6 +55,7 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
       if (request.mode !== "detailed") return route.continue();
 
       detailedStageRequests += 1;
+      await new Promise((resolve) => setTimeout(resolve, 150));
       if (initialOutcome === "error" && detailedStageRequests === 1) {
         await route.fulfill({
           status: 503,
@@ -72,37 +73,58 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
           assessmentSnapshot: "server-issued-detailed-snapshot",
           data: {
             status:
-              initialOutcome === "partial" && detailedStageRequests === 1
+              initialOutcome === "retryable" && detailedStageRequests === 1
                 ? "partial"
                 : "complete",
+            constraints: {
+              status:
+                initialOutcome === "retryable" && detailedStageRequests === 1
+                  ? "retryable"
+                  : "complete",
+              retryableLayerKeys:
+                initialOutcome === "retryable" && detailedStageRequests === 1
+                  ? ["wastewater_assets"]
+                  : [],
+              unavailableLayerKeys: ["culverts"],
+            },
             retrievedAt: "2026-07-28T00:00:01.000Z",
             durationMs: 20,
             region: "Auckland",
             limitations: [],
+            terrain: {
+              status: "needs_checking",
+              reasons: ["No valid elevation data covers this property."],
+            },
             layers: [
               {
                 key: "wastewater_assets",
-                state: "returned",
+                state:
+                  initialOutcome === "retryable" && detailedStageRequests === 1
+                    ? "provider_error"
+                    : "returned",
                 evidence: {
                   dataset: "Wastewater pipes",
                   provider: "Watercare",
                 },
-                geometry: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      properties: {},
-                      geometry: {
-                        type: "LineString",
-                        coordinates: [
-                          [174.608, -36.8604],
-                          [174.6084, -36.8601],
+                geometry:
+                  initialOutcome === "retryable" && detailedStageRequests === 1
+                    ? null
+                    : {
+                        type: "FeatureCollection",
+                        features: [
+                          {
+                            type: "Feature",
+                            properties: {},
+                            geometry: {
+                              type: "LineString",
+                              coordinates: [
+                                [174.608, -36.8604],
+                                [174.6084, -36.8601],
+                              ],
+                            },
+                          },
                         ],
                       },
-                    },
-                  ],
-                },
                 message: "Returned 1 mapped feature.",
               },
             ],
@@ -151,12 +173,15 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
       .filter({ hasText: "Detailed official checks" });
     await expect(detailedChecksPanel).toHaveCount(0);
     await page.getByRole("button", { name: "Check for constraints" }).click();
+    await expect(
+      page.getByRole("button", { name: "Checking constraints…" }),
+    ).toBeDisabled();
     await expect.poll(() => detailedStageRequests).toBe(1);
     if (initialOutcome !== "complete") {
       const retry = page.getByRole("button", {
         name:
-          initialOutcome === "partial"
-            ? "Retry missing checks"
+          initialOutcome === "retryable"
+            ? "Retry unavailable constraints"
             : "Check for constraints",
         exact: true,
       });
@@ -165,8 +190,64 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
       await expect.poll(() => detailedStageRequests).toBe(2);
     }
     await expect(
-      page.getByRole("button", { name: "Map checks loaded", exact: true }),
+      page.getByRole("button", {
+        name: "All available constraints loaded",
+        exact: true,
+      }),
     ).toBeDisabled();
+    await expect(
+      page.getByText(/No valid elevation data covers this property\./),
+    ).toBeVisible();
+    if (initialOutcome === "complete") {
+      const requestCountBeforePlacementChanges = detailedStageRequests;
+      await page.getByRole("button", { name: /Family \(8 × 4 m\)/ }).click();
+      await page.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }).click();
+      await page.getByLabel("Custom length (m)").fill("7.2");
+      await page.getByLabel("Custom width (m)").fill("3.4");
+
+      const rotateControl = page.getByTestId("pool-rotate-control");
+      await expect(rotateControl).toBeVisible();
+      const rotateBounds = (await rotateControl.boundingBox())!;
+      await page.mouse.move(rotateBounds.x + 22, rotateBounds.y + 22);
+      await page.mouse.down();
+      await page.mouse.move(rotateBounds.x + 60, rotateBounds.y - 10, {
+        steps: 6,
+      });
+      await page.mouse.up();
+      await expect
+        .poll(async () =>
+          Number(await rotateControl.getAttribute("data-rotation-degrees")),
+        )
+        .not.toBe(0);
+
+      const canvas = page.locator("canvas.maplibregl-canvas");
+      const canvasBounds = (await canvas.boundingBox())!;
+      const rotateBoundsBeforeMove = (await rotateControl.boundingBox())!;
+      await page.mouse.move(
+        canvasBounds.x + canvasBounds.width / 2,
+        canvasBounds.y + canvasBounds.height / 2,
+      );
+      await page.mouse.down();
+      await page.mouse.move(
+        canvasBounds.x + canvasBounds.width / 2 + 15,
+        canvasBounds.y + canvasBounds.height / 2 + 10,
+        { steps: 4 },
+      );
+      await page.mouse.up();
+      await expect
+        .poll(async () => {
+          const current = (await rotateControl.boundingBox())!;
+          return Math.hypot(
+            current.x - rotateBoundsBeforeMove.x,
+            current.y - rotateBoundsBeforeMove.y,
+          );
+        })
+        .toBeGreaterThan(3);
+
+      await expect
+        .poll(() => detailedStageRequests)
+        .toBe(requestCountBeforePlacementChanges);
+    }
     await expect(
       page.getByRole("button", { name: "Retry property check", exact: true }),
     ).toHaveCount(0);
@@ -181,7 +262,10 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
       .getByLabel("Fast aerial map for 42A Bahari Drive, Ranui, Auckland")
       .boundingBox();
     const actionBounds = await page
-      .getByRole("button", { name: "Map checks loaded", exact: true })
+      .getByRole("button", {
+        name: "All available constraints loaded",
+        exact: true,
+      })
       .boundingBox();
     expect(actionBounds!.y).toBeGreaterThanOrEqual(
       mapBounds!.y + mapBounds!.height,

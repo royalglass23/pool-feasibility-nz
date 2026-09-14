@@ -25,6 +25,11 @@ const pool = feature<Polygon>({
 function details(layers: DetailedLayerResult[]): FastPropertyDetails {
   return {
     status: "complete",
+    constraints: {
+      status: "complete",
+      retryableLayerKeys: [],
+      unavailableLayerKeys: [],
+    },
     layers,
     retrievedAt: "2026-07-28T00:00:00.000Z",
     durationMs: 10,

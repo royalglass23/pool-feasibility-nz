@@ -293,6 +293,15 @@ export function FastPropertyView({
     ],
   );
   const detailedLayers = result.detailedChecks?.layers;
+  const detailedConstraintStatus = result.detailedChecks
+    ? (result.detailedChecks.constraints?.status ??
+      ((result.detailedChecks.layers ?? []).some(
+        (layer) =>
+          layer.state === "timeout" || layer.state === "provider_error",
+      )
+        ? "retryable"
+        : "complete"))
+    : null;
   const mappedUtilityLayers = useMemo(
     () =>
       (detailedLayers ?? []).flatMap((layer) => {
@@ -1222,10 +1231,10 @@ export function FastPropertyView({
           className="text-pool-700 max-w-xl text-sm leading-6"
           aria-live="polite"
         >
-          {result.detailedChecks?.status === "complete" ? (
-            "Available map checks loaded. You can still adjust your pool before creating your report."
-          ) : result.detailedChecks?.status === "partial" ? (
-            "Some map checks could not be loaded. Try again to check the missing information."
+          {detailedConstraintStatus === "complete" ? (
+            "All available constraints are loaded. You can still adjust your pool before creating your report."
+          ) : detailedConstraintStatus === "retryable" ? (
+            "Some constraints were temporarily unavailable. Retry to check those layers again."
           ) : (
             <>
               {" "}
@@ -1255,7 +1264,7 @@ export function FastPropertyView({
               disabled={
                 isInitialAddressLoad ||
                 isLoadingDetailed ||
-                result.detailedChecks?.status === "complete"
+                detailedConstraintStatus === "complete"
               }
               className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
             >
@@ -1263,16 +1272,16 @@ export function FastPropertyView({
                 ? "Checking constraints…"
                 : isInitialAddressLoad
                   ? "Finding property boundary…"
-                  : result.detailedChecks?.status === "complete"
-                    ? "Map checks loaded"
-                    : result.detailedChecks?.status === "partial"
-                      ? "Retry missing checks"
+                  : detailedConstraintStatus === "complete"
+                    ? "All available constraints loaded"
+                    : detailedConstraintStatus === "retryable"
+                      ? "Retry unavailable constraints"
                       : "Check for constraints"}
             </button>
           )}
         </div>
       </div>
-      {result.detailedChecks?.status !== "complete" &&
+      {detailedConstraintStatus !== "complete" &&
         (mapError || result.aerial.state === "error") && (
           <div className="flex justify-end">
             <button

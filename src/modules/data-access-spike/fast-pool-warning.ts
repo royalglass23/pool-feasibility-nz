@@ -173,7 +173,12 @@ export function classifyFastPoolWarning(
     );
   }
 
-  if (input.detailedChecks.status !== "complete") {
+  const constraintsRetryable =
+    input.detailedChecks.constraints?.status === "retryable" ||
+    (input.detailedChecks.layers ?? []).some(
+      (layer) => layer.state === "timeout" || layer.state === "provider_error",
+    );
+  if (constraintsRetryable) {
     return needsChecking(
       "Some detailed official checks are incomplete or unavailable, so the mapped utility evidence needs checking.",
     );

@@ -34,8 +34,15 @@ export type DetailedLayerResult = {
   message: string;
 };
 
+export type ConstraintLayerCompletion = {
+  status: "complete" | "retryable";
+  retryableLayerKeys: DatasetKey[];
+  unavailableLayerKeys: DatasetKey[];
+};
+
 export type FastPropertyDetails = {
   status: "complete" | "partial";
+  constraints: ConstraintLayerCompletion;
   layers: DetailedLayerResult[];
   terrain?: PropertyTerrainAssessment;
   retrievedAt: string;
@@ -182,19 +189,19 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
   );
 
   const failed = layers.filter(
-    (layer) =>
-      layer.state === "timeout" ||
-      layer.state === "provider_error" ||
-      (layer.state === "unavailable" && Boolean(layer.evidence.errorCode)),
+    (layer) => layer.state === "timeout" || layer.state === "provider_error",
   );
+  const unavailable = layers.filter((layer) => layer.state === "unavailable");
   return {
     ok: true,
     status: 200,
     data: {
-      status:
-        failed.length === 0 && terrain?.status !== "needs_checking"
-          ? "complete"
-          : "partial",
+      status: failed.length === 0 ? "complete" : "partial",
+      constraints: {
+        status: failed.length === 0 ? "complete" : "retryable",
+        retryableLayerKeys: failed.map((layer) => layer.key),
+        unavailableLayerKeys: unavailable.map((layer) => layer.key),
+      },
       layers,
       ...(terrain ? { terrain } : {}),
       retrievedAt,
@@ -302,7 +309,9 @@ async function queryLayer(input: {
       message:
         state === "timeout"
           ? "The provider timed out; no geometry was drawn. Retry is available."
-          : "The provider returned an error; no geometry was drawn. Retry is available.",
+          : state === "provider_error"
+            ? "The provider returned an error; no geometry was drawn. Retry is available."
+            : "This constraint layer is unavailable from the current provider; no geometry was drawn.",
     };
   }
 }

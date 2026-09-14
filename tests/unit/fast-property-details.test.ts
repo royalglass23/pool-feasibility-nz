@@ -178,7 +178,7 @@ describe("executeFastPropertyDetailsRequest", () => {
     expect(assessParcel).not.toHaveBeenCalled();
   });
 
-  it("keeps the detailed result partial when terrain needs checking", async () => {
+  it("completes available constraint layers when terrain needs checking", async () => {
     const response = await executeFastPropertyDetailsRequest({
       body: {
         mode: "detailed",
@@ -204,7 +204,12 @@ describe("executeFastPropertyDetailsRequest", () => {
 
     expect(response.ok).toBe(true);
     if (!response.ok) return;
-    expect(response.data.status).toBe("partial");
+    expect(response.data.constraints).toEqual({
+      status: "complete",
+      retryableLayerKeys: [],
+      unavailableLayerKeys: ["culverts"],
+    });
+    expect(response.data.status).toBe("complete");
     expect(response.data.terrain).toEqual({
       status: "needs_checking",
       reasons: ["No valid Auckland elevation data covers this window."],
@@ -233,7 +238,7 @@ describe("executeFastPropertyDetailsRequest", () => {
     });
     expect(response.ok).toBe(true);
     if (!response.ok) return;
-    expect(response.data.status).toBe("partial");
+    expect(response.data.status).toBe("complete");
     expect(
       response.data.layers.find((layer) => layer.key === "building_footprints"),
     ).toMatchObject({ state: "returned", geometry });
@@ -267,12 +272,51 @@ describe("executeFastPropertyDetailsRequest", () => {
     expect(response.ok).toBe(true);
     if (!response.ok) return;
     expect(response.data.status).toBe("partial");
+    expect(response.data.constraints).toMatchObject({
+      status: "retryable",
+      retryableLayerKeys: ["building_footprints", "contours"],
+    });
     expect(
       response.data.layers.find((layer) => layer.key === "building_footprints"),
     ).toMatchObject({ state: "timeout", geometry: null });
     expect(
       response.data.layers.find((layer) => layer.key === "contours"),
     ).toMatchObject({ state: "provider_error", geometry: null });
+  });
+
+  it("keeps unexpected non-retryable unavailability complete and honest", async () => {
+    const response = await executeFastPropertyDetailsRequest({
+      body: { addressId: "2359811", coordinates: [174.6082, -36.8603] },
+      gateway: createDataAccessGateway({
+        queryFeatures: vi.fn(async (dataset) => {
+          if (dataset === "building_footprints") {
+            throw new Error("UNSUPPORTED_PROVIDER_RESPONSE");
+          }
+          return {
+            type: "FeatureCollection",
+            features: [],
+          } as FeatureCollection<Geometry>;
+        }),
+      }),
+    });
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) return;
+    expect(response.data.constraints).toMatchObject({
+      status: "complete",
+      retryableLayerKeys: [],
+      unavailableLayerKeys: expect.arrayContaining([
+        "building_footprints",
+        "culverts",
+      ]),
+    });
+    expect(
+      response.data.layers.find((layer) => layer.key === "building_footprints"),
+    ).toMatchObject({
+      state: "unavailable",
+      geometry: null,
+      message: expect.not.stringMatching(/retry/i),
+    });
   });
 
   it("bounds concurrent provider queries and accepts retry after a failure", async () => {

@@ -810,6 +810,11 @@ function completeDetailedChecks(): FastPropertyDetails {
   const retrievedAt = "2026-07-29T01:00:00.000Z";
   return {
     status: "complete" as const,
+    constraints: {
+      status: "complete",
+      retryableLayerKeys: [],
+      unavailableLayerKeys: [],
+    },
     retrievedAt,
     durationMs: 10,
     region: "Auckland",
