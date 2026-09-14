@@ -159,7 +159,7 @@ export function FastPropertyView({
   onSnapshotReady,
 }: {
   result: FastPropertyViewResult;
-  onLoadDetailed?: () => void;
+  onLoadDetailed?: (placement: FastPoolPlacementSnapshot) => void;
   onRetry: () => void;
   onStartAgain?: () => void;
   isLoadingDetailed?: boolean;
@@ -330,6 +330,11 @@ export function FastPropertyView({
     [contoursVisible, mappedContours, mappedUtilityLayers, utilityVisibility],
   );
   const visibleMapLayerKeysRef = useRef<DatasetKey[]>(visibleMapLayerKeys);
+  const terrainNeedsRecheck =
+    result.detailedChecks?.terrain?.status === "needs_checking" &&
+    result.detailedChecks.terrain.reasons.some((reason) =>
+      reason.startsWith("The pool position changed."),
+    );
 
   useEffect(() => {
     visibleMapLayerKeysRef.current = visibleMapLayerKeys;
@@ -1192,6 +1197,9 @@ export function FastPropertyView({
           </div>
         )}
       </div>
+      {result.detailedChecks?.terrain ? (
+        <TerrainSlopeResult terrain={result.detailedChecks.terrain} />
+      ) : null}
       {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
       {mapError && (
         <p role="alert" className="text-sm font-semibold text-red-700">
@@ -1241,7 +1249,18 @@ export function FastPropertyView({
           {onLoadDetailed && (
             <button
               type="button"
-              onClick={onLoadDetailed}
+              onClick={() =>
+                onLoadDetailed({
+                  position,
+                  rotationDegrees,
+                  dimensions,
+                  poolGeometry: poolGeometry ?? null,
+                  constructionEnvelopeGeometry,
+                  constructionEnvelopeWithinMappedArea,
+                  clearancesVisible,
+                  warning: poolWarning,
+                })
+              }
               disabled={
                 isInitialAddressLoad ||
                 isLoadingDetailed ||
@@ -1256,7 +1275,9 @@ export function FastPropertyView({
                   : result.detailedChecks?.status === "complete"
                     ? "Map checks loaded"
                     : result.detailedChecks?.status === "partial"
-                      ? "Retry missing checks"
+                      ? terrainNeedsRecheck
+                        ? "Recheck slope and constraints"
+                        : "Retry missing checks"
                       : "Check for constraints"}
             </button>
           )}
@@ -1275,6 +1296,104 @@ export function FastPropertyView({
             </button>
           </div>
         )}
+    </section>
+  );
+}
+
+function TerrainSlopeResult({
+  terrain,
+}: {
+  terrain: NonNullable<FastPropertyViewResult["detailedChecks"]>["terrain"];
+}) {
+  if (!terrain) return null;
+  if (terrain.status === "needs_checking") {
+    return (
+      <section
+        aria-labelledby="terrain-slope-heading"
+        className="rounded-sm border border-amber-200 bg-amber-50/60 p-4"
+      >
+        <h3 id="terrain-slope-heading" className="font-semibold">
+          Indicative terrain slope
+        </h3>
+        <p className="mt-2 text-sm leading-6">
+          Needs Checking — {terrain.reasons.join(" ")}
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      aria-labelledby="terrain-slope-heading"
+      className="border-pool-blue-200 bg-pool-blue-50/50 rounded-sm border p-4"
+    >
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h3 id="terrain-slope-heading" className="font-semibold">
+            Indicative terrain slope
+          </h3>
+          <p className="text-pool-600 mt-1 text-sm">
+            Across the proposed pool construction area
+          </p>
+        </div>
+        <p className="text-pool-950 text-3xl font-semibold tabular-nums">
+          {terrain.averageSlopeDegrees.toFixed(1)}°
+        </p>
+      </div>
+      <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
+        <div>
+          <dt className="text-pool-600">Upper slope</dt>
+          <dd className="mt-1 font-semibold tabular-nums">
+            {terrain.upperSlopeDegrees.toFixed(1)}°
+          </dd>
+        </div>
+        <div>
+          <dt className="text-pool-600">Estimated fall</dt>
+          <dd className="mt-1 font-semibold tabular-nums">
+            {terrain.estimatedFallMetres.toFixed(2)} m
+          </dd>
+        </div>
+        <div>
+          <dt className="text-pool-600">Downhill</dt>
+          <dd className="mt-1 font-semibold">
+            {terrain.downhillDirection ?? "Approximately flat"}
+          </dd>
+        </div>
+      </dl>
+      <div className="text-pool-600 mt-4 space-y-1 text-xs leading-5">
+        <p>
+          Derived from{" "}
+          <a
+            className="underline underline-offset-2"
+            href={terrain.source.datasetIdentifier}
+            rel="noreferrer"
+            target="_blank"
+          >
+            {terrain.source.dataset}
+          </a>
+          .
+        </p>
+        <p>
+          {terrain.source.provider} ·{" "}
+          {terrain.source.datasetDate ?? "Dataset date not published"}
+        </p>
+        <p>{terrain.source.licence}</p>
+        {terrain.source.attribution ? (
+          <a
+            className="block underline underline-offset-2"
+            href={terrain.source.attribution.url}
+            rel="noreferrer"
+            target="_blank"
+          >
+            {terrain.source.attribution.text}
+          </a>
+        ) : null}
+        <p>
+          This is an indicative desktop estimate; a current site survey is still
+          required for design, excavation, retaining, consent, or construction
+          decisions.
+        </p>
+      </div>
     </section>
   );
 }

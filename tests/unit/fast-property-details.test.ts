@@ -3,6 +3,8 @@ import { executeFastPropertyDetailsRequest } from "@/modules/data-access-spike/e
 import { createDataAccessGateway } from "../fixtures/normalized-data-access";
 import type { FeatureCollection, Geometry } from "geojson";
 import { queryableDatasetKeys } from "@/modules/data-access-spike/dataset-catalog";
+import { buildFastPoolGeometry } from "@/modules/data-access-spike/fast-pool-placement";
+import type { DatasetEvidence } from "@/modules/data-access-spike/data-access-gateway";
 
 const geometry: FeatureCollection<Geometry> = {
   type: "FeatureCollection",
@@ -15,7 +17,204 @@ const geometry: FeatureCollection<Geometry> = {
   ],
 };
 
+const terrainSource = {
+  provider: "Land Information New Zealand",
+  dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
+  datasetIdentifier:
+    "https://data.linz.govt.nz/layer/121990-auckland-part-1-lidar-1m-dem-2024/",
+  status: "success",
+  licenceStatus: "permitted",
+  evidenceUse: "spike_only",
+  retrievedAt: "2026-09-14T00:00:00.000Z",
+  datasetDate: "2024-04-30/2024-06-27",
+  licence: "Creative Commons Attribution 4.0 International",
+  attribution: {
+    text: "Sourced from the LINZ Data Service and licensed by Regional Software Holdings Limited, for re-use under the Creative Commons Attribution 4.0 International licence.",
+    url: "https://www.linz.govt.nz/products-services/data/licensing-and-using-data/attributing-elevation-or-aerial-imagery-data",
+  },
+  geometryUsed: "Bounded 1 m bare-earth elevation grid in NZTM2000",
+  attributesUsed: ["elevation_metres"],
+  evidenceType: "terrain_elevation_grid",
+  confidence: "limited",
+} satisfies DatasetEvidence;
+
 describe("executeFastPropertyDetailsRequest", () => {
+  it("returns Needs Checking terrain when no pool area has been placed", async () => {
+    const assessConstructionEnvelope = vi.fn();
+    const response = await executeFastPropertyDetailsRequest({
+      body: {
+        mode: "detailed",
+        addressId: "2359811",
+        coordinates: [174.607906917203, -36.8602038189915],
+      },
+      gateway: createDataAccessGateway(),
+      terrain: { assessConstructionEnvelope },
+    });
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) return;
+    expect(response.data.status).toBe("partial");
+    expect(response.data.terrain).toEqual({
+      status: "needs_checking",
+      reasons: [
+        "Place the proposed pool area on the map before checking indicative terrain slope.",
+      ],
+    });
+    expect(assessConstructionEnvelope).not.toHaveBeenCalled();
+  });
+
+  it("starts terrain assessment while detailed constraint layers are still pending", async () => {
+    let markConstraintLayerStarted!: () => void;
+    const constraintLayerStarted = new Promise<void>((resolve) => {
+      markConstraintLayerStarted = resolve;
+    });
+    let releaseConstraintLayers!: () => void;
+    const constraintLayersReleased = new Promise<void>((resolve) => {
+      releaseConstraintLayers = resolve;
+    });
+    const assessConstructionEnvelope = vi.fn(async () => ({
+      status: "needs_checking" as const,
+      reasons: ["Terrain fixture completed."],
+    }));
+    const responsePromise = executeFastPropertyDetailsRequest({
+      body: {
+        mode: "detailed",
+        addressId: "2359811",
+        coordinates: [174.607906917203, -36.8602038189915],
+        constructionEnvelopeGeometry: buildFastPoolGeometry(
+          [174.607905, -36.86021],
+          8.5,
+          5,
+        ).geometry,
+      },
+      gateway: createDataAccessGateway({
+        queryFeatures: vi.fn(async () => {
+          markConstraintLayerStarted();
+          await constraintLayersReleased;
+          return geometry;
+        }),
+      }),
+      terrain: { assessConstructionEnvelope },
+    });
+
+    await constraintLayerStarted;
+    try {
+      expect(assessConstructionEnvelope).toHaveBeenCalledTimes(1);
+    } finally {
+      releaseConstraintLayers();
+      await responsePromise;
+    }
+  });
+
+  it("returns an independent indicative terrain result for the placed 42A Bahari construction envelope", async () => {
+    const constructionEnvelope = buildFastPoolGeometry(
+      [174.607905, -36.86021],
+      8.5,
+      5,
+    ).geometry;
+    const response = await executeFastPropertyDetailsRequest({
+      body: {
+        mode: "detailed",
+        addressId: "2359811",
+        coordinates: [174.607906917203, -36.8602038189915],
+        constructionEnvelopeGeometry: constructionEnvelope,
+      },
+      gateway: createDataAccessGateway(),
+      terrain: {
+        assessConstructionEnvelope: vi.fn(async () => ({
+          status: "measured" as const,
+          averageSlopeDegrees: 2.4,
+          upperSlopeDegrees: 3.8,
+          estimatedFallMetres: 0.36,
+          downhillBearingDegrees: 135,
+          downhillDirection: "SE",
+          confidence: "indicative" as const,
+          source: terrainSource,
+        })),
+      },
+      now: () => new Date("2026-09-14T00:00:00.000Z"),
+    });
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) return;
+    expect(response.data.terrain).toEqual({
+      status: "measured",
+      averageSlopeDegrees: 2.4,
+      upperSlopeDegrees: 3.8,
+      estimatedFallMetres: 0.36,
+      downhillBearingDegrees: 135,
+      downhillDirection: "SE",
+      confidence: "indicative",
+      source: terrainSource,
+    });
+  });
+
+  it("does not read terrain for a construction envelope outside the selected parcel", async () => {
+    const assessConstructionEnvelope = vi.fn();
+    const response = await executeFastPropertyDetailsRequest({
+      body: {
+        mode: "detailed",
+        addressId: "2359811",
+        coordinates: [174.607906917203, -36.8602038189915],
+        constructionEnvelopeGeometry: buildFastPoolGeometry(
+          [174.62, -36.86],
+          8.5,
+          5,
+        ).geometry,
+      },
+      gateway: createDataAccessGateway(),
+      terrain: { assessConstructionEnvelope },
+    });
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) return;
+    expect(response.data.terrain).toEqual({
+      status: "needs_checking",
+      reasons: [
+        "The proposed pool area is not contained by the confirmed property parcel.",
+      ],
+    });
+    expect(assessConstructionEnvelope).not.toHaveBeenCalled();
+  });
+
+  it("keeps the detailed result partial when terrain needs checking", async () => {
+    const response = await executeFastPropertyDetailsRequest({
+      body: {
+        mode: "detailed",
+        addressId: "2359811",
+        coordinates: [174.607906917203, -36.8602038189915],
+        constructionEnvelopeGeometry: buildFastPoolGeometry(
+          [174.607905, -36.86021],
+          8.5,
+          5,
+        ).geometry,
+      },
+      gateway: createDataAccessGateway({
+        queryFeatures: vi.fn(
+          async () =>
+            ({
+              type: "FeatureCollection",
+              features: [],
+            }) as FeatureCollection<Geometry>,
+        ),
+      }),
+      terrain: {
+        assessConstructionEnvelope: vi.fn(async () => ({
+          status: "needs_checking" as const,
+          reasons: ["No valid Auckland elevation data covers this window."],
+        })),
+      },
+    });
+
+    expect(response.ok).toBe(true);
+    if (!response.ok) return;
+    expect(response.data.status).toBe("partial");
+    expect(response.data.terrain).toEqual({
+      status: "needs_checking",
+      reasons: ["No valid Auckland elevation data covers this window."],
+    });
+  });
+
   it("returns full, partial, empty, internal-reference, and returned geometry states", async () => {
     const gateway = createDataAccessGateway({
       queryFeatures: vi.fn(async (dataset) => {
@@ -38,7 +237,7 @@ describe("executeFastPropertyDetailsRequest", () => {
     });
     expect(response.ok).toBe(true);
     if (!response.ok) return;
-    expect(response.data.status).toBe("complete");
+    expect(response.data.status).toBe("partial");
     expect(
       response.data.layers.find((layer) => layer.key === "building_footprints"),
     ).toMatchObject({ state: "returned", geometry });

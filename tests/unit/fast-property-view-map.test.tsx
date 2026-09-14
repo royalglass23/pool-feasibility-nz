@@ -234,6 +234,82 @@ it("shows detailed map controls without restoring the detailed checks panel", as
   expect(mapCreated).toHaveBeenCalledTimes(1);
 });
 
+it("shows the indicative terrain result returned for the placed pool area", async () => {
+  render(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        detailedChecks: {
+          ...fastResult.detailedChecks!,
+          terrain: {
+            status: "measured",
+            averageSlopeDegrees: 2.4,
+            upperSlopeDegrees: 3.8,
+            estimatedFallMetres: 0.36,
+            downhillBearingDegrees: 135,
+            downhillDirection: "SE",
+            confidence: "indicative",
+            source: {
+              provider: "Land Information New Zealand",
+              dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
+              datasetIdentifier:
+                "https://data.linz.govt.nz/layer/121990-auckland-part-1-lidar-1m-dem-2024/",
+              status: "success",
+              licenceStatus: "permitted",
+              evidenceUse: "spike_only",
+              retrievedAt: "2026-09-14T00:00:00.000Z",
+              datasetDate: "2024-04-30/2024-06-27",
+              licence: "Creative Commons Attribution 4.0 International",
+              attribution: {
+                text: "Sourced from the LINZ Data Service and licensed by Regional Software Holdings Limited, for re-use under the Creative Commons Attribution 4.0 International licence.",
+                url: "https://www.linz.govt.nz/products-services/data/licensing-and-using-data/attributing-elevation-or-aerial-imagery-data",
+              },
+              geometryUsed: "Bounded 1 m bare-earth elevation grid in NZTM2000",
+              attributesUsed: ["elevation_metres"],
+              evidenceType: "terrain_elevation_grid",
+              confidence: "limited",
+            },
+          },
+        },
+      }}
+      onRetry={() => {}}
+    />,
+  );
+
+  expect(
+    screen.getByRole("heading", { name: "Indicative terrain slope" }),
+  ).toBeVisible();
+  expect(screen.getByText("2.4°")).toBeVisible();
+  expect(screen.getByText("3.8°")).toBeVisible();
+  expect(screen.getByText("0.36 m")).toBeVisible();
+  expect(screen.getByText("SE")).toBeVisible();
+  expect(
+    screen.getByRole("link", {
+      name: "Auckland Part 1 LiDAR 1m DEM (2024)",
+    }),
+  ).toHaveAttribute(
+    "href",
+    "https://data.linz.govt.nz/layer/121990-auckland-part-1-lidar-1m-dem-2024/",
+  );
+  expect(
+    screen.getByText("Land Information New Zealand · 2024-04-30/2024-06-27"),
+  ).toBeVisible();
+  expect(
+    screen.getByText("Creative Commons Attribution 4.0 International"),
+  ).toBeVisible();
+  expect(
+    screen.getByRole("link", {
+      name: /Sourced from the LINZ Data Service/i,
+    }),
+  ).toHaveAttribute(
+    "href",
+    "https://www.linz.govt.nz/products-services/data/licensing-and-using-data/attributing-elevation-or-aerial-imagery-data",
+  );
+  expect(
+    screen.getByText(/A current site survey is still required/i),
+  ).toBeVisible();
+});
+
 it("does not expose or emit pool placement while the boundary is loading", async () => {
   const onPlacementChange = vi.fn();
   render(

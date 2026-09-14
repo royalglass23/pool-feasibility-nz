@@ -958,6 +958,142 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
   });
 
+  it("sends the placed 42A Bahari construction envelope with the detailed check", async () => {
+    const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      ...splitDataAccessGateway(gateway),
+      basemapApiKey: "test-key",
+    });
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === "/api/public/property-check") {
+          return Response.json({
+            data: fastResult,
+            assessmentSnapshot: "server-issued-initial-snapshot",
+          });
+        }
+        const requestBody = JSON.parse(String(init?.body ?? "{}")) as {
+          mode?: string;
+        };
+        if (requestBody.mode === "detailed") {
+          return Response.json({
+            data: fastResult.detailedChecks,
+            assessmentSnapshot: "server-issued-detailed-snapshot",
+          });
+        }
+        return Response.json({
+          data: fastResult,
+          assessmentSnapshot: "server-issued-stage-snapshot",
+        });
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.keyboard("{Enter}");
+    await user.click(
+      await screen.findByRole("button", { name: "Check for constraints" }),
+    );
+
+    await waitFor(() => {
+      const request = fetchMock.mock.calls
+        .map(([, init]) => JSON.parse(String(init?.body ?? "{}")))
+        .find((body) => body.mode === "detailed");
+      expect(request).toMatchObject({
+        addressId: "2359811",
+        constructionEnvelopeGeometry: { type: "Polygon" },
+      });
+      expect(request.constructionEnvelopeGeometry.coordinates[0]).toHaveLength(
+        5,
+      );
+    });
+  });
+
+  it("invalidates the terrain result when the placed pool construction envelope changes", async () => {
+    const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      ...splitDataAccessGateway(gateway),
+      basemapApiKey: "test-key",
+    });
+    const detailedChecks = {
+      status: "complete" as const,
+      layers: [],
+      retrievedAt: "2026-09-14T00:00:00.000Z",
+      durationMs: 50,
+      region: "Auckland",
+      limitations: [],
+      terrain: {
+        status: "measured" as const,
+        averageSlopeDegrees: 2.4,
+        upperSlopeDegrees: 3.8,
+        estimatedFallMetres: 0.36,
+        downhillBearingDegrees: 135,
+        downhillDirection: "SE",
+        confidence: "indicative" as const,
+        source: {
+          dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
+          retrievedAt: "2026-09-14T00:00:00.000Z",
+        },
+      },
+    };
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === "/api/public/property-check") {
+          return Response.json({
+            data: fastResult,
+            assessmentSnapshot: "server-issued-initial-snapshot",
+          });
+        }
+        const requestBody = JSON.parse(String(init?.body ?? "{}")) as {
+          mode?: string;
+        };
+        return Response.json({
+          data: requestBody.mode === "detailed" ? detailedChecks : fastResult,
+          assessmentSnapshot: requestBody.mode
+            ? "server-issued-detailed-snapshot"
+            : "server-issued-stage-snapshot",
+        });
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.keyboard("{Enter}");
+    await user.click(
+      await screen.findByRole("button", { name: "Check for constraints" }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Indicative terrain slope" }),
+    ).toBeVisible();
+    expect(screen.getByText("2.4°")).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: /Plunge \(4 × 2.4 m\)/ }),
+    );
+
+    expect(
+      await screen.findByText(
+        /The pool position changed.*run the detailed check again/i,
+      ),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Recheck slope and constraints" }),
+    ).toBeEnabled();
+    expect(screen.queryByText("2.4°")).not.toBeInTheDocument();
+  });
+
   it("hides the address search after a fast view opens and restores it from Start again", async () => {
     const user = userEvent.setup();
     const gateway = createDataAccessGateway();

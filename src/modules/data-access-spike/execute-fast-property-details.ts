@@ -1,5 +1,5 @@
 import type { FeatureCollection, Geometry } from "geojson";
-import { bbox } from "@turf/turf";
+import { bbox, booleanWithin, feature } from "@turf/turf";
 import { z } from "zod";
 import {
   isProviderEvidenceError,
@@ -13,6 +13,10 @@ import {
   type DatasetKey,
   type QueryableDatasetKey,
 } from "./dataset-catalog";
+import type {
+  PropertyTerrainAssessment,
+  PropertyTerrainGateway,
+} from "@/modules/terrain/property-terrain";
 
 export type DetailedLayerState =
   | "returned"
@@ -33,6 +37,7 @@ export type DetailedLayerResult = {
 export type FastPropertyDetails = {
   status: "complete" | "partial";
   layers: DetailedLayerResult[];
+  terrain?: PropertyTerrainAssessment;
   retrievedAt: string;
   durationMs: number;
   region: string;
@@ -47,6 +52,25 @@ const requestSchema = z
       z.number().min(160).max(180),
       z.number().min(-48).max(-33),
     ]),
+    constructionEnvelopeGeometry: z
+      .object({
+        type: z.literal("Polygon"),
+        coordinates: z
+          .array(
+            z
+              .array(
+                z.tuple([
+                  z.number().finite().min(160).max(180),
+                  z.number().finite().min(-48).max(-33),
+                ]),
+              )
+              .min(4)
+              .max(100),
+          )
+          .min(1)
+          .max(2),
+      })
+      .optional(),
   })
   .strict();
 
@@ -71,6 +95,7 @@ export async function executeFastPropertyDetailsRequest(input: {
   now?: () => Date;
   timeoutMs?: number;
   concurrency?: number;
+  terrain?: PropertyTerrainGateway;
 }): Promise<FastPropertyDetailsResponse> {
   const key = JSON.stringify(input.body);
   const existing = inFlightDetailRequests.get(key);
@@ -91,6 +116,7 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
   now?: () => Date;
   timeoutMs?: number;
   concurrency?: number;
+  terrain?: PropertyTerrainGateway;
 }): Promise<FastPropertyDetailsResponse> {
   const request = requestSchema.safeParse(input.body);
   if (!request.success) {
@@ -133,12 +159,26 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
       );
     }
   }
-  await Promise.all(
-    Array.from(
-      { length: Math.min(concurrency, detailedDatasetKeys.length) },
-      worker,
+  const [terrain] = await Promise.all([
+    request.data.constructionEnvelopeGeometry
+      ? assessTerrain({
+          constructionEnvelope: request.data.constructionEnvelopeGeometry,
+          parcelGeometry: parcelResult?.parcels[0]?.geometry ?? null,
+          terrain: input.terrain,
+        })
+      : Promise.resolve({
+          status: "needs_checking" as const,
+          reasons: [
+            "Place the proposed pool area on the map before checking indicative terrain slope.",
+          ],
+        }),
+    Promise.all(
+      Array.from(
+        { length: Math.min(concurrency, detailedDatasetKeys.length) },
+        worker,
+      ),
     ),
-  );
+  ]);
   layers.sort(
     (left, right) =>
       detailedDatasetKeys.indexOf(
@@ -159,8 +199,12 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
     ok: true,
     status: 200,
     data: {
-      status: failed.length === 0 ? "complete" : "partial",
+      status:
+        failed.length === 0 && terrain?.status !== "needs_checking"
+          ? "complete"
+          : "partial",
       layers,
+      ...(terrain ? { terrain } : {}),
       retrievedAt,
       durationMs: Math.round(performance.now() - startedAt),
       region:
@@ -172,6 +216,34 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
       ],
     },
   };
+}
+
+async function assessTerrain(input: {
+  constructionEnvelope: import("geojson").Polygon;
+  parcelGeometry: import("geojson").Polygon | null;
+  terrain?: PropertyTerrainGateway;
+}): Promise<PropertyTerrainAssessment> {
+  if (
+    !input.parcelGeometry ||
+    !booleanWithin(
+      feature(input.constructionEnvelope),
+      feature(input.parcelGeometry),
+    )
+  ) {
+    return {
+      status: "needs_checking",
+      reasons: [
+        "The proposed pool area is not contained by the confirmed property parcel.",
+      ],
+    };
+  }
+  if (!input.terrain) {
+    return {
+      status: "needs_checking",
+      reasons: ["The Auckland terrain analysis is unavailable."],
+    };
+  }
+  return input.terrain.assessConstructionEnvelope(input.constructionEnvelope);
 }
 
 async function queryLayer(input: {

@@ -6,6 +6,12 @@ const verifyAssessmentSnapshot = vi.hoisted(() => vi.fn());
 const assertSnapshotAddressMatches = vi.hoisted(() => vi.fn());
 const refreshAssessmentSnapshot = vi.hoisted(() => vi.fn());
 const enforcePublicPropertyStageRateLimit = vi.hoisted(() => vi.fn());
+const terrainGateway = vi.hoisted(() => ({
+  assessConstructionEnvelope: vi.fn(),
+}));
+const createAucklandPropertyTerrainGateway = vi.hoisted(() =>
+  vi.fn(() => terrainGateway),
+);
 const AssessmentSnapshotValidationError = vi.hoisted(
   () => class AssessmentSnapshotValidationError extends Error {},
 );
@@ -13,6 +19,18 @@ const selectedAddressPoint = {
   addressId: "987057",
   coordinates: [174.63963545, -36.81171243],
 } as const;
+const constructionEnvelopeGeometry = {
+  type: "Polygon" as const,
+  coordinates: [
+    [
+      [174.63959, -36.81175],
+      [174.63968, -36.81175],
+      [174.63968, -36.81168],
+      [174.63959, -36.81168],
+      [174.63959, -36.81175],
+    ],
+  ],
+};
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/modules/data-access-spike/fast-property-view", () => ({
@@ -32,6 +50,9 @@ vi.mock("@/modules/assessment/assessment-snapshot", () => ({
 }));
 vi.mock("@/modules/rate-limit/public-rate-limit", () => ({
   enforcePublicPropertyStageRateLimit,
+}));
+vi.mock("@/modules/terrain/auckland-property-terrain", () => ({
+  createAucklandPropertyTerrainGateway,
 }));
 
 import { POST } from "@/app/api/internal/fast-property-view/stages/route";
@@ -104,6 +125,7 @@ describe("POST /api/internal/fast-property-view/stages", () => {
         body: JSON.stringify({
           ...selectedAddressPoint,
           mode: "detailed",
+          constructionEnvelopeGeometry,
           assessmentSnapshot: "s".repeat(2_000),
         }),
       }),
@@ -115,7 +137,12 @@ describe("POST /api/internal/fast-property-view/stages", () => {
     );
     expect(executeFastPropertyDetailsRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: { ...selectedAddressPoint, mode: "detailed" },
+        body: {
+          ...selectedAddressPoint,
+          mode: "detailed",
+          constructionEnvelopeGeometry,
+        },
+        terrain: terrainGateway,
       }),
     );
     await expect(response.json()).resolves.toMatchObject({

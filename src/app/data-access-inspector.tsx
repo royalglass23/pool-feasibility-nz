@@ -112,6 +112,7 @@ export function DataAccessInspector() {
   const [isLoadingDetailed, setIsLoadingDetailed] = useState(false);
   const detailedRequestInFlightRef = useRef(false);
   const fastRequestIdRef = useRef(0);
+  const terrainPlacementKeyRef = useRef<string | null>(null);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(
     null,
   );
@@ -122,8 +123,33 @@ export function DataAccessInspector() {
     !fastSavedReport.assessment;
   const handleFastPlacementChange = useCallback(
     (placement: FastPoolPlacementSnapshot) => {
+      const terrainPlacementKey = placement.constructionEnvelopeGeometry
+        ? JSON.stringify(placement.constructionEnvelopeGeometry.geometry)
+        : null;
+      const terrainPlacementChanged =
+        terrainPlacementKeyRef.current !== null &&
+        terrainPlacementKeyRef.current !== terrainPlacementKey;
+      terrainPlacementKeyRef.current = terrainPlacementKey;
       setFastPlacementSnapshot(placement);
       setFastMapSnapshot(null);
+      if (terrainPlacementChanged) {
+        setFastResult((current) => {
+          if (!current?.detailedChecks?.terrain) return current;
+          return {
+            ...current,
+            detailedChecks: {
+              ...current.detailedChecks,
+              status: "partial",
+              terrain: {
+                status: "needs_checking",
+                reasons: [
+                  "The pool position changed. Run the detailed check again to update the terrain slope.",
+                ],
+              },
+            },
+          };
+        });
+      }
     },
     [],
   );
@@ -251,6 +277,7 @@ export function DataAccessInspector() {
     );
     setFastAssessmentSnapshot(null);
     setFastPlacementSnapshot(null);
+    terrainPlacementKeyRef.current = null;
     setFastMapSnapshot(null);
     fastSavedReport.resetReport();
     setAddressOptions([]);
@@ -386,7 +413,9 @@ export function DataAccessInspector() {
     }
   }
 
-  async function requestDetailedPropertyData() {
+  async function requestDetailedPropertyData(
+    placement = fastPlacementSnapshot,
+  ) {
     if (
       !fastResult ||
       !fastAssessmentSnapshot ||
@@ -406,6 +435,12 @@ export function DataAccessInspector() {
           mode: "detailed",
           addressId: fastResult.resolvedAddress.addressId,
           coordinates: fastResult.resolvedAddress.coordinates,
+          ...(placement?.constructionEnvelopeGeometry
+            ? {
+                constructionEnvelopeGeometry:
+                  placement.constructionEnvelopeGeometry.geometry,
+              }
+            : {}),
           assessmentSnapshot: fastAssessmentSnapshot,
         }),
       });
@@ -469,6 +504,7 @@ export function DataAccessInspector() {
     setPendingSelectedAddress(null);
     setFastAssessmentSnapshot(null);
     setFastPlacementSnapshot(null);
+    terrainPlacementKeyRef.current = null;
     setFastMapSnapshot(null);
     setError(null);
     setCanRetry(false);
@@ -672,7 +708,9 @@ export function DataAccessInspector() {
           )}
           <FastPropertyView
             result={fastResult}
-            onLoadDetailed={() => void requestDetailedPropertyData()}
+            onLoadDetailed={(placement) =>
+              void requestDetailedPropertyData(placement)
+            }
             onRetry={() => void requestDetailedPropertyData()}
             onStartAgain={startAgain}
             isLoadingDetailed={isLoadingDetailed}

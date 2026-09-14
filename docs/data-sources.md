@@ -162,6 +162,39 @@ public endpoint is not treated as a licence.
 - **Additional permission:** yes/unclear for generated-report reproduction
 - **Live proof:** raw parcel-envelope count `6`
 
+### 5A. Terrain elevation — Auckland 2024 LiDAR 1 m DEM
+
+- **Provider:** Toitū Te Whenua LINZ; source data licensed by Regional Software
+  Holdings Limited
+- **Metadata:**
+  <https://data.linz.govt.nz/layer/121990-auckland-part-1-lidar-1m-dem-2024/>
+  and
+  <https://data.linz.govt.nz/layer/122580-auckland-part-2-lidar-1m-dem-2024/>
+- **Endpoint:** public HTTPS Cloud Optimized GeoTIFF assets and STAC metadata in
+  the official LINZ elevation object store; no API key required
+- **Licence:** Creative Commons Attribution 4.0 International
+- **Attribution:** `Sourced from the LINZ Data Service and licensed by Regional
+Software Holdings Limited, for re-use under the Creative Commons Attribution
+4.0 International licence.` Link to LINZ elevation attribution guidance.
+- **Geometry / CRS:** 1 m bare-earth raster; NZTM2000 / EPSG:2193 horizontally,
+  NZVD2016 vertically, with elevation values in metres
+- **Relevant attributes:** bounded elevation cells used to derive indicative
+  average slope, upper slope, estimated fall, and downhill direction
+- **Dataset dates:** Part 1, 2024-04-30/2024-06-27; Part 2,
+  2024-06-26/2024-11-04
+- **Usable:** `spike_only` for bounded property-level indicative terrain
+  analysis; the initial runtime tile index covers the 42A Bahari Drive fixture,
+  not all Auckland properties
+- **Limitations:** bare-earth elevation is not a current site survey and does not
+  establish excavation conditions, retaining design, geotechnical suitability,
+  consent requirements, or construction levels
+- **Commercial use:** allowed with attribution under CC BY 4.0
+- **Additional permission:** no under the recorded licence
+- **Validation:** the reader checks the asset allowlist, matching STAC item and
+  checksum, CRS, horizontal and vertical units, grid resolution, raster layout,
+  transfer bounds, missing data, and complete provenance before returning
+  evidence
+
 ### 6. Planning zone — Unitary Plan Base Zone
 
 - **Provider:** Auckland Council, Plans and Places
