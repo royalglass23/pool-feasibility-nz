@@ -247,6 +247,7 @@ async function checkpoint() {
       {
         runId,
         baseURL,
+        databaseFingerprint: health.databaseFingerprint,
         commit: execFileSync("git", ["rev-parse", "HEAD"], {
           encoding: "utf8",
         }).trim(),
@@ -428,6 +429,13 @@ try {
   `;
   const expected = states.filter((u) => u.saved);
   const verification = {
+    runId,
+    databaseFingerprint: health.databaseFingerprint,
+    syntheticMarker: marker,
+    syntheticAssessments: persisted.map(({ id, reference }) => ({
+      id,
+      reference,
+    })),
     expected: expected.length,
     found: persisted.length,
     allIdsPresent: expected.every((u) =>
