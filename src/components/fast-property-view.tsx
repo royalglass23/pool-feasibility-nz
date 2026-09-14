@@ -292,9 +292,10 @@ export function FastPropertyView({
       result.detailedChecks,
     ],
   );
+  const detailedLayers = result.detailedChecks?.layers;
   const mappedUtilityLayers = useMemo(
     () =>
-      (result.detailedChecks?.layers ?? []).flatMap((layer) => {
+      (detailedLayers ?? []).flatMap((layer) => {
         const definition = utilityLayerDefinitions.find(
           (candidate) => candidate.key === layer.key,
         );
@@ -302,23 +303,22 @@ export function FastPropertyView({
           ? [{ definition, layer }]
           : [];
       }),
-    [result.detailedChecks],
+    [detailedLayers],
   );
   const mappedContours = useMemo(
     () =>
-      (result.detailedChecks?.layers ?? []).find(
+      (detailedLayers ?? []).find(
         (layer) =>
           layer.key === contourLayer.key &&
           Boolean(layer.geometry?.features.length),
       ) ?? null,
-    [result.detailedChecks],
+    [detailedLayers],
   );
   const contourResult = useMemo(
     () =>
-      (result.detailedChecks?.layers ?? []).find(
-        (layer) => layer.key === contourLayer.key,
-      ) ?? null,
-    [result.detailedChecks],
+      (detailedLayers ?? []).find((layer) => layer.key === contourLayer.key) ??
+      null,
+    [detailedLayers],
   );
   const visibleMapLayerKeys = useMemo(
     () => [
@@ -335,6 +335,9 @@ export function FastPropertyView({
     result.detailedChecks.terrain.reasons.some((reason) =>
       reason.startsWith("The pool position changed."),
     );
+  const mapBoundaryGeometry = result.boundary.geometry;
+  const mapCoordinates = result.resolvedAddress.coordinates;
+  const mapAerialState = result.aerial.state;
 
   useEffect(() => {
     visibleMapLayerKeysRef.current = visibleMapLayerKeys;
@@ -470,8 +473,8 @@ export function FastPropertyView({
       if (disposed || !mapRef.current) return;
       configureMapLibreWorker(maplibregl);
       mapLibreRef.current = maplibregl;
-      const boundary = result.boundary.geometry
-        ? feature(result.boundary.geometry)
+      const boundary = mapBoundaryGeometry
+        ? feature(mapBoundaryGeometry)
         : null;
       const emptyGeometry = {
         type: "FeatureCollection" as const,
@@ -484,7 +487,7 @@ export function FastPropertyView({
         {
           address: {
             type: "geojson",
-            data: pointFeature(result.resolvedAddress.coordinates),
+            data: pointFeature(mapCoordinates),
           },
           pool: { type: "geojson", data: pool },
           "construction-envelope": {
@@ -516,7 +519,7 @@ export function FastPropertyView({
         };
       }
       const layers: import("maplibre-gl").LayerSpecification[] = [];
-      if (result.aerial.state === "ready") {
+      if (mapAerialState === "ready") {
         sources.aerial = {
           type: "raster",
           tiles: ["/api/public/aerial/tiles/{z}/{x}/{y}"],
@@ -632,7 +635,7 @@ export function FastPropertyView({
         map = new maplibregl.Map({
           container: mapRef.current,
           style: { version: 8, sources, layers },
-          center: result.resolvedAddress.coordinates,
+          center: mapCoordinates,
           zoom: 15,
           attributionControl: { compact: true },
           canvasContextAttributes: { preserveDrawingBuffer: true },
@@ -649,7 +652,7 @@ export function FastPropertyView({
           element: control,
           anchor: "center",
         })
-          .setLngLat(result.resolvedAddress.coordinates)
+          .setLngLat(mapCoordinates)
           .addTo(map);
         syncRotationControlRef.current = () => {
           const active = placementRef.current;
@@ -681,8 +684,8 @@ export function FastPropertyView({
           clearances: poolShellClearancesRef.current,
           visible: clearancesVisibleRef.current,
         });
-        if (result.boundary.geometry) {
-          map.fitBounds(boundaryBounds(result.boundary.geometry), {
+        if (mapBoundaryGeometry) {
+          map.fitBounds(boundaryBounds(mapBoundaryGeometry), {
             padding: 56,
             duration: 0,
             maxZoom: 20,
@@ -848,7 +851,14 @@ export function FastPropertyView({
     // MapLibre is initialized once per resolved property. Placement geometry is
     // updated through GeoJSON source sync so pointer interaction is not rebuilt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mappedContours, mappedUtilityLayers, result]);
+  }, [
+    isInitialAddressLoad,
+    mapAerialState,
+    mapBoundaryGeometry,
+    mapCoordinates,
+    mappedContours,
+    mappedUtilityLayers,
+  ]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
