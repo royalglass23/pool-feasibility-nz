@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { buildFastPoolGeometry } from "@/modules/data-access-spike/fast-pool-placement";
+import type { Polygon } from "geojson";
 import {
   createAucklandPropertyTerrainGateway,
   type AucklandTerrainWindowReader,
@@ -44,7 +44,7 @@ const validatedProvenance = {
 };
 
 describe("Auckland property terrain", () => {
-  it("derives indicative slope for a placed construction envelope at 42A Bahari Drive", async () => {
+  it("derives indicative slope for the mapped property parcel at 42A Bahari Drive", async () => {
     const readWindow: AucklandTerrainWindowReader = vi.fn(async (input) => {
       const width = input.boundsNztm.maximumEast - input.boundsNztm.minimumEast;
       const height =
@@ -73,14 +73,20 @@ describe("Auckland property terrain", () => {
       readWindow,
       now: () => new Date("2026-09-14T00:00:00.000Z"),
     });
-    const constructionEnvelope = buildFastPoolGeometry(
-      [174.6078758258889, -36.86020104731634],
-      8.5,
-      5,
-    ).geometry;
+    const parcel: Polygon = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [174.6075, -36.86055],
+          [174.60825, -36.86055],
+          [174.60825, -36.85985],
+          [174.6075, -36.85985],
+          [174.6075, -36.86055],
+        ],
+      ],
+    };
 
-    const result =
-      await terrain.assessConstructionEnvelope(constructionEnvelope);
+    const result = await terrain.assessParcel(parcel);
 
     expect(readWindow).toHaveBeenCalledWith(
       expect.objectContaining({

@@ -1,5 +1,5 @@
 import type { FeatureCollection, Geometry } from "geojson";
-import { bbox, booleanWithin, feature } from "@turf/turf";
+import { bbox } from "@turf/turf";
 import { z } from "zod";
 import {
   isProviderEvidenceError,
@@ -160,18 +160,10 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
     }
   }
   const [terrain] = await Promise.all([
-    request.data.constructionEnvelopeGeometry
-      ? assessTerrain({
-          constructionEnvelope: request.data.constructionEnvelopeGeometry,
-          parcelGeometry: parcelResult?.parcels[0]?.geometry ?? null,
-          terrain: input.terrain,
-        })
-      : Promise.resolve({
-          status: "needs_checking" as const,
-          reasons: [
-            "Place the proposed pool area on the map before checking indicative terrain slope.",
-          ],
-        }),
+    assessTerrain({
+      parcelGeometry: parcelResult?.parcels[0]?.geometry ?? null,
+      terrain: input.terrain,
+    }),
     Promise.all(
       Array.from(
         { length: Math.min(concurrency, detailedDatasetKeys.length) },
@@ -219,21 +211,14 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
 }
 
 async function assessTerrain(input: {
-  constructionEnvelope: import("geojson").Polygon;
   parcelGeometry: import("geojson").Polygon | null;
   terrain?: PropertyTerrainGateway;
 }): Promise<PropertyTerrainAssessment> {
-  if (
-    !input.parcelGeometry ||
-    !booleanWithin(
-      feature(input.constructionEnvelope),
-      feature(input.parcelGeometry),
-    )
-  ) {
+  if (!input.parcelGeometry) {
     return {
       status: "needs_checking",
       reasons: [
-        "The proposed pool area is not contained by the confirmed property parcel.",
+        "The mapped property parcel is unavailable, so its indicative slope could not be assessed.",
       ],
     };
   }
@@ -243,7 +228,7 @@ async function assessTerrain(input: {
       reasons: ["The Auckland terrain analysis is unavailable."],
     };
   }
-  return input.terrain.assessConstructionEnvelope(input.constructionEnvelope);
+  return input.terrain.assessParcel(input.parcelGeometry);
 }
 
 async function queryLayer(input: {

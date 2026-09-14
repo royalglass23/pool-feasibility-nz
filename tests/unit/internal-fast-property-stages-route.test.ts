@@ -7,7 +7,7 @@ const assertSnapshotAddressMatches = vi.hoisted(() => vi.fn());
 const refreshAssessmentSnapshot = vi.hoisted(() => vi.fn());
 const enforcePublicPropertyStageRateLimit = vi.hoisted(() => vi.fn());
 const terrainGateway = vi.hoisted(() => ({
-  assessConstructionEnvelope: vi.fn(),
+  assessParcel: vi.fn(),
 }));
 const createAucklandPropertyTerrainGateway = vi.hoisted(() =>
   vi.fn(() => terrainGateway),

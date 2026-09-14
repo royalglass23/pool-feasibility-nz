@@ -7,7 +7,6 @@ import {
   waitFor,
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { useCallback, useRef, useState } from "react";
 import { FastPropertyView } from "@/components/fast-property-view";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 
@@ -242,7 +241,7 @@ it("shows detailed map controls without restoring the detailed checks panel", as
   expect(mapCreated).toHaveBeenCalledTimes(1);
 });
 
-it("shows the indicative terrain result returned for the placed pool area", async () => {
+it("shows the indicative parcel slope over the aerial map and in the details", async () => {
   render(
     <FastPropertyView
       result={{
@@ -285,8 +284,14 @@ it("shows the indicative terrain result returned for the placed pool area", asyn
   );
 
   expect(
-    screen.getByRole("heading", { name: "Indicative terrain slope" }),
+    screen.getByRole("heading", { name: "Indicative property slope" }),
   ).toBeVisible();
+  expect(
+    screen.getByLabelText(
+      "Indicative property slope: average 2.4 degrees, downhill SE",
+    ),
+  ).toBeVisible();
+  expect(screen.getByText("Across the mapped property parcel")).toBeVisible();
   expect(screen.getByText("2.4°")).toBeVisible();
   expect(screen.getByText("3.8°")).toBeVisible();
   expect(screen.getByText("0.36 m")).toBeVisible();
@@ -543,82 +548,45 @@ it("shows live pool-shell clearances by default and preserves the selected visib
 });
 
 it.each(["drag", "rotate"] as const)(
-  "keeps the existing map instance when a %s placement marks terrain for recheck",
+  "keeps parcel slope visible and the existing map instance after pool %s",
   async (interaction) => {
-    function TerrainAwareView() {
-      const [result, setResult] = useState<FastPropertyViewResult>(() => ({
-        ...fastResult,
-        detailedChecks: {
-          ...fastResult.detailedChecks!,
-          terrain: {
-            status: "measured" as const,
-            averageSlopeDegrees: 2.4,
-            upperSlopeDegrees: 3.8,
-            estimatedFallMetres: 0.36,
-            downhillBearingDegrees: 135,
-            downhillDirection: "SE" as const,
-            confidence: "indicative" as const,
-            source: {
-              provider: "Land Information New Zealand",
-              dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
-              datasetIdentifier: "linz-dem",
-              status: "success" as const,
-              licenceStatus: "permitted" as const,
-              evidenceUse: "spike_only" as const,
-              retrievedAt: "2026-09-14T00:00:00.000Z",
-              datasetDate: "2024",
-              licence: "CC BY 4.0",
-              attribution: null,
-              geometryUsed: "pool construction envelope",
-              attributesUsed: ["elevation_metres"],
-              evidenceType: "terrain_elevation_grid",
-              confidence: "limited" as const,
-            },
-          },
-        },
-      }));
-      const placementKeyRef = useRef<string | null>(null);
-      const onPlacementChange = useCallback(
-        (
-          placement: Parameters<
-            NonNullable<
-              React.ComponentProps<typeof FastPropertyView>["onPlacementChange"]
-            >
-          >[0],
-        ) => {
-          const placementKey = JSON.stringify(
-            placement.constructionEnvelopeGeometry?.geometry ?? null,
-          );
-          const changed =
-            placementKeyRef.current !== null &&
-            placementKeyRef.current !== placementKey;
-          placementKeyRef.current = placementKey;
-          if (!changed) return;
-          setResult((current) => ({
-            ...current,
-            detailedChecks: {
-              ...current.detailedChecks!,
-              status: "partial",
-              terrain: {
-                status: "needs_checking",
-                reasons: ["The pool position changed."],
+    render(
+      <FastPropertyView
+        result={{
+          ...fastResult,
+          detailedChecks: {
+            ...fastResult.detailedChecks!,
+            terrain: {
+              status: "measured" as const,
+              averageSlopeDegrees: 2.4,
+              upperSlopeDegrees: 3.8,
+              estimatedFallMetres: 0.36,
+              downhillBearingDegrees: 135,
+              downhillDirection: "SE" as const,
+              confidence: "indicative" as const,
+              source: {
+                provider: "Land Information New Zealand",
+                dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
+                datasetIdentifier: "linz-dem",
+                status: "success" as const,
+                licenceStatus: "permitted" as const,
+                evidenceUse: "spike_only" as const,
+                retrievedAt: "2026-09-14T00:00:00.000Z",
+                datasetDate: "2024",
+                licence: "CC BY 4.0",
+                attribution: null,
+                geometryUsed: "mapped property parcel",
+                attributesUsed: ["elevation_metres"],
+                evidenceType: "terrain_elevation_grid",
+                confidence: "limited" as const,
               },
             },
-          }));
-        },
-        [],
-      );
-
-      return (
-        <FastPropertyView
-          result={result}
-          onRetry={() => {}}
-          onPlacementChange={onPlacementChange}
-        />
-      );
-    }
-
-    render(<TerrainAwareView />);
+          },
+        }}
+        onRetry={() => {}}
+        onPlacementChange={() => {}}
+      />,
+    );
     await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
 
     if (interaction === "drag") {
@@ -645,11 +613,17 @@ it.each(["drag", "rotate"] as const)(
       fireEvent.pointerUp(rotateControl, { pointerId: 1 });
     }
 
-    await waitFor(() =>
-      expect(
-        screen.getByText(/The pool position changed\./i),
-      ).toBeInTheDocument(),
-    );
+    expect(
+      screen.getByRole("heading", { name: "Indicative property slope" }),
+    ).toBeVisible();
+    expect(
+      screen.getByLabelText(
+        "Indicative property slope: average 2.4 degrees, downhill SE",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(/The pool position changed\./i),
+    ).not.toBeInTheDocument();
     expect(mapCreated).toHaveBeenCalledTimes(1);
   },
 );

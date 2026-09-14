@@ -20,7 +20,5 @@ export type PropertyTerrainAssessment =
     };
 
 export interface PropertyTerrainGateway {
-  assessConstructionEnvelope(
-    constructionEnvelope: Polygon,
-  ): Promise<PropertyTerrainAssessment>;
+  assessParcel(parcelGeometry: Polygon): Promise<PropertyTerrainAssessment>;
 }

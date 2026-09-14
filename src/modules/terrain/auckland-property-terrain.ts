@@ -63,23 +63,23 @@ export function createAucklandPropertyTerrainGateway(
   const readWindow = input.readWindow ?? readAucklandDemWindow;
 
   return {
-    async assessConstructionEnvelope(
-      constructionEnvelope: Polygon,
+    async assessParcel(
+      parcelGeometry: Polygon,
     ): Promise<PropertyTerrainAssessment> {
       const tile = INITIAL_AUCKLAND_DEM_TILES.find((candidate) =>
-        polygonIsWithinBounds(constructionEnvelope, candidate.wgs84Bounds),
+        polygonIsWithinBounds(parcelGeometry, candidate.wgs84Bounds),
       );
       if (!tile) {
         return {
           status: "needs_checking",
           reasons: [
-            "The proposed pool area is outside the currently indexed Auckland 2024 elevation tile.",
+            "The mapped property parcel is outside the currently indexed Auckland 2024 elevation tile.",
           ],
         };
       }
 
       try {
-        const footprint = projectWgs84PolygonToNztm(constructionEnvelope);
+        const footprint = projectWgs84PolygonToNztm(parcelGeometry);
         const boundsNztm = paddedIntegerBounds(footprint);
         const window = await readWindow({
           assetUrl: tile.assetUrl,

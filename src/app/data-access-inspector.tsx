@@ -78,16 +78,6 @@ type ApiResponse =
 type AddressOption = Pick<AddressMatch, "addressId" | "fullAddress">;
 type PendingSelectedAddress = AddressOption;
 
-const automaticTerrainRecheckDelayMs = 300;
-
-function terrainPlacementKey(
-  placement: FastPoolPlacementSnapshot,
-): string | null {
-  return placement.constructionEnvelopeGeometry
-    ? JSON.stringify(placement.constructionEnvelopeGeometry.geometry)
-    : null;
-}
-
 type PropertyCheckIssue = {
   title: string;
   message: string;
@@ -122,10 +112,6 @@ export function DataAccessInspector() {
   const [isLoadingDetailed, setIsLoadingDetailed] = useState(false);
   const detailedRequestInFlightRef = useRef(false);
   const fastRequestIdRef = useRef(0);
-  const terrainPlacementKeyRef = useRef<string | null>(null);
-  const hasDetailedTerrainRef = useRef(false);
-  const [pendingTerrainRecheck, setPendingTerrainRecheck] =
-    useState<FastPoolPlacementSnapshot | null>(null);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(
     null,
   );
@@ -134,42 +120,10 @@ export function DataAccessInspector() {
     !fastResult &&
     !result &&
     !fastSavedReport.assessment;
-  useEffect(() => {
-    hasDetailedTerrainRef.current = Boolean(
-      fastResult?.detailedChecks?.terrain,
-    );
-  }, [fastResult?.detailedChecks?.terrain]);
   const handleFastPlacementChange = useCallback(
     (placement: FastPoolPlacementSnapshot) => {
-      const nextTerrainPlacementKey = terrainPlacementKey(placement);
-      const terrainPlacementChanged =
-        terrainPlacementKeyRef.current !== null &&
-        terrainPlacementKeyRef.current !== nextTerrainPlacementKey;
-      terrainPlacementKeyRef.current = nextTerrainPlacementKey;
       setFastPlacementSnapshot(placement);
       setFastMapSnapshot(null);
-      if (
-        terrainPlacementChanged &&
-        (hasDetailedTerrainRef.current || detailedRequestInFlightRef.current)
-      ) {
-        setPendingTerrainRecheck(placement);
-        setFastResult((current) => {
-          if (!current?.detailedChecks?.terrain) return current;
-          return {
-            ...current,
-            detailedChecks: {
-              ...current.detailedChecks,
-              status: "partial",
-              terrain: {
-                status: "needs_checking",
-                reasons: [
-                  "The pool position changed. Run the detailed check again to update the terrain slope.",
-                ],
-              },
-            },
-          };
-        });
-      }
     },
     [],
   );
@@ -297,8 +251,6 @@ export function DataAccessInspector() {
     );
     setFastAssessmentSnapshot(null);
     setFastPlacementSnapshot(null);
-    setPendingTerrainRecheck(null);
-    terrainPlacementKeyRef.current = null;
     setFastMapSnapshot(null);
     fastSavedReport.resetReport();
     setAddressOptions([]);
@@ -434,89 +386,59 @@ export function DataAccessInspector() {
     }
   }
 
-  const requestDetailedPropertyData = useCallback(
-    async (placement = fastPlacementSnapshot) => {
+  async function requestDetailedPropertyData() {
+    if (
+      !fastResult ||
+      !fastAssessmentSnapshot ||
+      isLoadingDetailed ||
+      detailedRequestInFlightRef.current
+    )
+      return;
+    const requestId = fastRequestIdRef.current;
+    detailedRequestInFlightRef.current = true;
+    setIsLoadingDetailed(true);
+    setFastMapSnapshot(null);
+    try {
+      const response = await fetch("/api/public/property-check/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          mode: "detailed",
+          addressId: fastResult.resolvedAddress.addressId,
+          coordinates: fastResult.resolvedAddress.coordinates,
+          assessmentSnapshot: fastAssessmentSnapshot,
+        }),
+      });
+      const body = (await response.json().catch(() => null)) as {
+        data?: FastPropertyDetails;
+        assessmentSnapshot?: string;
+        error?: { code?: string; message?: string; correlationId?: string };
+      } | null;
+      const responseError = readClientApiError(body);
       if (
-        !fastResult ||
-        !fastAssessmentSnapshot ||
-        isLoadingDetailed ||
-        detailedRequestInFlightRef.current
-      )
+        !response.ok ||
+        !body?.data ||
+        !body.assessmentSnapshot ||
+        fastRequestIdRef.current !== requestId
+      ) {
+        setError(detailedChecksIssue(responseError));
+        setCanRetry(responseError?.code !== "RATE_LIMITED");
         return;
-      setPendingTerrainRecheck(null);
-      const requestId = fastRequestIdRef.current;
-      const requestedTerrainPlacementKey = placement
-        ? terrainPlacementKey(placement)
-        : null;
-      detailedRequestInFlightRef.current = true;
-      setIsLoadingDetailed(true);
-      setFastMapSnapshot(null);
-      try {
-        const response = await fetch("/api/public/property-check/stages", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            mode: "detailed",
-            addressId: fastResult.resolvedAddress.addressId,
-            coordinates: fastResult.resolvedAddress.coordinates,
-            ...(placement?.constructionEnvelopeGeometry
-              ? {
-                  constructionEnvelopeGeometry:
-                    placement.constructionEnvelopeGeometry.geometry,
-                }
-              : {}),
-            assessmentSnapshot: fastAssessmentSnapshot,
-          }),
-        });
-        const body = (await response.json().catch(() => null)) as {
-          data?: FastPropertyDetails;
-          assessmentSnapshot?: string;
-          error?: { code?: string; message?: string; correlationId?: string };
-        } | null;
-        const responseError = readClientApiError(body);
-        if (
-          !response.ok ||
-          !body?.data ||
-          !body.assessmentSnapshot ||
-          fastRequestIdRef.current !== requestId
-        ) {
-          setError(detailedChecksIssue(responseError));
-          setCanRetry(responseError?.code !== "RATE_LIMITED");
-          return;
-        }
-        setFastMapSnapshot(null);
-        setFastAssessmentSnapshot(body.assessmentSnapshot);
-        if (requestedTerrainPlacementKey !== terrainPlacementKeyRef.current) {
-          setError(null);
-          return;
-        }
-        setFastResult((current) =>
-          current ? { ...current, detailedChecks: body.data } : current,
-        );
-        setError(null);
-      } catch {
-        setError(detailedChecksIssue());
-        setCanRetry(true);
-      } finally {
-        detailedRequestInFlightRef.current = false;
-        setIsLoadingDetailed(false);
       }
-    },
-    [
-      fastAssessmentSnapshot,
-      fastPlacementSnapshot,
-      fastResult,
-      isLoadingDetailed,
-    ],
-  );
-
-  useEffect(() => {
-    if (!pendingTerrainRecheck || isLoadingDetailed) return;
-    const timeout = window.setTimeout(() => {
-      void requestDetailedPropertyData(pendingTerrainRecheck);
-    }, automaticTerrainRecheckDelayMs);
-    return () => window.clearTimeout(timeout);
-  }, [isLoadingDetailed, pendingTerrainRecheck, requestDetailedPropertyData]);
+      setFastMapSnapshot(null);
+      setFastAssessmentSnapshot(body.assessmentSnapshot);
+      setFastResult((current) =>
+        current ? { ...current, detailedChecks: body.data } : current,
+      );
+      setError(null);
+    } catch {
+      setError(detailedChecksIssue());
+      setCanRetry(true);
+    } finally {
+      detailedRequestInFlightRef.current = false;
+      setIsLoadingDetailed(false);
+    }
+  }
 
   function downloadResult() {
     if (!result) return;
@@ -547,7 +469,6 @@ export function DataAccessInspector() {
     setPendingSelectedAddress(null);
     setFastAssessmentSnapshot(null);
     setFastPlacementSnapshot(null);
-    terrainPlacementKeyRef.current = null;
     setFastMapSnapshot(null);
     setError(null);
     setCanRetry(false);
@@ -751,9 +672,7 @@ export function DataAccessInspector() {
           )}
           <FastPropertyView
             result={fastResult}
-            onLoadDetailed={(placement) =>
-              void requestDetailedPropertyData(placement)
-            }
+            onLoadDetailed={() => void requestDetailedPropertyData()}
             onRetry={() => void requestDetailedPropertyData()}
             onStartAgain={startAgain}
             isLoadingDetailed={isLoadingDetailed}

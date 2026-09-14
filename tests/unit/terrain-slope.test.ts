@@ -146,7 +146,9 @@ describe("assessPoolAreaSlope", () => {
 
     expect(result).toEqual({
       status: "needs_checking",
-      reasons: ["Insufficient valid elevation coverage across the pool area."],
+      reasons: [
+        "Insufficient valid elevation coverage across the property parcel.",
+      ],
     });
   });
 

@@ -83,7 +83,7 @@ export function assessPoolAreaSlope(input: {
   if (gradients.length === 0) {
     return {
       status: "needs_checking",
-      reasons: ["No valid elevation neighbourhoods cover the pool area."],
+      reasons: ["No valid elevation neighbourhoods cover the property parcel."],
     };
   }
   if (
@@ -92,7 +92,9 @@ export function assessPoolAreaSlope(input: {
   ) {
     return {
       status: "needs_checking",
-      reasons: ["Insufficient valid elevation coverage across the pool area."],
+      reasons: [
+        "Insufficient valid elevation coverage across the property parcel.",
+      ],
     };
   }
 

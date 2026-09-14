@@ -159,7 +159,7 @@ export function FastPropertyView({
   onSnapshotReady,
 }: {
   result: FastPropertyViewResult;
-  onLoadDetailed?: (placement: FastPoolPlacementSnapshot) => void;
+  onLoadDetailed?: () => void;
   onRetry: () => void;
   onStartAgain?: () => void;
   isLoadingDetailed?: boolean;
@@ -330,11 +330,6 @@ export function FastPropertyView({
     [contoursVisible, mappedContours, mappedUtilityLayers, utilityVisibility],
   );
   const visibleMapLayerKeysRef = useRef<DatasetKey[]>(visibleMapLayerKeys);
-  const terrainNeedsRecheck =
-    result.detailedChecks?.terrain?.status === "needs_checking" &&
-    result.detailedChecks.terrain.reasons.some((reason) =>
-      reason.startsWith("The pool position changed."),
-    );
   const mapBoundaryGeometry = result.boundary.geometry;
   const mapCoordinates = result.resolvedAddress.coordinates;
   const mapAerialState = result.aerial.state;
@@ -1068,11 +1063,14 @@ export function FastPropertyView({
               )}
             </div>
           )}
-          <div
-            ref={mapRef}
-            className="bg-pool-800 order-2 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-full lg:min-h-[600px]"
-            aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
-          />
+          <div className="relative order-2 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-full lg:min-h-[600px]">
+            <div
+              ref={mapRef}
+              className="bg-pool-800 h-full w-full"
+              aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
+            />
+            <PropertySlopeMapOverlay terrain={result.detailedChecks?.terrain} />
+          </div>
           <aside
             aria-label="Map layers"
             className="border-pool-200 order-3 border-t bg-white p-4 lg:col-start-2 lg:row-start-2 lg:border-t-0 lg:border-l"
@@ -1253,18 +1251,7 @@ export function FastPropertyView({
           {onLoadDetailed && (
             <button
               type="button"
-              onClick={() =>
-                onLoadDetailed({
-                  position,
-                  rotationDegrees,
-                  dimensions,
-                  poolGeometry: poolGeometry ?? null,
-                  constructionEnvelopeGeometry,
-                  constructionEnvelopeWithinMappedArea,
-                  clearancesVisible,
-                  warning: poolWarning,
-                })
-              }
+              onClick={onLoadDetailed}
               disabled={
                 isInitialAddressLoad ||
                 isLoadingDetailed ||
@@ -1279,9 +1266,7 @@ export function FastPropertyView({
                   : result.detailedChecks?.status === "complete"
                     ? "Map checks loaded"
                     : result.detailedChecks?.status === "partial"
-                      ? terrainNeedsRecheck
-                        ? "Recheck slope and constraints"
-                        : "Retry missing checks"
+                      ? "Retry missing checks"
                       : "Check for constraints"}
             </button>
           )}
@@ -1304,6 +1289,44 @@ export function FastPropertyView({
   );
 }
 
+function PropertySlopeMapOverlay({
+  terrain,
+}: {
+  terrain: NonNullable<FastPropertyViewResult["detailedChecks"]>["terrain"];
+}) {
+  if (!terrain || terrain.status !== "measured") return null;
+
+  const downhill = terrain.downhillDirection ?? "approximately flat";
+  return (
+    <div
+      aria-label={`Indicative property slope: average ${terrain.averageSlopeDegrees.toFixed(1)} degrees, downhill ${downhill}`}
+      className="text-pool-950 pointer-events-none absolute top-3 left-3 z-10 flex items-center gap-3 rounded-sm border border-white/80 bg-white/95 px-3 py-2 shadow-md"
+    >
+      <span
+        aria-hidden="true"
+        className="bg-pool-blue-50 text-pool-blue-800 grid size-9 place-items-center rounded-full text-xl font-bold"
+        style={{
+          transform:
+            terrain.downhillBearingDegrees === null
+              ? undefined
+              : `rotate(${terrain.downhillBearingDegrees}deg)`,
+        }}
+      >
+        ↑
+      </span>
+      <span className="leading-tight">
+        <span className="block text-[0.7rem] font-semibold tracking-wide uppercase">
+          Indicative property slope
+        </span>
+        <span className="mt-0.5 block text-sm font-semibold tabular-nums">
+          Average {terrain.averageSlopeDegrees.toFixed(1)}° · downhill{" "}
+          {downhill}
+        </span>
+      </span>
+    </div>
+  );
+}
+
 function TerrainSlopeResult({
   terrain,
 }: {
@@ -1317,7 +1340,7 @@ function TerrainSlopeResult({
         className="rounded-sm border border-amber-200 bg-amber-50/60 p-4"
       >
         <h3 id="terrain-slope-heading" className="font-semibold">
-          Indicative terrain slope
+          Indicative property slope
         </h3>
         <p className="mt-2 text-sm leading-6">
           Needs Checking — {terrain.reasons.join(" ")}
@@ -1334,10 +1357,10 @@ function TerrainSlopeResult({
       <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
         <div>
           <h3 id="terrain-slope-heading" className="font-semibold">
-            Indicative terrain slope
+            Indicative property slope
           </h3>
           <p className="text-pool-600 mt-1 text-sm">
-            Across the proposed pool construction area
+            Across the mapped property parcel
           </p>
         </div>
         <p className="text-pool-950 text-3xl font-semibold tabular-nums">

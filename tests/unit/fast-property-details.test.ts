@@ -3,7 +3,6 @@ import { executeFastPropertyDetailsRequest } from "@/modules/data-access-spike/e
 import { createDataAccessGateway } from "../fixtures/normalized-data-access";
 import type { FeatureCollection, Geometry } from "geojson";
 import { queryableDatasetKeys } from "@/modules/data-access-spike/dataset-catalog";
-import { buildFastPoolGeometry } from "@/modules/data-access-spike/fast-pool-placement";
 import type { DatasetEvidence } from "@/modules/data-access-spike/data-access-gateway";
 
 const geometry: FeatureCollection<Geometry> = {
@@ -39,8 +38,17 @@ const terrainSource = {
 } satisfies DatasetEvidence;
 
 describe("executeFastPropertyDetailsRequest", () => {
-  it("returns Needs Checking terrain when no pool area has been placed", async () => {
-    const assessConstructionEnvelope = vi.fn();
+  it("assesses terrain across the mapped parcel without a pool placement", async () => {
+    const assessParcel = vi.fn(async () => ({
+      status: "measured" as const,
+      averageSlopeDegrees: 2.4,
+      upperSlopeDegrees: 3.8,
+      estimatedFallMetres: 0.36,
+      downhillBearingDegrees: 135,
+      downhillDirection: "SE",
+      confidence: "indicative" as const,
+      source: terrainSource,
+    }));
     const response = await executeFastPropertyDetailsRequest({
       body: {
         mode: "detailed",
@@ -48,19 +56,19 @@ describe("executeFastPropertyDetailsRequest", () => {
         coordinates: [174.607906917203, -36.8602038189915],
       },
       gateway: createDataAccessGateway(),
-      terrain: { assessConstructionEnvelope },
+      terrain: { assessParcel },
     });
 
     expect(response.ok).toBe(true);
     if (!response.ok) return;
-    expect(response.data.status).toBe("partial");
-    expect(response.data.terrain).toEqual({
-      status: "needs_checking",
-      reasons: [
-        "Place the proposed pool area on the map before checking indicative terrain slope.",
-      ],
+    expect(response.data.status).toBe("complete");
+    expect(response.data.terrain).toMatchObject({
+      status: "measured",
+      averageSlopeDegrees: 2.4,
     });
-    expect(assessConstructionEnvelope).not.toHaveBeenCalled();
+    expect(assessParcel).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "Polygon" }),
+    );
   });
 
   it("starts terrain assessment while detailed constraint layers are still pending", async () => {
@@ -72,7 +80,7 @@ describe("executeFastPropertyDetailsRequest", () => {
     const constraintLayersReleased = new Promise<void>((resolve) => {
       releaseConstraintLayers = resolve;
     });
-    const assessConstructionEnvelope = vi.fn(async () => ({
+    const assessParcel = vi.fn(async () => ({
       status: "needs_checking" as const,
       reasons: ["Terrain fixture completed."],
     }));
@@ -81,11 +89,6 @@ describe("executeFastPropertyDetailsRequest", () => {
         mode: "detailed",
         addressId: "2359811",
         coordinates: [174.607906917203, -36.8602038189915],
-        constructionEnvelopeGeometry: buildFastPoolGeometry(
-          [174.607905, -36.86021],
-          8.5,
-          5,
-        ).geometry,
       },
       gateway: createDataAccessGateway({
         queryFeatures: vi.fn(async () => {
@@ -94,43 +97,38 @@ describe("executeFastPropertyDetailsRequest", () => {
           return geometry;
         }),
       }),
-      terrain: { assessConstructionEnvelope },
+      terrain: { assessParcel },
     });
 
     await constraintLayerStarted;
     try {
-      expect(assessConstructionEnvelope).toHaveBeenCalledTimes(1);
+      expect(assessParcel).toHaveBeenCalledTimes(1);
     } finally {
       releaseConstraintLayers();
       await responsePromise;
     }
   });
 
-  it("returns an independent indicative terrain result for the placed 42A Bahari construction envelope", async () => {
-    const constructionEnvelope = buildFastPoolGeometry(
-      [174.607905, -36.86021],
-      8.5,
-      5,
-    ).geometry;
+  it("returns an indicative terrain result for the entire mapped 42A Bahari parcel", async () => {
+    const assessParcel = vi.fn(async () => ({
+      status: "measured" as const,
+      averageSlopeDegrees: 2.4,
+      upperSlopeDegrees: 3.8,
+      estimatedFallMetres: 0.36,
+      downhillBearingDegrees: 135,
+      downhillDirection: "SE",
+      confidence: "indicative" as const,
+      source: terrainSource,
+    }));
     const response = await executeFastPropertyDetailsRequest({
       body: {
         mode: "detailed",
         addressId: "2359811",
         coordinates: [174.607906917203, -36.8602038189915],
-        constructionEnvelopeGeometry: constructionEnvelope,
       },
       gateway: createDataAccessGateway(),
       terrain: {
-        assessConstructionEnvelope: vi.fn(async () => ({
-          status: "measured" as const,
-          averageSlopeDegrees: 2.4,
-          upperSlopeDegrees: 3.8,
-          estimatedFallMetres: 0.36,
-          downhillBearingDegrees: 135,
-          downhillDirection: "SE",
-          confidence: "indicative" as const,
-          source: terrainSource,
-        })),
+        assessParcel,
       },
       now: () => new Date("2026-09-14T00:00:00.000Z"),
     });
@@ -147,23 +145,26 @@ describe("executeFastPropertyDetailsRequest", () => {
       confidence: "indicative",
       source: terrainSource,
     });
+    expect(assessParcel).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "Polygon" }),
+    );
   });
 
-  it("does not read terrain for a construction envelope outside the selected parcel", async () => {
-    const assessConstructionEnvelope = vi.fn();
+  it("returns Needs Checking when the mapped parcel is unavailable", async () => {
+    const assessParcel = vi.fn();
     const response = await executeFastPropertyDetailsRequest({
       body: {
         mode: "detailed",
         addressId: "2359811",
         coordinates: [174.607906917203, -36.8602038189915],
-        constructionEnvelopeGeometry: buildFastPoolGeometry(
-          [174.62, -36.86],
-          8.5,
-          5,
-        ).geometry,
       },
-      gateway: createDataAccessGateway(),
-      terrain: { assessConstructionEnvelope },
+      gateway: createDataAccessGateway({
+        findParcelsAt: vi.fn(async () => ({
+          parcels: [],
+          duplicatesRemoved: 0,
+        })),
+      }),
+      terrain: { assessParcel },
     });
 
     expect(response.ok).toBe(true);
@@ -171,10 +172,10 @@ describe("executeFastPropertyDetailsRequest", () => {
     expect(response.data.terrain).toEqual({
       status: "needs_checking",
       reasons: [
-        "The proposed pool area is not contained by the confirmed property parcel.",
+        "The mapped property parcel is unavailable, so its indicative slope could not be assessed.",
       ],
     });
-    expect(assessConstructionEnvelope).not.toHaveBeenCalled();
+    expect(assessParcel).not.toHaveBeenCalled();
   });
 
   it("keeps the detailed result partial when terrain needs checking", async () => {
@@ -183,11 +184,6 @@ describe("executeFastPropertyDetailsRequest", () => {
         mode: "detailed",
         addressId: "2359811",
         coordinates: [174.607906917203, -36.8602038189915],
-        constructionEnvelopeGeometry: buildFastPoolGeometry(
-          [174.607905, -36.86021],
-          8.5,
-          5,
-        ).geometry,
       },
       gateway: createDataAccessGateway({
         queryFeatures: vi.fn(
@@ -199,7 +195,7 @@ describe("executeFastPropertyDetailsRequest", () => {
         ),
       }),
       terrain: {
-        assessConstructionEnvelope: vi.fn(async () => ({
+        assessParcel: vi.fn(async () => ({
           status: "needs_checking" as const,
           reasons: ["No valid Auckland elevation data covers this window."],
         })),
