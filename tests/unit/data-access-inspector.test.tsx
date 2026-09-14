@@ -1015,7 +1015,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     });
   });
 
-  it("invalidates the terrain result when the placed pool construction envelope changes", async () => {
+  it("shows only the latest terrain result when placement changes during a refresh", async () => {
     const user = userEvent.setup();
     const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
@@ -1044,6 +1044,21 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         },
       },
     };
+    let detailedRequestCount = 0;
+    let resolveStaleDetailedRequest: ((response: Response) => void) | undefined;
+    let resolveLatestDetailedRequest:
+      ((response: Response) => void) | undefined;
+    const detailedResponse = (averageSlopeDegrees: number, snapshot: string) =>
+      Response.json({
+        data: {
+          ...detailedChecks,
+          terrain: {
+            ...detailedChecks.terrain,
+            averageSlopeDegrees,
+          },
+        },
+        assessmentSnapshot: snapshot,
+      });
     const fetchMock = vi.fn(
       async (input: RequestInfo | URL, init?: RequestInit) => {
         if (String(input) === "/api/public/property-check") {
@@ -1055,11 +1070,22 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         const requestBody = JSON.parse(String(init?.body ?? "{}")) as {
           mode?: string;
         };
+        if (requestBody.mode === "detailed") {
+          detailedRequestCount += 1;
+          if (detailedRequestCount === 1) {
+            return detailedResponse(2.4, "server-issued-detailed-snapshot");
+          }
+          return new Promise<Response>((resolve) => {
+            if (detailedRequestCount === 2) {
+              resolveStaleDetailedRequest = resolve;
+            } else {
+              resolveLatestDetailedRequest = resolve;
+            }
+          });
+        }
         return Response.json({
-          data: requestBody.mode === "detailed" ? detailedChecks : fastResult,
-          assessmentSnapshot: requestBody.mode
-            ? "server-issued-detailed-snapshot"
-            : "server-issued-stage-snapshot",
+          data: fastResult,
+          assessmentSnapshot: "server-issued-stage-snapshot",
         });
       },
     );
@@ -1083,15 +1109,29 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       screen.getByRole("button", { name: /Plunge \(4 × 2.4 m\)/ }),
     );
 
-    expect(
-      await screen.findByText(
-        /The pool position changed.*run the detailed check again/i,
-      ),
-    ).toBeVisible();
-    expect(
-      screen.getByRole("button", { name: "Recheck slope and constraints" }),
-    ).toBeEnabled();
-    expect(screen.queryByText("2.4°")).not.toBeInTheDocument();
+    await waitFor(() => expect(detailedRequestCount).toBe(2));
+    await user.click(
+      screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+    );
+    expect(resolveStaleDetailedRequest).toBeDefined();
+    resolveStaleDetailedRequest!(
+      detailedResponse(4.1, "server-issued-stale-snapshot"),
+    );
+
+    await waitFor(() => expect(detailedRequestCount).toBe(3));
+    expect(screen.queryByText("4.1°")).not.toBeInTheDocument();
+    expect(resolveLatestDetailedRequest).toBeDefined();
+    resolveLatestDetailedRequest!(
+      detailedResponse(5.2, "server-issued-latest-snapshot"),
+    );
+    expect(await screen.findByText("5.2°")).toBeVisible();
+
+    const detailedRequests = fetchMock.mock.calls
+      .map(([, init]) => JSON.parse(String(init?.body ?? "{}")))
+      .filter((body) => body.mode === "detailed");
+    expect(detailedRequests[2].constructionEnvelopeGeometry).not.toEqual(
+      detailedRequests[1].constructionEnvelopeGeometry,
+    );
   });
 
   it("hides the address search after a fast view opens and restores it from Start again", async () => {
