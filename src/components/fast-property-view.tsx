@@ -398,9 +398,6 @@ export function FastPropertyView({
         result.boundary.geometry,
       )
     ) {
-      setPlacementMessage(
-        "The construction envelope must remain inside the mapped property area.",
-      );
       return;
     }
     setPlacementMessage(null);
@@ -420,9 +417,6 @@ export function FastPropertyView({
         result.boundary.geometry,
       )
     ) {
-      setPlacementMessage(
-        "That rotation would move the construction envelope outside the mapped property area.",
-      );
       return;
     }
     setPlacementMessage(null);

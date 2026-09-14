@@ -853,6 +853,39 @@ it("lets touch users move the pool layout", async () => {
   );
 });
 
+it("silently keeps the pool at its last valid position at the mapped boundary", async () => {
+  const onPlacementChange = vi.fn();
+  render(
+    <FastPropertyView
+      result={fastResult}
+      onRetry={() => {}}
+      onPlacementChange={onPlacementChange}
+    />,
+  );
+
+  await waitFor(() =>
+    expect(mapEventHandlers.get("touchstart:pool-fill")).toBeTypeOf("function"),
+  );
+  const event = (coordinates: [number, number]): MapEvent => ({
+    point: { coordinates },
+    originalEvent: { stopPropagation() {} },
+  });
+  const validPosition = onPlacementChange.mock.lastCall?.[0].position;
+
+  mapEventHandlers.get("touchstart:pool-fill")!(event(validPosition));
+  mapEventHandlers.get("touchmove:map")!(event([174.609, -36.86]));
+  mapEventHandlers.get("touchend:map")!(event([174.609, -36.86]));
+
+  expect(onPlacementChange).toHaveBeenLastCalledWith(
+    expect.objectContaining({ position: validPosition }),
+  );
+  expect(
+    screen.queryByText(
+      "The construction envelope must remain inside the mapped property area.",
+    ),
+  ).not.toBeInTheDocument();
+});
+
 const fastResult = {
   requestedAddress: "42A Bahari Drive, Ranui, Auckland",
   resolvedAddress: {
