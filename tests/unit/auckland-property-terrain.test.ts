@@ -116,6 +116,14 @@ describe("Auckland property terrain", () => {
     if (result.status !== "measured") return;
     expect(result.averageSlopeDegrees).toBeCloseTo(2.8624052261117474, 10);
     expect(result.upperSlopeDegrees).toBeCloseTo(2.862405226111749, 10);
+    const slopeSamples = result.slopeSamples ?? [];
+    expect(slopeSamples.length).toBeGreaterThan(4);
+    expect(slopeSamples[0]).toMatchObject({
+      position: [expect.any(Number), expect.any(Number)],
+      slopeDegrees: expect.closeTo(2.86, 2),
+      eastGradient: expect.closeTo(0.04, 10),
+      northGradient: expect.closeTo(0.03, 10),
+    });
   });
 
   it("assesses a parcel outside BA31 with the tile selected by the Auckland catalogue", async () => {

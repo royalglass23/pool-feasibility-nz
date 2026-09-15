@@ -4,6 +4,7 @@ import type { Polygon } from "geojson";
 import { aucklandDemTileCatalogue } from "@/modules/providers/linz/auckland-dem-tile-catalogue";
 import {
   projectNztmPolygonToWgs84,
+  projectNztmPositionToWgs84,
   projectWgs84PolygonToNztm,
 } from "@/modules/providers/linz/project-auckland-dem-geometry";
 import {
@@ -114,8 +115,24 @@ export function createAucklandPropertyTerrainGateway(
           footprint,
         });
         if (slope.status === "needs_checking") return slope;
+        const { samples, ...summary } = slope;
         return {
-          ...slope,
+          ...summary,
+          slopeSamples: samples.map((sample) => {
+            const [longitude, latitude] = projectNztmPositionToWgs84([
+              sample.eastMetres,
+              sample.northMetres,
+            ]);
+            return {
+              position: [roundTo(longitude, 7), roundTo(latitude, 7)] as [
+                number,
+                number,
+              ],
+              slopeDegrees: roundTo(sample.slopeDegrees, 2),
+              eastGradient: roundTo(sample.eastGradient, 5),
+              northGradient: roundTo(sample.northGradient, 5),
+            };
+          }),
           source: {
             ...composed.provenance[0].provenance,
             contributingAssets: composed.provenance.map(
@@ -142,6 +159,11 @@ export function createAucklandPropertyTerrainGateway(
       }
     },
   };
+}
+
+function roundTo(value: number, decimalPlaces: number): number {
+  const factor = 10 ** decimalPlaces;
+  return Math.round(value * factor) / factor;
 }
 
 function resolveTerrainTiles(input: {

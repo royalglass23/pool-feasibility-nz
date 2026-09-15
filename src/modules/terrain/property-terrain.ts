@@ -1,6 +1,13 @@
 import type { Polygon } from "geojson";
 import type { DatasetEvidence } from "@/modules/data-access-spike/data-access-gateway";
 
+export type TerrainSlopeSample = {
+  position: [longitude: number, latitude: number];
+  slopeDegrees: number;
+  eastGradient: number;
+  northGradient: number;
+};
+
 export type PropertyTerrainSource = DatasetEvidence & {
   contributingAssets?: readonly {
     provider: string;
@@ -30,6 +37,7 @@ export type PropertyTerrainAssessment =
       downhillBearingDegrees: number | null;
       downhillDirection: string | null;
       confidence: "indicative";
+      slopeSamples?: TerrainSlopeSample[];
       source: PropertyTerrainSource;
     }
   | {

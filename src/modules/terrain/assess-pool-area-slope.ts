@@ -10,6 +10,15 @@ export type TerrainGrid = {
   elevationsMetres: number[];
 };
 
+export type TerrainSlopeSampleNztm = {
+  eastMetres: number;
+  northMetres: number;
+  elevationMetres: number;
+  slopeDegrees: number;
+  eastGradient: number;
+  northGradient: number;
+};
+
 export type PoolAreaSlopeAssessment =
   | {
       status: "measured";
@@ -19,6 +28,7 @@ export type PoolAreaSlopeAssessment =
       downhillBearingDegrees: number | null;
       downhillDirection: string | null;
       confidence: "indicative";
+      samples: TerrainSlopeSampleNztm[];
     }
   | {
       status: "needs_checking";
@@ -46,7 +56,7 @@ export function assessPoolAreaSlope(input: {
       reasons: ["The elevation grid dimensions are invalid."],
     };
   }
-  const gradients: Array<{ east: number; north: number; slope: number }> = [];
+  const gradients: TerrainSlopeSampleNztm[] = [];
   let coveredNeighbourhoodCount = 0;
 
   for (let row = 0; row < grid.height - 1; row += 1) {
@@ -85,9 +95,13 @@ export function assessPoolAreaSlope(input: {
         Math.atan(Math.hypot(eastGradient, northGradient)),
       );
       gradients.push({
-        east: eastGradient,
-        north: northGradient,
-        slope: slopeDegrees,
+        eastMetres: east,
+        northMetres: north,
+        elevationMetres:
+          current + ((eastGradient + northGradient) * grid.cellSizeMetres) / 2,
+        slopeDegrees,
+        eastGradient,
+        northGradient,
       });
     }
   }
@@ -110,13 +124,19 @@ export function assessPoolAreaSlope(input: {
     };
   }
 
-  const averageSlopeDegrees = average(gradients.map(({ slope }) => slope));
+  const averageSlopeDegrees = average(
+    gradients.map(({ slopeDegrees }) => slopeDegrees),
+  );
   const upperSlopeDegrees = percentile(
-    gradients.map(({ slope }) => slope),
+    gradients.map(({ slopeDegrees }) => slopeDegrees),
     0.9,
   );
-  const averageEastGradient = average(gradients.map(({ east }) => east));
-  const averageNorthGradient = average(gradients.map(({ north }) => north));
+  const averageEastGradient = average(
+    gradients.map(({ eastGradient }) => eastGradient),
+  );
+  const averageNorthGradient = average(
+    gradients.map(({ northGradient }) => northGradient),
+  );
   const isFlat = Math.hypot(averageEastGradient, averageNorthGradient) < 1e-9;
   const downhillBearingDegrees = isFlat
     ? null
@@ -146,6 +166,7 @@ export function assessPoolAreaSlope(input: {
         ? null
         : compassDirection(downhillBearingDegrees),
     confidence: "indicative",
+    samples: gradients,
   };
 }
 

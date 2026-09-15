@@ -18,6 +18,7 @@ const {
   markerOffsets,
   getLayer,
   queryRenderedFeatures,
+  setLayoutProperty,
   waitForIdle,
   canvasSnapshot,
   setWorkerUrl,
@@ -26,6 +27,7 @@ const {
   canvasSnapshot: vi.fn(() => "data:image/png;base64,"),
   getLayer: vi.fn<(id: string) => object | undefined>(() => ({})),
   queryRenderedFeatures: vi.fn<(...args: unknown[]) => unknown[]>(() => []),
+  setLayoutProperty: vi.fn(),
   mapCreated: vi.fn(),
   mapStyles: vi.fn(),
   fitBounds: vi.fn(),
@@ -97,7 +99,9 @@ vi.mock("maplibre-gl", () => {
       };
     }
     remove() {}
-    setLayoutProperty() {}
+    setLayoutProperty(...args: unknown[]) {
+      setLayoutProperty(...args);
+    }
     getLayoutProperty() {
       return "visible";
     }
@@ -162,6 +166,7 @@ afterEach(() => {
   waitForIdle.mockReset().mockImplementation(() => Promise.resolve());
   canvasSnapshot.mockReset().mockReturnValue("data:image/png;base64,");
   setWorkerUrl.mockClear();
+  setLayoutProperty.mockClear();
 });
 
 it("keeps the rotate control visible and interactive while taking a snapshot", async () => {
@@ -241,7 +246,8 @@ it("shows detailed map controls without restoring the detailed checks panel", as
   expect(mapCreated).toHaveBeenCalledTimes(1);
 });
 
-it("shows the indicative parcel slope over the aerial map and in the details", async () => {
+it("shows location-based slope shading and selected-pool terrain details", async () => {
+  const user = userEvent.setup();
   render(
     <FastPropertyView
       result={{
@@ -256,6 +262,19 @@ it("shows the indicative parcel slope over the aerial map and in the details", a
             downhillBearingDegrees: 135,
             downhillDirection: "SE",
             confidence: "indicative",
+            slopeSamples: [
+              [174.60818, -36.86026],
+              [174.60819, -36.86026],
+              [174.6082, -36.86026],
+              [174.60818, -36.86025],
+              [174.60819, -36.86025],
+              [174.6082, -36.86025],
+            ].map((position, index) => ({
+              position: position as [number, number],
+              slopeDegrees: 2 + index * 3,
+              eastGradient: 0.04,
+              northGradient: 0.03,
+            })),
             source: {
               provider: "Land Information New Zealand",
               dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
@@ -297,15 +316,6 @@ it("shows the indicative parcel slope over the aerial map and in the details", a
     ),
   ).toBeVisible();
   expect(screen.getByText("Average slope")).toBeVisible();
-  expect(screen.getByTestId("average-slope-value")).toHaveClass(
-    "bg-pool-blue-100",
-    "text-pool-blue-950",
-  );
-  expect(
-    screen.getByLabelText(
-      "Average property slope: 2.4 degrees. Colour shows relative steepness only, not suitability.",
-    ),
-  ).toBeVisible();
   expect(screen.getByText("Steeper areas")).toBeVisible();
   expect(
     screen.getByText("90% of sampled areas are at or below this angle."),
@@ -319,20 +329,62 @@ it("shows the indicative parcel slope over the aerial map and in the details", a
   expect(
     screen.queryByText("Creative Commons Attribution 4.0 International"),
   ).not.toBeInTheDocument();
+  expect(screen.getByRole("checkbox", { name: "Slope shading" })).toBeChecked();
+  expect(screen.getByText("Lower slope on this property")).toBeVisible();
+  expect(screen.getByText("Medium slope on this property")).toBeVisible();
+  expect(screen.getByText("Higher slope on this property")).toBeVisible();
+  expect(
+    screen.getByText(
+      "Relative visual guide only—not a suitability or engineering classification.",
+    ),
+  ).toBeVisible();
+  expect(screen.queryByText(/0–5°|5–15°|15°\+/)).not.toBeInTheDocument();
   expect(
     screen.getByRole("heading", {
-      name: "Does this pool position have a suitable slope?",
+      name: "Selected pool position",
     }),
   ).toBeVisible();
+  expect(screen.getByText("Average slope here")).toBeVisible();
+  expect(screen.getByText("Estimated height change here")).toBeVisible();
+  expect(screen.getByText("9.5°")).toBeVisible();
+  expect(screen.getByText(/Based on 6 nearby terrain samples/i)).toBeVisible();
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const style = mapStyles.mock.calls[0]?.[0] as {
+    sources: Record<string, unknown>;
+    layers: Array<{ id: string; paint?: Record<string, unknown> }>;
+  };
+  expect(style.sources).toHaveProperty("terrain-slope");
+  expect(style.layers).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: "terrain-slope",
+        paint: expect.objectContaining({
+          "circle-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "relativeSlope"],
+            0,
+            "#16a34a",
+            0.5,
+            "#f59e0b",
+            1,
+            "#dc2626",
+          ],
+        }),
+      }),
+    ]),
+  );
+
+  await user.click(screen.getByRole("checkbox", { name: "Slope shading" }));
   expect(
-    screen.getByText(/Contour data is not available for this property view/i),
-  ).toBeVisible();
-  expect(
-    screen.queryByText(/Turn on Contours to compare areas/i),
-  ).not.toBeInTheDocument();
-  expect(
-    screen.getByText(/A current site survey is still required/i),
-  ).toBeVisible();
+    screen.getByRole("checkbox", { name: "Slope shading" }),
+  ).not.toBeChecked();
+  expect(setLayoutProperty).toHaveBeenCalledWith(
+    "terrain-slope",
+    "visibility",
+    "none",
+  );
 });
 
 it("does not expose or emit pool placement while the boundary is loading", async () => {

@@ -78,6 +78,16 @@ describe("assessPoolAreaSlope", () => {
       downhillDirection: "E",
       confidence: "indicative",
     });
+    if (result.status !== "measured") return;
+    expect(result.samples).toHaveLength(16);
+    expect(result.samples[0]).toMatchObject({
+      eastMetres: 0.5,
+      northMetres: 0.5,
+      elevationMetres: expect.closeTo(9.9118, 3),
+      slopeDegrees: expect.closeTo(10, 1),
+      eastGradient: expect.closeTo(-0.1763, 3),
+      northGradient: 0,
+    });
   });
 
   it("interpolates the upper slope instead of reporting a small sample's raw maximum", () => {

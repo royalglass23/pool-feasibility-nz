@@ -472,8 +472,8 @@ export function buildFastSubmissionContext(
         placement.constructionEnvelopeGeometry.geometry,
       clearancesVisible: placement.clearancesVisible ?? true,
     },
-    layerStates:
-      result.detailedChecks?.layers.map((layer) => ({
+    layerStates: [
+      ...(result.detailedChecks?.layers.map((layer) => ({
         provider: layer.evidence.provider,
         dataset: layer.evidence.dataset,
         datasetId: layer.evidence.datasetIdentifier,
@@ -492,7 +492,27 @@ export function buildFastSubmissionContext(
         sourceUrl: layer.evidence.attribution?.url,
         retrievedAt: layer.evidence.retrievedAt,
         featureCount: layer.evidence.featureCount,
-      })) ?? [],
+      })) ?? []),
+      ...(result.detailedChecks?.terrain?.status === "measured"
+        ? [
+            {
+              provider: result.detailedChecks.terrain.source.provider,
+              dataset: result.detailedChecks.terrain.source.dataset,
+              datasetId: result.detailedChecks.terrain.source.datasetIdentifier,
+              status: "returned" as const,
+              confidence: confidence(
+                result.detailedChecks.terrain.source.confidence ?? "unknown",
+              ),
+              attribution:
+                result.detailedChecks.terrain.source.attribution?.text,
+              sourceUrl: result.detailedChecks.terrain.source.attribution?.url,
+              retrievedAt: result.detailedChecks.terrain.source.retrievedAt,
+              featureCount:
+                result.detailedChecks.terrain.slopeSamples?.length ?? 0,
+            },
+          ]
+        : []),
+    ],
     warnings: [warning],
     recommendations: placement.warning.recommendation
       ? [
@@ -534,7 +554,7 @@ function layerStatus(status: string) {
   return "unavailable" as const;
 }
 
-function confidence(value: string) {
+function confidence(value: string): "high" | "medium" | "low" | "unknown" {
   if (value === "high" || value === "medium" || value === "low") return value;
   return "unknown" as const;
 }

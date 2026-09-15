@@ -43,6 +43,10 @@ import {
   type ClientApiError,
 } from "@/shared/http/client-api-error";
 import { bearing, point } from "@turf/turf";
+import {
+  assessSelectedPoolTerrain,
+  type SelectedPoolTerrain,
+} from "@/modules/terrain/assess-selected-pool-terrain";
 
 type UtilityCategory =
   "stormwater" | "wastewater" | "water" | "electricity" | "gas";
@@ -58,6 +62,15 @@ const contourLayer = {
   key: "contours",
   color: "#475569",
   kind: "line",
+} as const;
+
+const terrainSlopeLayer = {
+  key: "terrain-slope",
+  colours: {
+    lower: "#16a34a",
+    medium: "#f59e0b",
+    higher: "#dc2626",
+  },
 } as const;
 
 const utilityCategories: {
@@ -198,6 +211,7 @@ export function FastPropertyView({
     allUtilityCategoriesVisible,
   );
   const [contoursVisible, setContoursVisible] = useState(true);
+  const [terrainSlopeVisible, setTerrainSlopeVisible] = useState(true);
   const [clearancesVisible, setClearancesVisible] = useState(true);
   const [initialPlacement] = useState(() => defaultPlacement(result));
   const [position, setPosition] = useState<[number, number]>(
@@ -238,6 +252,45 @@ export function FastPropertyView({
         : null,
     [dimensions, position, rotationDegrees],
   );
+  const terrainSlopeGeometry = useMemo(() => {
+    const terrain = result.detailedChecks?.terrain;
+    const samples =
+      terrain?.status === "measured" ? (terrain.slopeSamples ?? []) : [];
+    const slopeValues = samples.map(({ slopeDegrees }) => slopeDegrees);
+    const minimumSlope = Math.min(...slopeValues);
+    const slopeRange = Math.max(...slopeValues) - minimumSlope;
+    return {
+      type: "FeatureCollection" as const,
+      features: samples.map((sample) => ({
+        type: "Feature" as const,
+        properties: {
+          slopeDegrees: sample.slopeDegrees,
+          relativeSlope:
+            slopeRange > 0
+              ? (sample.slopeDegrees - minimumSlope) / slopeRange
+              : 0.5,
+        },
+        geometry: {
+          type: "Point" as const,
+          coordinates: sample.position,
+        },
+      })),
+    };
+  }, [result.detailedChecks?.terrain]);
+  const selectedPoolTerrain = useMemo(() => {
+    const terrain = result.detailedChecks?.terrain;
+    if (
+      terrain?.status !== "measured" ||
+      !poolGeometry ||
+      !terrain.slopeSamples?.length
+    ) {
+      return null;
+    }
+    return assessSelectedPoolTerrain({
+      samples: terrain.slopeSamples,
+      footprint: poolGeometry.geometry,
+    });
+  }, [poolGeometry, result.detailedChecks?.terrain]);
   const constructionEnvelopeGeometry = useMemo(
     () =>
       constructionEnvelopeDimensions
@@ -523,6 +576,12 @@ export function FastPropertyView({
           data: mappedContours.geometry,
         };
       }
+      if (terrainSlopeGeometry.features.length > 0) {
+        sources[terrainSlopeLayer.key] = {
+          type: "geojson",
+          data: terrainSlopeGeometry,
+        };
+      }
       const layers: import("maplibre-gl").LayerSpecification[] = [];
       if (mapAerialState === "ready") {
         sources.aerial = {
@@ -535,20 +594,56 @@ export function FastPropertyView({
         layers.push({ id: "aerial", type: "raster", source: "aerial" });
       }
       if (boundary) {
-        layers.push(
-          {
-            id: "boundary-fill",
-            type: "fill",
-            source: "boundary",
-            paint: { "fill-color": "#14b8a6", "fill-opacity": 0.16 },
+        layers.push({
+          id: "boundary-fill",
+          type: "fill",
+          source: "boundary",
+          paint: { "fill-color": "#14b8a6", "fill-opacity": 0.1 },
+        });
+      }
+      if (terrainSlopeGeometry.features.length > 0) {
+        layers.push({
+          id: terrainSlopeLayer.key,
+          type: "circle",
+          source: terrainSlopeLayer.key,
+          layout: {
+            visibility: terrainSlopeVisible ? "visible" : "none",
           },
-          {
-            id: "boundary-line",
-            type: "line",
-            source: "boundary",
-            paint: { "line-color": "#0f766e", "line-width": 4 },
+          paint: {
+            "circle-color": [
+              "interpolate",
+              ["linear"],
+              ["get", "relativeSlope"],
+              0,
+              terrainSlopeLayer.colours.lower,
+              0.5,
+              terrainSlopeLayer.colours.medium,
+              1,
+              terrainSlopeLayer.colours.higher,
+            ],
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              14,
+              1.5,
+              18,
+              4,
+              20,
+              8,
+            ],
+            "circle-opacity": 0.5,
+            "circle-blur": 0.35,
           },
-        );
+        });
+      }
+      if (boundary) {
+        layers.push({
+          id: "boundary-line",
+          type: "line",
+          source: "boundary",
+          paint: { "line-color": "#0f766e", "line-width": 4 },
+        });
       }
       if (mappedContours?.geometry) {
         layers.push({
@@ -863,6 +958,7 @@ export function FastPropertyView({
     mapCoordinates,
     mappedContours,
     mappedUtilityLayers,
+    terrainSlopeGeometry,
   ]);
 
   useEffect(() => {
@@ -876,6 +972,13 @@ export function FastPropertyView({
         contoursVisible ? "visible" : "none",
       );
     }
+    if (map.getLayer(terrainSlopeLayer.key)) {
+      map.setLayoutProperty(
+        terrainSlopeLayer.key,
+        "visibility",
+        terrainSlopeVisible ? "visible" : "none",
+      );
+    }
     for (const { definition } of mappedUtilityLayers) {
       const layerId = `utility-${definition.key}`;
       if (map.getLayer(layerId)) {
@@ -886,7 +989,12 @@ export function FastPropertyView({
         );
       }
     }
-  }, [contoursVisible, mappedUtilityLayers, utilityVisibility]);
+  }, [
+    contoursVisible,
+    mappedUtilityLayers,
+    terrainSlopeVisible,
+    utilityVisibility,
+  ]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -1140,6 +1248,53 @@ export function FastPropertyView({
                   <label className="flex cursor-pointer items-center gap-2">
                     <input
                       type="checkbox"
+                      aria-label="Slope shading"
+                      checked={
+                        terrainSlopeGeometry.features.length > 0 &&
+                        terrainSlopeVisible
+                      }
+                      onChange={() =>
+                        setTerrainSlopeVisible((current) => !current)
+                      }
+                      disabled={terrainSlopeGeometry.features.length === 0}
+                      className="accent-pool-950 size-4"
+                    />
+                    <span className="font-semibold">Slope shading</span>
+                  </label>
+                  {terrainSlopeGeometry.features.length > 0 ? (
+                    <div className="mt-2 ml-6">
+                      <ul
+                        aria-label="Slope shading legend"
+                        className="grid gap-1 text-xs"
+                      >
+                        <SlopeLegendItem
+                          colour={terrainSlopeLayer.colours.lower}
+                          label="Lower slope on this property"
+                        />
+                        <SlopeLegendItem
+                          colour={terrainSlopeLayer.colours.medium}
+                          label="Medium slope on this property"
+                        />
+                        <SlopeLegendItem
+                          colour={terrainSlopeLayer.colours.higher}
+                          label="Higher slope on this property"
+                        />
+                      </ul>
+                      <p className="text-pool-500 mt-2 text-xs leading-5">
+                        Relative visual guide only—not a suitability or
+                        engineering classification.
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-pool-500 mt-1 ml-6 text-xs leading-5">
+                      Location-based slope data is unavailable.
+                    </p>
+                  )}
+                </div>
+                <div className="border-pool-200 text-pool-700 mt-4 border-b pb-4 text-sm">
+                  <label className="flex cursor-pointer items-center gap-2">
+                    <input
+                      type="checkbox"
                       aria-label="Contours"
                       checked={Boolean(mappedContours) && contoursVisible}
                       onChange={() => setContoursVisible((current) => !current)}
@@ -1219,6 +1374,7 @@ export function FastPropertyView({
         <TerrainSlopeResult
           terrain={result.detailedChecks.terrain}
           contoursAvailable={Boolean(mappedContours)}
+          selectedPoolTerrain={selectedPoolTerrain}
         />
       ) : null}
       {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
@@ -1342,12 +1498,27 @@ function PropertySlopeMapOverlay({
   );
 }
 
+function SlopeLegendItem({ colour, label }: { colour: string; label: string }) {
+  return (
+    <li className="flex items-center gap-2">
+      <span
+        aria-hidden="true"
+        className="size-2.5 rounded-sm"
+        style={{ backgroundColor: colour }}
+      />
+      <span>{label}</span>
+    </li>
+  );
+}
+
 function TerrainSlopeResult({
   terrain,
   contoursAvailable,
+  selectedPoolTerrain,
 }: {
   terrain: NonNullable<FastPropertyViewResult["detailedChecks"]>["terrain"];
   contoursAvailable: boolean;
+  selectedPoolTerrain: SelectedPoolTerrain | null;
 }) {
   if (!terrain) return null;
   if (terrain.status === "needs_checking") {
@@ -1382,11 +1553,7 @@ function TerrainSlopeResult({
         </div>
         <div className="sm:text-right">
           <p className="text-pool-600 text-xs">Average slope</p>
-          <p
-            aria-label={`Average property slope: ${terrain.averageSlopeDegrees.toFixed(1)} degrees. Colour shows relative steepness only, not suitability.`}
-            className={`mt-1 inline-flex rounded-sm px-2 py-0.5 text-3xl font-semibold tabular-nums ${relativeSlopeColourClass(terrain.averageSlopeDegrees)}`}
-            data-testid="average-slope-value"
-          >
+          <p className="text-pool-950 text-3xl font-semibold tabular-nums">
             {terrain.averageSlopeDegrees.toFixed(1)}°
           </p>
         </div>
@@ -1423,31 +1590,44 @@ function TerrainSlopeResult({
       </dl>
       <div className="border-pool-blue-200 mt-4 border-t pt-4">
         <h4 className="text-pool-950 text-sm font-semibold">
-          Does this pool position have a suitable slope?
+          Selected pool position
         </h4>
-        <p className="text-pool-700 mt-1 max-w-3xl text-sm leading-6">
-          This property-wide result cannot confirm that.{" "}
-          {contoursAvailable ? (
-            <>
-              Turn on Contours to compare areas: wider-spaced contour lines
-              generally indicate gentler ground.{" "}
-            </>
-          ) : (
-            "Contour data is not available for this property view. "
-          )}
-          A current site survey is still required before design, excavation,
-          retaining, consent, or construction decisions.
-        </p>
+        {selectedPoolTerrain ? (
+          <>
+            <dl className="mt-2 flex flex-wrap gap-x-8 gap-y-3 text-sm">
+              <div>
+                <dt className="text-pool-600">Average slope here</dt>
+                <dd className="mt-1 font-semibold tabular-nums">
+                  {selectedPoolTerrain.averageSlopeDegrees.toFixed(1)}°
+                </dd>
+              </div>
+              <div>
+                <dt className="text-pool-600">Estimated height change here</dt>
+                <dd className="mt-1 font-semibold tabular-nums">
+                  {selectedPoolTerrain.estimatedFallMetres.toFixed(2)} m
+                </dd>
+              </div>
+            </dl>
+            <p className="text-pool-700 mt-3 max-w-3xl text-sm leading-6">
+              Based on {selectedPoolTerrain.sampleCount} nearby terrain samples.
+              Lower figures generally indicate gentler ground, but they do not
+              confirm buildability.
+            </p>
+          </>
+        ) : (
+          <p className="text-pool-700 mt-1 max-w-3xl text-sm leading-6">
+            There are not enough terrain samples beneath this pool position to
+            calculate a local result.{" "}
+            {contoursAvailable ? (
+              <>Use Slope shading or Contours to compare nearby areas. </>
+            ) : null}
+            A current site survey is still required before design, excavation,
+            retaining, consent, or construction decisions.
+          </p>
+        )}
       </div>
     </section>
   );
-}
-
-function relativeSlopeColourClass(slopeDegrees: number): string {
-  if (slopeDegrees < 5) return "bg-pool-blue-100 text-pool-blue-950";
-  if (slopeDegrees < 10) return "bg-sky-100 text-sky-950";
-  if (slopeDegrees < 15) return "bg-amber-100 text-amber-950";
-  return "bg-orange-100 text-orange-950";
 }
 
 function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
