@@ -166,9 +166,11 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       name: /Map layers/,
     });
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "false");
-    await expect(legend).toContainText(
-      "Select “Check for constraints” to see terrain contours and mapped services.",
-    );
+    await expect(
+      legend.getByText(
+        "Select “Check for constraints” to see terrain contours and mapped services.",
+      ),
+    ).toHaveCount(0);
     await mapLayersToggle.click();
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "true");
     await expect(
@@ -201,6 +203,65 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
         exact: true,
       }),
     ).toBeDisabled();
+    if (initialOutcome === "complete") {
+      const clearancesPanel = legend.getByTestId("map-layer-clearances");
+      const slopePanel = legend.getByTestId("map-layer-slope");
+      const contoursPanel = legend.getByTestId("map-layer-contours");
+      const servicesPanel = legend.getByTestId("map-layer-services");
+      const desktopPanels = await Promise.all([
+        clearancesPanel.boundingBox(),
+        slopePanel.boundingBox(),
+        contoursPanel.boundingBox(),
+        servicesPanel.boundingBox(),
+      ]);
+      const [
+        desktopClearances,
+        desktopSlope,
+        desktopContours,
+        desktopServices,
+      ] = desktopPanels;
+
+      expect(desktopClearances).not.toBeNull();
+      expect(desktopSlope).not.toBeNull();
+      expect(desktopContours).not.toBeNull();
+      expect(desktopServices).not.toBeNull();
+      expect(
+        Math.abs(desktopClearances!.y - desktopSlope!.y),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(desktopClearances!.y - desktopContours!.y),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(desktopClearances!.width - desktopSlope!.width),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(desktopClearances!.width - desktopContours!.width),
+      ).toBeLessThanOrEqual(1);
+      expect(desktopServices!.y).toBeGreaterThanOrEqual(
+        desktopClearances!.y + desktopClearances!.height,
+      );
+
+      await page.setViewportSize({ width: 390, height: 844 });
+      const mobilePanels = await Promise.all([
+        clearancesPanel.boundingBox(),
+        slopePanel.boundingBox(),
+        contoursPanel.boundingBox(),
+        servicesPanel.boundingBox(),
+      ]);
+      const [mobileClearances, mobileSlope, mobileContours, mobileServices] =
+        mobilePanels;
+
+      expect(mobileSlope!.y).toBeGreaterThanOrEqual(
+        mobileClearances!.y + mobileClearances!.height,
+      );
+      expect(mobileContours!.y).toBeGreaterThanOrEqual(
+        mobileSlope!.y + mobileSlope!.height,
+      );
+      expect(mobileServices!.y).toBeGreaterThanOrEqual(
+        mobileContours!.y + mobileContours!.height,
+      );
+      await page.setViewportSize({ width: 1280, height: 720 });
+    }
     await expect(
       page.getByText(/No valid elevation data covers this property\./),
     ).toBeVisible();

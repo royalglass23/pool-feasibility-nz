@@ -1253,131 +1253,166 @@ export function FastPropertyView({
           <div
             id="fast-view-map-layers"
             hidden={!mapLayersOpen}
-            className="border-pool-200 border-t p-4 sm:p-5"
+            className="border-pool-200 border-t"
           >
-            <div className="border-pool-200 text-pool-700 border-b pb-4 text-sm">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  aria-label="Show pool-shell clearances"
-                  checked={clearancesVisible}
-                  onChange={() => setClearancesVisible((current) => !current)}
-                  disabled={poolShellClearances.length !== 4}
-                  className="accent-pool-950 size-4"
-                />
-                <span
-                  aria-hidden="true"
-                  className="w-5 border-t-2 border-dashed"
-                  style={{ borderColor: "#fff" }}
-                />
-                <span className="font-semibold">Pool-shell clearances</span>
-              </label>
-              {clearancesVisible && poolShellClearances.length === 4 ? (
-                <>
-                  <ul
-                    aria-label="Pool-shell clearance measurements"
-                    className="mt-2 grid grid-cols-2 gap-1 pl-7 text-xs font-semibold"
-                  >
-                    {poolShellClearances.map((clearance, index) => (
-                      <li key={clearance.id}>
-                        Side {index + 1}: {clearance.label}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-pool-500 mt-2 ml-7 text-xs leading-5">
-                    {POOL_SHELL_CLEARANCE_LIMITATION}
+            <div
+              className={
+                result.detailedChecks ? "grid lg:grid-cols-3" : undefined
+              }
+            >
+              <div
+                data-testid="map-layer-clearances"
+                className={`text-pool-700 p-4 text-sm sm:p-5 ${
+                  result.detailedChecks
+                    ? "border-pool-200 border-b lg:border-r lg:border-b-0"
+                    : ""
+                }`}
+              >
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    aria-label="Show pool-shell clearances"
+                    checked={clearancesVisible}
+                    onChange={() => setClearancesVisible((current) => !current)}
+                    disabled={poolShellClearances.length !== 4}
+                    className="accent-pool-950 size-4"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="w-5 border-t-2 border-dashed"
+                    style={{ borderColor: "#fff" }}
+                  />
+                  <span className="font-semibold">Pool-shell clearances</span>
+                </label>
+                {clearancesVisible && poolShellClearances.length === 4 ? (
+                  <>
+                    <ul
+                      aria-label="Pool-shell clearance measurements"
+                      className="mt-2 grid grid-cols-2 gap-1 pl-7 text-xs font-semibold"
+                    >
+                      {poolShellClearances.map((clearance, index) => (
+                        <li key={clearance.id}>
+                          Side {index + 1}: {clearance.label}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-pool-500 mt-2 ml-7 text-xs leading-5">
+                      {POOL_SHELL_CLEARANCE_LIMITATION}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-pool-500 mt-1 ml-7 text-xs leading-5">
+                    {result.boundary.geometry
+                      ? "Clearance lines are hidden."
+                      : "Clearances need a mapped property boundary."}
                   </p>
+                )}
+              </div>
+
+              {result.detailedChecks ? (
+                <>
+                  <div
+                    data-testid="map-layer-slope"
+                    className="border-pool-200 text-pool-700 border-b p-4 text-sm sm:p-5 lg:border-r lg:border-b-0"
+                  >
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        aria-label="Slope shading"
+                        checked={
+                          terrainSlopeGeometry.features.length > 0 &&
+                          terrainSlopeVisible
+                        }
+                        onChange={() =>
+                          setTerrainSlopeVisible((current) => !current)
+                        }
+                        disabled={terrainSlopeGeometry.features.length === 0}
+                        className="accent-pool-950 size-4"
+                      />
+                      <span className="font-semibold">Slope shading</span>
+                    </label>
+                    {terrainSlopeGeometry.features.length > 0 ? (
+                      <div className="mt-2 ml-6">
+                        <ul
+                          aria-label="Slope shading legend"
+                          className="grid gap-1 text-xs"
+                        >
+                          <SlopeLegendItem
+                            colour={terrainSlopeLayer.colours.lower}
+                            label="Lower slope on this property"
+                          />
+                          <SlopeLegendItem
+                            colour={terrainSlopeLayer.colours.medium}
+                            label="Medium slope on this property"
+                          />
+                          <SlopeLegendItem
+                            colour={terrainSlopeLayer.colours.higher}
+                            label="Higher slope on this property"
+                          />
+                        </ul>
+                        <p className="text-pool-500 mt-2 text-xs leading-5">
+                          Relative visual guide only—not a suitability or
+                          engineering classification.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-pool-500 mt-1 ml-6 text-xs leading-5">
+                        Location-based slope data is unavailable.
+                      </p>
+                    )}
+                  </div>
+                  <div
+                    data-testid="map-layer-contours"
+                    className="text-pool-700 p-4 text-sm sm:p-5"
+                  >
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        aria-label="Contours"
+                        checked={Boolean(mappedContours) && contoursVisible}
+                        onChange={() =>
+                          setContoursVisible((current) => !current)
+                        }
+                        disabled={!mappedContours}
+                        className="accent-pool-950 size-4"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="h-0 w-5 border-t-2 border-dashed"
+                        style={{ borderColor: contourLayer.color }}
+                      />
+                      <span className="font-semibold">Contours</span>
+                    </label>
+                    <p className="text-pool-500 mt-1 ml-11 text-xs">
+                      {mappedContours
+                        ? "Terrain contours (2016, indicative only)"
+                        : contourResult
+                          ? "No contour geometry returned"
+                          : "Contour data was not checked"}
+                    </p>
+                  </div>
                 </>
-              ) : (
-                <p className="text-pool-500 mt-1 ml-7 text-xs leading-5">
-                  {result.boundary.geometry
-                    ? "Clearance lines are hidden."
-                    : "Clearances need a mapped property boundary."}
-                </p>
-              )}
+              ) : null}
             </div>
 
             {result.detailedChecks ? (
-              <>
-                <div className="border-pool-200 text-pool-700 mt-4 border-b pb-4 text-sm">
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      aria-label="Slope shading"
-                      checked={
-                        terrainSlopeGeometry.features.length > 0 &&
-                        terrainSlopeVisible
-                      }
-                      onChange={() =>
-                        setTerrainSlopeVisible((current) => !current)
-                      }
-                      disabled={terrainSlopeGeometry.features.length === 0}
-                      className="accent-pool-950 size-4"
-                    />
-                    <span className="font-semibold">Slope shading</span>
-                  </label>
-                  {terrainSlopeGeometry.features.length > 0 ? (
-                    <div className="mt-2 ml-6">
-                      <ul
-                        aria-label="Slope shading legend"
-                        className="grid gap-1 text-xs"
-                      >
-                        <SlopeLegendItem
-                          colour={terrainSlopeLayer.colours.lower}
-                          label="Lower slope on this property"
-                        />
-                        <SlopeLegendItem
-                          colour={terrainSlopeLayer.colours.medium}
-                          label="Medium slope on this property"
-                        />
-                        <SlopeLegendItem
-                          colour={terrainSlopeLayer.colours.higher}
-                          label="Higher slope on this property"
-                        />
-                      </ul>
-                      <p className="text-pool-500 mt-2 text-xs leading-5">
-                        Relative visual guide only—not a suitability or
-                        engineering classification.
-                      </p>
-                    </div>
-                  ) : (
-                    <p className="text-pool-500 mt-1 ml-6 text-xs leading-5">
-                      Location-based slope data is unavailable.
-                    </p>
-                  )}
-                </div>
-                <div className="border-pool-200 text-pool-700 mt-4 border-b pb-4 text-sm">
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      aria-label="Contours"
-                      checked={Boolean(mappedContours) && contoursVisible}
-                      onChange={() => setContoursVisible((current) => !current)}
-                      disabled={!mappedContours}
-                      className="accent-pool-950 size-4"
-                    />
-                    <span
-                      aria-hidden="true"
-                      className="h-0 w-5 border-t-2 border-dashed"
-                      style={{ borderColor: contourLayer.color }}
-                    />
-                    <span className="font-semibold">Contours</span>
-                  </label>
-                  <p className="text-pool-500 mt-1 ml-11 text-xs">
-                    {mappedContours
-                      ? "Terrain contours (2016, indicative only)"
-                      : contourResult
-                        ? "No contour geometry returned"
-                        : "Contour data was not checked"}
-                  </p>
-                </div>
-                <ul className="text-pool-700 mt-4 space-y-3 text-sm">
+              <div
+                data-testid="map-layer-services"
+                className="border-pool-200 border-t p-4 sm:p-5"
+              >
+                <p className="text-pool-950 text-sm font-semibold">
+                  Mapped services
+                </p>
+                <ul className="text-pool-700 mt-3 grid grid-cols-2 gap-2 text-sm lg:grid-cols-5">
                   {utilityCategories.map((category) => {
                     const hasGeometry = mappedUtilityLayers.some(
                       ({ definition }) => definition.category === category.id,
                     );
                     return (
-                      <li key={category.id}>
+                      <li
+                        key={category.id}
+                        className="border-pool-200 bg-pool-50 min-w-0 rounded-sm border p-3 last:col-span-2 lg:last:col-span-1"
+                      >
                         <label className="flex cursor-pointer items-center gap-2">
                           <input
                             type="checkbox"
@@ -1406,13 +1441,8 @@ export function FastPropertyView({
                     );
                   })}
                 </ul>
-              </>
-            ) : (
-              <p className="border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900 mt-4 rounded-sm border px-3 py-2 text-sm leading-6">
-                Select “Check for constraints” to see terrain contours and
-                mapped services.
-              </p>
-            )}
+              </div>
+            ) : null}
           </div>
         </section>
         {!isInitialAddressLoad && (
