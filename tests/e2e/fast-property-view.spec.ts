@@ -332,7 +332,7 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     });
     await expect(
       page
-        .getByTestId("aerial-map-frame")
+        .getByLabel("Property check notices")
         .getByRole("heading", { name: /Needs Checking|No Warning/ }),
     ).toBeVisible();
     await expect(detailedAction).toBeVisible();
@@ -342,7 +342,18 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     const mapBounds = await page
       .getByLabel("Fast aerial map for 42A Bahari Drive, Ranui, Auckland")
       .boundingBox();
+    const noticeBounds = await page
+      .getByLabel("Property check notices")
+      .boundingBox();
+    const poolLayoutBounds = await poolLayout.boundingBox();
     const actionBounds = await detailedAction.boundingBox();
+    expect(noticeBounds!.y + noticeBounds!.height).toBeLessThanOrEqual(
+      mapBounds!.y,
+    );
+    expect(noticeBounds!.x).toBeLessThanOrEqual(mapBounds!.x);
+    expect(noticeBounds!.x + noticeBounds!.width).toBeGreaterThanOrEqual(
+      poolLayoutBounds!.x + poolLayoutBounds!.width,
+    );
     expect(actionBounds!.x).toBeGreaterThanOrEqual(
       mapBounds!.x + mapBounds!.width,
     );

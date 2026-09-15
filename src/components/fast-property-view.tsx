@@ -1094,6 +1094,62 @@ export function FastPropertyView({
         )}
       </ol>
       <div className="border-pool-200 overflow-hidden rounded-sm border">
+        {(!isInitialAddressLoad ||
+          placementMessage ||
+          mapError ||
+          result.aerial.state !== "ready") && (
+          <div
+            aria-label="Property check notices"
+            className="border-pool-200 flex flex-col gap-2 border-b bg-white p-3 sm:p-4"
+          >
+            {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
+            {placementMessage && (
+              <p
+                role="alert"
+                className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 font-semibold text-amber-950 sm:px-4 sm:py-3 sm:text-sm sm:leading-6"
+              >
+                {placementMessage}
+              </p>
+            )}
+            {mapError && (
+              <div
+                role="alert"
+                className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 font-semibold text-red-950 sm:px-4 sm:py-3 sm:text-sm sm:leading-6"
+              >
+                <p>
+                  {mapError === "aerial"
+                    ? (aerialTileRateLimitMessage(mapApiError) ??
+                      "We couldn't load the aerial photo. You can still review the property boundary; try the property check again in a minute.")
+                    : "We couldn't load the interactive map. Try the property check again in a minute."}
+                </p>
+                {detailedConstraintStatus !== "complete" && (
+                  <RetryPropertyCheckButton
+                    disabled={detailedActionDisabled}
+                    onRetry={onRetry}
+                  />
+                )}
+              </div>
+            )}
+            {!mapError && result.aerial.state !== "ready" && (
+              <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950 sm:px-4 sm:py-3 sm:text-sm sm:leading-6">
+                <p>
+                  {result.aerial.state === "loading"
+                    ? "The aerial photo is still loading. You can keep reviewing the address and mapped property area."
+                    : result.aerial.state === "unavailable"
+                      ? "An aerial photo isn't available for this property. You can still review the address and mapped property area."
+                      : "We couldn't load the aerial photo. You can still review the address and mapped property area."}
+                </p>
+                {result.aerial.state === "error" &&
+                  detailedConstraintStatus !== "complete" && (
+                    <RetryPropertyCheckButton
+                      disabled={detailedActionDisabled}
+                      onRetry={onRetry}
+                    />
+                  )}
+              </div>
+            )}
+          </div>
+        )}
         <div
           className={
             isInitialAddressLoad
@@ -1111,56 +1167,6 @@ export function FastPropertyView({
               aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
             />
             <PropertySlopeMapOverlay terrain={result.detailedChecks?.terrain} />
-            <div className="pointer-events-none absolute top-3 right-14 left-3 z-10 flex flex-col gap-2">
-              {!isInitialAddressLoad && (
-                <FastPoolWarning warning={poolWarning} />
-              )}
-              {placementMessage && (
-                <p
-                  role="alert"
-                  className="pointer-events-auto rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 font-semibold text-amber-950 sm:px-4 sm:py-3 sm:text-sm sm:leading-6"
-                >
-                  {placementMessage}
-                </p>
-              )}
-              {mapError && (
-                <div
-                  role="alert"
-                  className="pointer-events-auto rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 font-semibold text-red-950 sm:px-4 sm:py-3 sm:text-sm sm:leading-6"
-                >
-                  <p>
-                    {mapError === "aerial"
-                      ? (aerialTileRateLimitMessage(mapApiError) ??
-                        "We couldn't load the aerial photo. You can still review the property boundary; try the property check again in a minute.")
-                      : "We couldn't load the interactive map. Try the property check again in a minute."}
-                  </p>
-                  {detailedConstraintStatus !== "complete" && (
-                    <RetryPropertyCheckButton
-                      disabled={detailedActionDisabled}
-                      onRetry={onRetry}
-                    />
-                  )}
-                </div>
-              )}
-              {!mapError && result.aerial.state !== "ready" && (
-                <div className="pointer-events-auto rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950 sm:px-4 sm:py-3 sm:text-sm sm:leading-6">
-                  <p>
-                    {result.aerial.state === "loading"
-                      ? "The aerial photo is still loading. You can keep reviewing the address and mapped property area."
-                      : result.aerial.state === "unavailable"
-                        ? "An aerial photo isn't available for this property. You can still review the address and mapped property area."
-                        : "We couldn't load the aerial photo. You can still review the address and mapped property area."}
-                  </p>
-                  {result.aerial.state === "error" &&
-                    detailedConstraintStatus !== "complete" && (
-                      <RetryPropertyCheckButton
-                        disabled={detailedActionDisabled}
-                        onRetry={onRetry}
-                      />
-                    )}
-                </div>
-              )}
-            </div>
           </div>
           {!isInitialAddressLoad && (
             <div

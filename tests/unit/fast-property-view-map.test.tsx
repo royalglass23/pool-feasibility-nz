@@ -194,7 +194,7 @@ it("keeps map layers collapsed until the user asks to see them", async () => {
   ).toBeVisible();
 });
 
-it("keeps live notices over the aerial and next actions with the pool layout", async () => {
+it("keeps live notices above the workspace and next actions with the pool layout", async () => {
   render(
     <FastPropertyView
       result={{
@@ -210,15 +210,19 @@ it("keeps live notices over the aerial and next actions with the pool layout", a
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
   const aerialMapFrame = screen.getByTestId("aerial-map-frame");
+  const notices = screen.getByLabelText("Property check notices");
   const poolLayout = screen.getByLabelText(
     "Pool catalogue and placement controls",
   );
 
-  expect(aerialMapFrame).toContainElement(
+  expect(notices).toContainElement(
     screen.getByRole("heading", { name: "Needs Checking" }),
   );
-  expect(aerialMapFrame).toHaveTextContent(
+  expect(notices).toHaveTextContent(
     "An aerial photo isn't available for this property.",
+  );
+  expect(aerialMapFrame).not.toContainElement(
+    screen.getByRole("heading", { name: "Needs Checking" }),
   );
   expect(poolLayout).toContainElement(
     screen.getByRole("button", { name: "Check for constraints" }),
