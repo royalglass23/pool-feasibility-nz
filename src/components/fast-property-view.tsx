@@ -632,7 +632,7 @@ export function FastPropertyView({
               20,
               22,
             ],
-            "circle-opacity": 0.58,
+            "circle-opacity": 0.05,
             "circle-blur": 0.72,
           },
         });
