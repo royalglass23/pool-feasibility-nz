@@ -411,7 +411,7 @@ it("shows location-based slope shading and selected-pool terrain details", async
             20,
             22,
           ],
-          "circle-opacity": 0.05,
+          "circle-opacity": 0.1,
           "circle-blur": 0.72,
         }),
       }),
