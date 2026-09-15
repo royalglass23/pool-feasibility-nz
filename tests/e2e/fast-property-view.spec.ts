@@ -162,9 +162,15 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     ).toBeVisible();
     const legend = page.getByLabel("Map layers");
     await expect(legend).toBeVisible();
+    const mapLayersToggle = legend.getByRole("button", {
+      name: /Map layers/,
+    });
+    await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "false");
     await expect(legend).toContainText(
       "Select “Check for constraints” to see terrain contours and mapped services.",
     );
+    await mapLayersToggle.click();
+    await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "true");
     await expect(
       page.getByRole("button", { name: "Check for constraints" }),
     ).toBeVisible();
@@ -340,11 +346,16 @@ test("supports the pool catalogue and bounded custom input", async ({
   expect(desktopControls!.x).toBeGreaterThanOrEqual(
     desktopMap!.x + desktopMap!.width,
   );
+  expect(Math.abs(desktopControls!.y - desktopMap!.y)).toBeLessThanOrEqual(1);
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileControls = await placementControls.boundingBox();
   const mobileMap = await aerialMap.boundingBox();
+  const mobileLayers = await page.getByLabel("Map layers").boundingBox();
+  expect(mobileMap!.y + mobileMap!.height).toBeLessThanOrEqual(
+    mobileControls!.y,
+  );
   expect(mobileControls!.y + mobileControls!.height).toBeLessThanOrEqual(
-    mobileMap!.y,
+    mobileLayers!.y,
   );
 
   await expect(

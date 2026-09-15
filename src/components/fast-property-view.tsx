@@ -213,6 +213,7 @@ export function FastPropertyView({
   const [contoursVisible, setContoursVisible] = useState(true);
   const [terrainSlopeVisible, setTerrainSlopeVisible] = useState(true);
   const [clearancesVisible, setClearancesVisible] = useState(true);
+  const [mapLayersOpen, setMapLayersOpen] = useState(false);
   const [initialPlacement] = useState(() => defaultPlacement(result));
   const [position, setPosition] = useState<[number, number]>(
     initialPlacement.position,
@@ -399,6 +400,17 @@ export function FastPropertyView({
     [contoursVisible, mappedContours, mappedUtilityLayers, utilityVisibility],
   );
   const visibleMapLayerKeysRef = useRef<DatasetKey[]>(visibleMapLayerKeys);
+  const visibleMapLayerCount =
+    (clearancesVisible && poolShellClearances.length === 4 ? 1 : 0) +
+    (terrainSlopeVisible && terrainSlopeGeometry.features.length > 0 ? 1 : 0) +
+    (contoursVisible && mappedContours ? 1 : 0) +
+    utilityCategories.filter(
+      (category) =>
+        utilityVisibility[category.id] &&
+        mappedUtilityLayers.some(
+          ({ definition }) => definition.category === category.id,
+        ),
+    ).length;
   const mapBoundaryGeometry = result.boundary.geometry;
   const mapCoordinates = result.resolvedAddress.coordinates;
   const mapAerialState = result.aerial.state;
@@ -1082,11 +1094,25 @@ export function FastPropertyView({
         )}
       </ol>
       <div className="border-pool-200 overflow-hidden rounded-sm border">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_22rem]">
+        <div
+          className={
+            isInitialAddressLoad
+              ? "grid"
+              : "grid lg:grid-cols-[minmax(0,1fr)_22rem]"
+          }
+        >
+          <div className="relative order-1 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-[600px]">
+            <div
+              ref={mapRef}
+              className="bg-pool-800 h-full w-full"
+              aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
+            />
+            <PropertySlopeMapOverlay terrain={result.detailedChecks?.terrain} />
+          </div>
           {!isInitialAddressLoad && (
             <div
               aria-label="Pool catalogue and placement controls"
-              className="border-pool-200 order-1 space-y-4 border-b bg-white p-4 lg:col-start-2 lg:row-start-1 lg:border-l"
+              className="border-pool-200 order-2 space-y-4 border-t bg-white p-4 lg:col-start-2 lg:row-start-1 lg:border-t-0 lg:border-l"
             >
               <div>
                 <h3 className="text-pool-950 font-semibold">
@@ -1187,20 +1213,49 @@ export function FastPropertyView({
               )}
             </div>
           )}
-          <div className="relative order-2 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-full lg:min-h-[600px]">
-            <div
-              ref={mapRef}
-              className="bg-pool-800 h-full w-full"
-              aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
-            />
-            <PropertySlopeMapOverlay terrain={result.detailedChecks?.terrain} />
-          </div>
-          <aside
-            aria-label="Map layers"
-            className="border-pool-200 order-3 border-t bg-white p-4 lg:col-start-2 lg:row-start-2 lg:border-t-0 lg:border-l"
+        </div>
+        <section
+          aria-label="Map layers"
+          className="border-pool-200 border-t bg-white"
+        >
+          <button
+            type="button"
+            aria-expanded={mapLayersOpen}
+            aria-controls="fast-view-map-layers"
+            onClick={() => setMapLayersOpen((current) => !current)}
+            className="hover:bg-pool-50 focus-visible:outline-pool-blue-700 grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3 text-left transition-colors focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] sm:px-5"
           >
-            <h3 className="text-pool-950 font-semibold">Map layers</h3>
-            <div className="border-pool-200 text-pool-700 mt-4 border-b pb-4 text-sm">
+            <span>
+              <span className="text-pool-950 block font-semibold">
+                Map layers
+              </span>
+              <span className="text-pool-600 mt-0.5 block text-xs leading-5 sm:text-sm">
+                Clearances, slope, contours and mapped services
+              </span>
+            </span>
+            <span className="border-pool-200 text-pool-600 hidden rounded-full border bg-white px-2.5 py-1 text-xs font-semibold tabular-nums sm:inline">
+              {visibleMapLayerCount}{" "}
+              {visibleMapLayerCount === 1 ? "layer" : "layers"} shown
+            </span>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              className={`text-pool-700 size-5 transition-transform ${mapLayersOpen ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m5 7.5 5 5 5-5" />
+            </svg>
+          </button>
+          <div
+            id="fast-view-map-layers"
+            hidden={!mapLayersOpen}
+            className="border-pool-200 border-t p-4 sm:p-5"
+          >
+            <div className="border-pool-200 text-pool-700 border-b pb-4 text-sm">
               <label className="flex cursor-pointer items-center gap-2">
                 <input
                   type="checkbox"
@@ -1358,8 +1413,8 @@ export function FastPropertyView({
                 mapped services.
               </p>
             )}
-          </aside>
-        </div>
+          </div>
+        </section>
         {!isInitialAddressLoad && (
           <div className="flex justify-end bg-white px-4 py-3 text-sm">
             <p className="text-pool-600">

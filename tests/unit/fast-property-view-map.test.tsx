@@ -169,6 +169,31 @@ afterEach(() => {
   setLayoutProperty.mockClear();
 });
 
+function openMapLayers() {
+  const toggle = screen.getByRole("button", { name: /Map layers/ });
+  if (toggle.getAttribute("aria-expanded") === "false") {
+    fireEvent.click(toggle);
+  }
+}
+
+it("keeps map layers collapsed until the user asks to see them", async () => {
+  render(<FastPropertyView result={fastResult} onRetry={() => {}} />);
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const toggle = screen.getByRole("button", { name: /Map layers/ });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(
+    screen.queryByRole("checkbox", { name: "Show pool-shell clearances" }),
+  ).not.toBeInTheDocument();
+
+  fireEvent.click(toggle);
+
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(
+    screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
+  ).toBeVisible();
+});
+
 it("keeps the rotate control visible and interactive while taking a snapshot", async () => {
   const onSnapshotReady = vi.fn();
   render(
@@ -200,13 +225,15 @@ it.each(["layer", "camera", "clearances"])(
     await waitFor(() => expect(canvasSnapshot).toHaveBeenCalled());
     if (change === "camera")
       mapEventHandlers.get("movestart:map")?.({} as MapEvent);
-    else
+    else {
+      openMapLayers();
       await userEvent.setup().click(
         screen.getByRole("checkbox", {
           name:
             change === "layer" ? "Wastewater" : "Show pool-shell clearances",
         }),
       );
+    }
     expect(onSnapshotReady).toHaveBeenLastCalledWith(null);
     canvasSnapshot.mockReturnValue("data:image/png;base64,new");
     mapEventHandlers.get("idle:map")?.({} as MapEvent);
@@ -240,6 +267,7 @@ it("shows detailed map controls without restoring the detailed checks panel", as
   expect(
     screen.queryByText("Detailed official checks"),
   ).not.toBeInTheDocument();
+  openMapLayers();
   expect(screen.getByRole("checkbox", { name: "Contours" })).toBeDisabled();
   expect(screen.getByRole("checkbox", { name: "Stormwater" })).toBeDisabled();
   expect(screen.getByRole("checkbox", { name: "Wastewater" })).toBeChecked();
@@ -329,6 +357,7 @@ it("shows location-based slope shading and selected-pool terrain details", async
   expect(
     screen.queryByText("Creative Commons Attribution 4.0 International"),
   ).not.toBeInTheDocument();
+  openMapLayers();
   expect(screen.getByRole("checkbox", { name: "Slope shading" })).toBeChecked();
   expect(screen.getByText("Lower slope on this property")).toBeVisible();
   expect(screen.getByText("Medium slope on this property")).toBeVisible();
@@ -574,6 +603,7 @@ it("positions each visible clearance label outside the mapped boundary", async (
     },
   );
 
+  openMapLayers();
   await user.click(
     screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
   );
@@ -592,6 +622,7 @@ it("shows live pool-shell clearances by default and preserves the selected visib
   );
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  openMapLayers();
   expect(
     screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
   ).toBeChecked();
@@ -712,6 +743,7 @@ it("keeps hidden pool-shell clearances hidden when a map input update recreates 
   );
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  openMapLayers();
   await user.click(
     screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
   );
@@ -782,6 +814,7 @@ it("draws returned contours and lets the user hide them", async () => {
   expect(style.layers).toEqual(
     expect.arrayContaining([expect.objectContaining({ id: "contours" })]),
   );
+  openMapLayers();
   const contours = screen.getByRole("checkbox", { name: "Contours" });
   expect(contours).toBeChecked();
   await user.click(contours);
