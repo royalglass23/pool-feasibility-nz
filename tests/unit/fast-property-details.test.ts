@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { executeFastPropertyDetailsRequest } from "@/modules/data-access-spike/execute-fast-property-details";
 import { createDataAccessGateway } from "../fixtures/normalized-data-access";
-import type { FeatureCollection, Geometry } from "geojson";
+import type { FeatureCollection, Geometry, Polygon } from "geojson";
 import { queryableDatasetKeys } from "@/modules/data-access-spike/dataset-catalog";
 import type { DatasetEvidence } from "@/modules/data-access-spike/data-access-gateway";
 
@@ -68,6 +68,57 @@ describe("executeFastPropertyDetailsRequest", () => {
     });
     expect(assessParcel).toHaveBeenCalledWith(
       expect.objectContaining({ type: "Polygon" }),
+    );
+  });
+
+  it("keeps terrain assessment independent of pool position, size, and rotation", async () => {
+    const assessParcel = vi.fn(async (parcel: Polygon) => {
+      void parcel;
+      return {
+        status: "needs_checking" as const,
+        reasons: ["Terrain fixture completed."],
+      };
+    });
+    const gateway = createDataAccessGateway();
+    const baseBody = {
+      mode: "detailed" as const,
+      addressId: "2359811",
+      coordinates: [174.607906917203, -36.8602038189915] as [number, number],
+    };
+    const poolPositions = [
+      [
+        [174.6078, -36.8603],
+        [174.6079, -36.8603],
+        [174.6079, -36.8602],
+        [174.6078, -36.8602],
+        [174.6078, -36.8603],
+      ],
+      [
+        [174.608, -36.8604],
+        [174.6082, -36.8603],
+        [174.6081, -36.8601],
+        [174.6079, -36.8602],
+        [174.608, -36.8604],
+      ],
+    ] as const;
+
+    for (const coordinates of poolPositions) {
+      await executeFastPropertyDetailsRequest({
+        body: {
+          ...baseBody,
+          constructionEnvelopeGeometry: {
+            type: "Polygon",
+            coordinates: [coordinates.map((position) => [...position])],
+          },
+        },
+        gateway,
+        terrain: { assessParcel },
+      });
+    }
+
+    expect(assessParcel).toHaveBeenCalledTimes(2);
+    expect(assessParcel.mock.calls[0][0]).toEqual(
+      assessParcel.mock.calls[1][0],
     );
   });
 

@@ -1,7 +1,25 @@
 import type { Polygon } from "geojson";
 import type { DatasetEvidence } from "@/modules/data-access-spike/data-access-gateway";
 
-export type PropertyTerrainSource = DatasetEvidence;
+export type PropertyTerrainSource = DatasetEvidence & {
+  contributingAssets?: readonly {
+    provider: string;
+    dataset: string;
+    datasetIdentifier: string;
+    stacCollectionUrl: string;
+    assetUrl: string;
+    stacItemUrl: string;
+    assetChecksum: string;
+    assetUpdatedAt: string;
+    retrievedAt: string;
+    boundsNztm: {
+      minimumEast: number;
+      minimumNorth: number;
+      maximumEast: number;
+      maximumNorth: number;
+    };
+  }[];
+};
 
 export type PropertyTerrainAssessment =
   | {

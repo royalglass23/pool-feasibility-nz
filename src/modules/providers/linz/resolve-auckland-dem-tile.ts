@@ -34,6 +34,11 @@ export type ResolvedAucklandDemTile = {
   provenance: Omit<AucklandDemSourceMetadata, "retrievedAt">;
 };
 
+export type AucklandDemTilesResolution =
+  | { status: "resolved"; tiles: readonly ResolvedAucklandDemTile[] }
+  | { status: "invalid_catalogue" }
+  | { status: "no_coverage" };
+
 export type AucklandDemTileResolution =
   | ResolvedAucklandDemTile
   | { status: "invalid_catalogue" }
@@ -61,6 +66,35 @@ export function resolveAucklandDemTile(input: {
   }
 
   return {
+    ...resolvedTile(tile, input.catalogue),
+  };
+}
+
+export function resolveAucklandDemTiles(input: {
+  analysisGeometry: Polygon;
+  catalogue: AucklandDemTileCatalogue;
+}): AucklandDemTilesResolution {
+  if (!isAucklandDemTileCatalogue(input.catalogue)) {
+    return { status: "invalid_catalogue" };
+  }
+
+  const tiles = input.catalogue.tiles
+    .filter((candidate) =>
+      booleanIntersects(input.analysisGeometry, candidate.wgs84Geometry),
+    )
+    .sort(compareTilePosition)
+    .map((tile) => resolvedTile(tile, input.catalogue));
+
+  return tiles.length > 0
+    ? { status: "resolved", tiles }
+    : { status: "no_coverage" };
+}
+
+function resolvedTile(
+  tile: AucklandDemTileCatalogueEntry,
+  catalogue: AucklandDemTileCatalogue,
+): ResolvedAucklandDemTile {
+  return {
     status: "resolved",
     assetUrl: tile.assetUrl,
     wgs84Geometry: tile.wgs84Geometry,
@@ -68,16 +102,35 @@ export function resolveAucklandDemTile(input: {
       stacItemUrl: tile.stacItemUrl,
       assetChecksum: tile.assetChecksum,
       assetUpdatedAt: tile.assetUpdatedAt,
-      horizontalCrs: input.catalogue.horizontalCrs,
-      horizontalUnit: input.catalogue.horizontalUnit,
-      verticalDatum: input.catalogue.verticalDatum,
-      elevationUnit: input.catalogue.elevationUnit,
-      gridResolutionMetres: input.catalogue.gridResolutionMetres,
-      licence: input.catalogue.licence,
-      licenceUrl: input.catalogue.licenceUrl,
-      attribution: { ...input.catalogue.attribution },
+      horizontalCrs: catalogue.horizontalCrs,
+      horizontalUnit: catalogue.horizontalUnit,
+      verticalDatum: catalogue.verticalDatum,
+      elevationUnit: catalogue.elevationUnit,
+      gridResolutionMetres: catalogue.gridResolutionMetres,
+      licence: catalogue.licence,
+      licenceUrl: catalogue.licenceUrl,
+      attribution: { ...catalogue.attribution },
     },
   };
+}
+
+function compareTilePosition(
+  left: AucklandDemTileCatalogueEntry,
+  right: AucklandDemTileCatalogueEntry,
+): number {
+  const leftPositions = left.wgs84Geometry.coordinates.flat();
+  const rightPositions = right.wgs84Geometry.coordinates.flat();
+  const leftWest = Math.min(...leftPositions.map(([longitude]) => longitude));
+  const rightWest = Math.min(...rightPositions.map(([longitude]) => longitude));
+  const leftSouth = Math.min(...leftPositions.map(([, latitude]) => latitude));
+  const rightSouth = Math.min(
+    ...rightPositions.map(([, latitude]) => latitude),
+  );
+  return (
+    leftSouth - rightSouth ||
+    leftWest - rightWest ||
+    left.id.localeCompare(right.id)
+  );
 }
 
 export function isAucklandDemTileCatalogue(

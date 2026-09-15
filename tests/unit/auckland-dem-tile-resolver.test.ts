@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Polygon } from "geojson";
 import {
   resolveAucklandDemTile,
+  resolveAucklandDemTiles,
   type AucklandDemTileCatalogue,
 } from "@/modules/providers/linz/resolve-auckland-dem-tile";
 
@@ -96,6 +97,26 @@ describe("Auckland DEM tile resolver", () => {
         catalogue,
       }),
     ).toEqual({ status: "tile_boundary" });
+  });
+
+  it("resolves every intersecting tile in stable spatial order", () => {
+    const catalogue = catalogueWith([
+      tile("BA33_10000_0303", rectangle(175.14, -36.8, 175.18, -36.76)),
+      tile("BA32_10000_0303", rectangle(175.1, -36.8, 175.14, -36.76)),
+    ]);
+
+    expect(
+      resolveAucklandDemTiles({
+        analysisGeometry: rectangle(175.139, -36.79, 175.141, -36.78),
+        catalogue,
+      }),
+    ).toMatchObject({
+      status: "resolved",
+      tiles: [
+        { assetUrl: expect.stringContaining("BA32_10000_0303.tiff") },
+        { assetUrl: expect.stringContaining("BA33_10000_0303.tiff") },
+      ],
+    });
   });
 });
 

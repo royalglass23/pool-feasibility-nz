@@ -53,7 +53,19 @@ export function assessPoolAreaSlope(input: {
     for (let column = 0; column < grid.width - 1; column += 1) {
       const east = grid.originEastMetres + (column + 0.5) * grid.cellSizeMetres;
       const north = grid.originNorthMetres + (row + 0.5) * grid.cellSizeMetres;
-      if (!booleanPointInPolygon(point([east, north]), footprint)) continue;
+      if (
+        !booleanPointInPolygon(point([east, north]), footprint) ||
+        !booleanPointInPolygon(
+          point([east + grid.cellSizeMetres, north]),
+          footprint,
+        ) ||
+        !booleanPointInPolygon(
+          point([east, north + grid.cellSizeMetres]),
+          footprint,
+        )
+      ) {
+        continue;
+      }
       coveredNeighbourhoodCount += 1;
 
       const current = elevationAt(grid, column, row);

@@ -18,42 +18,79 @@ export function projectWgs84PolygonToNztm(polygon: Polygon): Polygon {
   };
 }
 
+export function projectNztmPolygonToWgs84(polygon: Polygon): Polygon {
+  assertValidNztmPolygonStructure(polygon);
+
+  return {
+    type: "Polygon",
+    coordinates: polygon.coordinates.map((ring) =>
+      ring.map(([east, north]) => proj4(NZTM2000, WGS84, [east, north])),
+    ),
+  };
+}
+
+function assertValidNztmPolygonStructure(polygon: Polygon): void {
+  assertPolygonStructure({
+    polygon,
+    coordinateSystem: "NZTM",
+    invalidPositionMessage: "positions require finite eastings and northings.",
+    isValidPosition: (position) =>
+      Array.isArray(position) &&
+      position.length >= 2 &&
+      Number.isFinite(position[0]) &&
+      Number.isFinite(position[1]),
+  });
+}
+
 function assertValidPolygonStructure(polygon: Polygon): void {
+  assertPolygonStructure({
+    polygon,
+    coordinateSystem: "WGS84",
+    invalidPositionMessage:
+      "positions require finite longitude and latitude within WGS84 bounds.",
+    isValidPosition: positionIsWithinWgs84Bounds,
+  });
+}
+
+function assertPolygonStructure(input: {
+  polygon: Polygon;
+  coordinateSystem: "WGS84" | "NZTM";
+  invalidPositionMessage: string;
+  isValidPosition: (position: Position) => boolean;
+}): void {
+  const prefix = `Invalid ${input.coordinateSystem} polygon`;
+  const polygon = input.polygon;
   if (
     polygon.type !== "Polygon" ||
     !Array.isArray(polygon.coordinates) ||
     polygon.coordinates.length === 0
   ) {
-    throw new TypeError("Invalid WGS84 polygon: coordinates are required.");
+    throw new TypeError(`${prefix}: coordinates are required.`);
   }
 
   for (const ring of polygon.coordinates) {
     if (!Array.isArray(ring) || ring.length < 4) {
       throw new TypeError(
-        "Invalid WGS84 polygon: every linear ring needs at least four positions.",
+        `${prefix}: every linear ring needs at least four positions.`,
       );
     }
 
     for (let positionIndex = 0; positionIndex < ring.length; positionIndex++) {
       if (!(positionIndex in ring)) {
         throw new TypeError(
-          "Invalid WGS84 polygon: every linear ring position must be present.",
+          `${prefix}: every linear ring position must be present.`,
         );
       }
 
-      if (!positionIsWithinWgs84Bounds(ring[positionIndex])) {
-        throw new TypeError(
-          "Invalid WGS84 polygon: positions require finite longitude and latitude within WGS84 bounds.",
-        );
+      if (!input.isValidPosition(ring[positionIndex])) {
+        throw new TypeError(`${prefix}: ${input.invalidPositionMessage}`);
       }
     }
 
     const first = ring[0];
     const last = ring.at(-1);
     if (first[0] !== last?.[0] || first[1] !== last?.[1]) {
-      throw new TypeError(
-        "Invalid WGS84 polygon: every linear ring must be closed.",
-      );
+      throw new TypeError(`${prefix}: every linear ring must be closed.`);
     }
   }
 }

@@ -1,6 +1,9 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Polygon } from "geojson";
-import { projectWgs84PolygonToNztm } from "@/modules/providers/linz/project-auckland-dem-geometry";
+import {
+  projectNztmPolygonToWgs84,
+  projectWgs84PolygonToNztm,
+} from "@/modules/providers/linz/project-auckland-dem-geometry";
 
 vi.mock("server-only", () => ({}));
 
@@ -30,6 +33,30 @@ describe("Auckland DEM geometry projection", () => {
         oneMetreEast[1] - addressPoint[1],
       ),
     ).toBeCloseTo(1, 3);
+  });
+
+  it("round-trips a padded NZTM analysis window for catalogue intersection", () => {
+    const nztmWindow: Polygon = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [1_743_300, 5_919_400],
+          [1_743_380, 5_919_400],
+          [1_743_380, 5_919_480],
+          [1_743_300, 5_919_480],
+          [1_743_300, 5_919_400],
+        ],
+      ],
+    };
+
+    const roundTrip = projectWgs84PolygonToNztm(
+      projectNztmPolygonToWgs84(nztmWindow),
+    );
+
+    roundTrip.coordinates[0].forEach((position, index) => {
+      expect(position[0]).toBeCloseTo(nztmWindow.coordinates[0][index][0], 4);
+      expect(position[1]).toBeCloseTo(nztmWindow.coordinates[0][index][1], 4);
+    });
   });
 
   it("rejects a construction-envelope ring that is not closed", () => {

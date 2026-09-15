@@ -2,7 +2,9 @@ import type { Polygon } from "geojson";
 import { aucklandDemTileCatalogue } from "../src/modules/providers/linz/auckland-dem-tile-catalogue";
 import { resolveAucklandDemTile } from "../src/modules/providers/linz/resolve-auckland-dem-tile";
 import type { AucklandDemProvenance } from "../src/modules/providers/linz/read-auckland-dem-window";
+import type { PropertyTerrainSource } from "../src/modules/terrain/property-terrain";
 import { createAucklandPropertyTerrainGateway } from "../src/modules/terrain/auckland-property-terrain";
+import { KNOWN_AUCKLAND_DEM_BOUNDARY_PARCEL } from "../src/modules/terrain/known-auckland-dem-boundary-parcel";
 
 const LOCATIONS = [
   { label: "West Auckland", longitude: 174.6079, latitude: -36.8602 },
@@ -13,7 +15,7 @@ const LOCATIONS = [
 async function main(): Promise<void> {
   if (!process.argv.includes("--live")) {
     console.error(
-      "Live Auckland DEM access is opt-in. Re-run with --live to read three bounded public COG windows.",
+      "Live Auckland DEM access is opt-in. Re-run with --live to read bounded public COG windows, including a known tile-boundary parcel.",
     );
     process.exitCode = 2;
     return;
@@ -64,6 +66,43 @@ async function main(): Promise<void> {
       },
     });
   }
+
+  const boundaryAssessment = await terrain.assessParcel(
+    KNOWN_AUCKLAND_DEM_BOUNDARY_PARCEL.geometry,
+  );
+  if (boundaryAssessment.status !== "measured") {
+    throw new Error(
+      `${KNOWN_AUCKLAND_DEM_BOUNDARY_PARCEL.address}: ${boundaryAssessment.reasons.join(" ")}`,
+    );
+  }
+  const boundarySource = boundaryAssessment.source as PropertyTerrainSource &
+    AucklandDemProvenance;
+  if ((boundarySource.contributingAssets?.length ?? 0) < 2) {
+    throw new Error(
+      `${KNOWN_AUCKLAND_DEM_BOUNDARY_PARCEL.address} did not read every contributing DEM tile.`,
+    );
+  }
+  results.push({
+    location: KNOWN_AUCKLAND_DEM_BOUNDARY_PARCEL.address,
+    tileId: boundarySource.contributingAssets
+      ?.map(({ assetUrl }) => assetUrl.split("/").at(-1)?.replace(".tiff", ""))
+      .join(" + "),
+    averageSlopeDegrees: boundaryAssessment.averageSlopeDegrees,
+    upperSlopeDegrees: boundaryAssessment.upperSlopeDegrees,
+    provenance: {
+      dataset: boundarySource.dataset,
+      stacItemUrl: boundarySource.stacItemUrl,
+      assetUrl: boundarySource.assetUrl,
+      assetChecksum: boundarySource.assetChecksum,
+      assetUpdatedAt: boundarySource.assetUpdatedAt,
+      horizontalCrs: boundarySource.horizontalCrs,
+      gridResolutionMetres: boundarySource.gridResolutionMetres,
+      verticalDatum: boundarySource.verticalDatum,
+      licence: boundarySource.licence,
+      attribution: boundarySource.attribution,
+      contributingAssets: boundarySource.contributingAssets,
+    },
+  });
 
   console.log(
     JSON.stringify(

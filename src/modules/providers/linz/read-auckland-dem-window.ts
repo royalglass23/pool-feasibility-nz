@@ -52,6 +52,12 @@ export type NztmBounds = {
   maximumNorth: number;
 };
 
+export type AucklandDemTransferBudget = { remainingBytes: number };
+
+export function createAucklandDemTransferBudget(): AucklandDemTransferBudget {
+  return { remainingBytes: MAX_DEM_TRANSFER_BYTES };
+}
+
 export type AucklandDemProvenance = Pick<
   DatasetEvidence,
   | "provider"
@@ -89,6 +95,7 @@ export async function readAucklandDemWindow(input: {
   assetUrl: string;
   boundsNztm: NztmBounds;
   provenance: AucklandDemSourceMetadata;
+  transferBudget?: AucklandDemTransferBudget;
 }): Promise<AucklandDemWindowResult> {
   const boundsIssue = validateBounds(input.boundsNztm);
   if (boundsIssue) {
@@ -112,7 +119,8 @@ export async function readAucklandDemWindow(input: {
   }
 
   return runWithProviderConcurrency("linz", async () => {
-    const transferBudget = { remainingBytes: MAX_DEM_TRANSFER_BYTES };
+    const transferBudget =
+      input.transferBudget ?? createAucklandDemTransferBudget();
     const retryCount = providerRetryCount();
     for (let attempt = 0; attempt <= retryCount; attempt += 1) {
       let tiff: Awaited<ReturnType<typeof fromCustomClient>> | null = null;
