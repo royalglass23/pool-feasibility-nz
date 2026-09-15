@@ -9,6 +9,12 @@ import {
   type RemoteSourceOptions,
 } from "geotiff";
 import type { DatasetEvidence } from "@/modules/data-access-spike/data-access-gateway";
+import {
+  AUCKLAND_DEM_DATASETS,
+  isAucklandDemIsoTimestamp,
+  matchesAucklandDemRequiredMetadata,
+  type AucklandDemRequiredMetadata,
+} from "@/modules/providers/linz/auckland-dem-source-contract";
 import type { TerrainGrid } from "@/modules/terrain/assess-pool-area-slope";
 import {
   BodyLimitError,
@@ -22,28 +28,6 @@ const AUCKLAND_DEM_HOSTS = new Set([
   "nz-elevation.s3-ap-southeast-2.amazonaws.com",
   "nz-elevation.s3.ap-southeast-2.amazonaws.com",
 ]);
-const AUCKLAND_DEM_DATASETS = [
-  {
-    path: "/auckland/auckland-part-1_2024/dem_1m/2193/",
-    dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
-    datasetIdentifier:
-      "https://data.linz.govt.nz/layer/121990-auckland-part-1-lidar-1m-dem-2024/",
-    datasetDate: "2024-04-30/2024-06-27",
-  },
-  {
-    path: "/auckland/auckland-part-2_2024/dem_1m/2193/",
-    dataset: "Auckland Part 2 LiDAR 1m DEM (2024)",
-    datasetIdentifier:
-      "https://data.linz.govt.nz/layer/122580-auckland-part-2-lidar-1m-dem-2024/",
-    datasetDate: "2024-06-26/2024-11-04",
-  },
-] as const;
-const AUCKLAND_DEM_LICENCE = "Creative Commons Attribution 4.0 International";
-const AUCKLAND_DEM_LICENCE_URL = "https://creativecommons.org/licenses/by/4.0/";
-const AUCKLAND_DEM_ATTRIBUTION = {
-  text: "Sourced from the LINZ Data Service and licensed by Regional Software Holdings Limited, for re-use under the Creative Commons Attribution 4.0 International licence.",
-  url: "https://www.linz.govt.nz/products-services/data/licensing-and-using-data/attributing-elevation-or-aerial-imagery-data",
-} as const;
 const MAX_WINDOW_METRES = 100;
 const MAX_DEM_GRID_CELLS = MAX_WINDOW_METRES * MAX_WINDOW_METRES;
 const MAX_DEM_TRANSFER_BYTES = 4_000_000;
@@ -54,7 +38,7 @@ const AUCKLAND_DEM_SOURCE_OPTIONS = {
   cacheSize: 32,
 } satisfies RemoteSourceOptions & BlockedSourceOptions;
 
-export type AucklandDemSourceMetadata = {
+export type AucklandDemSourceMetadata = AucklandDemRequiredMetadata & {
   stacItemUrl: string;
   assetChecksum: string;
   assetUpdatedAt: string;
@@ -88,12 +72,6 @@ export type AucklandDemProvenance = Pick<
   AucklandDemSourceMetadata & {
     stacCollectionUrl: string;
     assetUrl: string;
-    licenceUrl: string;
-    horizontalCrs: "EPSG:2193";
-    horizontalUnit: "metre";
-    verticalDatum: "NZVD2016";
-    elevationUnit: "metre";
-    gridResolutionMetres: 1;
   };
 
 export type AucklandDemWindowResult =
@@ -472,8 +450,9 @@ function validatedAucklandDemProvenance(
       !AUCKLAND_DEM_HOSTS.has(stacItem.hostname) ||
       stacItem.pathname !== `${dataset.path}${assetName}.json` ||
       !/^1220[0-9a-f]{64}$/i.test(source.assetChecksum) ||
-      !isIsoTimestamp(source.assetUpdatedAt) ||
-      !isIsoTimestamp(source.retrievedAt)
+      !isAucklandDemIsoTimestamp(source.assetUpdatedAt) ||
+      !isAucklandDemIsoTimestamp(source.retrievedAt) ||
+      !matchesAucklandDemRequiredMetadata(source)
     ) {
       return null;
     }
@@ -487,34 +466,27 @@ function validatedAucklandDemProvenance(
       evidenceUse: "spike_only",
       retrievedAt: source.retrievedAt,
       datasetDate: dataset.datasetDate,
-      licence: AUCKLAND_DEM_LICENCE,
-      licenceUrl: AUCKLAND_DEM_LICENCE_URL,
-      attribution: { ...AUCKLAND_DEM_ATTRIBUTION },
+      licence: source.licence,
+      licenceUrl: source.licenceUrl,
+      attribution: { ...source.attribution },
       geometryUsed: "Bounded 1 m bare-earth elevation grid in NZTM2000",
       attributesUsed: ["elevation_metres"],
       evidenceType: "terrain_elevation_grid",
       confidence: "limited",
-      stacCollectionUrl: `${asset.origin}${dataset.path}collection.json`,
+      stacCollectionUrl: dataset.collectionUrl,
       stacItemUrl: stacItem.href,
       assetUrl: asset.href,
       assetChecksum: source.assetChecksum.toLowerCase(),
       assetUpdatedAt: source.assetUpdatedAt,
-      horizontalCrs: "EPSG:2193",
-      horizontalUnit: "metre",
-      verticalDatum: "NZVD2016",
-      elevationUnit: "metre",
-      gridResolutionMetres: 1,
+      horizontalCrs: source.horizontalCrs,
+      horizontalUnit: source.horizontalUnit,
+      verticalDatum: source.verticalDatum,
+      elevationUnit: source.elevationUnit,
+      gridResolutionMetres: source.gridResolutionMetres,
     };
   } catch {
     return null;
   }
-}
-
-function isIsoTimestamp(value: string): boolean {
-  return (
-    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d{3})?Z$/.test(value) &&
-    Number.isFinite(Date.parse(value))
-  );
 }
 
 async function confirmsOfficialStacMetadata(

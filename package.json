@@ -21,6 +21,8 @@
     "coverage:linz": "tsx scripts/verify-nationwide-linz-coverage.ts",
     "spike:verify-aerial": "tsx scripts/verify-aerial-alignment.ts",
     "spike:terrain-slope": "node --conditions=react-server --import tsx scripts/probe-auckland-dem-slope.ts",
+    "terrain:catalogue:generate": "tsx scripts/generate-auckland-dem-catalogue.ts",
+    "terrain:catalogue:probe": "node --conditions=react-server --import tsx scripts/probe-auckland-dem-catalogue.ts",
     "diagnose:map-alignment": "node --conditions=react-server --import tsx scripts/diagnose-map-alignment.ts --assert",
     "diagnose:map-alignment:h1": "node --conditions=react-server --import tsx scripts/diagnose-map-alignment.ts --probe-h1",
     "diagnose:map-alignment:h2": "node --conditions=react-server --import tsx scripts/diagnose-map-alignment.ts --probe-h2",

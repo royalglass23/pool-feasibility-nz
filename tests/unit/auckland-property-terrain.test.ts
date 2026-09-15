@@ -1,5 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Polygon } from "geojson";
+import type { AucklandDemProvenance } from "@/modules/providers/linz/read-auckland-dem-window";
 import {
   createAucklandPropertyTerrainGateway,
   type AucklandTerrainWindowReader,
@@ -41,7 +42,7 @@ const validatedProvenance = {
   verticalDatum: "NZVD2016" as const,
   elevationUnit: "metre" as const,
   gridResolutionMetres: 1 as const,
-};
+} satisfies AucklandDemProvenance;
 
 describe("Auckland property terrain", () => {
   it("derives indicative slope for the mapped property parcel at 42A Bahari Drive", async () => {
@@ -113,4 +114,184 @@ describe("Auckland property terrain", () => {
     expect(result.averageSlopeDegrees).toBeCloseTo(2.8624052261117474, 10);
     expect(result.upperSlopeDegrees).toBeCloseTo(2.862405226111749, 10);
   });
+
+  it("assesses a parcel outside BA31 with the tile selected by the Auckland catalogue", async () => {
+    const readWindow: AucklandTerrainWindowReader = vi.fn(async (input) => {
+      const width = input.boundsNztm.maximumEast - input.boundsNztm.minimumEast;
+      const height =
+        input.boundsNztm.maximumNorth - input.boundsNztm.minimumNorth;
+      return {
+        status: "available" as const,
+        provenance: {
+          ...validatedProvenance,
+          stacItemUrl: input.provenance.stacItemUrl,
+          assetUrl: input.assetUrl,
+          assetChecksum: input.provenance.assetChecksum,
+          assetUpdatedAt: input.provenance.assetUpdatedAt,
+          retrievedAt: input.provenance.retrievedAt,
+        },
+        grid: {
+          width,
+          height,
+          originEastMetres: input.boundsNztm.minimumEast,
+          originNorthMetres: input.boundsNztm.minimumNorth,
+          cellSizeMetres: 1,
+          elevationsMetres: Array.from(
+            { length: width * height },
+            (_, index) => (index % width) * 0.02,
+          ),
+        },
+      };
+    });
+    const terrain = createAucklandPropertyTerrainGateway({
+      readWindow,
+      now: () => new Date("2026-09-15T00:00:00.000Z"),
+    });
+    const parcel: Polygon = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [175.14, -36.79],
+          [175.1403, -36.79],
+          [175.1403, -36.7897],
+          [175.14, -36.7897],
+          [175.14, -36.79],
+        ],
+      ],
+    };
+
+    const result = await terrain.assessParcel(parcel);
+
+    expect(readWindow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        assetUrl: expect.stringContaining("BA33_10000_0303.tiff"),
+        provenance: expect.objectContaining({
+          stacItemUrl: expect.stringContaining("BA33_10000_0303.json"),
+          assetChecksum:
+            "1220043d757542e80d829cf25e9ccec2dbaf2ecc4e45b8cbd54208e9fc7d33cae02e",
+          retrievedAt: "2026-09-15T00:00:00.000Z",
+        }),
+      }),
+    );
+    expect(result.status).toBe("measured");
+  });
+
+  it("returns truthful Needs Checking wording outside Auckland 2024 DEM coverage", async () => {
+    const readWindow: AucklandTerrainWindowReader = vi.fn();
+    const terrain = createAucklandPropertyTerrainGateway({ readWindow });
+    const outsideAuckland: Polygon = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [170.5, -45.9],
+          [170.5002, -45.9],
+          [170.5002, -45.8998],
+          [170.5, -45.8998],
+          [170.5, -45.9],
+        ],
+      ],
+    };
+
+    await expect(terrain.assessParcel(outsideAuckland)).resolves.toEqual({
+      status: "needs_checking",
+      reasons: [
+        "The mapped property parcel is outside the indexed Auckland 2024 elevation coverage.",
+      ],
+    });
+    expect(readWindow).not.toHaveBeenCalled();
+  });
+
+  it("does not misreport invalid catalogue metadata as absent coverage", async () => {
+    const readWindow: AucklandTerrainWindowReader = vi.fn();
+    const terrain = createAucklandPropertyTerrainGateway({
+      readWindow,
+      resolveTile: () => ({ status: "invalid_catalogue" }),
+    });
+    const parcel: Polygon = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [174.6075, -36.86055],
+          [174.60825, -36.86055],
+          [174.60825, -36.85985],
+          [174.6075, -36.85985],
+          [174.6075, -36.86055],
+        ],
+      ],
+    };
+
+    await expect(terrain.assessParcel(parcel)).resolves.toEqual({
+      status: "needs_checking",
+      reasons: [
+        "The Auckland 2024 elevation catalogue metadata is invalid or unavailable.",
+      ],
+    });
+    expect(readWindow).not.toHaveBeenCalled();
+  });
+
+  it("keeps a bounded analysis window inside the selected tile at its edge", async () => {
+    const westTop = [175.1236279, -36.7424081] as const;
+    const westBottom = [175.1254186, -36.8072698] as const;
+    const edgeTop = interpolate(westTop, westBottom, 0.4);
+    const edgeBottom = interpolate(westTop, westBottom, 0.401);
+    const parcel: Polygon = {
+      type: "Polygon",
+      coordinates: [
+        [
+          edgeTop,
+          edgeBottom,
+          [edgeBottom[0] + 0.0001, edgeBottom[1]],
+          [edgeTop[0] + 0.0001, edgeTop[1]],
+          edgeTop,
+        ],
+      ],
+    };
+    const readWindow: AucklandTerrainWindowReader = vi.fn(async (input) => {
+      if (input.boundsNztm.minimumEast < 1_789_600) {
+        return {
+          status: "needs_checking" as const,
+          reasons: ["The padded window escaped the selected tile."],
+        };
+      }
+      const width = input.boundsNztm.maximumEast - input.boundsNztm.minimumEast;
+      const height =
+        input.boundsNztm.maximumNorth - input.boundsNztm.minimumNorth;
+      return {
+        status: "available" as const,
+        provenance: validatedProvenance,
+        grid: {
+          width,
+          height,
+          originEastMetres: input.boundsNztm.minimumEast,
+          originNorthMetres: input.boundsNztm.minimumNorth,
+          cellSizeMetres: 1,
+          elevationsMetres: Array.from(
+            { length: width * height },
+            (_, index) => (index % width) * 0.02,
+          ),
+        },
+      };
+    });
+    const terrain = createAucklandPropertyTerrainGateway({ readWindow });
+
+    await expect(terrain.assessParcel(parcel)).resolves.toMatchObject({
+      status: "measured",
+    });
+    expect(readWindow).toHaveBeenCalledWith(
+      expect.objectContaining({
+        boundsNztm: expect.objectContaining({ minimumEast: 1_789_600 }),
+      }),
+    );
+  });
 });
+
+function interpolate(
+  start: readonly [number, number],
+  end: readonly [number, number],
+  fraction: number,
+): [number, number] {
+  return [
+    start[0] + (end[0] - start[0]) * fraction,
+    start[1] + (end[1] - start[1]) * fraction,
+  ];
+}

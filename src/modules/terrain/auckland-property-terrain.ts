@@ -1,12 +1,18 @@
 import "server-only";
 
 import type { Polygon } from "geojson";
+import { aucklandDemTileCatalogue } from "@/modules/providers/linz/auckland-dem-tile-catalogue";
 import { projectWgs84PolygonToNztm } from "@/modules/providers/linz/project-auckland-dem-geometry";
 import {
   readAucklandDemWindow,
   type AucklandDemProvenance,
+  type AucklandDemSourceMetadata,
   type NztmBounds,
 } from "@/modules/providers/linz/read-auckland-dem-window";
+import {
+  resolveAucklandDemTile,
+  type AucklandDemTileResolution,
+} from "@/modules/providers/linz/resolve-auckland-dem-tile";
 import {
   assessPoolAreaSlope,
   type TerrainGrid,
@@ -18,33 +24,14 @@ import type {
 
 const ANALYSIS_PADDING_METRES = 2;
 
-const INITIAL_AUCKLAND_DEM_TILES = [
-  {
-    wgs84Bounds: {
-      minimumLongitude: 174.5875572,
-      minimumLatitude: -36.8805497,
-      maximumLongitude: 174.6427408,
-      maximumLatitude: -36.8149387,
-    },
-    assetUrl:
-      "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-1_2024/dem_1m/2193/BA31_10000_0403.tiff",
-    stacItemUrl:
-      "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-1_2024/dem_1m/2193/BA31_10000_0403.json",
-    assetChecksum:
-      "1220fdcdf61368d526ac00a461863c6402921595f9cc43d8f05020b5f49431dd1dbf",
-    assetUpdatedAt: "2026-01-13T03:02:19Z",
-  },
-] as const;
+type AucklandDemTileResolver = (
+  parcelGeometry: Polygon,
+) => AucklandDemTileResolution;
 
 export type AucklandTerrainWindowReader = (input: {
   assetUrl: string;
   boundsNztm: NztmBounds;
-  provenance: {
-    stacItemUrl: string;
-    assetChecksum: string;
-    assetUpdatedAt: string;
-    retrievedAt: string;
-  };
+  provenance: AucklandDemSourceMetadata;
 }) => Promise<
   | {
       status: "available";
@@ -57,37 +44,47 @@ export type AucklandTerrainWindowReader = (input: {
 export function createAucklandPropertyTerrainGateway(
   input: {
     readWindow?: AucklandTerrainWindowReader;
+    resolveTile?: AucklandDemTileResolver;
     now?: () => Date;
   } = {},
 ): PropertyTerrainGateway {
   const readWindow = input.readWindow ?? readAucklandDemWindow;
+  const resolveTile =
+    input.resolveTile ??
+    ((parcelGeometry) =>
+      resolveAucklandDemTile({
+        parcelGeometry,
+        catalogue: aucklandDemTileCatalogue,
+      }));
 
   return {
     async assessParcel(
       parcelGeometry: Polygon,
     ): Promise<PropertyTerrainAssessment> {
-      const tile = INITIAL_AUCKLAND_DEM_TILES.find((candidate) =>
-        polygonIsWithinBounds(parcelGeometry, candidate.wgs84Bounds),
-      );
-      if (!tile) {
+      const tile = resolveTile(parcelGeometry);
+      if (tile.status !== "resolved") {
         return {
           status: "needs_checking",
           reasons: [
-            "The mapped property parcel is outside the currently indexed Auckland 2024 elevation tile.",
+            tile.status === "invalid_catalogue"
+              ? "The Auckland 2024 elevation catalogue metadata is invalid or unavailable."
+              : "The mapped property parcel is outside the indexed Auckland 2024 elevation coverage.",
           ],
         };
       }
 
       try {
         const footprint = projectWgs84PolygonToNztm(parcelGeometry);
-        const boundsNztm = paddedIntegerBounds(footprint);
+        const tileFootprint = projectWgs84PolygonToNztm(tile.wgs84Geometry);
+        const boundsNztm = boundedPaddedIntegerBounds(
+          footprint,
+          tileIntegerBounds(tileFootprint),
+        );
         const window = await readWindow({
           assetUrl: tile.assetUrl,
           boundsNztm,
           provenance: {
-            stacItemUrl: tile.stacItemUrl,
-            assetChecksum: tile.assetChecksum,
-            assetUpdatedAt: tile.assetUpdatedAt,
+            ...tile.provenance,
             retrievedAt: (input.now?.() ?? new Date()).toISOString(),
           },
         });
@@ -109,19 +106,17 @@ export function createAucklandPropertyTerrainGateway(
   };
 }
 
-function polygonIsWithinBounds(
+function boundedPaddedIntegerBounds(
   polygon: Polygon,
-  bounds: (typeof INITIAL_AUCKLAND_DEM_TILES)[number]["wgs84Bounds"],
-): boolean {
-  return polygon.coordinates
-    .flat()
-    .every(
-      ([longitude, latitude]) =>
-        longitude >= bounds.minimumLongitude &&
-        longitude <= bounds.maximumLongitude &&
-        latitude >= bounds.minimumLatitude &&
-        latitude <= bounds.maximumLatitude,
-    );
+  limit: NztmBounds,
+): NztmBounds {
+  const padded = paddedIntegerBounds(polygon);
+  return {
+    minimumEast: Math.max(padded.minimumEast, limit.minimumEast),
+    minimumNorth: Math.max(padded.minimumNorth, limit.minimumNorth),
+    maximumEast: Math.min(padded.maximumEast, limit.maximumEast),
+    maximumNorth: Math.min(padded.maximumNorth, limit.maximumNorth),
+  };
 }
 
 function paddedIntegerBounds(polygon: Polygon): NztmBounds {
@@ -133,5 +128,17 @@ function paddedIntegerBounds(polygon: Polygon): NztmBounds {
     minimumNorth: Math.floor(Math.min(...northings)) - ANALYSIS_PADDING_METRES,
     maximumEast: Math.ceil(Math.max(...eastings)) + ANALYSIS_PADDING_METRES,
     maximumNorth: Math.ceil(Math.max(...northings)) + ANALYSIS_PADDING_METRES,
+  };
+}
+
+function tileIntegerBounds(polygon: Polygon): NztmBounds {
+  const positions = polygon.coordinates.flat();
+  const eastings = positions.map(([east]) => east);
+  const northings = positions.map(([, north]) => north);
+  return {
+    minimumEast: Math.round(Math.min(...eastings)),
+    minimumNorth: Math.round(Math.min(...northings)),
+    maximumEast: Math.round(Math.max(...eastings)),
+    maximumNorth: Math.round(Math.max(...northings)),
   };
 }

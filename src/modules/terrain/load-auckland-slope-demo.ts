@@ -1,5 +1,6 @@
 import "server-only";
 
+import { AUCKLAND_DEM_REQUIRED_METADATA } from "@/modules/providers/linz/auckland-dem-source-contract";
 import {
   readAucklandDemWindow,
   type AucklandDemProvenance,
@@ -38,6 +39,7 @@ export async function loadAucklandSlopeDemo(): Promise<AucklandSlopeDemoResult> 
       "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-1_2024/dem_1m/2193/BA32_10000_0401.tiff",
     boundsNztm: DEMO_BOUNDS_NZTM,
     provenance: {
+      ...AUCKLAND_DEM_REQUIRED_METADATA,
       stacItemUrl:
         "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-1_2024/dem_1m/2193/BA32_10000_0401.json",
       assetChecksum:

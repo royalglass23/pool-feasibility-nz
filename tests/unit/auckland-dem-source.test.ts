@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { AUCKLAND_DEM_REQUIRED_METADATA } from "@/modules/providers/linz/auckland-dem-source-contract";
 
 const fromUrl = vi.hoisted(() => vi.fn());
 const fromCustomClient = vi.hoisted(() => vi.fn());
@@ -12,6 +13,7 @@ import {
 } from "@/modules/providers/linz/read-auckland-dem-window";
 
 const validProvenance = {
+  ...AUCKLAND_DEM_REQUIRED_METADATA,
   stacItemUrl:
     "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-1_2024/dem_1m/2193/BA30_1000_0501.json",
   assetChecksum: `1220${"a".repeat(64)}`,
