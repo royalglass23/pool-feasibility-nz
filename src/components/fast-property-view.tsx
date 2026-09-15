@@ -1735,18 +1735,33 @@ function TerrainSlopeResult({
   );
 }
 
+const fastPoolWarningPresentation: Record<
+  FastPoolWarning["status"],
+  { dotClassName: string; summary: string }
+> = {
+  blocked: {
+    dotClassName: "bg-red-600",
+    summary:
+      "This pool position overlaps a mapped constraint and needs review.",
+  },
+  needs_checking: {
+    dotClassName: "bg-amber-600",
+    summary:
+      "Some mapped evidence still needs checking for this pool position.",
+  },
+  no_warning: {
+    dotClassName: "bg-emerald-700",
+    summary: "No mapped conflict was found for this pool position.",
+  },
+};
+
 function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
-  const tone =
-    warning.status === "blocked"
-      ? "border-red-200 bg-red-50"
-      : warning.status === "needs_checking"
-        ? "border-amber-200 bg-amber-50"
-        : "border-emerald-200 bg-emerald-50";
+  const presentation = fastPoolWarningPresentation[warning.status];
 
   return (
     <section
       aria-labelledby="pool-warning-heading"
-      className={`rounded-sm border px-3 py-2 text-[#0d3050] sm:px-4 sm:py-3 ${tone}`}
+      className="text-pool-950 lg:min-h-32"
     >
       <div className="flex items-start justify-between gap-2 sm:items-center">
         <h3
@@ -1755,7 +1770,7 @@ function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
         >
           <span
             aria-hidden="true"
-            className={`size-2 shrink-0 rounded-full ${warning.status === "blocked" ? "bg-red-600" : warning.status === "needs_checking" ? "bg-amber-600" : "bg-emerald-700"}`}
+            className={`size-2 shrink-0 rounded-full ${presentation.dotClassName}`}
           />
           {warning.label}
         </h3>
@@ -1763,14 +1778,23 @@ function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
           Live pool check
         </span>
       </div>
-      <p className="mt-1 text-sm leading-5 sm:mt-2 sm:pl-5 sm:leading-6">
-        {warning.text}
+      <p className="mt-1 text-sm leading-5 sm:mt-2 sm:pl-5 sm:leading-6 lg:min-h-6">
+        {presentation.summary}
       </p>
-      {warning.recommendation && (
-        <p className="mt-1 text-sm leading-5 font-semibold sm:mt-2 sm:pl-5 sm:leading-6">
-          Recommendation: {warning.recommendation}
-        </p>
-      )}
+      <details className="group mt-1 sm:mt-2 sm:pl-5">
+        <summary className="text-pool-blue-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 -ml-2 inline-flex min-h-11 cursor-pointer items-center rounded-sm px-2 font-semibold underline underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2">
+          <span className="group-open:hidden">View details</span>
+          <span className="hidden group-open:inline">Hide details</span>
+        </summary>
+        <div className="border-pool-200 max-w-4xl border-t pt-3 pb-1 text-sm leading-5 sm:leading-6">
+          <p>{warning.text}</p>
+          {warning.recommendation && (
+            <p className="mt-2 font-semibold">
+              Recommendation: {warning.recommendation}
+            </p>
+          )}
+        </div>
+      </details>
     </section>
   );
 }

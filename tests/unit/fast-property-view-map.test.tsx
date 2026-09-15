@@ -219,6 +219,10 @@ it("keeps live notices above the workspace and next actions with the pool layout
     screen.getByRole("heading", { name: "Needs Checking" }),
   );
   expect(notices).toHaveTextContent(
+    "Some mapped evidence still needs checking for this pool position.",
+  );
+  expect(notices).toHaveTextContent("View details");
+  expect(notices).toHaveTextContent(
     "An aerial photo isn't available for this property.",
   );
   expect(aerialMapFrame).not.toContainElement(
