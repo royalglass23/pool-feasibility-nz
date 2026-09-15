@@ -9,6 +9,7 @@ export function POST(request: Request): Promise<Response> {
       request: input.request,
       correlationId: input.correlationId,
       submissionId: input.snapshot.submissionId,
+      stage: input.stage,
     }),
   );
 }

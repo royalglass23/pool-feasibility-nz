@@ -82,6 +82,7 @@ type PropertyCheckIssue = {
   title: string;
   message: string;
   troubleshooting: string;
+  allowAddressChange?: boolean;
 };
 
 export function DataAccessInspector() {
@@ -110,6 +111,9 @@ export function DataAccessInspector() {
   const [isLoading, setIsLoading] = useState(false);
   const [isSuggesting, setIsSuggesting] = useState(false);
   const [isLoadingDetailed, setIsLoadingDetailed] = useState(false);
+  const [detailedRetryAfterSeconds, setDetailedRetryAfterSeconds] = useState<
+    number | null
+  >(null);
   const detailedRequestInFlightRef = useRef(false);
   const fastRequestIdRef = useRef(0);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(
@@ -127,6 +131,15 @@ export function DataAccessInspector() {
     },
     [],
   );
+
+  useEffect(() => {
+    if (detailedRetryAfterSeconds === null) return;
+    const timeout = window.setTimeout(
+      () => setDetailedRetryAfterSeconds(null),
+      detailedRetryAfterSeconds * 1_000,
+    );
+    return () => window.clearTimeout(timeout);
+  }, [detailedRetryAfterSeconds]);
 
   useEffect(() => {
     const query = address.trim();
@@ -252,6 +265,7 @@ export function DataAccessInspector() {
     setFastAssessmentSnapshot(null);
     setFastPlacementSnapshot(null);
     setFastMapSnapshot(null);
+    setDetailedRetryAfterSeconds(null);
     fastSavedReport.resetReport();
     setAddressOptions([]);
     setSuggestionMessage(null);
@@ -414,13 +428,14 @@ export function DataAccessInspector() {
         assessmentSnapshot?: string;
         error?: { code?: string; message?: string; correlationId?: string };
       } | null;
-      const responseError = readClientApiError(body);
+      const responseError = readClientApiError(body, response.headers);
       if (
         !response.ok ||
         !body?.data ||
         !body.assessmentSnapshot ||
         fastRequestIdRef.current !== requestId
       ) {
+        setDetailedRetryAfterSeconds(responseError?.retryAfterSeconds ?? null);
         setError(detailedChecksIssue(responseError));
         setCanRetry(responseError?.code !== "RATE_LIMITED");
         return;
@@ -431,6 +446,7 @@ export function DataAccessInspector() {
         current ? { ...current, detailedChecks: body.data } : current,
       );
       setError(null);
+      setDetailedRetryAfterSeconds(null);
     } catch {
       setError(detailedChecksIssue());
       setCanRetry(true);
@@ -660,13 +676,15 @@ export function DataAccessInspector() {
                     Try property check again
                   </button>
                 )}
-                <button
-                  type="button"
-                  onClick={startAgain}
-                  className="min-h-11 font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
-                >
-                  Search a different address
-                </button>
+                {error.allowAddressChange !== false && (
+                  <button
+                    type="button"
+                    onClick={startAgain}
+                    className="min-h-11 font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
+                  >
+                    Search a different address
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -678,6 +696,7 @@ export function DataAccessInspector() {
             isLoadingDetailed={isLoadingDetailed}
             onPlacementChange={handleFastPlacementChange}
             onSnapshotReady={setFastMapSnapshot}
+            isDetailedRateLimited={detailedRetryAfterSeconds !== null}
           />
           {fastPlacementSnapshot?.dimensions &&
           fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
@@ -791,13 +810,12 @@ function detailedChecksIssue(
 ): PropertyCheckIssue {
   if (error?.code === "RATE_LIMITED")
     return {
-      title: "Detailed checks have reached their temporary limit",
-      message:
-        "Your preliminary property view is still available, but no more mapped checks can run yet.",
-      troubleshooting: withErrorReference(
-        "Wait for the limit to reset before trying the detailed checks again.",
-        error,
-      ),
+      title: "Detailed checks are temporarily unavailable",
+      message: "You can still use your preliminary property view.",
+      troubleshooting: error.retryAfterSeconds
+        ? `Please try again in ${formatRetryInterval(error.retryAfterSeconds)}.`
+        : "Please try the detailed checks again later.",
+      allowAddressChange: false,
     };
   if (error?.code === "RATE_LIMIT_UNAVAILABLE")
     return {
@@ -816,6 +834,18 @@ function detailedChecksIssue(
     troubleshooting:
       "Use the view as an early guide only, then try the property check again in a minute to load the missing detail.",
   };
+}
+
+function formatRetryInterval(seconds: number): string {
+  const minutes = Math.floor(seconds / 60);
+  const remainingSeconds = seconds % 60;
+  const parts = [];
+  if (minutes > 0) parts.push(`${minutes} minute${minutes === 1 ? "" : "s"}`);
+  if (remainingSeconds > 0)
+    parts.push(
+      `${remainingSeconds} second${remainingSeconds === 1 ? "" : "s"}`,
+    );
+  return parts.join(" ");
 }
 
 function addressSuggestionIssue(error: ClientApiError | null): string {

@@ -19,6 +19,7 @@ import {
   providerTimeoutMs,
   readRequestBytesWithinLimit,
 } from "@/shared/http/provider-runtime";
+import type { PublicPropertyStage } from "@/modules/rate-limit/public-rate-limit";
 import { z } from "zod";
 
 const MAX_ASSESSMENT_SNAPSHOT_BYTES = 5_500_000;
@@ -58,6 +59,7 @@ type BeforePublicProviderWork = (input: {
   request: Request;
   correlationId: string;
   snapshot: import("@/modules/assessment/assessment-snapshot").TrustedAssessmentSnapshot;
+  stage: PublicPropertyStage;
 }) => Promise<Response | null>;
 
 export async function POST(request: Request): Promise<Response> {
@@ -136,11 +138,25 @@ export async function handleFastPropertyStagesRequest(
       { "Cache-Control": "no-store" },
     );
   }
+  const stage = propertyStageForRequest(parsed.data.mode, snapshot);
+  if (!stage) {
+    return apiErrorResponse(
+      {
+        code: "DETAILED_CHECKS_NOT_RETRYABLE",
+        message:
+          "The available constraint checks are already complete or cannot be retried.",
+      },
+      409,
+      correlationId,
+      { "Cache-Control": "no-store" },
+    );
+  }
   if (beforeProviderWork) {
     const denied = await beforeProviderWork({
       request,
       correlationId,
       snapshot,
+      stage,
     });
     if (denied) return denied;
   }
@@ -200,6 +216,18 @@ export async function handleFastPropertyStagesRequest(
   return apiErrorResponse(response.error, response.status, correlationId, {
     "Cache-Control": "no-store",
   });
+}
+
+function propertyStageForRequest(
+  mode: "detailed" | undefined,
+  snapshot: import("@/modules/assessment/assessment-snapshot").TrustedAssessmentSnapshot,
+): PublicPropertyStage | null {
+  if (mode !== "detailed") return "automatic";
+  const detailedChecks = snapshot.fastResult.detailedChecks;
+  if (!detailedChecks) return "constraints_initial";
+  return detailedChecks.constraints?.status === "retryable"
+    ? "constraints_retry"
+    : null;
 }
 
 function stageRequestValidationError(body: unknown): {

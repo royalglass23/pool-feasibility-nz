@@ -157,6 +157,7 @@ export function FastPropertyView({
   isLoadingDetailed = false,
   onPlacementChange,
   onSnapshotReady,
+  isDetailedRateLimited = false,
 }: {
   result: FastPropertyViewResult;
   onLoadDetailed?: () => void;
@@ -165,6 +166,7 @@ export function FastPropertyView({
   isLoadingDetailed?: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
   onSnapshotReady?: (snapshot: FastPropertyViewMapSnapshot | null) => void;
+  isDetailedRateLimited?: boolean;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const rotationControlVisibleRef = useRef(false);
@@ -302,6 +304,11 @@ export function FastPropertyView({
         ? "retryable"
         : "complete"))
     : null;
+  const detailedActionDisabled =
+    isInitialAddressLoad ||
+    isLoadingDetailed ||
+    isDetailedRateLimited ||
+    detailedConstraintStatus === "complete";
   const mappedUtilityLayers = useMemo(
     () =>
       (detailedLayers ?? []).flatMap((layer) => {
@@ -1261,11 +1268,7 @@ export function FastPropertyView({
             <button
               type="button"
               onClick={onLoadDetailed}
-              disabled={
-                isInitialAddressLoad ||
-                isLoadingDetailed ||
-                detailedConstraintStatus === "complete"
-              }
+              disabled={detailedActionDisabled}
               className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
             >
               {isLoadingDetailed
@@ -1286,7 +1289,7 @@ export function FastPropertyView({
           <div className="flex justify-end">
             <button
               type="button"
-              disabled={isLoadingDetailed || isInitialAddressLoad}
+              disabled={detailedActionDisabled}
               onClick={onRetry}
               className="text-pool-blue-800 text-sm font-semibold underline"
             >

@@ -15,7 +15,9 @@ export type PublicRateLimitAction =
   | "aerial_conflict"
   | "aerial_tile"
   | "property_check"
-  | "property_check_stage"
+  | "property_check_automatic_stage"
+  | "property_check_constraints_initial"
+  | "property_check_constraints_retry"
   | "contact_request"
   | "report_delivery"
   | "report_pdf"
@@ -33,6 +35,15 @@ export interface PublicRateLimiter {
     identifier: string,
   ): Promise<PublicRateLimitDecision>;
 }
+
+export type PublicPropertyStage =
+  "automatic" | "constraints_initial" | "constraints_retry";
+
+const propertyStageRateLimitActions = {
+  automatic: "property_check_automatic_stage",
+  constraints_initial: "property_check_constraints_initial",
+  constraints_retry: "property_check_constraints_retry",
+} as const satisfies Record<PublicPropertyStage, PublicRateLimitAction>;
 
 type PublicRateLimitLog = (event: {
   event: "public_rate_limit";
@@ -96,10 +107,20 @@ const policies = {
     window: { value: 30, unit: "m" },
     prefix: "geomap:public-rate-limit:property-check:v1",
   },
-  property_check_stage: {
-    limit: 2,
+  property_check_automatic_stage: {
+    limit: 1,
     window: { value: 15, unit: "m" },
     prefix: "geomap:public-rate-limit:property-check-stage:v1",
+  },
+  property_check_constraints_initial: {
+    limit: 1,
+    window: { value: 15, unit: "m" },
+    prefix: "geomap:public-rate-limit:property-check-constraints-initial:v1",
+  },
+  property_check_constraints_retry: {
+    limit: 1,
+    window: { value: 15, unit: "m" },
+    prefix: "geomap:public-rate-limit:property-check-constraints-retry:v1",
   },
   contact_request: {
     limit: 3,
@@ -244,13 +265,16 @@ export async function enforcePublicPropertyStageRateLimit(
     request: Request;
     submissionId: string;
     correlationId: string;
+    // Optional only for source compatibility with ignored review snapshots;
+    // the live public route always supplies the classified signed-session stage.
+    stage?: PublicPropertyStage;
   },
   options?: PublicRateLimitRuntimeOptions,
 ): Promise<Response | null> {
   return publicRateLimitDeniedResponse(
     {
       request: input.request,
-      action: "property_check_stage",
+      action: propertyStageRateLimitActions[input.stage ?? "automatic"],
       correlationId: input.correlationId,
       scope: input.submissionId,
     },

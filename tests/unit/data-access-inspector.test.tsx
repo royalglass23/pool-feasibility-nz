@@ -1012,6 +1012,79 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     });
   });
 
+  it("disables detailed checks for the server retry interval without suggesting another address", async () => {
+    const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      ...splitDataAccessGateway(gateway),
+      basemapApiKey: "test-key",
+    });
+    const correlationId = "detailed-limit-reference";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === "/api/public/property-check") {
+          return Response.json({
+            data: fastResult,
+            assessmentSnapshot: "server-issued-initial-snapshot",
+          });
+        }
+        const requestBody = JSON.parse(String(init?.body ?? "{}")) as {
+          mode?: string;
+        };
+        if (requestBody.mode === "detailed") {
+          return Response.json(
+            {
+              error: {
+                code: "RATE_LIMITED",
+                message: "Please try again shortly.",
+                correlationId,
+              },
+            },
+            { status: 429, headers: { "Retry-After": "75" } },
+          );
+        }
+        return Response.json({
+          data: fastResult,
+          assessmentSnapshot: "server-issued-stage-snapshot",
+        });
+      }),
+    );
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.keyboard("{Enter}");
+    await user.click(
+      await screen.findByRole("button", { name: "Check for constraints" }),
+    );
+
+    expect(
+      await screen.findByText("Detailed checks are temporarily unavailable"),
+    ).toBeVisible();
+    expect(
+      screen.getByText("You can still use your preliminary property view."),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Please try again in 1 minute 15 seconds."),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Check for constraints" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Retry property check" }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Search a different address" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(new RegExp(correlationId)),
+    ).not.toBeInTheDocument();
+  });
+
   it("keeps parcel slope loaded without rerunning checks when the pool changes", async () => {
     const user = userEvent.setup();
     const gateway = createDataAccessGateway();

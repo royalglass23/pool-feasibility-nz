@@ -97,7 +97,10 @@ describe("POST /api/internal/fast-property-view/stages", () => {
 
     expect(response.status).toBe(429);
     expect(enforcePublicPropertyStageRateLimit).toHaveBeenCalledWith(
-      expect.objectContaining({ submissionId: "snapshot-id" }),
+      expect.objectContaining({
+        submissionId: "snapshot-id",
+        stage: "automatic",
+      }),
     );
     expect(loadFastPropertyStages).not.toHaveBeenCalled();
     expect(executeFastPropertyDetailsRequest).not.toHaveBeenCalled();
@@ -133,7 +136,10 @@ describe("POST /api/internal/fast-property-view/stages", () => {
 
     expect(response.status).toBe(200);
     expect(enforcePublicPropertyStageRateLimit).toHaveBeenCalledWith(
-      expect.objectContaining({ submissionId: "snapshot-id" }),
+      expect.objectContaining({
+        submissionId: "snapshot-id",
+        stage: "constraints_initial",
+      }),
     );
     expect(executeFastPropertyDetailsRequest).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -149,6 +155,74 @@ describe("POST /api/internal/fast-property-view/stages", () => {
       data: detailedData,
       assessmentSnapshot: "refreshed-detailed-snapshot",
     });
+  });
+
+  it("allows a constraint retry only from a signed transient-failure snapshot", async () => {
+    verifyAssessmentSnapshot.mockReturnValue({
+      submissionId: "snapshot-id",
+      fastResult: {
+        detailedChecks: { constraints: { status: "retryable" } },
+      },
+      expiresAt: Date.now() + 60_000,
+    });
+    enforcePublicPropertyStageRateLimit.mockResolvedValue(null);
+    executeFastPropertyDetailsRequest.mockResolvedValue({
+      ok: true,
+      status: 200,
+      data: { status: "complete", constraints: { status: "complete" } },
+    });
+    refreshAssessmentSnapshot.mockReturnValue("refreshed-retry-snapshot");
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/property-check/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...selectedAddressPoint,
+          mode: "detailed",
+          assessmentSnapshot: "s".repeat(2_000),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(enforcePublicPropertyStageRateLimit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        submissionId: "snapshot-id",
+        stage: "constraints_retry",
+      }),
+    );
+    expect(executeFastPropertyDetailsRequest).toHaveBeenCalledOnce();
+  });
+
+  it("rejects detailed replay from a completed signed snapshot before limiting or provider work", async () => {
+    verifyAssessmentSnapshot.mockReturnValue({
+      submissionId: "snapshot-id",
+      fastResult: {
+        detailedChecks: { constraints: { status: "complete" } },
+      },
+      expiresAt: Date.now() + 60_000,
+    });
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/property-check/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...selectedAddressPoint,
+          mode: "detailed",
+          assessmentSnapshot: "s".repeat(2_000),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "DETAILED_CHECKS_NOT_RETRYABLE" },
+    });
+    expect(enforcePublicPropertyStageRateLimit).not.toHaveBeenCalled();
+    expect(executeFastPropertyDetailsRequest).not.toHaveBeenCalled();
   });
 
   it("identifies malformed stage requests without starting imagery", async () => {
