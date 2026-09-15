@@ -944,7 +944,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
     await user.keyboard("{Enter}");
 
-    await screen.findByText(/aerial photo is still loading/i);
+    await screen.findByText(/we couldn't load the aerial photo/i);
     const stageRequestCountBeforeRetry = fetchMock.mock.calls.filter(
       ([input]) => String(input).includes("/api/public/property-check/stages"),
     ).length;

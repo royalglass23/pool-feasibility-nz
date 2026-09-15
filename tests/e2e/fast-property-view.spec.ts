@@ -325,18 +325,28 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     await expect(
       page.getByRole("button", { name: "Start again", exact: true }),
     ).toBeEnabled();
+    const poolLayout = page.getByLabel("Pool catalogue and placement controls");
+    const detailedAction = poolLayout.getByRole("button", {
+      name: "All available constraints loaded",
+      exact: true,
+    });
+    await expect(
+      page
+        .getByTestId("aerial-map-frame")
+        .getByRole("heading", { name: /Needs Checking|No Warning/ }),
+    ).toBeVisible();
+    await expect(detailedAction).toBeVisible();
+    await expect(
+      poolLayout.getByRole("button", { name: "Start again", exact: true }),
+    ).toBeEnabled();
     const mapBounds = await page
       .getByLabel("Fast aerial map for 42A Bahari Drive, Ranui, Auckland")
       .boundingBox();
-    const actionBounds = await page
-      .getByRole("button", {
-        name: "All available constraints loaded",
-        exact: true,
-      })
-      .boundingBox();
-    expect(actionBounds!.y).toBeGreaterThanOrEqual(
-      mapBounds!.y + mapBounds!.height,
+    const actionBounds = await detailedAction.boundingBox();
+    expect(actionBounds!.x).toBeGreaterThanOrEqual(
+      mapBounds!.x + mapBounds!.width,
     );
+    expect(actionBounds!.y).toBeLessThan(mapBounds!.y + mapBounds!.height);
     await expect(
       legend.getByRole("checkbox", { name: "Wastewater" }),
     ).toBeChecked();

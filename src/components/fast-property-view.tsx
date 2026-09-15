@@ -1101,18 +1101,71 @@ export function FastPropertyView({
               : "grid lg:grid-cols-[minmax(0,1fr)_22rem]"
           }
         >
-          <div className="relative order-1 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-[600px]">
+          <div
+            data-testid="aerial-map-frame"
+            className="relative order-1 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-[600px]"
+          >
             <div
               ref={mapRef}
               className="bg-pool-800 h-full w-full"
               aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
             />
             <PropertySlopeMapOverlay terrain={result.detailedChecks?.terrain} />
+            <div className="pointer-events-none absolute top-3 right-14 left-3 z-10 flex flex-col gap-2">
+              {!isInitialAddressLoad && (
+                <FastPoolWarning warning={poolWarning} />
+              )}
+              {placementMessage && (
+                <p
+                  role="alert"
+                  className="pointer-events-auto rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 font-semibold text-amber-950 sm:px-4 sm:py-3 sm:text-sm sm:leading-6"
+                >
+                  {placementMessage}
+                </p>
+              )}
+              {mapError && (
+                <div
+                  role="alert"
+                  className="pointer-events-auto rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 font-semibold text-red-950 sm:px-4 sm:py-3 sm:text-sm sm:leading-6"
+                >
+                  <p>
+                    {mapError === "aerial"
+                      ? (aerialTileRateLimitMessage(mapApiError) ??
+                        "We couldn't load the aerial photo. You can still review the property boundary; try the property check again in a minute.")
+                      : "We couldn't load the interactive map. Try the property check again in a minute."}
+                  </p>
+                  {detailedConstraintStatus !== "complete" && (
+                    <RetryPropertyCheckButton
+                      disabled={detailedActionDisabled}
+                      onRetry={onRetry}
+                    />
+                  )}
+                </div>
+              )}
+              {!mapError && result.aerial.state !== "ready" && (
+                <div className="pointer-events-auto rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950 sm:px-4 sm:py-3 sm:text-sm sm:leading-6">
+                  <p>
+                    {result.aerial.state === "loading"
+                      ? "The aerial photo is still loading. You can keep reviewing the address and mapped property area."
+                      : result.aerial.state === "unavailable"
+                        ? "An aerial photo isn't available for this property. You can still review the address and mapped property area."
+                        : "We couldn't load the aerial photo. You can still review the address and mapped property area."}
+                  </p>
+                  {result.aerial.state === "error" &&
+                    detailedConstraintStatus !== "complete" && (
+                      <RetryPropertyCheckButton
+                        disabled={detailedActionDisabled}
+                        onRetry={onRetry}
+                      />
+                    )}
+                </div>
+              )}
+            </div>
           </div>
           {!isInitialAddressLoad && (
             <div
               aria-label="Pool catalogue and placement controls"
-              className="border-pool-200 order-2 space-y-4 border-t bg-white p-4 lg:col-start-2 lg:row-start-1 lg:border-t-0 lg:border-l"
+              className="border-pool-200 order-2 flex flex-col gap-4 border-t bg-white p-4 lg:col-start-2 lg:row-start-1 lg:border-t-0 lg:border-l"
             >
               <div>
                 <h3 className="text-pool-950 font-semibold">
@@ -1203,14 +1256,54 @@ export function FastPropertyView({
                   increments.
                 </FieldValidationMessage>
               )}
-              {placementMessage && (
+              <div className="border-pool-200 mt-auto space-y-3 border-t pt-4">
                 <p
-                  role="alert"
-                  className="text-sm font-semibold text-amber-800"
+                  className="text-pool-700 text-sm leading-6"
+                  aria-live="polite"
                 >
-                  {placementMessage}
+                  {detailedConstraintStatus === "complete" ? (
+                    "All available constraints are loaded. You can still adjust your pool before creating your report."
+                  ) : detailedConstraintStatus === "retryable" ? (
+                    "Some constraints were temporarily unavailable. Retry to check those layers again."
+                  ) : (
+                    <>
+                      <strong className="text-pool-950 block font-semibold">
+                        Happy with your pool position?
+                      </strong>
+                      Check for potential site constraints, or start again with
+                      another property.
+                    </>
+                  )}
                 </p>
-              )}
+                <div className="grid gap-2">
+                  {onLoadDetailed && (
+                    <button
+                      type="button"
+                      onClick={onLoadDetailed}
+                      disabled={detailedActionDisabled}
+                      className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
+                    >
+                      {isLoadingDetailed
+                        ? "Checking constraints…"
+                        : detailedConstraintStatus === "complete"
+                          ? "All available constraints loaded"
+                          : detailedConstraintStatus === "retryable"
+                            ? "Retry unavailable constraints"
+                            : "Check for constraints"}
+                    </button>
+                  )}
+                  {onStartAgain && (
+                    <button
+                      type="button"
+                      onClick={onStartAgain}
+                      disabled={isLoadingDetailed}
+                      className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Start again
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
@@ -1462,85 +1555,6 @@ export function FastPropertyView({
           selectedPoolTerrain={selectedPoolTerrain}
         />
       ) : null}
-      {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
-      {mapError && (
-        <p role="alert" className="text-sm font-semibold text-red-700">
-          {mapError === "aerial"
-            ? (aerialTileRateLimitMessage(mapApiError) ??
-              "We couldn't load the aerial photo. You can still review the property boundary; try the property check again in a minute.")
-            : "We couldn't load the interactive map. Try the property check again in a minute."}
-        </p>
-      )}
-      {result.aerial.state !== "ready" && (
-        <p className="rounded-sm border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-          The aerial photo is still loading. You can keep reviewing the address
-          and mapped property area.
-        </p>
-      )}
-      <div className="border-pool-200 space-y-3 border-t pt-4">
-        <p
-          className="text-pool-700 max-w-xl text-sm leading-6"
-          aria-live="polite"
-        >
-          {detailedConstraintStatus === "complete" ? (
-            "All available constraints are loaded. You can still adjust your pool before creating your report."
-          ) : detailedConstraintStatus === "retryable" ? (
-            "Some constraints were temporarily unavailable. Retry to check those layers again."
-          ) : (
-            <>
-              {" "}
-              <strong className="block font-semibold">
-                Happy with your pool position?
-              </strong>
-              Check for potential site constraints, or start again with another
-              property.
-            </>
-          )}
-        </p>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          {onStartAgain && (
-            <button
-              type="button"
-              onClick={onStartAgain}
-              disabled={isLoadingDetailed}
-              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Start again
-            </button>
-          )}
-          {onLoadDetailed && (
-            <button
-              type="button"
-              onClick={onLoadDetailed}
-              disabled={detailedActionDisabled}
-              className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
-            >
-              {isLoadingDetailed
-                ? "Checking constraints…"
-                : isInitialAddressLoad
-                  ? "Finding property boundary…"
-                  : detailedConstraintStatus === "complete"
-                    ? "All available constraints loaded"
-                    : detailedConstraintStatus === "retryable"
-                      ? "Retry unavailable constraints"
-                      : "Check for constraints"}
-            </button>
-          )}
-        </div>
-      </div>
-      {detailedConstraintStatus !== "complete" &&
-        (mapError || result.aerial.state === "error") && (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              disabled={detailedActionDisabled}
-              onClick={onRetry}
-              className="text-pool-blue-800 text-sm font-semibold underline"
-            >
-              Retry property check
-            </button>
-          </div>
-        )}
     </section>
   );
 }
@@ -1718,20 +1732,20 @@ function TerrainSlopeResult({
 function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
   const tone =
     warning.status === "blocked"
-      ? "border-red-200 bg-red-50/60"
+      ? "border-red-200 bg-red-50"
       : warning.status === "needs_checking"
-        ? "border-amber-200 bg-amber-50/60"
-        : "border-emerald-200 bg-emerald-50/60";
+        ? "border-amber-200 bg-amber-50"
+        : "border-emerald-200 bg-emerald-50";
 
   return (
     <section
       aria-labelledby="pool-warning-heading"
-      className={`rounded-sm border px-4 py-3 text-[#0d3050] ${tone}`}
+      className={`rounded-sm border px-3 py-2 text-[#0d3050] sm:px-4 sm:py-3 ${tone}`}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-start justify-between gap-2 sm:items-center">
         <h3
           id="pool-warning-heading"
-          className="flex items-center gap-3 font-semibold"
+          className="flex items-center gap-2 font-semibold sm:gap-3"
         >
           <span
             aria-hidden="true"
@@ -1739,17 +1753,38 @@ function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
           />
           {warning.label}
         </h3>
-        <span className="text-xs font-bold tracking-wide uppercase">
+        <span className="hidden text-xs font-bold tracking-wide uppercase sm:inline">
           Live pool check
         </span>
       </div>
-      <p className="mt-2 pl-5 text-sm leading-6">{warning.text}</p>
+      <p className="mt-1 text-sm leading-5 sm:mt-2 sm:pl-5 sm:leading-6">
+        {warning.text}
+      </p>
       {warning.recommendation && (
-        <p className="mt-2 pl-5 text-sm leading-6 font-semibold">
+        <p className="mt-1 text-sm leading-5 font-semibold sm:mt-2 sm:pl-5 sm:leading-6">
           Recommendation: {warning.recommendation}
         </p>
       )}
     </section>
+  );
+}
+
+function RetryPropertyCheckButton({
+  disabled,
+  onRetry,
+}: {
+  disabled: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onRetry}
+      className="focus-visible:outline-pool-blue-700 mt-2 min-h-11 font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      Retry property check
+    </button>
   );
 }
 

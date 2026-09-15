@@ -194,6 +194,40 @@ it("keeps map layers collapsed until the user asks to see them", async () => {
   ).toBeVisible();
 });
 
+it("keeps live notices over the aerial and next actions with the pool layout", async () => {
+  render(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        progress: { ...fastResult.progress, detailedChecks: "not_loaded" },
+        detailedChecks: undefined,
+      }}
+      onRetry={() => {}}
+      onLoadDetailed={() => {}}
+      onStartAgain={() => {}}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const aerialMapFrame = screen.getByTestId("aerial-map-frame");
+  const poolLayout = screen.getByLabelText(
+    "Pool catalogue and placement controls",
+  );
+
+  expect(aerialMapFrame).toContainElement(
+    screen.getByRole("heading", { name: "Needs Checking" }),
+  );
+  expect(aerialMapFrame).toHaveTextContent(
+    "An aerial photo isn't available for this property.",
+  );
+  expect(poolLayout).toContainElement(
+    screen.getByRole("button", { name: "Check for constraints" }),
+  );
+  expect(poolLayout).toContainElement(
+    screen.getByRole("button", { name: "Start again" }),
+  );
+});
+
 it("keeps the rotate control visible and interactive while taking a snapshot", async () => {
   const onSnapshotReady = vi.fn();
   render(
