@@ -13,13 +13,34 @@
 
 .pool-process-rail li {
   position: relative;
-  display: grid;
-  grid-template-columns: 2.5rem minmax(0, 1fr);
-  gap: 0.75rem;
-  align-items: center;
   min-width: 0;
   padding-right: 1.25rem;
   color: #55778c;
+}
+
+.pool-process-button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pool-process-button:focus-visible {
+  border-radius: 0.3rem;
+  outline: 2px solid #0077bd;
+  outline-offset: 4px;
+}
+
+.pool-process-rail li:not(.is-current) .pool-process-button:hover {
+  color: #245a79;
 }
 
 .pool-process-rail li::before {
@@ -98,55 +119,6 @@
   object-fit: cover;
 }
 
-.pool-demo-label {
-  position: absolute;
-  z-index: 1;
-  border: 1px solid rgb(6 47 93 / 14%);
-  border-radius: 0.2rem;
-  background: rgb(255 255 255 / 94%);
-  box-shadow: 0 5px 14px rgb(6 47 93 / 18%);
-  color: #062f5d;
-  font-size: clamp(0.58rem, 0.9vw, 0.74rem);
-  line-height: 1.2;
-  font-weight: 800;
-  letter-spacing: 0.075em;
-  text-transform: uppercase;
-  white-space: nowrap;
-}
-
-.pool-demo-label-property {
-  top: 9%;
-  left: 5%;
-  padding: 0.55rem 0.7rem;
-}
-
-.pool-demo-label-buffer {
-  top: 32%;
-  right: auto;
-  left: 66%;
-  max-width: 15rem;
-  padding: 0.55rem 0.7rem;
-  border-color: #f47b20;
-  background: #f47b20;
-  color: #fff;
-  white-space: normal;
-}
-
-.pool-demo-label-pool::before {
-  display: none;
-}
-
-.pool-demo-label-pool {
-  right: 31%;
-  bottom: 37%;
-  padding: 0;
-  border: 0;
-  background: transparent;
-  box-shadow: none;
-  color: #fff;
-  font-size: clamp(0.68rem, 1vw, 0.9rem);
-}
-
 @media (max-width: 767px) {
   .pool-process-rail {
     grid-template-columns: 1fr;
@@ -155,9 +127,12 @@
   }
 
   .pool-process-rail li {
-    grid-template-columns: 2.25rem minmax(0, 1fr);
     min-height: 3.35rem;
     padding: 0 0 0.4rem;
+  }
+
+  .pool-process-button {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
   }
 
   .pool-process-number {
@@ -193,36 +168,5 @@
 
   .pool-demo-image {
     object-position: 57% center;
-  }
-
-  .pool-demo-label-buffer {
-    top: 4%;
-    right: 3%;
-    left: auto;
-    max-width: 8.75rem;
-    padding: 0.42rem 0.5rem;
-  }
-
-  .pool-demo-label-pool {
-    right: 4%;
-    bottom: 5%;
-    padding: 0.42rem 0.5rem;
-    border: 1px solid rgb(6 47 93 / 14%);
-    background: rgb(255 255 255 / 94%);
-    box-shadow: 0 5px 14px rgb(6 47 93 / 18%);
-    color: #062f5d;
-  }
-
-  .pool-demo-label-property {
-    top: 4%;
-    left: 3%;
-    max-width: 7.8rem;
-    padding: 0.42rem 0.5rem;
-    white-space: normal;
-  }
-
-  .pool-demo-label {
-    font-size: 0.5rem;
-    letter-spacing: 0.055em;
   }
 }
