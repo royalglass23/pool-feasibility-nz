@@ -60,8 +60,8 @@ it("lets a partner enquire without a message and preserves the submission on ret
   expect(await screen.findByRole("alert")).toHaveTextContent(
     "We couldn't verify the request limit just now.",
   );
-  expect(screen.getByRole("alert")).toHaveTextContent(
-    "Reference: contact-rate-limit-reference.",
+  expect(screen.getByRole("alert")).not.toHaveTextContent(
+    "contact-rate-limit-reference",
   );
   expect(screen.getByLabelText("Company")).toHaveValue("Example Pools");
   await user.click(

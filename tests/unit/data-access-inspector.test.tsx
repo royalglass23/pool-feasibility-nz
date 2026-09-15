@@ -140,7 +140,9 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       await user.keyboard("{Enter}");
 
       expect(await screen.findByText(expectedTitle)).toBeVisible();
-      expect(screen.getByText(new RegExp(correlationId))).toBeVisible();
+      expect(
+        screen.queryByText(new RegExp(correlationId)),
+      ).not.toBeInTheDocument();
       expect(
         screen.queryByText(
           "One of the official map services did not respond in time.",
@@ -1095,6 +1097,11 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     });
     const detailedChecks = {
       status: "complete" as const,
+      constraints: {
+        status: "complete" as const,
+        retryableLayerKeys: [],
+        unavailableLayerKeys: [],
+      },
       layers: [],
       retrievedAt: "2026-09-14T00:00:00.000Z",
       durationMs: 50,
@@ -1155,7 +1162,9 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     ).toBeVisible();
     expect(screen.getByText("2.4°")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Map checks loaded" }),
+      screen.getByRole("button", {
+        name: "All available constraints loaded",
+      }),
     ).toBeDisabled();
 
     await user.click(
@@ -1168,11 +1177,105 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     await waitFor(() => expect(detailedRequestCount).toBe(1));
     expect(screen.getByText("2.4°")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Map checks loaded" }),
+      screen.getByRole("button", {
+        name: "All available constraints loaded",
+      }),
     ).toBeDisabled();
     expect(
       screen.queryByText(/The pool position changed\./i),
     ).not.toBeInTheDocument();
+  });
+
+  it("keeps completed constraints disabled when parcel slope needs checking", async () => {
+    const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      ...splitDataAccessGateway(gateway),
+      basemapApiKey: "test-key",
+    });
+    let detailedRequestCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === "/api/public/property-check") {
+          return Response.json({
+            data: fastResult,
+            assessmentSnapshot: "server-issued-initial-snapshot",
+          });
+        }
+        const requestBody = JSON.parse(String(init?.body ?? "{}")) as {
+          mode?: string;
+        };
+        if (requestBody.mode === "detailed") {
+          detailedRequestCount += 1;
+          return Response.json({
+            data: {
+              status: "partial",
+              constraints: {
+                status: "complete",
+                retryableLayerKeys: [],
+                unavailableLayerKeys: ["culverts"],
+              },
+              layers: [],
+              retrievedAt: "2026-09-14T00:00:00.000Z",
+              durationMs: 50,
+              region: "Auckland",
+              limitations: [],
+              terrain: {
+                status: "needs_checking",
+                reasons: ["No valid elevation data covers this property."],
+              },
+            },
+            assessmentSnapshot: "server-issued-detailed-snapshot",
+          });
+        }
+        return Response.json({
+          data: fastResult,
+          assessmentSnapshot: "server-issued-stage-snapshot",
+        });
+      }),
+    );
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.keyboard("{Enter}");
+    await user.click(
+      await screen.findByRole("button", { name: "Check for constraints" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Indicative property slope" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/No valid elevation data covers this property\./),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "All available constraints loaded",
+      }),
+    ).toBeDisabled();
+
+    await user.click(
+      screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }),
+    );
+    await user.clear(screen.getByLabelText("Custom length (m)"));
+    await user.type(screen.getByLabelText("Custom length (m)"), "7.2");
+    await user.clear(screen.getByLabelText("Custom width (m)"));
+    await user.type(screen.getByLabelText("Custom width (m)"), "3.4");
+
+    await waitFor(() => expect(detailedRequestCount).toBe(1));
+    expect(
+      screen.getByRole("button", {
+        name: "All available constraints loaded",
+      }),
+    ).toBeDisabled();
   });
 
   it("hides the address search after a fast view opens and restores it from Start again", async () => {

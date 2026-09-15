@@ -16,16 +16,18 @@ describe("friendlyRequestError", () => {
         correlationId: "limiter-unavailable-reference",
       }),
     ).toBe(
-      "We couldn't verify the request limit just now. Your details are still here. Please try again shortly. Reference: limiter-unavailable-reference.",
+      "We couldn't verify the request limit just now. Your details are still here. Please try again shortly.",
     );
   });
 
-  it("retains the correlation reference for another server failure", () => {
+  it("does not expose the correlation reference for another server failure", () => {
     expect(
       friendlyRequestError(502, "send your message", {
         code: "DELIVERY_UNAVAILABLE",
         correlationId: "delivery-reference",
       }),
-    ).toContain("Reference: delivery-reference.");
+    ).toBe(
+      "We couldn't send your message just now. Your details are still here. Please try again shortly.",
+    );
   });
 });

@@ -353,13 +353,13 @@ it.each([
     429,
     "RATE_LIMITED",
     "aerial-rate-reference",
-    "Aerial photo requests have reached their temporary limit. You can still review the property boundary; please wait before trying again. Reference: aerial-rate-reference.",
+    "Aerial photo requests have reached their temporary limit. You can still review the property boundary; please wait before trying again.",
   ],
   [
     503,
     "RATE_LIMIT_UNAVAILABLE",
     "aerial-limiter-reference",
-    "Aerial photo requests are paused because the request limit service is unavailable. You can still review the property boundary; please try again shortly. Reference: aerial-limiter-reference.",
+    "Aerial photo requests are paused because the request limit service is unavailable. You can still review the property boundary; please try again shortly.",
   ],
 ])(
   "identifies an aerial tile limiter response (%s) without suggesting a LINZ failure",

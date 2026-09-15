@@ -50,15 +50,6 @@ export async function readClientApiErrorFromBlobError(
   return isRecord(error) ? readClientApiErrorBlob(error.body) : null;
 }
 
-export function withErrorReference(
-  message: string,
-  error?: Pick<ClientApiError, "correlationId"> | null,
-): string {
-  return error?.correlationId
-    ? `${message} Reference: ${error.correlationId}.`
-    : message;
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
 }

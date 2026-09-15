@@ -48,7 +48,6 @@ import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast
 import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
 import {
   readClientApiError,
-  withErrorReference,
   type ClientApiError,
 } from "@/shared/http/client-api-error";
 
@@ -766,20 +765,14 @@ function propertyCheckIssue(error: ClientApiError | null): PropertyCheckIssue {
         title: "Too many property checks for now",
         message:
           "This connection has reached the temporary Property Check limit.",
-        troubleshooting: withErrorReference(
-          "Wait for the limit to reset before trying again.",
-          error,
-        ),
+        troubleshooting: "Please wait before trying again.",
       };
     case "RATE_LIMIT_UNAVAILABLE":
       return {
         title: "Property check protection is temporarily unavailable",
         message:
           "The request limit service did not respond, so we did not start the property check.",
-        troubleshooting: withErrorReference(
-          "Try again shortly. If it keeps happening, share this reference with us.",
-          error,
-        ),
+        troubleshooting: "Please try again shortly.",
       };
     case "DATA_PROVIDER_ERROR":
       return {
@@ -819,13 +812,9 @@ function detailedChecksIssue(
     };
   if (error?.code === "RATE_LIMIT_UNAVAILABLE")
     return {
-      title: "Detailed-check protection is temporarily unavailable",
-      message:
-        "Your preliminary property view is still available, but the request limit service did not respond.",
-      troubleshooting: withErrorReference(
-        "Try again shortly. If it keeps happening, share this reference with us.",
-        error,
-      ),
+      title: "Detailed checks are temporarily unavailable",
+      message: "You can still use your preliminary property view.",
+      troubleshooting: "Please try the detailed checks again shortly.",
     };
   return {
     title: "Your property view is ready, but some map checks are not",
@@ -850,19 +839,10 @@ function formatRetryInterval(seconds: number): string {
 
 function addressSuggestionIssue(error: ClientApiError | null): string {
   if (error?.code === "RATE_LIMITED")
-    return withErrorReference(
-      "Address suggestions are paused because this connection has reached its temporary limit. Please wait before trying again.",
-      error,
-    );
+    return "Address suggestions are paused because this connection has reached its temporary limit. Please wait before trying again.";
   if (error?.code === "RATE_LIMIT_UNAVAILABLE")
-    return withErrorReference(
-      "Address suggestions are paused because the request limit service is unavailable. Please try again shortly.",
-      error,
-    );
-  return withErrorReference(
-    "Address suggestions are temporarily unavailable.",
-    error,
-  );
+    return "Address suggestions are paused because the request limit service is unavailable. Please try again shortly.";
+  return "Address suggestions are temporarily unavailable.";
 }
 
 function SelectedAddressPending({

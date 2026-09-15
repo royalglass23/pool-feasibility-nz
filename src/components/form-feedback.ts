@@ -1,5 +1,4 @@
 import type { ClientApiError } from "@/shared/http/client-api-error";
-import { withErrorReference } from "@/shared/http/client-api-error";
 
 export function friendlyFieldError(
   issues: ReadonlyArray<{ path: ReadonlyArray<PropertyKey>; message: string }>,
@@ -52,19 +51,10 @@ export function friendlyRequestError(
   error?: ClientApiError | null,
 ) {
   if (status === 429)
-    return withErrorReference(
-      "You've tried a few times. Please wait a moment before trying again.",
-      error,
-    );
+    return "You've tried a few times. Please wait a moment before trying again.";
   if (status === 400 || status === 413)
     return "Please check your details and try again.";
   if (error?.code === "RATE_LIMIT_UNAVAILABLE")
-    return withErrorReference(
-      "We couldn't verify the request limit just now. Your details are still here. Please try again shortly.",
-      error,
-    );
-  return withErrorReference(
-    `We couldn't ${action} just now. Your details are still here. Please try again shortly.`,
-    error,
-  );
+    return "We couldn't verify the request limit just now. Your details are still here. Please try again shortly.";
+  return `We couldn't ${action} just now. Your details are still here. Please try again shortly.`;
 }
