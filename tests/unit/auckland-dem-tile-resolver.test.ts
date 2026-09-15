@@ -10,6 +10,15 @@ vi.mock("server-only", () => ({}));
 const checksum = `1220${"a".repeat(64)}`;
 
 describe("Auckland DEM tile resolver", () => {
+  it("classifies an empty catalogue as invalid rather than absent coverage", () => {
+    expect(
+      resolveAucklandDemTile({
+        parcelGeometry: rectangle(175.14, -36.79, 175.15, -36.78),
+        catalogue: catalogueWith([]),
+      }),
+    ).toEqual({ status: "invalid_catalogue" });
+  });
+
   it("selects the authoritative tile that wholly contains a parcel outside BA31", () => {
     const catalogue = catalogueWith([
       tile("BA31_10000_0403", rectangle(174.58, -36.89, 174.65, -36.81)),
@@ -75,7 +84,7 @@ describe("Auckland DEM tile resolver", () => {
     });
   });
 
-  it("does not select either tile when a parcel crosses their shared edge", () => {
+  it("distinguishes a shared tile boundary from absent coverage", () => {
     const catalogue = catalogueWith([
       tile("BA32_10000_0303", rectangle(175.1, -36.8, 175.14, -36.76)),
       tile("BA33_10000_0303", rectangle(175.14, -36.8, 175.18, -36.76)),
@@ -86,7 +95,7 @@ describe("Auckland DEM tile resolver", () => {
         parcelGeometry: rectangle(175.139, -36.79, 175.141, -36.78),
         catalogue,
       }),
-    ).toEqual({ status: "no_coverage" });
+    ).toEqual({ status: "tile_boundary" });
   });
 });
 

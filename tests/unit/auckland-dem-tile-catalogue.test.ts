@@ -5,6 +5,17 @@ import { parseAucklandDemTileCatalogue } from "@/modules/providers/linz/auckland
 vi.mock("server-only", () => ({}));
 
 describe("Auckland DEM tile catalogue boundary", () => {
+  it("rejects an empty catalogue before it can be mistaken for absent coverage", () => {
+    expect(() =>
+      parseAucklandDemTileCatalogue({
+        source: "LINZ Auckland 2024 DEM STAC",
+        sourceUpdatedAt: "2026-01-13T21:29:07Z",
+        ...AUCKLAND_DEM_REQUIRED_METADATA,
+        tiles: [],
+      }),
+    ).toThrowError("Invalid Auckland DEM tile catalogue.");
+  });
+
   it("rejects malformed catalogue JSON before terrain resolution", () => {
     expect(() =>
       parseAucklandDemTileCatalogue({

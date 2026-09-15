@@ -1,6 +1,6 @@
 import "server-only";
 
-import { booleanWithin } from "@turf/turf";
+import { booleanIntersects, booleanWithin } from "@turf/turf";
 import type { Polygon } from "geojson";
 import {
   AUCKLAND_DEM_DATASETS,
@@ -37,6 +37,7 @@ export type ResolvedAucklandDemTile = {
 export type AucklandDemTileResolution =
   | ResolvedAucklandDemTile
   | { status: "invalid_catalogue" }
+  | { status: "tile_boundary" }
   | { status: "no_coverage" };
 
 export function resolveAucklandDemTile(input: {
@@ -50,7 +51,14 @@ export function resolveAucklandDemTile(input: {
   const tile = input.catalogue.tiles.find((candidate) =>
     booleanWithin(input.parcelGeometry, candidate.wgs84Geometry),
   );
-  if (!tile) return { status: "no_coverage" };
+  if (!tile) {
+    const intersectingTileCount = input.catalogue.tiles.filter((candidate) =>
+      booleanIntersects(input.parcelGeometry, candidate.wgs84Geometry),
+    ).length;
+    return {
+      status: intersectingTileCount > 1 ? "tile_boundary" : "no_coverage",
+    };
+  }
 
   return {
     status: "resolved",
@@ -82,6 +90,7 @@ export function isAucklandDemTileCatalogue(
     typeof catalogue.sourceUpdatedAt === "string" &&
     isAucklandDemIsoTimestamp(catalogue.sourceUpdatedAt) &&
     Array.isArray(tiles) &&
+    tiles.length > 0 &&
     matchesAucklandDemRequiredMetadata(catalogue) &&
     tiles.every(isValidCatalogueEntry)
   );

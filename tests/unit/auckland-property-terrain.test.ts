@@ -229,6 +229,34 @@ describe("Auckland property terrain", () => {
     expect(readWindow).not.toHaveBeenCalled();
   });
 
+  it("returns truthful Needs Checking wording at a mapped elevation boundary", async () => {
+    const readWindow: AucklandTerrainWindowReader = vi.fn();
+    const terrain = createAucklandPropertyTerrainGateway({
+      readWindow,
+      resolveTile: () => ({ status: "tile_boundary" }),
+    });
+    const parcel: Polygon = {
+      type: "Polygon",
+      coordinates: [
+        [
+          [175.139, -36.79],
+          [175.141, -36.79],
+          [175.141, -36.78],
+          [175.139, -36.78],
+          [175.139, -36.79],
+        ],
+      ],
+    };
+
+    await expect(terrain.assessParcel(parcel)).resolves.toEqual({
+      status: "needs_checking",
+      reasons: [
+        "Terrain data for this property crosses a mapped data boundary and needs further checking.",
+      ],
+    });
+    expect(readWindow).not.toHaveBeenCalled();
+  });
+
   it("keeps a bounded analysis window inside the selected tile at its edge", async () => {
     const westTop = [175.1236279, -36.7424081] as const;
     const westBottom = [175.1254186, -36.8072698] as const;

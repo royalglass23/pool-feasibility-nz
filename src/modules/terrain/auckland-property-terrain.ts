@@ -68,7 +68,9 @@ export function createAucklandPropertyTerrainGateway(
           reasons: [
             tile.status === "invalid_catalogue"
               ? "The Auckland 2024 elevation catalogue metadata is invalid or unavailable."
-              : "The mapped property parcel is outside the indexed Auckland 2024 elevation coverage.",
+              : tile.status === "tile_boundary"
+                ? "Terrain data for this property crosses a mapped data boundary and needs further checking."
+                : "The mapped property parcel is outside the indexed Auckland 2024 elevation coverage.",
           ],
         };
       }
