@@ -1216,7 +1216,10 @@ export function FastPropertyView({
         )}
       </div>
       {result.detailedChecks?.terrain ? (
-        <TerrainSlopeResult terrain={result.detailedChecks.terrain} />
+        <TerrainSlopeResult
+          terrain={result.detailedChecks.terrain}
+          contoursAvailable={Boolean(mappedContours)}
+        />
       ) : null}
       {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
       {mapError && (
@@ -1341,8 +1344,10 @@ function PropertySlopeMapOverlay({
 
 function TerrainSlopeResult({
   terrain,
+  contoursAvailable,
 }: {
   terrain: NonNullable<FastPropertyViewResult["detailedChecks"]>["terrain"];
+  contoursAvailable: boolean;
 }) {
   if (!terrain) return null;
   if (terrain.status === "needs_checking") {
@@ -1372,69 +1377,77 @@ function TerrainSlopeResult({
             Indicative property slope
           </h3>
           <p className="text-pool-600 mt-1 text-sm">
-            Across the mapped property parcel
+            Across the mapped property parcel, not the selected pool position
           </p>
         </div>
-        <p className="text-pool-950 text-3xl font-semibold tabular-nums">
-          {terrain.averageSlopeDegrees.toFixed(1)}°
-        </p>
+        <div className="sm:text-right">
+          <p className="text-pool-600 text-xs">Average slope</p>
+          <p
+            aria-label={`Average property slope: ${terrain.averageSlopeDegrees.toFixed(1)} degrees. Colour shows relative steepness only, not suitability.`}
+            className={`mt-1 inline-flex rounded-sm px-2 py-0.5 text-3xl font-semibold tabular-nums ${relativeSlopeColourClass(terrain.averageSlopeDegrees)}`}
+            data-testid="average-slope-value"
+          >
+            {terrain.averageSlopeDegrees.toFixed(1)}°
+          </p>
+        </div>
       </div>
-      <dl className="mt-4 grid grid-cols-3 gap-3 text-sm">
+      <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
         <div>
-          <dt className="text-pool-600">Upper slope</dt>
-          <dd className="mt-1 font-semibold tabular-nums">
-            {terrain.upperSlopeDegrees.toFixed(1)}°
+          <dt className="text-pool-600">Steeper areas</dt>
+          <dd className="mt-1">
+            <span className="block font-semibold tabular-nums">
+              {terrain.upperSlopeDegrees.toFixed(1)}°
+            </span>
+            <span className="text-pool-500 mt-1 block text-xs leading-5">
+              90% of sampled areas are at or below this angle.
+            </span>
           </dd>
         </div>
         <div>
-          <dt className="text-pool-600">Estimated fall</dt>
-          <dd className="mt-1 font-semibold tabular-nums">
-            {terrain.estimatedFallMetres.toFixed(2)} m
+          <dt className="text-pool-600">Estimated height change</dt>
+          <dd className="mt-1">
+            <span className="block font-semibold tabular-nums">
+              {terrain.estimatedFallMetres.toFixed(2)} m
+            </span>
+            <span className="text-pool-500 mt-1 block text-xs leading-5">
+              Across the parcel in the overall slope direction.
+            </span>
           </dd>
         </div>
         <div>
-          <dt className="text-pool-600">Downhill</dt>
+          <dt className="text-pool-600">Overall downhill direction</dt>
           <dd className="mt-1 font-semibold">
             {terrain.downhillDirection ?? "Approximately flat"}
           </dd>
         </div>
       </dl>
-      <div className="text-pool-600 mt-4 space-y-1 text-xs leading-5">
-        <p>
-          Derived from{" "}
-          <a
-            className="underline underline-offset-2"
-            href={terrain.source.datasetIdentifier}
-            rel="noreferrer"
-            target="_blank"
-          >
-            {terrain.source.dataset}
-          </a>
-          .
-        </p>
-        <p>
-          {terrain.source.provider} ·{" "}
-          {terrain.source.datasetDate ?? "Dataset date not published"}
-        </p>
-        <p>{terrain.source.licence}</p>
-        {terrain.source.attribution ? (
-          <a
-            className="block underline underline-offset-2"
-            href={terrain.source.attribution.url}
-            rel="noreferrer"
-            target="_blank"
-          >
-            {terrain.source.attribution.text}
-          </a>
-        ) : null}
-        <p>
-          This is an indicative desktop estimate; a current site survey is still
-          required for design, excavation, retaining, consent, or construction
-          decisions.
+      <div className="border-pool-blue-200 mt-4 border-t pt-4">
+        <h4 className="text-pool-950 text-sm font-semibold">
+          Does this pool position have a suitable slope?
+        </h4>
+        <p className="text-pool-700 mt-1 max-w-3xl text-sm leading-6">
+          This property-wide result cannot confirm that.{" "}
+          {contoursAvailable ? (
+            <>
+              Turn on Contours to compare areas: wider-spaced contour lines
+              generally indicate gentler ground.{" "}
+            </>
+          ) : (
+            "Contour data is not available for this property view. "
+          )}
+          A current site survey is still required before design, excavation,
+          retaining, consent, or construction decisions.
         </p>
       </div>
     </section>
   );
+}
+
+function relativeSlopeColourClass(slopeDegrees: number): string {
+  if (slopeDegrees < 5) return "bg-pool-blue-100 text-pool-blue-950";
+  if (slopeDegrees < 10) return "bg-sky-100 text-sky-950";
+  if (slopeDegrees < 15) return "bg-amber-100 text-amber-950";
+  return "bg-orange-100 text-orange-950";
 }
 
 function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {

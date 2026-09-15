@@ -291,33 +291,45 @@ it("shows the indicative parcel slope over the aerial map and in the details", a
       "Indicative property slope: average 2.4 degrees, downhill SE",
     ),
   ).toBeVisible();
-  expect(screen.getByText("Across the mapped property parcel")).toBeVisible();
+  expect(
+    screen.getByText(
+      "Across the mapped property parcel, not the selected pool position",
+    ),
+  ).toBeVisible();
+  expect(screen.getByText("Average slope")).toBeVisible();
+  expect(screen.getByTestId("average-slope-value")).toHaveClass(
+    "bg-pool-blue-100",
+    "text-pool-blue-950",
+  );
+  expect(
+    screen.getByLabelText(
+      "Average property slope: 2.4 degrees. Colour shows relative steepness only, not suitability.",
+    ),
+  ).toBeVisible();
+  expect(screen.getByText("Steeper areas")).toBeVisible();
+  expect(
+    screen.getByText("90% of sampled areas are at or below this angle."),
+  ).toBeVisible();
+  expect(screen.getByText("Estimated height change")).toBeVisible();
+  expect(screen.getByText("Overall downhill direction")).toBeVisible();
   expect(screen.getByText("2.4°")).toBeVisible();
   expect(screen.getByText("3.8°")).toBeVisible();
   expect(screen.getByText("0.36 m")).toBeVisible();
   expect(screen.getByText("SE")).toBeVisible();
   expect(
-    screen.getByRole("link", {
-      name: "Auckland Part 1 LiDAR 1m DEM (2024)",
-    }),
-  ).toHaveAttribute(
-    "href",
-    "https://data.linz.govt.nz/layer/121990-auckland-part-1-lidar-1m-dem-2024/",
-  );
+    screen.queryByText("Creative Commons Attribution 4.0 International"),
+  ).not.toBeInTheDocument();
   expect(
-    screen.getByText("Land Information New Zealand · 2024-04-30/2024-06-27"),
+    screen.getByRole("heading", {
+      name: "Does this pool position have a suitable slope?",
+    }),
   ).toBeVisible();
   expect(
-    screen.getByText("Creative Commons Attribution 4.0 International"),
+    screen.getByText(/Contour data is not available for this property view/i),
   ).toBeVisible();
   expect(
-    screen.getByRole("link", {
-      name: /Sourced from the LINZ Data Service/i,
-    }),
-  ).toHaveAttribute(
-    "href",
-    "https://www.linz.govt.nz/products-services/data/licensing-and-using-data/attributing-elevation-or-aerial-imagery-data",
-  );
+    screen.queryByText(/Turn on Contours to compare areas/i),
+  ).not.toBeInTheDocument();
   expect(
     screen.getByText(/A current site survey is still required/i),
   ).toBeVisible();
