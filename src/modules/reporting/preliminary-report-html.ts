@@ -343,24 +343,24 @@ function reportMappingSources(
   ) {
     const source = report.terrain.source;
     const terrainSource: ReportDataSource = {
-        provider: source.provider,
-        dataset: source.dataset,
-        datasetDate: source.datasetDate,
-        sourceUrl: source.datasetIdentifier,
-        licenceUrl: source.licenceUrl,
-        licence: source.licence,
-        attribution: source.attribution?.text ?? null,
-        notes: [source.derivedProductNotice],
-        provenanceAssets: source.contributingAssets.map((asset) => ({
-          stacItemUrl: asset.stacItemUrl,
-          assetChecksum: asset.assetChecksum,
-          assetUpdatedAt: asset.assetUpdatedAt,
-          retrievedAt: asset.retrievedAt,
-        })),
-        retrievedAt: source.retrievedAt,
-        queryStatus: "success",
-        status: "derived_indicative_slope",
-        evidenceUse: "saved_terrain_result",
+      provider: source.provider,
+      dataset: source.dataset,
+      datasetDate: source.datasetDate,
+      sourceUrl: source.datasetIdentifier,
+      licenceUrl: source.licenceUrl,
+      licence: source.licence,
+      attribution: source.attribution?.text ?? null,
+      notes: [source.derivedProductNotice],
+      provenanceAssets: source.contributingAssets.map((asset) => ({
+        stacItemUrl: asset.stacItemUrl,
+        assetChecksum: asset.assetChecksum,
+        assetUpdatedAt: asset.assetUpdatedAt,
+        retrievedAt: asset.retrievedAt,
+      })),
+      retrievedAt: source.retrievedAt,
+      queryStatus: "success",
+      status: "derived_indicative_slope",
+      evidenceUse: "saved_terrain_result",
     };
     const existingIndex = sources.findIndex(
       (item) =>

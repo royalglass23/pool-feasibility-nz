@@ -162,8 +162,14 @@ describe("persisted preliminary report renderer", () => {
         },
       ],
       sources: Array.from({ length: 12 }, (_, index) => ({
-        provider: index === 0 ? "Land Information New Zealand" : `Mapped provider ${index + 1}`,
-        dataset: index === 0 ? "Auckland Part 1 LiDAR 1m DEM (2024)" : `Mapped dataset ${index + 1}`,
+        provider:
+          index === 0
+            ? "Land Information New Zealand"
+            : `Mapped provider ${index + 1}`,
+        dataset:
+          index === 0
+            ? "Auckland Part 1 LiDAR 1m DEM (2024)"
+            : `Mapped dataset ${index + 1}`,
         status: "available",
         evidenceUse: "report_allowed",
         licence: `Recorded licence ${index + 1}`,
@@ -256,9 +262,11 @@ describe("persisted preliminary report renderer", () => {
             const pages = Array.from(
               document.querySelectorAll<HTMLElement>(".page"),
             );
-            const mapPanel = document.querySelector<HTMLElement>(".summary-map");
+            const mapPanel =
+              document.querySelector<HTMLElement>(".summary-map");
             const map = mapPanel?.querySelector<HTMLElement>(".map");
-            const mapVisual = mapPanel?.querySelector<HTMLElement>(".map-visual");
+            const mapVisual =
+              mapPanel?.querySelector<HTMLElement>(".map-visual");
             const mapLegend =
               mapPanel?.querySelector<HTMLElement>(".map-legend");
             const mapLegendList =
@@ -267,10 +275,13 @@ describe("persisted preliminary report renderer", () => {
             const mapCaption =
               mapPanel?.querySelector<HTMLElement>(".map-caption");
             const pageTwo = pages[1];
-            const findings = pageTwo?.querySelector<HTMLElement>(".assessment-grid");
+            const findings =
+              pageTwo?.querySelector<HTMLElement>(".assessment-grid");
             const terrainCard = Array.from(
               pageTwo?.querySelectorAll<HTMLElement>(".assessment-card") ?? [],
-            ).find((card) => card.textContent?.includes("Indicative terrain measurement"));
+            ).find((card) =>
+              card.textContent?.includes("Indicative terrain measurement"),
+            );
             const pageTwoFooter = pageTwo?.querySelector<HTMLElement>("footer");
             const footer = mapPage?.querySelector<HTMLElement>("footer");
             const pageThree = pages[2];
@@ -317,9 +328,13 @@ describe("persisted preliminary report renderer", () => {
               mapPanelClearOfFooter: panelRect.bottom <= footerRect.top - 8,
               findingsClearOfFooter:
                 findingsRect.bottom <= pageTwoFooterRect.top - 8,
-              terrainCardShown: Boolean(terrainCard?.textContent?.includes("4.0°")),
+              terrainCardShown: Boolean(
+                terrainCard?.textContent?.includes("4.0°"),
+              ),
               mapFillsVisualArea:
-                Math.abs(mapRect.height - mapVisual.getBoundingClientRect().height) < 1,
+                Math.abs(
+                  mapRect.height - mapVisual.getBoundingClientRect().height,
+                ) < 1,
               mapLegendBelowMap: mapLegendRect.top >= mapRect.bottom - 1,
               mapLegendHasThreeColumns:
                 getComputedStyle(mapLegendList)

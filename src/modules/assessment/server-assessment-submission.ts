@@ -11,9 +11,7 @@ import { classifyFastPoolWarning } from "@/modules/data-access-spike/fast-pool-w
 import { buildFastReportAssessment } from "@/modules/reporting/build-fast-report-assessment";
 import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
 import { isValidPngMapImageDataUrl } from "@/modules/reporting/map-image";
-import {
-  AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED,
-} from "@/modules/providers/linz/auckland-dem-source-contract";
+import { AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED } from "@/modules/providers/linz/auckland-dem-source-contract";
 import { aucklandDemReportEligibility } from "@/modules/providers/linz/auckland-dem-report-eligibility";
 import { assessSelectedPoolTerrain } from "@/modules/terrain/assess-selected-pool-terrain";
 import type {
@@ -225,7 +223,9 @@ function reportTerrain(
 
 function persistMeasuredTerrain(
   terrain: Extract<PropertyTerrainAssessment, { status: "measured" }>,
-  constructionEnvelopeTerrain: ReturnType<typeof assessSelectedPoolTerrain> | null,
+  constructionEnvelopeTerrain: ReturnType<
+    typeof assessSelectedPoolTerrain
+  > | null,
 ): PersistedAssessmentSubmission["report"]["reportData"]["terrain"] {
   return {
     status: "measured",
