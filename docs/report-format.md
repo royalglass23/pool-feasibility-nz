@@ -1,4 +1,4 @@
-# Three-page report proposal
+# Three-page preliminary report contract
 
 ## Rendering model
 
@@ -14,17 +14,17 @@ HTML-to-PDF is preferred, but the browser binary/runtime is not selected until a
 
 ## Page contract
 
-### Page 1 — Executive summary
+### Page 1 — Property and saved map
 
-Address, report date/ID, score, classification, confidence, main recommendation, three scenario results, top three risks, and main aerial map.
+PoolReady branding, address, report date/ID, proposed pool, a full-width text-only overall warning and recommendation, a compact `At a glance` status scan, and one saved aerial map. The captured map layers and indicative pool-shell clearances sit below the map; the layer list uses three equal columns. Do not repeat the map on another page.
 
-### Page 2 — Property constraints
+### Page 2 — What we checked
 
-Large attributed map with parcel, candidates and report-eligible verified hazards/infrastructure/terrain, plus the six-category status table. Building-outline geometry is deliberately omitted from the customer map and legend to keep the aerial readable; it remains available to the assessment and in the Page 3 official-layer status.
+Compact cards for meaningful assessed results, including approved indicative terrain measurements when available; unavailable or unassessed checks appear in one `Still needs checking` list rather than empty cards. Include key findings without duplicating the map, score, scenarios, or status table. Building-outline geometry remains omitted from the customer map and legend to keep the aerial readable.
 
-### Page 3 — Risks and actions
+### Page 3 — Next steps and provenance
 
-Risk table, prioritised actions by phase, missing information, data sources, assumptions, limitations, and disclaimer.
+Recommended next stage, actionable steps and remaining verification, followed by mapping sources, licences, assumptions, limitations, and the preliminary-assessment disclaimer. Keep the complete provenance for any report-eligible terrain measurement compact and readable.
 
 Each A4 page carries `Preliminary Feasibility Report`, report ID, page number, and generated timestamp. Map attribution must remain legible in print.
 

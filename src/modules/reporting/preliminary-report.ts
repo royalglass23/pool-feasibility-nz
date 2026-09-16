@@ -60,6 +60,8 @@ export type SavedPreliminaryReport = {
   risks: PersistedAssessmentSubmission["report"]["reportData"]["risks"];
   actions: PersistedAssessmentSubmission["report"]["reportData"]["actions"];
   missingInformation: PersistedAssessmentSubmission["report"]["reportData"]["missingInformation"];
+  terrain:
+    PersistedAssessmentSubmission["report"]["reportData"]["terrain"] | null;
   layers: Array<{
     id?: string;
     provider: string;
@@ -152,8 +154,13 @@ export function buildSavedPreliminaryReport({
     };
   });
   const canonical = buildCanonicalPoolFeasibilityReport(submission, layers);
+  const assessments = withTerrainAssessment(
+    canonical.assessments,
+    reportData.terrain,
+  );
   return {
     ...canonical,
+    assessments,
     reference,
     generatedAt: createdAt,
     title: submission.report.title,
@@ -201,6 +208,7 @@ export function buildSavedPreliminaryReport({
     risks: reportData.risks,
     actions: reportData.actions,
     missingInformation: reportData.missingInformation,
+    terrain: reportData.terrain ?? null,
     layers,
     sources: canonical.sources,
     assumptions: [reportData.preliminaryFeasibilityWording],
@@ -208,6 +216,78 @@ export function buildSavedPreliminaryReport({
     mapImageDataUrl: submission.report.mapImageDataUrl,
     mapImageSource: reportData.mapImageSource,
     mapVisibleLayerKeys: reportData.mapVisibleLayerKeys,
+  };
+}
+
+function withTerrainAssessment(
+  assessments: SavedPreliminaryReport["assessments"],
+  terrain: PersistedAssessmentSubmission["report"]["reportData"]["terrain"],
+): SavedPreliminaryReport["assessments"] {
+  if (!terrain) return assessments;
+  if (terrain.status === "needs_checking") {
+    return {
+      ...assessments,
+      terrain: {
+        ...assessments.terrain,
+        status: "unknown",
+        headline: "Needs checking",
+        summary: terrain.reasons.join(" "),
+      },
+    };
+  }
+  if (terrain.reportEligibility !== "approved") {
+    return {
+      ...assessments,
+      terrain: {
+        ...assessments.terrain,
+        status: "unknown",
+        headline: "Needs checking",
+        summary:
+          "Terrain information has not yet completed the checks required for inclusion in this preliminary report.",
+        details: [],
+      },
+    };
+  }
+  const details = [
+    {
+      label: "Property average slope",
+      value: `${terrain.averageSlopeDegrees.toFixed(1)}°`,
+    },
+    {
+      label: "Steeper sampled areas",
+      value: `${terrain.upperSlopeDegrees.toFixed(1)}°`,
+    },
+    {
+      label: "Estimated property height change",
+      value: `${terrain.estimatedFallMetres.toFixed(2)} m`,
+    },
+    {
+      label: "Overall downhill direction",
+      value: terrain.downhillDirection ?? "Approximately flat",
+    },
+    ...(terrain.constructionEnvelopeTerrain
+      ? [
+          {
+            label: "Proposed pool construction area slope",
+            value: `${terrain.constructionEnvelopeTerrain.averageSlopeDegrees.toFixed(1)}°`,
+          },
+          {
+            label: "Proposed pool construction area height change",
+            value: `${terrain.constructionEnvelopeTerrain.estimatedFallMetres.toFixed(2)} m`,
+          },
+        ]
+      : []),
+  ];
+  return {
+    ...assessments,
+    terrain: {
+      ...assessments.terrain,
+      status: "amber",
+      headline: "Indicative terrain measurement",
+      summary:
+        "Indicative DEM-derived slope is available for early planning. Confirm levels with a current site survey before design, excavation or construction.",
+      details,
+    },
   };
 }
 

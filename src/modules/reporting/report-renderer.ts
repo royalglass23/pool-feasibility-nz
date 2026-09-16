@@ -113,6 +113,26 @@ const puppeteerRenderer: PdfRenderer = {
         );
       });
       await page.emulateMediaType("print");
+      const attributionFits = await page.evaluate(() => {
+        const list = document.querySelector<HTMLElement>(".source-list");
+        if (!list) return true;
+        const page = list.closest<HTMLElement>(".page");
+        const disclaimer = page?.querySelector<HTMLElement>(".disclaimer");
+        const footer = page?.querySelector<HTMLElement>("footer");
+        if (!page || !disclaimer || !footer) return false;
+        const boundary = Math.min(
+          disclaimer.getBoundingClientRect().top,
+          footer.getBoundingClientRect().top,
+        );
+        return Array.from(list.children).every(
+          (item) => item.getBoundingClientRect().bottom <= boundary - 8,
+        );
+      });
+      if (!attributionFits) {
+        throw new Error(
+          "REPORT_GENERATION_FAILED: attribution exceeds the three-page layout",
+        );
+      }
       return Buffer.from(
         await page.pdf({
           format: "A4",

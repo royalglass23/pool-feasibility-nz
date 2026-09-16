@@ -86,6 +86,8 @@ export function buildFastReportAssessment(
     parcelIdentityConfirmed: result.boundary.state === "confirmed",
     parcel,
     datasets,
+    // Keep slope out of suitability scoring until the DEM method has completed
+    // its separate homeowner-report validation gate.
     terrainEvidence: { status: "unknown", maximumSlopeDegrees: null },
     assessedAt,
   });

@@ -182,7 +182,7 @@ describe("web, PDF and email report consistency", () => {
     ).toHaveTextContent(report.overall.recommendedStage);
     expect(pdfHtml).toContain(assessmentStatusLabel(report.overall.status));
     expect(pdfHtml).toContain(
-      "This preliminary feasibility report is an indicative desktop screen based on available mapped information.",
+      "Confirm property boundaries, services, site levels and approval requirements before design or construction.",
     );
     expect(pdfHtml).not.toContain("Evidence to confirm");
     expect(`${email.html}\n${email.text}`).toContain(

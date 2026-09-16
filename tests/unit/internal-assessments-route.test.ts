@@ -8,6 +8,9 @@ import {
 import { queryableDatasetKeys } from "@/modules/data-access-spike/dataset-catalog";
 import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fast-property-details";
 import { officialDatasetEvidence } from "@/modules/providers/official-dataset-catalog";
+import { AUCKLAND_DEM_REQUIRED_METADATA } from "@/modules/providers/linz/auckland-dem-source-contract";
+import { buildSavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
+import { renderCanonicalPreliminaryReportHtml } from "@/modules/reporting/preliminary-report-html";
 
 const getDb = vi.hoisted(() => vi.fn(() => ({}) as never));
 const getHomeownerAssessmentByIdempotencyKey = vi.hoisted(() => vi.fn());
@@ -16,8 +19,24 @@ const getSavedPreliminaryReportById = vi.hoisted(() => vi.fn());
 const issueSavedReportAccessToken = vi.hoisted(() => vi.fn());
 const after = vi.hoisted(() => vi.fn());
 const executeFastPropertyDetailsRequest = vi.hoisted(() => vi.fn());
+const terrainReportPromotion = vi.hoisted(() => ({ enabled: false }));
 
 vi.mock("server-only", () => ({}));
+vi.mock(
+  "@/modules/providers/linz/auckland-dem-source-contract",
+  async (importOriginal) => {
+    const actual =
+      await importOriginal<
+        typeof import("@/modules/providers/linz/auckland-dem-source-contract")
+      >();
+    return {
+      ...actual,
+      get AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED() {
+        return terrainReportPromotion.enabled;
+      },
+    };
+  },
+);
 vi.mock("next/server", () => ({ after }));
 vi.mock("@/modules/rate-limit/public-rate-limit", () => ({
   createPublicRateLimitedHandler: (
@@ -115,6 +134,7 @@ const validSubmission = {
 };
 
 beforeEach(() => {
+  terrainReportPromotion.enabled = false;
   getHomeownerAssessmentByIdempotencyKey.mockResolvedValue(null);
   executeFastPropertyDetailsRequest.mockResolvedValue({
     ok: true,
@@ -315,6 +335,425 @@ describe("POST /api/internal/assessments", () => {
     expect(
       submission.report.reportData.missingInformation.length,
     ).toBeGreaterThan(0);
+  });
+
+  it("keeps spike-only terrain measurements out of the homeowner report and suitability scoring", async () => {
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const detailedChecks = completeDetailedChecks();
+    detailedChecks.terrain = {
+      status: "measured",
+      averageSlopeDegrees: 4,
+      upperSlopeDegrees: 7.5,
+      estimatedFallMetres: 1.35,
+      downhillBearingDegrees: 135,
+      downhillDirection: "South-east",
+      confidence: "indicative",
+      slopeSamples: [
+        [174.759999, -36.850001],
+        [174.760001, -36.850001],
+        [174.759999, -36.849999],
+        [174.760001, -36.849999],
+      ].map((position, index) => ({
+        position: position as [number, number],
+        slopeDegrees: 3 + index,
+        eastGradient: 0.04,
+        northGradient: -0.03,
+      })),
+      source: {
+        provider: "Land Information New Zealand",
+        dataset: "Auckland LiDAR 1m DEM 2024",
+        datasetIdentifier: "auckland-lidar-1m-dem-2024",
+        status: "success",
+        licenceStatus: "permitted",
+        evidenceUse: "spike_only",
+        retrievedAt: "2026-07-29T01:00:00.000Z",
+        datasetDate: "2024",
+        licence: "Creative Commons Attribution 4.0 International",
+        attribution: {
+          text: "Land Information New Zealand (LINZ), CC BY 4.0",
+          url: "https://www.linz.govt.nz/products-services/data/licensing-and-using-data",
+        },
+        geometryUsed: "saved parcel elevation window",
+        attributesUsed: ["elevation"],
+        evidenceType: "raster_dem",
+        confidence: "limited",
+      },
+    };
+    const assessmentSnapshot = snapshotService.issue({
+      ...original.fastResult,
+      detailedChecks,
+    });
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+    });
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot: snapshotService.verify(request.assessmentSnapshot),
+      now: () => new Date("2026-07-30T00:00:00.000Z"),
+    });
+
+    expect(submission.report.reportData.terrain).toMatchObject({
+      status: "measured",
+      reportEligibility: "not_approved",
+      averageSlopeDegrees: 4,
+      source: {
+        status: "success",
+        licenceStatus: "permitted",
+        evidenceUse: "spike_only",
+        licenceUrl: null,
+        geometryUsed: "saved parcel elevation window",
+        attributesUsed: ["elevation"],
+        evidenceType: "raster_dem",
+        confidence: "limited",
+      },
+      constructionEnvelopeTerrain: {
+        averageSlopeDegrees: 4.5,
+        sampleCount: 4,
+      },
+    });
+    expect(
+      submission.report.reportData.assessmentSnapshot?.feasibilityAssessment
+        .categories,
+    ).toContainEqual(
+      expect.objectContaining({ id: "terrain_and_slope", status: "unknown" }),
+    );
+
+    const report = buildSavedPreliminaryReport({
+      submission,
+      reference: "GF-2026-000020",
+      createdAt: "2026-07-30T00:00:00.000Z",
+    });
+    const html = renderCanonicalPreliminaryReportHtml(report);
+
+    expect(report.assessments.terrain).toMatchObject({
+      status: "unknown",
+      headline: "Needs checking",
+    });
+    expect(html).not.toContain("Property average slope");
+    expect(html).not.toContain("4.0°");
+    expect(html).not.toContain("Proposed pool construction area slope");
+    expect(html).not.toContain("Auckland LiDAR 1m DEM 2024");
+  });
+
+  it.each([
+    ["provider", { provider: "Uncontrolled elevation provider" }],
+    ["dataset title", { dataset: "Auckland experimental elevation surface" }],
+    [
+      "dataset URL",
+      { datasetIdentifier: "https://example.test/uncontrolled-elevation/" },
+    ],
+    ["capture date", { datasetDate: "2025-01-01/2025-12-31" }],
+  ] as const)(
+    "keeps terrain with an unrecognised %s out of the homeowner report",
+    async (_field, sourceOverrides) => {
+      terrainReportPromotion.enabled = true;
+      const original = snapshotService.verify(
+        validSubmission.assessmentSnapshot,
+      );
+      const detailedChecks = completeDetailedChecks();
+      detailedChecks.terrain = reportAllowedTerrain(sourceOverrides);
+      const assessmentSnapshot = snapshotService.issue({
+        ...original.fastResult,
+        detailedChecks,
+      });
+      const request = parseBrowserAssessmentSaveRequest({
+        ...validSubmission,
+        assessmentSnapshot,
+      });
+
+      const submission = await buildServerAssessmentSubmission({
+        request,
+        snapshot: snapshotService.verify(request.assessmentSnapshot),
+        now: () => new Date("2026-07-30T00:00:00.000Z"),
+      });
+      const report = buildSavedPreliminaryReport({
+        submission,
+        reference: "GF-2026-000021",
+        createdAt: "2026-07-30T00:00:00.000Z",
+      });
+      const html = renderCanonicalPreliminaryReportHtml(report);
+
+      expect(submission.report.reportData.terrain).toMatchObject({
+        status: "measured",
+        reportEligibility: "not_approved",
+      });
+      expect(report.assessments.terrain).toMatchObject({
+        status: "unknown",
+        headline: "Needs checking",
+      });
+      expect(html).not.toContain("Property average slope");
+    },
+  );
+
+  it("approves a catalogue-pinned contributing asset when the promotion gate is enabled", async () => {
+    terrainReportPromotion.enabled = true;
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const detailedChecks = completeDetailedChecks();
+    detailedChecks.terrain = reportAllowedTerrain();
+    const assessmentSnapshot = snapshotService.issue({
+      ...original.fastResult,
+      detailedChecks,
+    });
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+    });
+
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot: snapshotService.verify(request.assessmentSnapshot),
+      now: () => new Date("2026-07-30T00:00:00.000Z"),
+    });
+
+    expect(submission.report.reportData.terrain).toMatchObject({
+      status: "measured",
+      reportEligibility: "approved",
+    });
+  });
+
+  it("rejects a contributing asset URL that is not in the controlled catalogue", async () => {
+    terrainReportPromotion.enabled = true;
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const detailedChecks = completeDetailedChecks();
+    const terrain = reportAllowedTerrain();
+    const asset = terrain.source.contributingAssets?.[0];
+    if (!asset) throw new Error("TEST_TERRAIN_ASSET_MISSING");
+    terrain.source.contributingAssets = [
+      { ...asset, assetUrl: "https://example.test/uncontrolled-terrain.tiff" },
+    ];
+    detailedChecks.terrain = terrain;
+    const assessmentSnapshot = snapshotService.issue({
+      ...original.fastResult,
+      detailedChecks,
+    });
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+    });
+
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot: snapshotService.verify(request.assessmentSnapshot),
+      now: () => new Date("2026-07-30T00:00:00.000Z"),
+    });
+
+    expect(submission.report.reportData.terrain).toMatchObject({
+      status: "measured",
+      reportEligibility: "not_approved",
+    });
+  });
+
+  it("rejects a contributing STAC item URL that is not in the controlled catalogue", async () => {
+    terrainReportPromotion.enabled = true;
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const detailedChecks = completeDetailedChecks();
+    const terrain = reportAllowedTerrain();
+    const asset = terrain.source.contributingAssets?.[0];
+    if (!asset) throw new Error("TEST_TERRAIN_ASSET_MISSING");
+    terrain.source.contributingAssets = [
+      {
+        ...asset,
+        stacItemUrl: "https://example.test/uncontrolled-terrain.json",
+      },
+    ];
+    detailedChecks.terrain = terrain;
+    const assessmentSnapshot = snapshotService.issue({
+      ...original.fastResult,
+      detailedChecks,
+    });
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+    });
+
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot: snapshotService.verify(request.assessmentSnapshot),
+      now: () => new Date("2026-07-30T00:00:00.000Z"),
+    });
+
+    expect(submission.report.reportData.terrain).toMatchObject({
+      status: "measured",
+      reportEligibility: "not_approved",
+    });
+  });
+
+  it("rejects a contributing asset checksum that does not match the controlled catalogue", async () => {
+    terrainReportPromotion.enabled = true;
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const detailedChecks = completeDetailedChecks();
+    const terrain = reportAllowedTerrain();
+    const asset = terrain.source.contributingAssets?.[0];
+    if (!asset) throw new Error("TEST_TERRAIN_ASSET_MISSING");
+    terrain.source.contributingAssets = [
+      {
+        ...asset,
+        assetChecksum:
+          "1220ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      },
+    ];
+    detailedChecks.terrain = terrain;
+    const assessmentSnapshot = snapshotService.issue({
+      ...original.fastResult,
+      detailedChecks,
+    });
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+    });
+
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot: snapshotService.verify(request.assessmentSnapshot),
+      now: () => new Date("2026-07-30T00:00:00.000Z"),
+    });
+
+    expect(submission.report.reportData.terrain).toMatchObject({
+      status: "measured",
+      reportEligibility: "not_approved",
+    });
+  });
+
+  it("rejects contributing asset metadata from a different catalogue version", async () => {
+    terrainReportPromotion.enabled = true;
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const detailedChecks = completeDetailedChecks();
+    const terrain = reportAllowedTerrain();
+    const asset = terrain.source.contributingAssets?.[0];
+    if (!asset) throw new Error("TEST_TERRAIN_ASSET_MISSING");
+    terrain.source.contributingAssets = [
+      { ...asset, assetUpdatedAt: "2025-01-01T00:00:00.000Z" },
+    ];
+    detailedChecks.terrain = terrain;
+    const assessmentSnapshot = snapshotService.issue({
+      ...original.fastResult,
+      detailedChecks,
+    });
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+    });
+
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot: snapshotService.verify(request.assessmentSnapshot),
+      now: () => new Date("2026-07-30T00:00:00.000Z"),
+    });
+
+    expect(submission.report.reportData.terrain).toMatchObject({
+      status: "measured",
+      reportEligibility: "not_approved",
+    });
+  });
+
+  it("keeps controlled terrain out of the homeowner report until promotion is approved", async () => {
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const detailedChecks = completeDetailedChecks();
+    detailedChecks.terrain = {
+      status: "measured",
+      averageSlopeDegrees: 4,
+      upperSlopeDegrees: 7.5,
+      estimatedFallMetres: 1.35,
+      downhillBearingDegrees: 135,
+      downhillDirection: "South-east",
+      confidence: "indicative",
+      slopeSamples: [
+        [174.759999, -36.850001],
+        [174.760001, -36.850001],
+        [174.759999, -36.849999],
+        [174.760001, -36.849999],
+      ].map((position, index) => ({
+        position: position as [number, number],
+        slopeDegrees: 3 + index,
+        eastGradient: 0.04,
+        northGradient: -0.03,
+      })),
+      source: {
+        provider: "Land Information New Zealand",
+        dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
+        datasetIdentifier:
+          "https://data.linz.govt.nz/layer/121990-auckland-part-1-lidar-1m-dem-2024/",
+        status: "success",
+        licenceStatus: "permitted",
+        evidenceUse: "report_allowed",
+        retrievedAt: "2026-07-29T01:00:00.000Z",
+        datasetDate: "2024-04-30/2024-06-27",
+        ...AUCKLAND_DEM_REQUIRED_METADATA,
+        geometryUsed: "saved parcel elevation window",
+        attributesUsed: ["elevation"],
+        evidenceType: "raster_dem",
+        confidence: "limited",
+        contributingAssets: [
+          {
+            provider: "Land Information New Zealand",
+            dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
+            datasetIdentifier:
+              "https://data.linz.govt.nz/layer/121990-auckland-part-1-lidar-1m-dem-2024/",
+            stacCollectionUrl:
+              "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-1_2024/dem_1m/2193/collection.json",
+            assetUrl: "https://example.test/BA31_10000_0403.tiff",
+            stacItemUrl: "https://example.test/BA31_10000_0403.json",
+            assetChecksum: "sha256:terrain-test-checksum",
+            assetUpdatedAt: "2026-03-27T00:00:00.000Z",
+            retrievedAt: "2026-07-29T01:00:00.000Z",
+            boundsNztm: {
+              minimumEast: 1,
+              minimumNorth: 2,
+              maximumEast: 3,
+              maximumNorth: 4,
+            },
+          },
+        ],
+      },
+    };
+    const assessmentSnapshot = snapshotService.issue({
+      ...original.fastResult,
+      detailedChecks,
+    });
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+    });
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot: snapshotService.verify(request.assessmentSnapshot),
+      now: () => new Date("2026-07-30T00:00:00.000Z"),
+    });
+
+    expect(submission.report.reportData.terrain).toMatchObject({
+      status: "measured",
+      reportEligibility: "not_approved",
+      source: {
+        datasetDate: "2024-04-30/2024-06-27",
+        licenceUrl: "https://creativecommons.org/licenses/by/4.0/",
+        attribution: AUCKLAND_DEM_REQUIRED_METADATA.attribution,
+        derivedProductNotice:
+          "Elevation data was clipped to the assessed property and used to derive indicative slope measurements.",
+        contributingAssets: [
+          {
+            stacItemUrl: "https://example.test/BA31_10000_0403.json",
+            assetChecksum: "sha256:terrain-test-checksum",
+          },
+        ],
+      },
+    });
+
+    const report = buildSavedPreliminaryReport({
+      submission,
+      reference: "GF-2026-000021",
+      createdAt: "2026-07-30T00:00:00.000Z",
+    });
+    const html = renderCanonicalPreliminaryReportHtml(report);
+
+    expect(report.assessments.terrain).toMatchObject({
+      status: "unknown",
+      headline: "Needs checking",
+    });
+    expect(html).not.toContain("Property average slope");
+    expect(html).not.toContain("4.0°");
+    expect(html).not.toContain(AUCKLAND_DEM_REQUIRED_METADATA.attribution.text);
+    expect(html).not.toContain("Checksum sha256:terrain-test-checksum");
   });
 
   it("keeps non-reportable geometry out of the homeowner score", async () => {
@@ -842,5 +1281,69 @@ function completeDetailedChecks(): FastPropertyDetails {
       geometry: null,
       message: "The provider verified an empty result.",
     })),
+  };
+}
+
+function reportAllowedTerrain(
+  sourceOverrides: Partial<
+    Extract<
+      NonNullable<FastPropertyDetails["terrain"]>,
+      { status: "measured" }
+    >["source"]
+  > = {},
+): Extract<
+  NonNullable<FastPropertyDetails["terrain"]>,
+  { status: "measured" }
+> {
+  const dataset = "Auckland Part 2 LiDAR 1m DEM (2024)";
+  const datasetIdentifier =
+    "https://data.linz.govt.nz/layer/122580-auckland-part-2-lidar-1m-dem-2024/";
+  return {
+    status: "measured",
+    averageSlopeDegrees: 4,
+    upperSlopeDegrees: 7.5,
+    estimatedFallMetres: 1.35,
+    downhillBearingDegrees: 135,
+    downhillDirection: "South-east",
+    confidence: "indicative",
+    source: {
+      provider: "Land Information New Zealand",
+      dataset,
+      datasetIdentifier,
+      status: "success",
+      licenceStatus: "permitted",
+      evidenceUse: "report_allowed",
+      retrievedAt: "2026-07-29T01:00:00.000Z",
+      datasetDate: "2024-06-26/2024-11-04",
+      ...AUCKLAND_DEM_REQUIRED_METADATA,
+      geometryUsed: "saved parcel elevation window",
+      attributesUsed: ["elevation"],
+      evidenceType: "raster_dem",
+      confidence: "limited",
+      contributingAssets: [
+        {
+          provider: "Land Information New Zealand",
+          dataset,
+          datasetIdentifier,
+          stacCollectionUrl:
+            "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-2_2024/dem_1m/2193/collection.json",
+          assetUrl:
+            "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-2_2024/dem_1m/2193/AY30_10000_0504.tiff",
+          stacItemUrl:
+            "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-2_2024/dem_1m/2193/AY30_10000_0504.json",
+          assetChecksum:
+            "12201aa48baf55dbf6b467ccc5ccddf022095bd616fff151e14c33d72bf7a9c81485",
+          assetUpdatedAt: "2026-01-13T21:29:07Z",
+          retrievedAt: "2026-07-29T01:00:00.000Z",
+          boundsNztm: {
+            minimumEast: 1,
+            minimumNorth: 2,
+            maximumEast: 3,
+            maximumNorth: 4,
+          },
+        },
+      ],
+      ...sourceOverrides,
+    },
   };
 }

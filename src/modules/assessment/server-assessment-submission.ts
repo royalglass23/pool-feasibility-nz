@@ -11,6 +11,15 @@ import { classifyFastPoolWarning } from "@/modules/data-access-spike/fast-pool-w
 import { buildFastReportAssessment } from "@/modules/reporting/build-fast-report-assessment";
 import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
 import { isValidPngMapImageDataUrl } from "@/modules/reporting/map-image";
+import {
+  AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED,
+} from "@/modules/providers/linz/auckland-dem-source-contract";
+import { aucklandDemReportEligibility } from "@/modules/providers/linz/auckland-dem-report-eligibility";
+import { assessSelectedPoolTerrain } from "@/modules/terrain/assess-selected-pool-terrain";
+import type {
+  PropertyTerrainAssessment,
+  PropertyTerrainSource,
+} from "@/modules/terrain/property-terrain";
 import type { TrustedAssessmentSnapshot } from "./assessment-snapshot";
 import {
   parsePersistedAssessmentSubmission,
@@ -185,12 +194,84 @@ export async function buildServerAssessmentSubmission(input: {
           ],
         provenance: reportAssessment?.provenance ?? { datasets: [] },
         placementLayerFindings: warning.placementLayerFindings ?? [],
+        terrain: reportTerrain(
+          snapshot.fastResult.detailedChecks?.terrain,
+          constructionEnvelope.geometry,
+        ),
         assessmentSnapshot: reportAssessment
           ? buildReportAssessmentSnapshot(reportAssessment)
           : null,
       },
     },
   });
+}
+
+function reportTerrain(
+  terrain: PropertyTerrainAssessment | undefined,
+  constructionEnvelope: Extract<Geometry, { type: "Polygon" }>,
+): PersistedAssessmentSubmission["report"]["reportData"]["terrain"] {
+  if (!terrain) return undefined;
+  if (terrain.status === "needs_checking") {
+    return { status: "needs_checking", reasons: terrain.reasons };
+  }
+  const constructionEnvelopeTerrain = terrain.slopeSamples?.length
+    ? assessSelectedPoolTerrain({
+        samples: terrain.slopeSamples,
+        footprint: constructionEnvelope,
+      })
+    : null;
+  return persistMeasuredTerrain(terrain, constructionEnvelopeTerrain);
+}
+
+function persistMeasuredTerrain(
+  terrain: Extract<PropertyTerrainAssessment, { status: "measured" }>,
+  constructionEnvelopeTerrain: ReturnType<typeof assessSelectedPoolTerrain> | null,
+): PersistedAssessmentSubmission["report"]["reportData"]["terrain"] {
+  return {
+    status: "measured",
+    reportEligibility: aucklandDemReportEligibility(
+      terrain.source,
+      AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED,
+    ),
+    averageSlopeDegrees: terrain.averageSlopeDegrees,
+    upperSlopeDegrees: terrain.upperSlopeDegrees,
+    estimatedFallMetres: terrain.estimatedFallMetres,
+    downhillBearingDegrees: terrain.downhillBearingDegrees,
+    downhillDirection: terrain.downhillDirection,
+    confidence: terrain.confidence,
+    constructionEnvelopeTerrain,
+    source: persistTerrainSource(terrain.source),
+  };
+}
+
+function persistTerrainSource(source: PropertyTerrainSource) {
+  return {
+    provider: source.provider,
+    dataset: source.dataset,
+    datasetIdentifier: source.datasetIdentifier,
+    status: source.status,
+    licenceStatus: source.licenceStatus,
+    evidenceUse: source.evidenceUse,
+    datasetDate: source.datasetDate,
+    licence: source.licence,
+    licenceUrl: source.licenceUrl ?? null,
+    attribution: source.attribution,
+    retrievedAt: source.retrievedAt,
+    geometryUsed: source.geometryUsed,
+    attributesUsed: source.attributesUsed,
+    evidenceType: source.evidenceType,
+    confidence: source.confidence,
+    derivedProductNotice:
+      "Elevation data was clipped to the assessed property and used to derive indicative slope measurements." as const,
+    contributingAssets: (source.contributingAssets ?? []).map((asset) => ({
+      stacCollectionUrl: asset.stacCollectionUrl,
+      assetUrl: asset.assetUrl,
+      stacItemUrl: asset.stacItemUrl,
+      assetChecksum: asset.assetChecksum,
+      assetUpdatedAt: asset.assetUpdatedAt,
+      retrievedAt: asset.retrievedAt,
+    })),
+  };
 }
 
 function persistedLayerGeometry(

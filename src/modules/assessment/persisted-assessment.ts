@@ -156,6 +156,75 @@ const placementLayerFinding = z.object({
   evidence: z.enum(["reliable", "needs_checking"]),
 });
 
+const reportTerrain = z.discriminatedUnion("status", [
+  z.object({
+    status: z.literal("measured"),
+    reportEligibility: z.enum(["approved", "not_approved"]),
+    averageSlopeDegrees: z.number().finite().min(0).max(90),
+    upperSlopeDegrees: z.number().finite().min(0).max(90),
+    estimatedFallMetres: z.number().finite().nonnegative().max(10_000),
+    downhillBearingDegrees: z.number().finite().min(0).max(360).nullable(),
+    downhillDirection: z.string().max(40).nullable(),
+    confidence: z.literal("indicative"),
+    constructionEnvelopeTerrain: z
+      .object({
+        averageSlopeDegrees: z.number().finite().min(0).max(90),
+        estimatedFallMetres: z.number().finite().nonnegative().max(10_000),
+        sampleCount: z.number().int().positive().max(100_000),
+      })
+      .nullable(),
+    source: z.object({
+      provider: z.string().min(1).max(120),
+      dataset: z.string().min(1).max(160),
+      datasetIdentifier: z.string().min(1).max(500),
+      status: z
+        .enum(["success", "available", "unavailable", "error"])
+        .optional(),
+      licenceStatus: z
+        .enum(["permitted", "conditional", "unavailable"])
+        .optional(),
+      evidenceUse: z
+        .enum([
+          "report_allowed",
+          "spike_only",
+          "internal_reference",
+          "unavailable",
+        ])
+        .optional(),
+      datasetDate: z.string().max(100).nullable(),
+      licence: z.string().min(1).max(500),
+      licenceUrl: z.url().max(500).nullable(),
+      attribution: z
+        .object({ text: z.string().max(500), url: z.url().max(500) })
+        .nullable(),
+      retrievedAt: isoDateTime,
+      geometryUsed: z.string().max(500).nullable().optional(),
+      attributesUsed: z.array(z.string().max(160)).max(50).optional(),
+      evidenceType: z.string().min(1).max(160).optional(),
+      confidence: z.enum(["high", "limited", "unavailable"]).optional(),
+      derivedProductNotice: z.literal(
+        "Elevation data was clipped to the assessed property and used to derive indicative slope measurements.",
+      ),
+      contributingAssets: z
+        .array(
+          z.object({
+            stacCollectionUrl: z.url().max(500),
+            assetUrl: z.url().max(500),
+            stacItemUrl: z.url().max(500),
+            assetChecksum: z.string().min(1).max(200),
+            assetUpdatedAt: isoDateTime,
+            retrievedAt: isoDateTime,
+          }),
+        )
+        .max(12),
+    }),
+  }),
+  z.object({
+    status: z.literal("needs_checking"),
+    reasons: z.array(z.string().min(1).max(1_000)).min(1).max(10),
+  }),
+]);
+
 const reportData = z.object({
   mapImageSource: z
     .enum(["trusted_report_render", "fast_property_view_capture"])
@@ -177,6 +246,7 @@ const reportData = z.object({
   limitations: z.array(z.string().max(2_000)).max(50),
   provenance: z.object({ datasets: z.array(reportDataset).max(50) }),
   placementLayerFindings: z.array(placementLayerFinding).max(50).optional(),
+  terrain: reportTerrain.optional(),
   assessmentSnapshot: reportAssessmentSnapshotSchema.nullable().optional(),
 });
 

@@ -9,6 +9,7 @@ export type TerrainSlopeSample = {
 };
 
 export type PropertyTerrainSource = DatasetEvidence & {
+  licenceUrl?: string;
   contributingAssets?: readonly {
     provider: string;
     dataset: string;

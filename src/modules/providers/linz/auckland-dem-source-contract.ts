@@ -22,6 +22,12 @@ export const AUCKLAND_DEM_DATASETS = [
 ] as const;
 
 export const AUCKLAND_DEM_LICENCE_CODE = "CC-BY-4.0" as const;
+
+// Promotion requires the independent evidence listed in
+// docs/auckland-2024-lidar-dem-slope-research.md. Keep this code-owned gate
+// closed while docs/data-sources.md classifies the source as spike_only.
+export const AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED = false;
+
 export const AUCKLAND_DEM_REQUIRED_METADATA = {
   horizontalCrs: "EPSG:2193",
   horizontalUnit: "metre",
