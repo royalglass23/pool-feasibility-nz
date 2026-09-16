@@ -182,17 +182,22 @@ Software Holdings Limited, for re-use under the Creative Commons Attribution
   average slope, upper slope, estimated fall, and downhill direction
 - **Dataset dates:** Part 1, 2024-04-30/2024-06-27; Part 2,
   2024-06-26/2024-11-04
-- **Usable:** `spike_only` for bounded property-level indicative terrain
-  analysis; the initial runtime tile index covers the 42A Bahari Drive fixture,
-  not all Auckland properties
+- **Usable:** `report_allowed` for a descriptive, indicative slope in the
+  preliminary report when the bounded reading and every contributing asset
+  match the controlled catalogue. The production detailed-check route uses the
+  same terrain gateway as the web app. The runtime catalogue records 281
+  published tiles plus both official capture-area geometries. Slope is not a
+  suitability score, slope band, or survey-grade measurement.
 - **Limitations:** bare-earth elevation is not a current site survey and does not
   establish excavation conditions, retaining design, geotechnical suitability,
   consent requirements, or construction levels
 - **Commercial use:** allowed with attribution under CC BY 4.0
 - **Additional permission:** no under the recorded licence
-- **Validation:** the reader checks the asset allowlist, matching STAC item and
-  checksum, CRS, horizontal and vertical units, grid resolution, raster layout,
-  transfer bounds, missing data, and complete provenance before returning
+- **Validation:** the resolver requires the requested geometry to be within the
+  union of the two checksum-pinned official capture areas, and the reader checks
+  the asset allowlist, matching STAC item and checksum, CRS, horizontal and
+  vertical units, grid resolution, raster layout, transfer bounds, missing
+  data, and complete provenance before returning
   evidence
 
 ### 6. Planning zone — Unitary Plan Base Zone

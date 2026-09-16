@@ -1,9 +1,10 @@
 export const AUCKLAND_DEM_SOURCE = "LINZ Auckland 2024 DEM STAC" as const;
-
 export const AUCKLAND_DEM_DATASETS = [
   {
     collectionUrl:
       "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-2_2024/dem_1m/2193/collection.json",
+    captureAreaUrl:
+      "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-2_2024/dem_1m/2193/capture-area.geojson",
     path: "/auckland/auckland-part-2_2024/dem_1m/2193/",
     dataset: "Auckland Part 2 LiDAR 1m DEM (2024)",
     datasetIdentifier:
@@ -13,6 +14,8 @@ export const AUCKLAND_DEM_DATASETS = [
   {
     collectionUrl:
       "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-1_2024/dem_1m/2193/collection.json",
+    captureAreaUrl:
+      "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-1_2024/dem_1m/2193/capture-area.geojson",
     path: "/auckland/auckland-part-1_2024/dem_1m/2193/",
     dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
     datasetIdentifier:
@@ -23,10 +26,10 @@ export const AUCKLAND_DEM_DATASETS = [
 
 export const AUCKLAND_DEM_LICENCE_CODE = "CC-BY-4.0" as const;
 
-// Promotion requires the independent evidence listed in
-// docs/auckland-2024-lidar-dem-slope-research.md. Keep this code-owned gate
-// closed while docs/data-sources.md classifies the source as spike_only.
-export const AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED = false;
+// Allow descriptive, indicative measurements in the preliminary report only
+// when the controlled source and every contributing asset pass eligibility.
+// This does not approve slope bands, suitability scoring, or survey-grade use.
+export const AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED = true;
 
 export const AUCKLAND_DEM_REQUIRED_METADATA = {
   horizontalCrs: "EPSG:2193",

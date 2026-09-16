@@ -53,6 +53,34 @@ describe("Auckland DEM tile resolver", () => {
     });
   });
 
+  it("returns no coverage when a tile overlaps an unmapped survey gap", () => {
+    const baseCatalogue = catalogueWith([
+      tile("BA33_10000_0303", rectangle(175.12, -36.81, 175.18, -36.74)),
+    ]);
+    const catalogue = {
+      ...baseCatalogue,
+      captureAreas: baseCatalogue.captureAreas.map((area, index) => ({
+        ...area,
+        wgs84Geometry: {
+          type: "MultiPolygon" as const,
+          coordinates: [
+            (index === 0
+              ? rectangle(175.12, -36.81, 175.135, -36.74)
+              : rectangle(175.165, -36.81, 175.18, -36.74)
+            ).coordinates,
+          ],
+        },
+      })),
+    } as unknown as AucklandDemTileCatalogue;
+
+    expect(
+      resolveAucklandDemTiles({
+        analysisGeometry: rectangle(175.14, -36.79, 175.15, -36.78),
+        catalogue,
+      }),
+    ).toEqual({ status: "no_coverage" });
+  });
+
   it("rejects a covering catalogue record with invalid authoritative metadata", () => {
     const invalid = tile(
       "BA33_10000_0303",
@@ -137,6 +165,30 @@ function catalogueWith(
       text: "Sourced from the LINZ Data Service and licensed by Regional Software Holdings Limited, for re-use under the Creative Commons Attribution 4.0 International licence.",
       url: "https://www.linz.govt.nz/products-services/data/licensing-and-using-data/attributing-elevation-or-aerial-imagery-data",
     },
+    captureAreas: [
+      {
+        collectionUrl:
+          "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-1_2024/dem_1m/2193/collection.json",
+        captureAreaUrl:
+          "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-1_2024/dem_1m/2193/capture-area.geojson",
+        captureAreaChecksum: `1220${"b".repeat(64)}`,
+        wgs84Geometry: {
+          type: "MultiPolygon",
+          coordinates: [rectangle(174, -38, 176, -36).coordinates],
+        },
+      },
+      {
+        collectionUrl:
+          "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-2_2024/dem_1m/2193/collection.json",
+        captureAreaUrl:
+          "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-2_2024/dem_1m/2193/capture-area.geojson",
+        captureAreaChecksum: `1220${"c".repeat(64)}`,
+        wgs84Geometry: {
+          type: "MultiPolygon",
+          coordinates: [rectangle(174, -38, 176, -36).coordinates],
+        },
+      },
+    ],
     tiles,
   } as AucklandDemTileCatalogue;
 }

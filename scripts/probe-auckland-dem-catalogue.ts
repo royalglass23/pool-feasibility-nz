@@ -1,9 +1,9 @@
 import type { Polygon } from "geojson";
 import { aucklandDemTileCatalogue } from "../src/modules/providers/linz/auckland-dem-tile-catalogue";
 import { resolveAucklandDemTile } from "../src/modules/providers/linz/resolve-auckland-dem-tile";
-import type { AucklandDemProvenance } from "../src/modules/providers/linz/read-auckland-dem-window";
+import type { AucklandDemProvenance } from "../src/modules/providers/linz/auckland-dem-window-contract";
 import type { PropertyTerrainSource } from "../src/modules/terrain/property-terrain";
-import { createAucklandPropertyTerrainGateway } from "../src/modules/terrain/auckland-property-terrain";
+import { createAucklandPropertyTerrainGateway } from "../src/modules/providers/linz/auckland-property-terrain-gateway";
 import { KNOWN_AUCKLAND_DEM_BOUNDARY_PARCEL } from "../src/modules/terrain/known-auckland-dem-boundary-parcel";
 
 const LOCATIONS = [

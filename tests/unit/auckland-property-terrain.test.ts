@@ -1,13 +1,13 @@
 import { describe, expect, it, vi } from "vitest";
 import type { Polygon } from "geojson";
-import type { AucklandDemProvenance } from "@/modules/providers/linz/read-auckland-dem-window";
+import type { AucklandDemProvenance } from "@/modules/providers/linz/auckland-dem-window-contract";
 import type { ResolvedAucklandDemTile } from "@/modules/providers/linz/resolve-auckland-dem-tile";
 import { projectNztmPolygonToWgs84 } from "@/modules/providers/linz/project-auckland-dem-geometry";
 import { KNOWN_AUCKLAND_DEM_BOUNDARY_PARCEL } from "@/modules/terrain/known-auckland-dem-boundary-parcel";
 import {
   createAucklandPropertyTerrainGateway,
   type AucklandTerrainWindowReader,
-} from "@/modules/terrain/auckland-property-terrain";
+} from "@/modules/providers/linz/auckland-property-terrain-gateway";
 
 vi.mock("server-only", () => ({}));
 
@@ -123,6 +123,39 @@ describe("Auckland property terrain", () => {
       slopeDegrees: expect.closeTo(2.86, 2),
       eastGradient: expect.closeTo(0.04, 10),
       northGradient: expect.closeTo(0.03, 10),
+    });
+  });
+
+  it("derives different selected-pool terrain from different construction envelopes", async () => {
+    const parcel = projectNztmPolygonToWgs84(nztmRectangle(0, 0, 20, 10));
+    const westEnvelope = projectNztmPolygonToWgs84(nztmRectangle(2, 2, 8, 8));
+    const eastEnvelope = projectNztmPolygonToWgs84(nztmRectangle(12, 2, 18, 8));
+    const terrain = createAucklandPropertyTerrainGateway({
+      readWindow: planarWindowReader((east) =>
+        east < 10 ? east * 0.01 : east * 0.3,
+      ),
+      resolveTiles: () => ({
+        status: "resolved",
+        tiles: [resolvedTile("terrain", nztmRectangle(-100, -100, 100, 100))],
+      }),
+    });
+
+    const westResult = await terrain.assessParcel(parcel, westEnvelope);
+    const eastResult = await terrain.assessParcel(parcel, eastEnvelope);
+
+    expect(westResult).toMatchObject({
+      status: "measured",
+      selectedPool: {
+        averageSlopeDegrees: expect.closeTo(0.57, 2),
+        sampleCount: 36,
+      },
+    });
+    expect(eastResult).toMatchObject({
+      status: "measured",
+      selectedPool: {
+        averageSlopeDegrees: expect.closeTo(16.7, 2),
+        sampleCount: 36,
+      },
     });
   });
 

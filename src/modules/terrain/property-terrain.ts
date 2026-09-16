@@ -39,6 +39,11 @@ export type PropertyTerrainAssessment =
       downhillDirection: string | null;
       confidence: "indicative";
       slopeSamples?: TerrainSlopeSample[];
+      selectedPool?: {
+        averageSlopeDegrees: number;
+        estimatedFallMetres: number;
+        sampleCount: number;
+      } | null;
       source: PropertyTerrainSource;
     }
   | {
@@ -47,5 +52,8 @@ export type PropertyTerrainAssessment =
     };
 
 export interface PropertyTerrainGateway {
-  assessParcel(parcelGeometry: Polygon): Promise<PropertyTerrainAssessment>;
+  assessParcel(
+    parcelGeometry: Polygon,
+    analysisGeometry?: Polygon,
+  ): Promise<PropertyTerrainAssessment>;
 }

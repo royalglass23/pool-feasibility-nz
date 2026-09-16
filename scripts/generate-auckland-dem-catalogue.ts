@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import { writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import type { Polygon } from "geojson";
+import type { MultiPolygon, Polygon } from "geojson";
 import { format } from "prettier";
 import {
   AUCKLAND_DEM_DATASETS,
@@ -15,6 +15,7 @@ const OUTPUT_PATH = resolve(
 );
 const MAX_COLLECTION_BYTES = 128_000;
 const MAX_ITEM_BYTES = 128_000;
+const MAX_CAPTURE_AREA_BYTES = 64_000;
 const MAX_ITEMS_PER_COLLECTION = 500;
 const FETCH_CONCURRENCY = 8;
 
@@ -28,6 +29,13 @@ type CatalogueTile = {
   wgs84Geometry: Polygon;
 };
 
+type CatalogueCaptureArea = {
+  collectionUrl: string;
+  captureAreaUrl: string;
+  captureAreaChecksum: string;
+  wgs84Geometry: MultiPolygon;
+};
+
 type CatalogueItemReference = {
   url: string;
   checksum: string;
@@ -35,6 +43,7 @@ type CatalogueItemReference = {
 
 async function main(): Promise<void> {
   const tiles: CatalogueTile[] = [];
+  const captureAreas: CatalogueCaptureArea[] = [];
   const sourceUpdates: string[] = [];
 
   for (const dataset of AUCKLAND_DEM_DATASETS) {
@@ -45,6 +54,9 @@ async function main(): Promise<void> {
     );
     const validatedCollection = validateCollection(collection, dataset);
     sourceUpdates.push(validatedCollection.updatedAt);
+    captureAreas.push(
+      await loadCaptureArea(validatedCollection.captureArea, collectionUrl),
+    );
     const collectionTiles = await mapWithConcurrency(
       validatedCollection.items,
       FETCH_CONCURRENCY,
@@ -68,6 +80,7 @@ async function main(): Promise<void> {
     source: AUCKLAND_DEM_SOURCE,
     sourceUpdatedAt,
     ...AUCKLAND_DEM_REQUIRED_METADATA,
+    captureAreas,
     tiles,
   } as const;
   const formatted = await format(JSON.stringify(output), { parser: "json" });
@@ -76,6 +89,7 @@ async function main(): Promise<void> {
     JSON.stringify({
       outputPath: OUTPUT_PATH,
       sourceUpdatedAt,
+      captureAreas: captureAreas.length,
       tiles: tiles.length,
     }),
   );
@@ -84,7 +98,11 @@ async function main(): Promise<void> {
 function validateCollection(
   value: unknown,
   dataset: (typeof AUCKLAND_DEM_DATASETS)[number],
-): { updatedAt: string; items: CatalogueItemReference[] } {
+): {
+  updatedAt: string;
+  items: CatalogueItemReference[];
+  captureArea: CatalogueItemReference;
+} {
   const record = asRecord(value);
   if (
     record?.type !== "Collection" ||
@@ -111,6 +129,18 @@ function validateCollection(
   }
 
   const base = dataset.collectionUrl.slice(0, -"collection.json".length);
+  const assets = asRecord(record.assets);
+  const captureArea = asRecord(assets?.capture_area);
+  if (
+    captureArea?.href !== "./capture-area.geojson" ||
+    captureArea.type !== "application/geo+json" ||
+    typeof captureArea["file:checksum"] !== "string" ||
+    !/^1220[0-9a-f]{64}$/i.test(captureArea["file:checksum"])
+  ) {
+    throw new Error(
+      `Invalid Auckland DEM capture area in ${dataset.collectionUrl}`,
+    );
+  }
   const itemUrls = record.links.flatMap((value) => {
     const link = asRecord(value);
     if (link?.rel !== "item") return [];
@@ -137,7 +167,39 @@ function validateCollection(
       `Unexpected Auckland DEM item count in ${dataset.collectionUrl}`,
     );
   }
-  return { updatedAt: record.updated, items: itemUrls };
+  return {
+    updatedAt: record.updated,
+    items: itemUrls,
+    captureArea: {
+      url: new URL(captureArea.href, dataset.collectionUrl).href,
+      checksum: captureArea["file:checksum"].toLowerCase(),
+    },
+  };
+}
+
+async function loadCaptureArea(
+  reference: CatalogueItemReference,
+  collectionUrl: string,
+): Promise<CatalogueCaptureArea> {
+  const { value, bytes } = await fetchJson(
+    reference.url,
+    MAX_CAPTURE_AREA_BYTES,
+  );
+  const checksum = `1220${createHash("sha256").update(bytes).digest("hex")}`;
+  const feature = asRecord(value);
+  if (
+    checksum !== reference.checksum ||
+    feature?.type !== "Feature" ||
+    !isMultiPolygon(feature.geometry)
+  ) {
+    throw new Error(`Invalid Auckland DEM capture area: ${reference.url}`);
+  }
+  return {
+    collectionUrl,
+    captureAreaUrl: reference.url,
+    captureAreaChecksum: checksum,
+    wgs84Geometry: feature.geometry,
+  };
 }
 
 async function loadTile(
@@ -274,6 +336,18 @@ function isPolygon(value: unknown): value is Polygon {
         ) &&
         ring[0][0] === ring.at(-1)?.[0] &&
         ring[0][1] === ring.at(-1)?.[1],
+    )
+  );
+}
+
+function isMultiPolygon(value: unknown): value is MultiPolygon {
+  const record = asRecord(value);
+  return (
+    record?.type === "MultiPolygon" &&
+    Array.isArray(record.coordinates) &&
+    record.coordinates.length > 0 &&
+    record.coordinates.every((coordinates) =>
+      isPolygon({ type: "Polygon", coordinates }),
     )
   );
 }

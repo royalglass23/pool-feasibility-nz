@@ -163,8 +163,9 @@ and notice that the data has been clipped and used to derive slope.
   release; their STAC collections were updated on 27 March 2026. Pin and record
   asset checksums instead of assuming an unchanged 2024 product.
 - Test representative Part 1, Part 2 mainland, island, tile-edge, vegetation,
-  retaining-wall, flat, and steep sites before using the result in homeowner
-  reports or scoring.
+  retaining-wall, flat, and steep sites before using the result for a score or
+  design decision. A descriptive homeowner report may show a controlled DEM
+  measurement with explicit indicative wording and complete source details.
 - Treat missing coverage, excessive NoData, inconsistent neighbouring cells,
   an unavailable source, or an unresolved vertical datum as `Needs Checking`.
 - Validate the method against trusted surveyed spot levels before setting slope
@@ -174,8 +175,10 @@ and notice that the data has been clipped and used to derive slope.
 ## Go / no-go
 
 **GO** for a bounded technical proof of concept using public Auckland Part 1 and
-Part 2 COG windows. **NO-GO** for presenting the result as survey-grade or using
-it for construction, consent, excavation, or retaining decisions. Promotion to
-customer reports or feasibility scoring needs calculation fixtures, real-site
-comparison, latency evidence, provenance retention, coverage failure handling,
-and homeowner wording review.
+Part 2 COG windows, and for a descriptive indicative slope in the preliminary
+homeowner report when catalogue-pinned provenance and coverage checks pass.
+The 10 Valley Road, Browns Bay live probe confirmed Part 1 coverage and
+report eligibility, but was not an independent survey comparison. **NO-GO** for
+presenting the result as survey-grade or using it for construction, consent,
+excavation, retaining, slope bands, or feasibility scoring. Those uses still
+need independent survey comparison and a separate approval decision.

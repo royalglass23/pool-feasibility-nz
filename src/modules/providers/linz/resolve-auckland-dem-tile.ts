@@ -1,7 +1,13 @@
 import "server-only";
 
-import { booleanIntersects, booleanWithin } from "@turf/turf";
-import type { Polygon } from "geojson";
+import {
+  booleanIntersects,
+  booleanWithin,
+  feature,
+  featureCollection,
+  union,
+} from "@turf/turf";
+import type { MultiPolygon, Polygon } from "geojson";
 import {
   AUCKLAND_DEM_DATASETS,
   AUCKLAND_DEM_SOURCE,
@@ -9,12 +15,20 @@ import {
   matchesAucklandDemRequiredMetadata,
   type AucklandDemRequiredMetadata,
 } from "@/modules/providers/linz/auckland-dem-source-contract";
-import type { AucklandDemSourceMetadata } from "@/modules/providers/linz/read-auckland-dem-window";
+import type { AucklandDemSourceMetadata } from "@/modules/providers/linz/auckland-dem-window-contract";
 
 export type AucklandDemTileCatalogue = AucklandDemRequiredMetadata & {
   readonly source: typeof AUCKLAND_DEM_SOURCE;
   readonly sourceUpdatedAt: string;
+  readonly captureAreas: readonly AucklandDemCaptureAreaCatalogueEntry[];
   readonly tiles: readonly AucklandDemTileCatalogueEntry[];
+};
+
+export type AucklandDemCaptureAreaCatalogueEntry = {
+  readonly collectionUrl: string;
+  readonly captureAreaUrl: string;
+  readonly captureAreaChecksum: string;
+  readonly wgs84Geometry: MultiPolygon;
 };
 
 export type AucklandDemTileCatalogueEntry = {
@@ -52,6 +66,9 @@ export function resolveAucklandDemTile(input: {
   if (!isAucklandDemTileCatalogue(input.catalogue)) {
     return { status: "invalid_catalogue" };
   }
+  if (!isWithinPublishedCaptureArea(input.parcelGeometry, input.catalogue)) {
+    return { status: "no_coverage" };
+  }
 
   const tile = input.catalogue.tiles.find((candidate) =>
     booleanWithin(input.parcelGeometry, candidate.wgs84Geometry),
@@ -76,6 +93,9 @@ export function resolveAucklandDemTiles(input: {
 }): AucklandDemTilesResolution {
   if (!isAucklandDemTileCatalogue(input.catalogue)) {
     return { status: "invalid_catalogue" };
+  }
+  if (!isWithinPublishedCaptureArea(input.analysisGeometry, input.catalogue)) {
+    return { status: "no_coverage" };
   }
 
   const tiles = input.catalogue.tiles
@@ -137,15 +157,49 @@ export function isAucklandDemTileCatalogue(
   value: unknown,
 ): value is AucklandDemTileCatalogue {
   const catalogue = asRecord(value);
+  const captureAreas = catalogue?.captureAreas;
   const tiles = catalogue?.tiles;
   return (
     catalogue?.source === AUCKLAND_DEM_SOURCE &&
     typeof catalogue.sourceUpdatedAt === "string" &&
     isAucklandDemIsoTimestamp(catalogue.sourceUpdatedAt) &&
+    Array.isArray(captureAreas) &&
+    captureAreas.length === AUCKLAND_DEM_DATASETS.length &&
+    captureAreas.every(isValidCaptureAreaEntry) &&
     Array.isArray(tiles) &&
     tiles.length > 0 &&
     matchesAucklandDemRequiredMetadata(catalogue) &&
     tiles.every(isValidCatalogueEntry)
+  );
+}
+
+function isWithinPublishedCaptureArea(
+  geometry: Polygon,
+  catalogue: AucklandDemTileCatalogue,
+): boolean {
+  const publishedCoverage = union(
+    featureCollection(
+      catalogue.captureAreas.map(({ wgs84Geometry }) => feature(wgs84Geometry)),
+    ),
+  );
+  return publishedCoverage
+    ? booleanWithin(feature(geometry), publishedCoverage)
+    : false;
+}
+
+function isValidCaptureAreaEntry(
+  value: unknown,
+): value is AucklandDemCaptureAreaCatalogueEntry {
+  const entry = asRecord(value);
+  const dataset = AUCKLAND_DEM_DATASETS.find(
+    ({ collectionUrl }) => collectionUrl === entry?.collectionUrl,
+  );
+  return Boolean(
+    dataset &&
+    entry?.captureAreaUrl === dataset.captureAreaUrl &&
+    typeof entry.captureAreaChecksum === "string" &&
+    /^1220[0-9a-f]{64}$/i.test(entry.captureAreaChecksum) &&
+    isValidMultiPolygon(entry.wgs84Geometry),
   );
 }
 
@@ -180,9 +234,25 @@ function isValidPolygon(value: unknown): value is Polygon {
   const polygon = asRecord(value);
   return (
     polygon?.type === "Polygon" &&
-    Array.isArray(polygon.coordinates) &&
-    polygon.coordinates.length > 0 &&
-    polygon.coordinates.every(
+    isValidPolygonCoordinates(polygon.coordinates)
+  );
+}
+
+function isValidMultiPolygon(value: unknown): value is MultiPolygon {
+  const multiPolygon = asRecord(value);
+  return (
+    multiPolygon?.type === "MultiPolygon" &&
+    Array.isArray(multiPolygon.coordinates) &&
+    multiPolygon.coordinates.length > 0 &&
+    multiPolygon.coordinates.every(isValidPolygonCoordinates)
+  );
+}
+
+function isValidPolygonCoordinates(value: unknown): boolean {
+  return (
+    Array.isArray(value) &&
+    value.length > 0 &&
+    value.every(
       (ring) =>
         Array.isArray(ring) &&
         ring.length >= 4 &&

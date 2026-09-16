@@ -8,14 +8,19 @@ import {
   type GeoTIFFImage,
   type RemoteSourceOptions,
 } from "geotiff";
-import type { DatasetEvidence } from "@/modules/data-access-spike/data-access-gateway";
 import {
   AUCKLAND_DEM_DATASETS,
   isAucklandDemIsoTimestamp,
   matchesAucklandDemRequiredMetadata,
-  type AucklandDemRequiredMetadata,
 } from "@/modules/providers/linz/auckland-dem-source-contract";
-import type { TerrainGrid } from "@/modules/terrain/assess-pool-area-slope";
+import {
+  createAucklandDemTransferBudget,
+  type AucklandDemProvenance,
+  type AucklandDemSourceMetadata,
+  type AucklandDemTransferBudget,
+  type AucklandDemWindowResult,
+  type NztmBounds,
+} from "@/modules/providers/linz/auckland-dem-window-contract";
 import {
   BodyLimitError,
   providerRetryCount,
@@ -30,66 +35,12 @@ const AUCKLAND_DEM_HOSTS = new Set([
 ]);
 const MAX_WINDOW_METRES = 100;
 const MAX_DEM_GRID_CELLS = MAX_WINDOW_METRES * MAX_WINDOW_METRES;
-const MAX_DEM_TRANSFER_BYTES = 4_000_000;
 const MAX_STAC_METADATA_BYTES = 128_000;
 const AUCKLAND_DEM_SOURCE_OPTIONS = {
   allowFullFile: false,
   blockSize: 65_536,
   cacheSize: 32,
 } satisfies RemoteSourceOptions & BlockedSourceOptions;
-
-export type AucklandDemSourceMetadata = AucklandDemRequiredMetadata & {
-  stacItemUrl: string;
-  assetChecksum: string;
-  assetUpdatedAt: string;
-  retrievedAt: string;
-};
-
-export type NztmBounds = {
-  minimumEast: number;
-  minimumNorth: number;
-  maximumEast: number;
-  maximumNorth: number;
-};
-
-export type AucklandDemTransferBudget = { remainingBytes: number };
-
-export function createAucklandDemTransferBudget(): AucklandDemTransferBudget {
-  return { remainingBytes: MAX_DEM_TRANSFER_BYTES };
-}
-
-export type AucklandDemProvenance = Pick<
-  DatasetEvidence,
-  | "provider"
-  | "dataset"
-  | "datasetIdentifier"
-  | "status"
-  | "licenceStatus"
-  | "evidenceUse"
-  | "retrievedAt"
-  | "datasetDate"
-  | "licence"
-  | "attribution"
-  | "geometryUsed"
-  | "attributesUsed"
-  | "evidenceType"
-  | "confidence"
-> &
-  AucklandDemSourceMetadata & {
-    stacCollectionUrl: string;
-    assetUrl: string;
-  };
-
-export type AucklandDemWindowResult =
-  | {
-      status: "available";
-      grid: TerrainGrid;
-      provenance: AucklandDemProvenance;
-    }
-  | {
-      status: "needs_checking";
-      reasons: string[];
-    };
 
 export async function readAucklandDemWindow(input: {
   assetUrl: string;
@@ -471,7 +422,7 @@ function validatedAucklandDemProvenance(
       datasetIdentifier: dataset.datasetIdentifier,
       status: "success",
       licenceStatus: "permitted",
-      evidenceUse: "spike_only",
+      evidenceUse: "report_allowed",
       retrievedAt: source.retrievedAt,
       datasetDate: dataset.datasetDate,
       licence: source.licence,

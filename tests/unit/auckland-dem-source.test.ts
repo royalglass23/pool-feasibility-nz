@@ -7,10 +7,8 @@ const fromCustomClient = vi.hoisted(() => vi.fn());
 vi.mock("server-only", () => ({}));
 vi.mock("geotiff", () => ({ fromCustomClient, fromUrl }));
 
-import {
-  readAucklandDemWindow,
-  type AucklandDemSourceMetadata,
-} from "@/modules/providers/linz/read-auckland-dem-window";
+import type { AucklandDemSourceMetadata } from "@/modules/providers/linz/auckland-dem-window-contract";
+import { readAucklandDemWindow } from "@/modules/providers/linz/read-auckland-dem-window";
 
 const validProvenance = {
   ...AUCKLAND_DEM_REQUIRED_METADATA,
@@ -295,7 +293,7 @@ describe("readAucklandDemWindow", () => {
           "https://data.linz.govt.nz/layer/121990-auckland-part-1-lidar-1m-dem-2024/",
         status: "success",
         licenceStatus: "permitted",
-        evidenceUse: "spike_only",
+        evidenceUse: "report_allowed",
         retrievedAt: "2026-09-11T03:00:00.000Z",
         datasetDate: "2024-04-30/2024-06-27",
         licence: "Creative Commons Attribution 4.0 International",

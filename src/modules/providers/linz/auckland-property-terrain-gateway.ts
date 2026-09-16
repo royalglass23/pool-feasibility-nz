@@ -9,12 +9,11 @@ import {
 } from "@/modules/providers/linz/project-auckland-dem-geometry";
 import {
   createAucklandDemTransferBudget,
-  readAucklandDemWindow,
   type AucklandDemProvenance,
   type AucklandDemSourceMetadata,
   type AucklandDemTransferBudget,
   type NztmBounds,
-} from "@/modules/providers/linz/read-auckland-dem-window";
+} from "@/modules/providers/linz/auckland-dem-window-contract";
 import {
   resolveAucklandDemTiles,
   type AucklandDemTilesResolution,
@@ -25,6 +24,7 @@ import {
   assessPoolAreaSlope,
   type TerrainGrid,
 } from "@/modules/terrain/assess-pool-area-slope";
+import { assessSelectedPoolTerrain } from "@/modules/terrain/assess-selected-pool-terrain";
 import type {
   PropertyTerrainAssessment,
   PropertyTerrainGateway,
@@ -63,12 +63,13 @@ export function createAucklandPropertyTerrainGateway(
     now?: () => Date;
   } = {},
 ): PropertyTerrainGateway {
-  const readWindow = input.readWindow ?? readAucklandDemWindow;
+  const readWindow = input.readWindow ?? readDefaultAucklandDemWindow;
   const resolveTiles = input.resolveTiles;
 
   return {
     async assessParcel(
       parcelGeometry: Polygon,
+      analysisGeometry?: Polygon,
     ): Promise<PropertyTerrainAssessment> {
       try {
         const footprint = projectWgs84PolygonToNztm(parcelGeometry);
@@ -116,23 +117,32 @@ export function createAucklandPropertyTerrainGateway(
         });
         if (slope.status === "needs_checking") return slope;
         const { samples, ...summary } = slope;
+        const slopeSamples = samples.map((sample) => {
+          const [longitude, latitude] = projectNztmPositionToWgs84([
+            sample.eastMetres,
+            sample.northMetres,
+          ]);
+          return {
+            position: [roundTo(longitude, 7), roundTo(latitude, 7)] as [
+              number,
+              number,
+            ],
+            slopeDegrees: roundTo(sample.slopeDegrees, 2),
+            eastGradient: roundTo(sample.eastGradient, 5),
+            northGradient: roundTo(sample.northGradient, 5),
+          };
+        });
         return {
           ...summary,
-          slopeSamples: samples.map((sample) => {
-            const [longitude, latitude] = projectNztmPositionToWgs84([
-              sample.eastMetres,
-              sample.northMetres,
-            ]);
-            return {
-              position: [roundTo(longitude, 7), roundTo(latitude, 7)] as [
-                number,
-                number,
-              ],
-              slopeDegrees: roundTo(sample.slopeDegrees, 2),
-              eastGradient: roundTo(sample.eastGradient, 5),
-              northGradient: roundTo(sample.northGradient, 5),
-            };
-          }),
+          slopeSamples,
+          ...(analysisGeometry
+            ? {
+                selectedPool: assessSelectedPoolTerrain({
+                  samples: slopeSamples,
+                  footprint: analysisGeometry,
+                }),
+              }
+            : {}),
           source: {
             ...composed.provenance[0].provenance,
             contributingAssets: composed.provenance.map(
@@ -159,6 +169,14 @@ export function createAucklandPropertyTerrainGateway(
       }
     },
   };
+}
+
+async function readDefaultAucklandDemWindow(
+  input: Parameters<AucklandTerrainWindowReader>[0],
+): ReturnType<AucklandTerrainWindowReader> {
+  const { readAucklandDemWindow } =
+    await import("@/modules/providers/linz/read-auckland-dem-window");
+  return readAucklandDemWindow(input);
 }
 
 function roundTo(value: number, decimalPlaces: number): number {

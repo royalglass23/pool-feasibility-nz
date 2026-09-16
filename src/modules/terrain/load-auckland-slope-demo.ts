@@ -1,10 +1,8 @@
 import "server-only";
 
 import { AUCKLAND_DEM_REQUIRED_METADATA } from "@/modules/providers/linz/auckland-dem-source-contract";
-import {
-  readAucklandDemWindow,
-  type AucklandDemProvenance,
-} from "@/modules/providers/linz/read-auckland-dem-window";
+import type { AucklandDemProvenance } from "@/modules/providers/linz/auckland-dem-window-contract";
+import { readAucklandDemWindow } from "@/modules/providers/linz/read-auckland-dem-window";
 import {
   assessPoolAreaSlope,
   type PoolAreaSlopeAssessment,

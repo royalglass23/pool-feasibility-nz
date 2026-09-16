@@ -339,6 +339,7 @@ it("shows location-based slope shading and selected-pool terrain details", async
               [174.60818, -36.86025],
               [174.60819, -36.86025],
               [174.6082, -36.86025],
+              [174.608244, -36.86025],
             ].map((position, index) => ({
               position: position as [number, number],
               slopeDegrees: 2 + index * 3,
@@ -397,8 +398,13 @@ it("shows location-based slope shading and selected-pool terrain details", async
   expect(screen.getByText("0.36 m")).toBeVisible();
   expect(screen.getByText("SE")).toBeVisible();
   expect(
-    screen.queryByText("Creative Commons Attribution 4.0 International"),
-  ).not.toBeInTheDocument();
+    screen.getByRole("link", {
+      name: /Sourced from the LINZ Data Service and licensed by Regional Software Holdings Limited/i,
+    }),
+  ).toHaveAttribute(
+    "href",
+    "https://www.linz.govt.nz/products-services/data/licensing-and-using-data/attributing-elevation-or-aerial-imagery-data",
+  );
   openMapLayers();
   expect(screen.getByRole("checkbox", { name: "Slope shading" })).toBeChecked();
   expect(screen.getByText("Lower slope on this property")).toBeVisible();
@@ -417,8 +423,8 @@ it("shows location-based slope shading and selected-pool terrain details", async
   ).toBeVisible();
   expect(screen.getByText("Average slope here")).toBeVisible();
   expect(screen.getByText("Estimated height change here")).toBeVisible();
-  expect(screen.getByText("9.5°")).toBeVisible();
-  expect(screen.getByText(/Based on 6 nearby terrain samples/i)).toBeVisible();
+  expect(screen.getByText("11.0°")).toBeVisible();
+  expect(screen.getByText(/Based on 7 nearby terrain samples/i)).toBeVisible();
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
   const style = mapStyles.mock.calls[0]?.[0] as {

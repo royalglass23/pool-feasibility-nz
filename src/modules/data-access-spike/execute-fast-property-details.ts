@@ -169,6 +169,7 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
   const [terrain] = await Promise.all([
     assessTerrain({
       parcelGeometry: parcelResult?.parcels[0]?.geometry ?? null,
+      analysisGeometry: request.data.constructionEnvelopeGeometry,
       terrain: input.terrain,
     }),
     Promise.all(
@@ -219,6 +220,7 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
 
 async function assessTerrain(input: {
   parcelGeometry: import("geojson").Polygon | null;
+  analysisGeometry?: import("geojson").Polygon;
   terrain?: PropertyTerrainGateway;
 }): Promise<PropertyTerrainAssessment> {
   if (!input.parcelGeometry) {
@@ -235,7 +237,9 @@ async function assessTerrain(input: {
       reasons: ["The Auckland terrain analysis is unavailable."],
     };
   }
-  return input.terrain.assessParcel(input.parcelGeometry);
+  return input.analysisGeometry
+    ? input.terrain.assessParcel(input.parcelGeometry, input.analysisGeometry)
+    : input.terrain.assessParcel(input.parcelGeometry);
 }
 
 async function queryLayer(input: {

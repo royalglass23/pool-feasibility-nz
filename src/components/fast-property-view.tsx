@@ -278,20 +278,6 @@ export function FastPropertyView({
       })),
     };
   }, [result.detailedChecks?.terrain]);
-  const selectedPoolTerrain = useMemo(() => {
-    const terrain = result.detailedChecks?.terrain;
-    if (
-      terrain?.status !== "measured" ||
-      !poolGeometry ||
-      !terrain.slopeSamples?.length
-    ) {
-      return null;
-    }
-    return assessSelectedPoolTerrain({
-      samples: terrain.slopeSamples,
-      footprint: poolGeometry.geometry,
-    });
-  }, [poolGeometry, result.detailedChecks?.terrain]);
   const constructionEnvelopeGeometry = useMemo(
     () =>
       constructionEnvelopeDimensions
@@ -304,6 +290,20 @@ export function FastPropertyView({
         : null,
     [constructionEnvelopeDimensions, position, rotationDegrees],
   );
+  const selectedPoolTerrain = useMemo(() => {
+    const terrain = result.detailedChecks?.terrain;
+    if (
+      terrain?.status !== "measured" ||
+      !constructionEnvelopeGeometry ||
+      !terrain.slopeSamples?.length
+    ) {
+      return null;
+    }
+    return assessSelectedPoolTerrain({
+      samples: terrain.slopeSamples,
+      footprint: constructionEnvelopeGeometry.geometry,
+    });
+  }, [constructionEnvelopeGeometry, result.detailedChecks?.terrain]);
   const constructionEnvelopeWithinMappedArea = useMemo(() => {
     if (isInitialAddressLoad) return false;
     if (!constructionEnvelopeDimensions) return false;
@@ -1731,6 +1731,18 @@ function TerrainSlopeResult({
           </p>
         )}
       </div>
+      {terrain.source.attribution ? (
+        <p className="text-pool-600 border-pool-blue-200 mt-4 border-t pt-3 text-xs leading-5">
+          <a
+            className="underline underline-offset-2"
+            href={terrain.source.attribution.url}
+            rel="noreferrer"
+            target="_blank"
+          >
+            {terrain.source.attribution.text}
+          </a>
+        </p>
+      ) : null}
     </section>
   );
 }

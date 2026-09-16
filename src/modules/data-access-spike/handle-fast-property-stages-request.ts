@@ -8,7 +8,7 @@ import {
   verifyAssessmentSnapshot,
 } from "@/modules/assessment/assessment-snapshot";
 import { OfficialGisGateway } from "@/modules/providers/official-gis-gateway";
-import { createAucklandPropertyTerrainGateway } from "@/modules/terrain/auckland-property-terrain";
+import { createAucklandPropertyTerrainGateway } from "@/modules/providers/linz/auckland-property-terrain-gateway";
 import {
   apiErrorResponse,
   apiJsonResponse,

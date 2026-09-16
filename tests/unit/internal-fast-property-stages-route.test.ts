@@ -51,7 +51,7 @@ vi.mock("@/modules/assessment/assessment-snapshot", () => ({
 vi.mock("@/modules/rate-limit/public-rate-limit", () => ({
   enforcePublicPropertyStageRateLimit,
 }));
-vi.mock("@/modules/terrain/auckland-property-terrain", () => ({
+vi.mock("@/modules/providers/linz/auckland-property-terrain-gateway", () => ({
   createAucklandPropertyTerrainGateway,
 }));
 
@@ -65,6 +65,7 @@ afterEach(() => {
   assertSnapshotAddressMatches.mockReset();
   refreshAssessmentSnapshot.mockReset();
   enforcePublicPropertyStageRateLimit.mockReset();
+  createAucklandPropertyTerrainGateway.mockClear();
   vi.unstubAllEnvs();
 });
 
@@ -155,6 +156,40 @@ describe("POST /api/internal/fast-property-view/stages", () => {
       data: detailedData,
       assessmentSnapshot: "refreshed-detailed-snapshot",
     });
+  });
+
+  it("includes indicative terrain in detailed checks through the production public route", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    verifyAssessmentSnapshot.mockReturnValue({
+      submissionId: "snapshot-id",
+      fastResult: {},
+      expiresAt: Date.now() + 60_000,
+    });
+    enforcePublicPropertyStageRateLimit.mockResolvedValue(null);
+    executeFastPropertyDetailsRequest.mockResolvedValue({
+      ok: true,
+      status: 200,
+      data: { status: "complete" },
+    });
+    refreshAssessmentSnapshot.mockReturnValue("production-snapshot");
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/property-check/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...selectedAddressPoint,
+          mode: "detailed",
+          assessmentSnapshot: "s".repeat(2_000),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(createAucklandPropertyTerrainGateway).toHaveBeenCalled();
+    expect(executeFastPropertyDetailsRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ terrain: terrainGateway }),
+    );
   });
 
   it("allows a constraint retry only from a signed transient-failure snapshot", async () => {

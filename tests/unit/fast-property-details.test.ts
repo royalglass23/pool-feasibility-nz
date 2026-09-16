@@ -71,14 +71,17 @@ describe("executeFastPropertyDetailsRequest", () => {
     );
   });
 
-  it("keeps terrain assessment independent of pool position, size, and rotation", async () => {
-    const assessParcel = vi.fn(async (parcel: Polygon) => {
-      void parcel;
-      return {
-        status: "needs_checking" as const,
-        reasons: ["Terrain fixture completed."],
-      };
-    });
+  it("passes the buffered pool construction envelope to terrain assessment", async () => {
+    const assessParcel = vi.fn(
+      async (parcel: Polygon, analysisGeometry?: Polygon) => {
+        void parcel;
+        void analysisGeometry;
+        return {
+          status: "needs_checking" as const,
+          reasons: ["Terrain fixture completed."],
+        };
+      },
+    );
     const gateway = createDataAccessGateway();
     const baseBody = {
       mode: "detailed" as const,
@@ -117,9 +120,14 @@ describe("executeFastPropertyDetailsRequest", () => {
     }
 
     expect(assessParcel).toHaveBeenCalledTimes(2);
-    expect(assessParcel.mock.calls[0][0]).toEqual(
-      assessParcel.mock.calls[1][0],
-    );
+    expect(assessParcel.mock.calls[0][1]).toEqual({
+      type: "Polygon",
+      coordinates: [poolPositions[0].map((position) => [...position])],
+    });
+    expect(assessParcel.mock.calls[1][1]).toEqual({
+      type: "Polygon",
+      coordinates: [poolPositions[1].map((position) => [...position])],
+    });
   });
 
   it("starts terrain assessment while detailed constraint layers are still pending", async () => {
