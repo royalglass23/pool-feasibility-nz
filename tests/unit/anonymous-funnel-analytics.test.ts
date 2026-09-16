@@ -6,18 +6,25 @@ import {
 
 describe("anonymous funnel analytics", () => {
   const gtag = vi.fn();
+  const capture = vi.fn();
 
   beforeEach(() => {
     localStorage.clear();
     gtag.mockReset();
+    capture.mockReset();
     Object.defineProperty(window, "gtag", {
       configurable: true,
       value: gtag,
+    });
+    Object.defineProperty(window, "posthog", {
+      configurable: true,
+      value: { capture },
     });
   });
 
   afterEach(() => {
     Reflect.deleteProperty(window, "gtag");
+    Reflect.deleteProperty(window, "posthog");
   });
 
   it("sends only allowlisted events after affirmative analytics consent", () => {
@@ -25,6 +32,7 @@ describe("anonymous funnel analytics", () => {
       false,
     );
     expect(gtag).not.toHaveBeenCalled();
+    expect(capture).not.toHaveBeenCalled();
 
     localStorage.setItem(ANALYTICS_CONSENT_STORAGE_KEY, "granted");
 
@@ -44,6 +52,10 @@ describe("anonymous funnel analytics", () => {
       "report_delivery_outcome",
       { outcome_category: "delivered" },
     );
+    expect(capture).toHaveBeenNthCalledWith(1, "address_search_started");
+    expect(capture).toHaveBeenNthCalledWith(2, "report_delivery_outcome", {
+      outcome_category: "delivered",
+    });
   });
 
   it("rejects unknown names, outcome values, and every extra payload field", () => {
@@ -63,5 +75,6 @@ describe("anonymous funnel analytics", () => {
       expect(trackAnonymousFunnelEvent(event)).toBe(false);
     }
     expect(gtag).not.toHaveBeenCalled();
+    expect(capture).not.toHaveBeenCalled();
   });
 });

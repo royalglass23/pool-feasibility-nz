@@ -64,6 +64,14 @@ export default function PrivacyNoticePage() {
             are excluded from Hotjar.
           </p>
           <p className="mt-4">
+            PostHog receives only anonymous Property Check steps, such as an
+            address search or report request, after you allow analytics. It does
+            not record your screen, clicks, form values, property address, map,
+            or report. Its request shares your IP address and browser request
+            information with PostHog. It uses no persistent browser storage here
+            and is not installed on staff pages.
+          </p>
+          <p className="mt-4">
             Metricool also loads a tracking pixel on the Property Check after
             you allow analytics, to measure visits. The request shares your IP
             address and browser request information with Metricool. We do not
@@ -102,6 +110,11 @@ export default function PrivacyNoticePage() {
             <li>
               <strong className="text-[#062f5d]">Hotjar</strong> receives
               anonymous PoolReady interaction data only after you allow
+              analytics. It is not installed on staff pages.
+            </li>
+            <li>
+              <strong className="text-[#062f5d]">PostHog</strong> receives
+              anonymous Property Check funnel events only after you allow
               analytics. It is not installed on staff pages.
             </li>
             <li>

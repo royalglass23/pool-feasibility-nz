@@ -23,20 +23,28 @@ const SIMPLE_FUNNEL_EVENTS = new Set<string>(SIMPLE_FUNNEL_EVENT_NAMES);
 const DELIVERY_OUTCOMES = new Set<string>(DELIVERY_OUTCOME_CATEGORIES);
 
 type Gtag = (...arguments_: unknown[]) => void;
-type AnalyticsWindow = Window & { gtag?: Gtag };
+type AnalyticsWindow = Window & {
+  gtag?: Gtag;
+  posthog?: {
+    capture: (name: string, properties?: Record<string, string>) => void;
+  };
+};
 
 export function trackAnonymousFunnelEvent(event: unknown): boolean {
   if (!hasAnalyticsConsent() || !isAnonymousFunnelEvent(event)) return false;
 
-  const gtag = (window as AnalyticsWindow).gtag;
-  if (!gtag) return false;
+  const { gtag, posthog } = window as AnalyticsWindow;
+  if (!gtag && !posthog) return false;
 
   if (event.name === "report_delivery_outcome") {
-    gtag("event", event.name, {
+    const properties = {
       outcome_category: event.outcomeCategory,
-    });
+    };
+    gtag?.("event", event.name, properties);
+    posthog?.capture(event.name, properties);
   } else {
-    gtag("event", event.name);
+    gtag?.("event", event.name);
+    posthog?.capture(event.name);
   }
   return true;
 }
