@@ -30,7 +30,7 @@ parcel-wide slope as the pool-area result.
 
 ### Page 3 — Next steps and provenance
 
-Recommended next stage, actionable steps and remaining verification, followed by mapping sources, licences, assumptions, limitations, and the preliminary-assessment disclaimer. Keep the complete provenance for any report-eligible terrain measurement compact and readable.
+Page 3 contains only the recommended next stage, grouped mapping credits and licences, assumptions and limitations, and the preliminary-assessment disclaimer. Keep dataset-level source details and approved terrain provenance in the saved assessment; the PDF uses the recorded source credits without a separate slope-source breakdown.
 
 Each A4 page carries `Preliminary Feasibility Report`, report ID, page number, and generated timestamp. Map attribution must remain legible in print.
 

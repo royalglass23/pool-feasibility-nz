@@ -2,15 +2,11 @@
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
-import type { SessionAssessment } from "@/modules/assessment/build-session-assessment";
-import type { PropertyPoolPlacement } from "@/components/map/property-aerial-map";
-import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
 import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 import type { PersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
-import type { ReportDeliveryState } from "@/components/saved-preliminary-report-view";
-import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
+import type { ReportDeliveryState } from "@/modules/reporting/report-delivery-policy";
 import { visitorTypeOptions } from "@/modules/assessment/visitor-type";
 import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
 import { homeownerContactSchema } from "@/modules/assessment/homeowner-contact";
@@ -375,61 +371,6 @@ function Field({
   );
 }
 
-export function buildDataAccessSubmissionContext(
-  result: DataAccessSpikeResult,
-  assessment: SessionAssessment,
-  placement: PropertyPoolPlacement,
-): AssessmentSubmissionContext {
-  return {
-    addressEvidence: {
-      selectedAddressId: result.resolvedAddress.addressId,
-      formattedAddress: result.resolvedAddress.fullAddress,
-      latitude: result.resolvedAddress.coordinates[1],
-      longitude: result.resolvedAddress.coordinates[0],
-      boundaryStatus:
-        result.boundaryState === "confirmed" ? "confirmed" : "provisional",
-      boundaryAreaSquareMetres: result.parcel.calculatedAreaSquareMetres,
-      boundaryGeometry: result.parcel.geometry,
-      parcelIdentifier: result.parcel.parcelId,
-    },
-    poolLayout: {
-      lengthMetres: placement.lengthMetres,
-      widthMetres: placement.widthMetres,
-      rotationDegrees: placement.rotationDegrees,
-      position: [...placement.position] as [number, number],
-      shellGeometry: placement.shellGeometry,
-      constructionEnvelopeGeometry: placement.constructionEnvelopeGeometry,
-      clearancesVisible: true,
-    },
-    layerStates: assessment.provenance.datasets.map((dataset) => ({
-      provider: dataset.provider,
-      dataset: dataset.dataset,
-      datasetId: dataset.datasetIdentifier,
-      status: layerStatus(dataset.status),
-      confidence: confidence(dataset.confidence),
-      attribution: dataset.attribution?.text,
-      sourceUrl: dataset.attribution?.url,
-      retrievedAt: dataset.retrievedAt,
-    })),
-    warnings: [warningForPlacement(placement)],
-    recommendations: assessment.actions.flatMap((action, index) =>
-      action.items.map((item) => ({
-        phase: action.phase,
-        priority: index + 1,
-        title: item,
-        reason: item,
-      })),
-    ),
-    report: {
-      analysisVersion: "mt-248-v1",
-      title: "Preliminary pool feasibility assessment",
-      summary: assessment.preliminaryFeasibilityWording,
-      feasibilityState: warningState(placement),
-      reportData: reportSnapshot(assessment),
-    },
-  };
-}
-
 export function buildFastSubmissionContext(
   result: FastPropertyViewResult,
   placement: FastPoolPlacementSnapshot,
@@ -547,55 +488,7 @@ export function buildFastSubmissionContext(
   };
 }
 
-function layerStatus(status: string) {
-  if (status === "success" || status === "available")
-    return "returned" as const;
-  if (status === "error") return "provider_error" as const;
-  return "unavailable" as const;
-}
-
 function confidence(value: string): "high" | "medium" | "low" | "unknown" {
   if (value === "high" || value === "medium" || value === "low") return value;
   return "unknown" as const;
-}
-
-function warningState(placement: PropertyPoolPlacement) {
-  return placement.classification === "hard_conflict"
-    ? ("blocked" as const)
-    : placement.classification === "unknown"
-      ? ("needs_checking" as const)
-      : ("no_warning" as const);
-}
-
-function warningForPlacement(placement: PropertyPoolPlacement) {
-  const state = warningState(placement);
-  return {
-    state,
-    code: `POOL_${state.toUpperCase()}`,
-    title:
-      state === "blocked"
-        ? "Pool placement is blocked"
-        : state === "needs_checking"
-          ? "Pool placement needs checking"
-          : "No mapped pool warning",
-    message:
-      state === "blocked"
-        ? "Move the pool, or obtain an engineer-designed solution accepted by the relevant council or service owner."
-        : state === "needs_checking"
-          ? "Some mapped evidence is unavailable or uncertain."
-          : "No reliable mapped conflict was identified in the saved evidence.",
-  };
-}
-
-function reportSnapshot(assessment: SessionAssessment) {
-  return {
-    recommendation: assessment.recommendation,
-    preliminaryFeasibilityWording: assessment.preliminaryFeasibilityWording,
-    risks: assessment.risks,
-    actions: assessment.actions,
-    missingInformation: assessment.missingInformation,
-    limitations: assessment.limitations,
-    provenance: assessment.provenance,
-    assessmentSnapshot: buildReportAssessmentSnapshot(assessment),
-  };
 }

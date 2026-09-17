@@ -1,4 +1,31 @@
-# Architecture proposal
+# Architecture and code map
+
+## Current Property Check path
+
+The public journey starts in `src/app/page.tsx`, which renders
+`src/components/property-check-journey.tsx`. That client module owns address
+selection, staged loading, placement and report-submission state. The map UI is
+in `src/components/fast-property-view.tsx`; the contact and consent step is in
+`src/components/homeowner-submission-form.tsx`.
+
+| Step                                 | Route                                     | Main implementation                                                    |
+| ------------------------------------ | ----------------------------------------- | ---------------------------------------------------------------------- |
+| Address and initial property view    | `/api/public/property-check`              | `src/modules/data-access-spike/handle-fast-property-view-request.ts`   |
+| Aerial, boundary and detailed checks | `/api/public/property-check/stages`       | `src/modules/data-access-spike/handle-fast-property-stages-request.ts` |
+| Save the assessment                  | `/api/public/assessments`                 | `src/modules/assessment/handle-assessment-requests.ts`                 |
+| Deliver the saved report             | `/api/public/assessments/report/delivery` | `src/modules/reporting/deliver-assessment-report.ts`                   |
+
+The `data-access-spike` directory name is historical. Its fast-property files
+still serve the public journey. The older data-access result is handled by
+`AssessmentWorkspace`; do not infer that everything under that directory is
+disposable prototype code. Route files apply public rate limits and adapt HTTP
+requests; assessment, provider, spatial and reporting modules hold the work.
+
+## Historical architecture proposal
+
+The sections below record the original modular-monolith design. They are a
+proposal, not a literal map of the current tree. In particular,
+`modules/feasibility` was proposed but is not the implemented module layout.
 
 ## Decision summary
 

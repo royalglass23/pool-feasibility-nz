@@ -1,7 +1,4 @@
-import {
-  contactText,
-  conversationalText,
-} from "@/shared/validation/contact-text";
+import { conversationalText } from "@/shared/validation/contact-text";
 import { personName } from "@/modules/contact/person-name";
 export { contactText } from "@/shared/validation/contact-text";
 export const homeownerNameSchema = personName(160);
