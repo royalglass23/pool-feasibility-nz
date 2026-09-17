@@ -5,6 +5,10 @@ import type {
   FastPropertyViewResult,
   FastPropertyViewStage,
 } from "@/modules/data-access-spike/fast-property-view";
+import {
+  trustedConstructabilitySubmissionSchema,
+  type TrustedConstructabilitySubmission,
+} from "./constructability-evidence";
 
 const ASSESSMENT_SNAPSHOT_TTL_MS = 15 * 60 * 1_000;
 const snapshotGlobal = globalThis as typeof globalThis & {
@@ -17,12 +21,14 @@ export type TrustedAssessmentSnapshot = {
   submissionId: string;
   fastResult: FastPropertyViewResult;
   expiresAt: number;
+  constructability?: TrustedConstructabilitySubmission;
 };
 
 export function issueAssessmentSnapshot(
   fastResult: FastPropertyViewResult,
+  constructability?: TrustedConstructabilitySubmission,
 ): string {
-  return configuredSnapshotService().issue(fastResult);
+  return configuredSnapshotService().issue(fastResult, constructability);
 }
 
 export function refreshAssessmentSnapshot(
@@ -68,12 +74,23 @@ export function createAssessmentSnapshotService(
   }
 
   return {
-    issue(fastResult: FastPropertyViewResult): string {
+    issue(
+      fastResult: FastPropertyViewResult,
+      constructability?: TrustedConstructabilitySubmission,
+    ): string {
       return encodeAndSign(
         {
           submissionId: randomUUID(),
           fastResult,
           expiresAt: now() + ASSESSMENT_SNAPSHOT_TTL_MS,
+          ...(constructability
+            ? {
+                constructability:
+                  trustedConstructabilitySubmissionSchema.parse(
+                    constructability,
+                  ),
+              }
+            : {}),
         },
         signingKey,
       );
@@ -116,6 +133,14 @@ export function createAssessmentSnapshotService(
         !isTrustedSnapshot(snapshot) ||
         !Number.isFinite(snapshot.expiresAt) ||
         snapshot.expiresAt <= now()
+      ) {
+        throw new AssessmentSnapshotValidationError();
+      }
+      if (
+        snapshot.constructability !== undefined &&
+        !trustedConstructabilitySubmissionSchema.safeParse(
+          snapshot.constructability,
+        ).success
       ) {
         throw new AssessmentSnapshotValidationError();
       }

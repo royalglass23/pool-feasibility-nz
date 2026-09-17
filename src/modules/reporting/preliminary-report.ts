@@ -1,4 +1,5 @@
 import type { PersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
+import type { ConstructabilitySnapshot } from "@/modules/assessment/constructability-evidence";
 import {
   buildCanonicalPoolFeasibilityReport,
   reportAddressSlug,
@@ -62,6 +63,13 @@ export type SavedPreliminaryReport = {
   missingInformation: PersistedAssessmentSubmission["report"]["reportData"]["missingInformation"];
   terrain:
     PersistedAssessmentSubmission["report"]["reportData"]["terrain"] | null;
+  constructability:
+    | ConstructabilitySnapshot
+    | {
+        version: 0;
+        status: "not_assessed";
+        reason: string;
+      };
   layers: Array<{
     id?: string;
     provider: string;
@@ -160,6 +168,29 @@ export function buildSavedPreliminaryReport({
   );
   return {
     ...canonical,
+    overall:
+      canonical.overall.status === "red"
+        ? canonical.overall
+        : reportData.constructability?.overallStatus === "needs_checking"
+          ? {
+              ...canonical.overall,
+              status: "amber",
+              headline: "Needs checking",
+              summary:
+                "Mapped or reported site conditions need onsite checking.",
+            }
+          : reportData.constructability?.overallStatus ===
+                "not_fully_assessed" &&
+              (canonical.overall.status === "green" ||
+                canonical.overall.status === "unknown")
+            ? {
+                ...canonical.overall,
+                status: "unknown",
+                headline: "Not fully assessed",
+                summary:
+                  "Critical site evidence or answers remain uncertain. Confirm the site conditions onsite.",
+              }
+            : canonical.overall,
     assessments,
     reference,
     generatedAt: createdAt,
@@ -209,6 +240,12 @@ export function buildSavedPreliminaryReport({
     actions: reportData.actions,
     missingInformation: reportData.missingInformation,
     terrain: reportData.terrain ?? null,
+    constructability: reportData.constructability ?? {
+      version: 0,
+      status: "not_assessed",
+      reason:
+        "Site constructability evidence was not captured for this assessment.",
+    },
     layers,
     sources: canonical.sources,
     assumptions: [reportData.preliminaryFeasibilityWording],

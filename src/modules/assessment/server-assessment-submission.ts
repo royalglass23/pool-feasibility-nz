@@ -1,4 +1,10 @@
+import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
+import {
+  buildConstructabilitySnapshot,
+  constructabilityAnswersSchema,
+  ConstructabilityEvidenceError,
+} from "./constructability-evidence";
 import { homeownerContactSchema } from "./homeowner-contact";
 import type { Geometry } from "geojson";
 import {
@@ -38,6 +44,7 @@ const browserSubmissionSchema = z
       .max(50)
       .default([]),
     homeowner: homeownerContactSchema,
+    constructability: constructabilityAnswersSchema.optional(),
     poolLayout: z
       .object({
         lengthMetres: z.number().finite().min(2).max(20),
@@ -61,6 +68,22 @@ export function parseBrowserAssessmentSaveRequest(
   input: unknown,
 ): BrowserAssessmentSaveRequest {
   return browserSubmissionSchema.parse(input);
+}
+
+export function assertConstructabilityMatchesSnapshot(
+  request: BrowserAssessmentSaveRequest,
+  snapshot: TrustedAssessmentSnapshot,
+): void {
+  if (
+    Boolean(request.constructability) !== Boolean(snapshot.constructability) ||
+    (request.constructability &&
+      !isDeepStrictEqual(
+        request.constructability,
+        snapshot.constructability!.answers,
+      ))
+  ) {
+    throw new ConstructabilityEvidenceError();
+  }
 }
 
 export async function buildServerAssessmentSubmission(input: {
@@ -125,6 +148,13 @@ export async function buildServerAssessmentSubmission(input: {
     snapshot.fastResult,
     submittedAt,
   );
+  assertConstructabilityMatchesSnapshot(request, snapshot);
+  const constructability = request.constructability
+    ? buildConstructabilitySnapshot({
+        answers: snapshot.constructability!.answers,
+        ...snapshot.constructability!.evidence,
+      })
+    : undefined;
   return parsePersistedAssessmentSubmission({
     idempotencyKey: snapshot.submissionId,
     homeowner: {
@@ -214,6 +244,7 @@ export async function buildServerAssessmentSubmission(input: {
         assessmentSnapshot: reportAssessment
           ? buildReportAssessmentSnapshot(reportAssessment)
           : null,
+        constructability,
       },
     },
   });

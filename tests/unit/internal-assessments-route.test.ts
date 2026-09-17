@@ -323,6 +323,219 @@ describe("POST /api/internal/assessments", () => {
     });
   });
 
+  it("round-trips submitted Site answers and trusted mapped evidence into the saved report", async () => {
+    const baseSnapshot = snapshotService.verify(
+      validSubmission.assessmentSnapshot,
+    );
+    const answers = {
+      version: 1 as const,
+      estimatedDepthMetres: 1.7,
+      route: { provenance: "uncertain" as const, geometry: null },
+      accessConditions: ["none_of_these" as const],
+      nearbyFeatures: ["fences" as const],
+    };
+    const assessmentSnapshot = snapshotService.issue(baseSnapshot.fastResult, {
+      answers,
+      evidence: {
+        suggestedRoute: null,
+        mappedEvidence: [
+          {
+            id: "mapped-retaining-wall",
+            category: "access_excavation",
+            status: "concern",
+            provider: "official-map",
+            dataset: "retaining-walls",
+          },
+        ],
+        providerAvailability: [
+          {
+            category: "access_excavation",
+            provider: "official-map",
+            dataset: "retaining-walls",
+            status: "available",
+          },
+        ],
+        assumptions: ["Onsite confirmation required."],
+      },
+    });
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+      constructability: answers,
+    });
+    const snapshot = snapshotService.verify(request.assessmentSnapshot);
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot,
+    });
+    snapshot.constructability!.evidence.mappedEvidence[0].id =
+      "later-provider-change";
+    const saved = buildSavedPreliminaryReport({
+      submission,
+      reference: "GF-2026-000001",
+      createdAt: "2026-07-30T00:00:00.000Z",
+    });
+
+    expect(saved.constructability).toMatchObject({
+      version: 1,
+      estimatedDepthMetres: 1.7,
+      overallStatus: "needs_checking",
+      mappedEvidence: [{ id: "mapped-retaining-wall" }],
+      userEvidence: [{ category: "barrier", condition: "fences" }],
+    });
+    expect(saved.overall.headline).toBe("Needs checking");
+  });
+
+  it("rejects malformed Site evidence before any assessment is saved", async () => {
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/assessments", {
+        method: "POST",
+        body: JSON.stringify({
+          ...validSubmission,
+          constructability: {
+            version: 1,
+            estimatedDepthMetres: 2.1,
+            route: { provenance: "uncertain", geometry: null },
+            accessConditions: ["none_of_these", "rocky_ground"],
+            nearbyFeatures: ["none_of_these"],
+          },
+        }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(getDb).not.toHaveBeenCalled();
+    expect(saveHomeownerAssessment).not.toHaveBeenCalled();
+  });
+
+  it("rejects Site inputs changed after the trusted snapshot was issued", async () => {
+    const answers = {
+      version: 1 as const,
+      estimatedDepthMetres: 1.5,
+      route: { provenance: "uncertain" as const, geometry: null },
+      accessConditions: ["none_of_these" as const],
+      nearbyFeatures: ["none_of_these" as const],
+    };
+    const baseSnapshot = snapshotService.verify(
+      validSubmission.assessmentSnapshot,
+    );
+    const assessmentSnapshot = snapshotService.issue(baseSnapshot.fastResult, {
+      answers,
+      evidence: {
+        suggestedRoute: null,
+        mappedEvidence: [],
+        providerAvailability: [],
+        assumptions: [],
+      },
+    });
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/assessments", {
+        method: "POST",
+        body: JSON.stringify({
+          ...validSubmission,
+          assessmentSnapshot,
+          constructability: { ...answers, estimatedDepthMetres: 1.8 },
+        }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(getDb).not.toHaveBeenCalled();
+    expect(saveHomeownerAssessment).not.toHaveBeenCalled();
+  });
+
+  it("does not let a duplicate request omit signed Site evidence", async () => {
+    const answers = {
+      version: 1 as const,
+      estimatedDepthMetres: 1.5,
+      route: { provenance: "uncertain" as const, geometry: null },
+      accessConditions: ["none_of_these" as const],
+      nearbyFeatures: ["none_of_these" as const],
+    };
+    const baseSnapshot = snapshotService.verify(
+      validSubmission.assessmentSnapshot,
+    );
+    const assessmentSnapshot = snapshotService.issue(baseSnapshot.fastResult, {
+      answers,
+      evidence: {
+        suggestedRoute: null,
+        mappedEvidence: [],
+        providerAvailability: [],
+        assumptions: [],
+      },
+    });
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/assessments", {
+        method: "POST",
+        body: JSON.stringify({ ...validSubmission, assessmentSnapshot }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(getDb).not.toHaveBeenCalled();
+  });
+
+  it("marks a saved report without Site evidence explicitly not assessed", async () => {
+    const request = parseBrowserAssessmentSaveRequest(validSubmission);
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot: snapshotService.verify(request.assessmentSnapshot),
+    });
+    const saved = buildSavedPreliminaryReport({
+      submission,
+      reference: "GF-2026-000001",
+      createdAt: "2026-07-30T00:00:00.000Z",
+    });
+    expect(saved.constructability).toMatchObject({
+      version: 0,
+      status: "not_assessed",
+    });
+  });
+
+  it("keeps critical Site uncertainty neutral in the saved overall result", async () => {
+    const answers = {
+      version: 1 as const,
+      estimatedDepthMetres: 1.5,
+      route: { provenance: "uncertain" as const, geometry: null },
+      accessConditions: ["not_sure" as const],
+      nearbyFeatures: ["none_of_these" as const],
+    };
+    const baseSnapshot = snapshotService.verify(
+      validSubmission.assessmentSnapshot,
+    );
+    const assessmentSnapshot = snapshotService.issue(baseSnapshot.fastResult, {
+      answers,
+      evidence: {
+        suggestedRoute: null,
+        mappedEvidence: [],
+        providerAvailability: [],
+        assumptions: [],
+      },
+    });
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+      constructability: answers,
+    });
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot: snapshotService.verify(request.assessmentSnapshot),
+    });
+    const saved = buildSavedPreliminaryReport({
+      submission,
+      reference: "GF-2026-000001",
+      createdAt: "2026-07-30T00:00:00.000Z",
+    });
+    expect(
+      saved.constructability.version === 1 &&
+        saved.constructability.overallStatus,
+    ).toBe("not_fully_assessed");
+    expect(saved.overall.status).not.toBe("green");
+    expect(saved.constructability).toMatchObject({
+      sectionStatus: "not_assessed",
+      findings: expect.arrayContaining([
+        expect.objectContaining({ status: "not_assessed" }),
+      ]),
+    });
+  });
+
   it("persists per-layer placement findings from the trusted map snapshot", async () => {
     const original = snapshotService.verify(validSubmission.assessmentSnapshot);
     const detailedChecks = completeDetailedChecks();
