@@ -61,7 +61,7 @@ describe("public costly-route rate limits", () => {
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({
       error: {
-        code: "TEMPORARILY_UNAVAILABLE",
+        code: "RATE_LIMIT_UNAVAILABLE",
         message: "Please try again shortly.",
       },
     });
@@ -106,7 +106,7 @@ describe("public costly-route rate limits", () => {
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({
       error: {
-        code: "TEMPORARILY_UNAVAILABLE",
+        code: "RATE_LIMIT_UNAVAILABLE",
         message: "Please try again shortly.",
       },
     });
@@ -138,7 +138,7 @@ describe("public costly-route rate limits", () => {
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({
       error: {
-        code: "TEMPORARILY_UNAVAILABLE",
+        code: "RATE_LIMIT_UNAVAILABLE",
         message: "Please try again shortly.",
       },
     });
@@ -166,7 +166,7 @@ describe("public costly-route rate limits", () => {
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({
       error: {
-        code: "TEMPORARILY_UNAVAILABLE",
+        code: "RATE_LIMIT_UNAVAILABLE",
         message: "Please try again shortly.",
       },
     });

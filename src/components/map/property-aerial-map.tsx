@@ -16,7 +16,12 @@ import {
   spatialEvidenceForMap,
 } from "./map-evidence";
 import { configureMapLibreWorker } from "./configure-maplibre-worker";
+import { aerialTileRateLimitMessage } from "./aerial-tile-error";
 import { FieldValidationMessage } from "@/components/field-validation-message";
+import {
+  readClientApiErrorFromBlobError,
+  type ClientApiError,
+} from "@/shared/http/client-api-error";
 
 type DatasetKey = keyof DataAccessSpikeResult["datasets"];
 type MapLayerDefinition = {
@@ -63,6 +68,7 @@ export function PropertyAerialMap({
   const containerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<import("maplibre-gl").Map | null>(null);
   const [mapError, setMapError] = useState(false);
+  const [mapApiError, setMapApiError] = useState<ClientApiError | null>(null);
   const [tilesLoaded, setTilesLoaded] = useState(false);
   const [layerVisibility, setLayerVisibility] = useState<
     Record<string, boolean>
@@ -235,6 +241,7 @@ export function PropertyAerialMap({
 
     async function loadMap() {
       setMapError(false);
+      setMapApiError(null);
       setTilesLoaded(false);
       const maplibregl = await import("maplibre-gl");
       if (cancelled || !container) return;
@@ -483,7 +490,13 @@ export function PropertyAerialMap({
 
       map.fitBounds(bounds, { padding: 72, maxZoom: 17, duration: 0 });
       activeMap.setMinZoom(activeMap.getZoom());
-      map.on("error", () => setMapError(true));
+      map.on("error", (event) => {
+        setMapError(true);
+        setMapApiError(null);
+        void readClientApiErrorFromBlobError(event.error).then((error) => {
+          if (!cancelled) setMapApiError(error);
+        });
+      });
       captureAfterMove = () => captureReportSnapshot(true);
       map.on("moveend", captureAfterMove);
       map.once("idle", () => {
@@ -684,7 +697,8 @@ export function PropertyAerialMap({
       <div className="text-pool-600 flex flex-col gap-2 bg-white px-5 py-3 text-xs leading-5 sm:flex-row sm:items-center sm:justify-between">
         <p>
           {mapError
-            ? "The interactive imagery could not be loaded. Retry the property request or check the LINZ key."
+            ? (aerialTileRateLimitMessage(mapApiError) ??
+              "The interactive imagery could not be loaded. Retry the property request or check the LINZ key.")
             : "Parcel geometry is drawn from the confirmed normalized LINZ result."}
         </p>
         <p className="shrink-0">

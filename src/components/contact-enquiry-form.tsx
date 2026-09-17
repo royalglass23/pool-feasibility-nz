@@ -8,6 +8,7 @@ import {
   friendlyRequestError,
 } from "@/components/form-feedback";
 import { FieldValidationMessage } from "@/components/field-validation-message";
+import { readClientApiError } from "@/shared/http/client-api-error";
 
 type ContactFieldName = "name" | "company" | "email" | "message";
 
@@ -70,10 +71,16 @@ export function ContactEnquiryForm({
       });
       const body = (await response.json().catch(() => null)) as {
         sent?: boolean;
-        error?: { message?: string };
+        error?: { code?: string; message?: string; correlationId?: string };
       } | null;
       if (!response.ok || !body?.sent) {
-        setError(friendlyRequestError(response.status, "send your message"));
+        setError(
+          friendlyRequestError(
+            response.status,
+            "send your message",
+            readClientApiError(body),
+          ),
+        );
         setState("idle");
         return;
       }

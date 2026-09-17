@@ -28,11 +28,12 @@ This keeps limits consistent across Vercel function instances.
   Both send a name, email, and message to the support inbox; partnership
   enquiries also include a company name and allow an optional message.
   Neither creates an assessment.
-- A signed Property Check session receives two stage operations in 15 minutes:
-  automatic enrichment plus the optional detailed check. The allowance is
-  scoped by client IP and signed snapshot ID, so replay cannot create unbounded
-  provider work and stage calls do not consume another initial Property Check
-  attempt.
+- A signed Property Check session receives up to three bounded stage operations
+  in 15 minutes: automatic enrichment, one optional detailed check, and one
+  detailed-check retry only when the signed snapshot records a transient
+  provider failure. Each stage can run once and is scoped by client IP and
+  signed snapshot ID, so replay cannot create unbounded provider work and stage
+  calls do not consume another initial Property Check attempt.
 
 Each named action has a separate budget. Address suggestions, aerial analysis,
 aerial tiles, saved-report delivery retries, and the shared direct/saved PDF
@@ -41,8 +42,8 @@ allowances.
 
 The rate-limit check runs before property providers, database writes, PDF work,
 or email fan-out. A denied request receives HTTP `429` with
-`Please try again shortly.` and a `Retry-After` header. CAPTCHA is not part of
-this release.
+error code `RATE_LIMITED`, `Please try again shortly.`, a correlation ID, and a
+`Retry-After` header. CAPTCHA is not part of this release.
 
 ## Deployment configuration
 
@@ -59,6 +60,14 @@ fails closed with a calm HTTP `503` response if either credential, the trusted
 Vercel client-IP header, or the managed store is unavailable. An Upstash SDK
 timeout is also treated as unavailable rather than allowed.
 
+An unavailable limiter fails closed with HTTP `503`, error code
+`RATE_LIMIT_UNAVAILABLE`, and a correlation ID. The matching
+`public_rate_limit` server event records one safe reason:
+`client_ip_missing`, `configuration_missing`, `store_timeout`, or
+`store_error`. The browser uses the error code to avoid presenting a limiter
+failure as a GIS, database, or delivery failure, while the correlation ID joins
+the browser report to the precise server event.
+
 ## Local development
 
 When `NODE_ENV=development` and the Upstash variables are empty, `next dev`
@@ -74,6 +83,7 @@ Never point automated tests at the production rate-limit database.
 
 The Redis identifier is a SHA-256 digest of the platform-provided client IP.
 Structured `public_rate_limit` events record only the action, outcome, HTTP
-status, and correlation ID. They do not include IP addresses, property data,
-coordinates, contact details, or report content. Upstash rate-limit analytics
-are disabled for this application.
+status, correlation ID, and, for unavailable outcomes, one of the enumerated
+safe reasons above. They do not include IP addresses, property data,
+coordinates, contact details, provider exception text, or report content.
+Upstash rate-limit analytics are disabled for this application.

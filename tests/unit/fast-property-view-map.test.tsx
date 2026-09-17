@@ -1,5 +1,11 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { FastPropertyView } from "@/components/fast-property-view";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
@@ -12,6 +18,7 @@ const {
   markerOffsets,
   getLayer,
   queryRenderedFeatures,
+  setLayoutProperty,
   waitForIdle,
   canvasSnapshot,
   setWorkerUrl,
@@ -20,6 +27,7 @@ const {
   canvasSnapshot: vi.fn(() => "data:image/png;base64,"),
   getLayer: vi.fn<(id: string) => object | undefined>(() => ({})),
   queryRenderedFeatures: vi.fn<(...args: unknown[]) => unknown[]>(() => []),
+  setLayoutProperty: vi.fn(),
   mapCreated: vi.fn(),
   mapStyles: vi.fn(),
   fitBounds: vi.fn(),
@@ -32,7 +40,7 @@ type MapEvent = {
   type?: string;
   point: { coordinates: [number, number] };
   originalEvent: { stopPropagation: () => void };
-  error?: { message: string };
+  error?: { message: string; status?: number; body?: Blob };
   sourceId?: string;
 };
 
@@ -48,6 +56,7 @@ vi.mock("maplibre-gl", () => {
       return {
         toDataURL: canvasSnapshot,
         style: { setProperty() {} },
+        getBoundingClientRect: () => ({ left: 0, top: 0 }),
       };
     }
     getSource() {
@@ -90,7 +99,9 @@ vi.mock("maplibre-gl", () => {
       };
     }
     remove() {}
-    setLayoutProperty() {}
+    setLayoutProperty(...args: unknown[]) {
+      setLayoutProperty(...args);
+    }
     getLayoutProperty() {
       return "visible";
     }
@@ -155,6 +166,74 @@ afterEach(() => {
   waitForIdle.mockReset().mockImplementation(() => Promise.resolve());
   canvasSnapshot.mockReset().mockReturnValue("data:image/png;base64,");
   setWorkerUrl.mockClear();
+  setLayoutProperty.mockClear();
+});
+
+function openMapLayers() {
+  const toggle = screen.getByRole("button", { name: /Map layers/ });
+  if (toggle.getAttribute("aria-expanded") === "false") {
+    fireEvent.click(toggle);
+  }
+}
+
+it("keeps map layers collapsed until the user asks to see them", async () => {
+  render(<FastPropertyView result={fastResult} onRetry={() => {}} />);
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const toggle = screen.getByRole("button", { name: /Map layers/ });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+  expect(
+    screen.queryByRole("checkbox", { name: "Show pool-shell clearances" }),
+  ).not.toBeInTheDocument();
+
+  fireEvent.click(toggle);
+
+  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(
+    screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
+  ).toBeVisible();
+});
+
+it("keeps live notices above the workspace and next actions with the pool layout", async () => {
+  render(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        progress: { ...fastResult.progress, detailedChecks: "not_loaded" },
+        detailedChecks: undefined,
+      }}
+      onRetry={() => {}}
+      onLoadDetailed={() => {}}
+      onStartAgain={() => {}}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const aerialMapFrame = screen.getByTestId("aerial-map-frame");
+  const notices = screen.getByLabelText("Property check notices");
+  const poolLayout = screen.getByLabelText(
+    "Pool catalogue and placement controls",
+  );
+
+  expect(notices).toContainElement(
+    screen.getByRole("heading", { name: "Needs Checking" }),
+  );
+  expect(notices).toHaveTextContent(
+    "Some mapped evidence still needs checking for this pool position.",
+  );
+  expect(notices).toHaveTextContent("View details");
+  expect(notices).toHaveTextContent(
+    "An aerial photo isn't available for this property.",
+  );
+  expect(aerialMapFrame).not.toContainElement(
+    screen.getByRole("heading", { name: "Needs Checking" }),
+  );
+  expect(poolLayout).toContainElement(
+    screen.getByRole("button", { name: "Check for constraints" }),
+  );
+  expect(poolLayout).toContainElement(
+    screen.getByRole("button", { name: "Start again" }),
+  );
 });
 
 it("keeps the rotate control visible and interactive while taking a snapshot", async () => {
@@ -188,13 +267,15 @@ it.each(["layer", "camera", "clearances"])(
     await waitFor(() => expect(canvasSnapshot).toHaveBeenCalled());
     if (change === "camera")
       mapEventHandlers.get("movestart:map")?.({} as MapEvent);
-    else
+    else {
+      openMapLayers();
       await userEvent.setup().click(
         screen.getByRole("checkbox", {
           name:
             change === "layer" ? "Wastewater" : "Show pool-shell clearances",
         }),
       );
+    }
     expect(onSnapshotReady).toHaveBeenLastCalledWith(null);
     canvasSnapshot.mockReturnValue("data:image/png;base64,new");
     mapEventHandlers.get("idle:map")?.({} as MapEvent);
@@ -228,10 +309,172 @@ it("shows detailed map controls without restoring the detailed checks panel", as
   expect(
     screen.queryByText("Detailed official checks"),
   ).not.toBeInTheDocument();
+  openMapLayers();
   expect(screen.getByRole("checkbox", { name: "Contours" })).toBeDisabled();
   expect(screen.getByRole("checkbox", { name: "Stormwater" })).toBeDisabled();
   expect(screen.getByRole("checkbox", { name: "Wastewater" })).toBeChecked();
   expect(mapCreated).toHaveBeenCalledTimes(1);
+});
+
+it("shows location-based slope shading and selected-pool terrain details", async () => {
+  const user = userEvent.setup();
+  render(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        detailedChecks: {
+          ...fastResult.detailedChecks!,
+          terrain: {
+            status: "measured",
+            averageSlopeDegrees: 2.4,
+            upperSlopeDegrees: 3.8,
+            estimatedFallMetres: 0.36,
+            downhillBearingDegrees: 135,
+            downhillDirection: "SE",
+            confidence: "indicative",
+            slopeSamples: [
+              [174.60818, -36.86026],
+              [174.60819, -36.86026],
+              [174.6082, -36.86026],
+              [174.60818, -36.86025],
+              [174.60819, -36.86025],
+              [174.6082, -36.86025],
+              [174.608244, -36.86025],
+            ].map((position, index) => ({
+              position: position as [number, number],
+              slopeDegrees: 2 + index * 3,
+              eastGradient: 0.04,
+              northGradient: 0.03,
+            })),
+            source: {
+              provider: "Land Information New Zealand",
+              dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
+              datasetIdentifier:
+                "https://data.linz.govt.nz/layer/121990-auckland-part-1-lidar-1m-dem-2024/",
+              status: "success",
+              licenceStatus: "permitted",
+              evidenceUse: "spike_only",
+              retrievedAt: "2026-09-14T00:00:00.000Z",
+              datasetDate: "2024-04-30/2024-06-27",
+              licence: "Creative Commons Attribution 4.0 International",
+              attribution: {
+                text: "Sourced from the LINZ Data Service and licensed by Regional Software Holdings Limited, for re-use under the Creative Commons Attribution 4.0 International licence.",
+                url: "https://www.linz.govt.nz/products-services/data/licensing-and-using-data/attributing-elevation-or-aerial-imagery-data",
+              },
+              geometryUsed: "Bounded 1 m bare-earth elevation grid in NZTM2000",
+              attributesUsed: ["elevation_metres"],
+              evidenceType: "terrain_elevation_grid",
+              confidence: "limited",
+            },
+          },
+        },
+      }}
+      onRetry={() => {}}
+    />,
+  );
+
+  expect(
+    screen.getByRole("heading", { name: "Indicative property slope" }),
+  ).toBeVisible();
+  expect(
+    screen.getByLabelText(
+      "Indicative property slope: average 2.4 degrees, downhill SE",
+    ),
+  ).toBeVisible();
+  expect(
+    screen.getByText(
+      "Across the mapped property parcel, not the selected pool position",
+    ),
+  ).toBeVisible();
+  expect(screen.getByText("Average slope")).toBeVisible();
+  expect(screen.getByText("Steeper areas")).toBeVisible();
+  expect(
+    screen.getByText("90% of sampled areas are at or below this angle."),
+  ).toBeVisible();
+  expect(screen.getByText("Estimated height change")).toBeVisible();
+  expect(screen.getByText("Overall downhill direction")).toBeVisible();
+  expect(screen.getByText("2.4°")).toBeVisible();
+  expect(screen.getByText("3.8°")).toBeVisible();
+  expect(screen.getByText("0.36 m")).toBeVisible();
+  expect(screen.getByText("SE")).toBeVisible();
+  expect(
+    screen.getByRole("link", {
+      name: /Sourced from the LINZ Data Service and licensed by Regional Software Holdings Limited/i,
+    }),
+  ).toHaveAttribute(
+    "href",
+    "https://www.linz.govt.nz/products-services/data/licensing-and-using-data/attributing-elevation-or-aerial-imagery-data",
+  );
+  openMapLayers();
+  expect(screen.getByRole("checkbox", { name: "Slope shading" })).toBeChecked();
+  expect(screen.getByText("Lower slope on this property")).toBeVisible();
+  expect(screen.getByText("Medium slope on this property")).toBeVisible();
+  expect(screen.getByText("Higher slope on this property")).toBeVisible();
+  expect(
+    screen.getByText(
+      "Relative visual guide only—not a suitability or engineering classification.",
+    ),
+  ).toBeVisible();
+  expect(screen.queryByText(/0–5°|5–15°|15°\+/)).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("heading", {
+      name: "Selected pool position",
+    }),
+  ).toBeVisible();
+  expect(screen.getByText("Average slope here")).toBeVisible();
+  expect(screen.getByText("Estimated height change here")).toBeVisible();
+  expect(screen.getByText("11.0°")).toBeVisible();
+  expect(screen.getByText(/Based on 7 nearby terrain samples/i)).toBeVisible();
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const style = mapStyles.mock.calls[0]?.[0] as {
+    sources: Record<string, unknown>;
+    layers: Array<{ id: string; paint?: Record<string, unknown> }>;
+  };
+  expect(style.sources).toHaveProperty("terrain-slope");
+  expect(style.layers).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({
+        id: "terrain-slope",
+        paint: expect.objectContaining({
+          "circle-color": [
+            "interpolate",
+            ["linear"],
+            ["get", "relativeSlope"],
+            0,
+            "#16a34a",
+            0.5,
+            "#f59e0b",
+            1,
+            "#dc2626",
+          ],
+          "circle-radius": [
+            "interpolate",
+            ["linear"],
+            ["zoom"],
+            14,
+            3,
+            18,
+            12,
+            20,
+            22,
+          ],
+          "circle-opacity": 0.1,
+          "circle-blur": 0.72,
+        }),
+      }),
+    ]),
+  );
+
+  await user.click(screen.getByRole("checkbox", { name: "Slope shading" }));
+  expect(
+    screen.getByRole("checkbox", { name: "Slope shading" }),
+  ).not.toBeChecked();
+  expect(setLayoutProperty).toHaveBeenCalledWith(
+    "terrain-slope",
+    "visibility",
+    "none",
+  );
 });
 
 it("does not expose or emit pool placement while the boundary is loading", async () => {
@@ -278,6 +521,47 @@ it("explains an aerial tile failure instead of swallowing the MapLibre error", a
     ),
   ).toBeVisible();
 });
+
+it.each([
+  [
+    429,
+    "RATE_LIMITED",
+    "aerial-rate-reference",
+    "Aerial photo requests have reached their temporary limit. You can still review the property boundary; please wait before trying again.",
+  ],
+  [
+    503,
+    "RATE_LIMIT_UNAVAILABLE",
+    "aerial-limiter-reference",
+    "Aerial photo requests are paused because the request limit service is unavailable. You can still review the property boundary; please try again shortly.",
+  ],
+])(
+  "identifies an aerial tile limiter response (%s) without blaming the imagery provider",
+  async (status, code, correlationId, expectedMessage) => {
+    render(<FastPropertyView result={fastResult} onRetry={() => {}} />);
+
+    await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+    mapEventHandlers.get("error:map")?.({
+      error: {
+        message: `AJAXError (${status})`,
+        status,
+        body: new Blob([
+          JSON.stringify({
+            error: {
+              code,
+              message: "Please try again shortly.",
+              correlationId,
+            },
+          }),
+        ]),
+      },
+      sourceId: "aerial",
+    } as MapEvent);
+
+    expect(await screen.findByText(expectedMessage)).toBeVisible();
+    expect(screen.queryByText(/LINZ key/i)).not.toBeInTheDocument();
+  },
+);
 
 it("captures the completed Fast Property View canvas for report reuse", async () => {
   const onSnapshotReady = vi.fn();
@@ -367,6 +651,7 @@ it("positions each visible clearance label outside the mapped boundary", async (
     },
   );
 
+  openMapLayers();
   await user.click(
     screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
   );
@@ -385,6 +670,7 @@ it("shows live pool-shell clearances by default and preserves the selected visib
   );
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  openMapLayers();
   expect(
     screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
   ).toBeChecked();
@@ -417,19 +703,104 @@ it("shows live pool-shell clearances by default and preserves the selected visib
   );
 });
 
-it("keeps hidden pool-shell clearances hidden when a system update recreates the map", async () => {
+it.each(["drag", "rotate"] as const)(
+  "keeps parcel slope visible and the existing map instance after pool %s",
+  async (interaction) => {
+    render(
+      <FastPropertyView
+        result={{
+          ...fastResult,
+          detailedChecks: {
+            ...fastResult.detailedChecks!,
+            terrain: {
+              status: "measured" as const,
+              averageSlopeDegrees: 2.4,
+              upperSlopeDegrees: 3.8,
+              estimatedFallMetres: 0.36,
+              downhillBearingDegrees: 135,
+              downhillDirection: "SE" as const,
+              confidence: "indicative" as const,
+              source: {
+                provider: "Land Information New Zealand",
+                dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
+                datasetIdentifier: "linz-dem",
+                status: "success" as const,
+                licenceStatus: "permitted" as const,
+                evidenceUse: "spike_only" as const,
+                retrievedAt: "2026-09-14T00:00:00.000Z",
+                datasetDate: "2024",
+                licence: "CC BY 4.0",
+                attribution: null,
+                geometryUsed: "mapped property parcel",
+                attributesUsed: ["elevation_metres"],
+                evidenceType: "terrain_elevation_grid",
+                confidence: "limited" as const,
+              },
+            },
+          },
+        }}
+        onRetry={() => {}}
+        onPlacementChange={() => {}}
+      />,
+    );
+    await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+
+    if (interaction === "drag") {
+      const event: MapEvent = {
+        point: { coordinates: [174.6083, -36.8602] },
+        originalEvent: { stopPropagation() {} },
+      };
+      mapEventHandlers.get("mousedown:pool-fill")!(event);
+      mapEventHandlers.get("mousemove:map")!(event);
+      mapEventHandlers.get("mouseup:map")!(event);
+    } else {
+      const rotateControl = screen.getByTestId("pool-rotate-control");
+      Object.assign(rotateControl, {
+        setPointerCapture: vi.fn(),
+        hasPointerCapture: vi.fn(() => true),
+        releasePointerCapture: vi.fn(),
+      });
+      fireEvent.pointerDown(rotateControl, { pointerId: 1 });
+      fireEvent.pointerMove(rotateControl, {
+        pointerId: 1,
+        clientX: 174_608_350,
+        clientY: 36_860_200,
+      });
+      fireEvent.pointerUp(rotateControl, { pointerId: 1 });
+    }
+
+    expect(
+      screen.getByRole("heading", { name: "Indicative property slope" }),
+    ).toBeVisible();
+    expect(
+      screen.getByLabelText(
+        "Indicative property slope: average 2.4 degrees, downhill SE",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByText(/The pool position changed\./i),
+    ).not.toBeInTheDocument();
+    expect(mapCreated).toHaveBeenCalledTimes(1);
+  },
+);
+
+it("keeps hidden pool-shell clearances hidden when a map input update recreates the map", async () => {
   const user = userEvent.setup();
   const { rerender } = render(
     <FastPropertyView result={fastResult} onRetry={() => {}} />,
   );
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  openMapLayers();
   await user.click(
     screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
   );
   rerender(
     <FastPropertyView
-      result={{ ...fastResult, fastPathDurationMs: 121 }}
+      result={{
+        ...fastResult,
+        aerial: { ...fastResult.aerial, state: "error" },
+      }}
       onRetry={() => {}}
     />,
   );
@@ -491,6 +862,7 @@ it("draws returned contours and lets the user hide them", async () => {
   expect(style.layers).toEqual(
     expect.arrayContaining([expect.objectContaining({ id: "contours" })]),
   );
+  openMapLayers();
   const contours = screen.getByRole("checkbox", { name: "Contours" });
   expect(contours).toBeChecked();
   await user.click(contours);
@@ -611,6 +983,39 @@ it("lets touch users move the pool layout", async () => {
       expect.objectContaining({ position: [174.6083, -36.8602] }),
     ),
   );
+});
+
+it("silently keeps the pool at its last valid position at the mapped boundary", async () => {
+  const onPlacementChange = vi.fn();
+  render(
+    <FastPropertyView
+      result={fastResult}
+      onRetry={() => {}}
+      onPlacementChange={onPlacementChange}
+    />,
+  );
+
+  await waitFor(() =>
+    expect(mapEventHandlers.get("touchstart:pool-fill")).toBeTypeOf("function"),
+  );
+  const event = (coordinates: [number, number]): MapEvent => ({
+    point: { coordinates },
+    originalEvent: { stopPropagation() {} },
+  });
+  const validPosition = onPlacementChange.mock.lastCall?.[0].position;
+
+  mapEventHandlers.get("touchstart:pool-fill")!(event(validPosition));
+  mapEventHandlers.get("touchmove:map")!(event([174.609, -36.86]));
+  mapEventHandlers.get("touchend:map")!(event([174.609, -36.86]));
+
+  expect(onPlacementChange).toHaveBeenLastCalledWith(
+    expect.objectContaining({ position: validPosition }),
+  );
+  expect(
+    screen.queryByText(
+      "The construction envelope must remain inside the mapped property area.",
+    ),
+  ).not.toBeInTheDocument();
 });
 
 const fastResult = {

@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { resolveAddressIndexTarget } from "../../scripts/address-index-target";
+import {
+  requireDevelopmentAddressSeed,
+  requireFullAddressImport,
+  resolveAddressIndexTarget,
+} from "../../scripts/address-index-target";
 
 describe("address-index command target", () => {
   it("uses the dedicated development database by default", () => {
@@ -55,5 +59,27 @@ describe("address-index command target", () => {
         },
       }),
     ).toThrow("PRODUCTION_ADDRESS_INDEX_HOST_MISMATCH");
+  });
+
+  it("requires an explicit full-import flag for development and production", () => {
+    expect(() => requireFullAddressImport([])).toThrow(
+      "CONFIRM_FULL_ADDRESS_IMPORT_REQUIRED",
+    );
+    expect(() =>
+      requireFullAddressImport([
+        "--production",
+        "--confirm-production-address-index",
+      ]),
+    ).toThrow("CONFIRM_FULL_ADDRESS_IMPORT_REQUIRED");
+    expect(() => requireFullAddressImport(["--full"])).not.toThrow();
+  });
+
+  it("requires explicit confirmation before replacing the development seed", () => {
+    expect(() => requireDevelopmentAddressSeed([])).toThrow(
+      "CONFIRM_DEVELOPMENT_ADDRESS_SEED_REQUIRED",
+    );
+    expect(() =>
+      requireDevelopmentAddressSeed(["--confirm-development-address-seed"]),
+    ).not.toThrow();
   });
 });

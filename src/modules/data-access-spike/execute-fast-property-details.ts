@@ -13,6 +13,10 @@ import {
   type DatasetKey,
   type QueryableDatasetKey,
 } from "./dataset-catalog";
+import type {
+  PropertyTerrainAssessment,
+  PropertyTerrainGateway,
+} from "@/modules/terrain/property-terrain";
 
 export type DetailedLayerState =
   | "returned"
@@ -30,9 +34,17 @@ export type DetailedLayerResult = {
   message: string;
 };
 
+export type ConstraintLayerCompletion = {
+  status: "complete" | "retryable";
+  retryableLayerKeys: DatasetKey[];
+  unavailableLayerKeys: DatasetKey[];
+};
+
 export type FastPropertyDetails = {
   status: "complete" | "partial";
+  constraints: ConstraintLayerCompletion;
   layers: DetailedLayerResult[];
+  terrain?: PropertyTerrainAssessment;
   retrievedAt: string;
   durationMs: number;
   region: string;
@@ -71,6 +83,7 @@ export async function executeFastPropertyDetailsRequest(input: {
   now?: () => Date;
   timeoutMs?: number;
   concurrency?: number;
+  terrain?: PropertyTerrainGateway;
 }): Promise<FastPropertyDetailsResponse> {
   const key = JSON.stringify(input.body);
   const existing = inFlightDetailRequests.get(key);
@@ -91,6 +104,7 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
   now?: () => Date;
   timeoutMs?: number;
   concurrency?: number;
+  terrain?: PropertyTerrainGateway;
 }): Promise<FastPropertyDetailsResponse> {
   const request = requestSchema.safeParse(input.body);
   if (!request.success) {
@@ -133,12 +147,18 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
       );
     }
   }
-  await Promise.all(
-    Array.from(
-      { length: Math.min(concurrency, detailedDatasetKeys.length) },
-      worker,
+  const [terrain] = await Promise.all([
+    assessTerrain({
+      parcelGeometry: parcelResult?.parcels[0]?.geometry ?? null,
+      terrain: input.terrain,
+    }),
+    Promise.all(
+      Array.from(
+        { length: Math.min(concurrency, detailedDatasetKeys.length) },
+        worker,
+      ),
     ),
-  );
+  ]);
   layers.sort(
     (left, right) =>
       detailedDatasetKeys.indexOf(
@@ -150,17 +170,21 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
   );
 
   const failed = layers.filter(
-    (layer) =>
-      layer.state === "timeout" ||
-      layer.state === "provider_error" ||
-      (layer.state === "unavailable" && Boolean(layer.evidence.errorCode)),
+    (layer) => layer.state === "timeout" || layer.state === "provider_error",
   );
+  const unavailable = layers.filter((layer) => layer.state === "unavailable");
   return {
     ok: true,
     status: 200,
     data: {
       status: failed.length === 0 ? "complete" : "partial",
+      constraints: {
+        status: failed.length === 0 ? "complete" : "retryable",
+        retryableLayerKeys: failed.map((layer) => layer.key),
+        unavailableLayerKeys: unavailable.map((layer) => layer.key),
+      },
       layers,
+      ...(terrain ? { terrain } : {}),
       retrievedAt,
       durationMs: Math.round(performance.now() - startedAt),
       region:
@@ -172,6 +196,27 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
       ],
     },
   };
+}
+
+async function assessTerrain(input: {
+  parcelGeometry: import("geojson").Polygon | null;
+  terrain?: PropertyTerrainGateway;
+}): Promise<PropertyTerrainAssessment> {
+  if (!input.parcelGeometry) {
+    return {
+      status: "needs_checking",
+      reasons: [
+        "The mapped property parcel is unavailable, so its indicative slope could not be assessed.",
+      ],
+    };
+  }
+  if (!input.terrain) {
+    return {
+      status: "needs_checking",
+      reasons: ["The Auckland terrain analysis is unavailable."],
+    };
+  }
+  return input.terrain.assessParcel(input.parcelGeometry);
 }
 
 async function queryLayer(input: {
@@ -245,7 +290,9 @@ async function queryLayer(input: {
       message:
         state === "timeout"
           ? "The provider timed out; no geometry was drawn. Retry is available."
-          : "The provider returned an error; no geometry was drawn. Retry is available.",
+          : state === "provider_error"
+            ? "The provider returned an error; no geometry was drawn. Retry is available."
+            : "This constraint layer is unavailable from the current provider; no geometry was drawn.",
     };
   }
 }

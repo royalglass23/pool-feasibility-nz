@@ -11,10 +11,15 @@ type AnalyticsWindow = Window & {
   dataLayer?: unknown[];
   gtag?: (...arguments_: unknown[]) => void;
   hj?: (...arguments_: unknown[]) => void;
+  posthog?: {
+    opt_in_capturing: () => void;
+    opt_out_capturing: () => void;
+  };
   [key: `ga-disable-${string}`]: boolean | undefined;
 };
 
 const CONSENT_CHANGE_EVENT = "rg-analytics-consent-change";
+const POSTHOG_PROJECT_KEY = "phc_BCgxNofbcnuCzPePiYFdqzHKRaB6ectcYCRXJzjhDUPd";
 
 export function AnalyticsConsent({
   measurementId,
@@ -43,6 +48,9 @@ export function AnalyticsConsent({
     if (choice === "denied") {
       if (safeMeasurementId) disableAnalytics(safeMeasurementId);
       if (safeHotjarSiteId) disableHotjar(safeHotjarSiteId);
+      (window as unknown as AnalyticsWindow).posthog?.opt_out_capturing();
+    } else if (choice === "granted") {
+      (window as unknown as AnalyticsWindow).posthog?.opt_in_capturing();
     }
   }, [choice, safeHotjarSiteId, safeMeasurementId]);
 
@@ -56,12 +64,12 @@ export function AnalyticsConsent({
 
     window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT));
     setSettingsOverride(false);
-    if (!safeMeasurementId && !safeHotjarSiteId) return;
-
     if (nextChoice === "denied") {
       if (safeMeasurementId) disableAnalytics(safeMeasurementId);
       if (safeHotjarSiteId) disableHotjar(safeHotjarSiteId);
+      (window as unknown as AnalyticsWindow).posthog?.opt_out_capturing();
     } else {
+      (window as unknown as AnalyticsWindow).posthog?.opt_in_capturing();
       if (safeMeasurementId) {
         (window as unknown as AnalyticsWindow)[
           `ga-disable-${safeMeasurementId}`
@@ -120,6 +128,13 @@ export function AnalyticsConsent({
             />
           )}
         </>
+      )}
+      {choice === "granted" && (
+        <Script
+          id="posthog-loader"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{ __html: posthogConfiguration() }}
+        />
       )}
 
       <div className="fixed inset-x-4 bottom-4 z-50 flex max-h-[calc(100dvh-2rem)] flex-col items-end gap-2 sm:right-6 sm:left-auto sm:w-96">
@@ -232,6 +247,47 @@ function disableAnalytics(measurementId: string) {
 function hotjarConfiguration(siteId: string) {
   const id = JSON.stringify(siteId);
   return `window.hj=window.hj||function(){(window.hj.q=window.hj.q||[]).push(arguments);};window._hjSettings={hjid:${id},hjsv:6};(function(){var script=document.createElement('script');script.async=true;script.src='https://static.hotjar.com/c/hotjar-'+window._hjSettings.hjid+'.js?sv='+window._hjSettings.hjsv;document.head.appendChild(script);})();`;
+}
+
+function posthogConfiguration(): string {
+  return `!function(t,e){var o,n,p,r;e.__SV||(window.posthog&&window.posthog.__loaded)||(window.posthog=e,e._i=[],e.init=function(i,s,a){function g(t,e){var o=e.split(".");2==o.length&&(t=t[o[0]],e=o[1]),t[e]=function(){t.push([e].concat(Array.prototype.slice.call(arguments,0)))}}p||((p=t.createElement("script")).type="text/javascript",p.crossOrigin="anonymous",p.async=!0,p.src=s.api_host.replace(".i.posthog.com","-assets.i.posthog.com")+"/static/array.js",p.onerror=function(){p=null},(r=t.getElementsByTagName("script")[0]).parentNode.insertBefore(p,r));var u=e;for(void 0!==a?u=e[a]=[]:a="posthog",u.people=u.people||[],Object.defineProperty(u,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(t){var e="posthog";return"posthog"!==a&&(e+="."+a),t||(e+=" (stub)"),e}}),Object.defineProperty(u.people,"toString",{configurable:!0,enumerable:!0,writable:!0,value:function(){return u.toString(1)+".people (stub)"}}),o="capture init opt_in_capturing opt_out_capturing".split(" "),n=0;n<o.length;n++)g(u,o[n]);e._i.push([i,s,a])},e.__SV=1)}(document,window.posthog||[]);
+posthog.init(${JSON.stringify(POSTHOG_PROJECT_KEY)}, {
+  api_host: "https://eu.i.posthog.com",
+  defaults: "2026-05-30",
+  person_profiles: "identified_only",
+  autocapture: false,
+  capture_pageview: false,
+  capture_pageleave: false,
+  capture_dead_clicks: false,
+  capture_exceptions: false,
+  capture_heatmaps: false,
+  capture_performance: false,
+  rageclick: false,
+  disable_session_recording: true,
+  disable_surveys: true,
+  disable_persistence: true,
+  opt_out_capturing_by_default: true,
+  loaded: function(instance) {
+    try {
+      if (localStorage.getItem(${JSON.stringify(ANALYTICS_CONSENT_STORAGE_KEY)}) === "granted") instance.opt_in_capturing();
+    } catch (_) {}
+  },
+  before_send: function(event) {
+    try {
+      if (localStorage.getItem(${JSON.stringify(ANALYTICS_CONSENT_STORAGE_KEY)}) !== "granted") return null;
+    } catch (_) { return null; }
+    var names = ["address_search_started", "property_check_completed", "report_form_viewed", "report_request_submitted", "report_delivery_outcome"];
+    if (names.indexOf(event.event) === -1) return null;
+    var properties = { $token: event.properties && event.properties.$token };
+    if (event.event === "report_delivery_outcome") {
+      var outcome = event.properties && event.properties.outcome_category;
+      if (["delivered", "partial", "failed"].indexOf(outcome) === -1) return null;
+      properties.outcome_category = outcome;
+    }
+    event.properties = properties;
+    return event;
+  }
+});`;
 }
 
 function disableHotjar(siteId: string) {

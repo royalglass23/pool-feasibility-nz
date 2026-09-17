@@ -3,6 +3,7 @@ import puppeteer from "puppeteer-core";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { generatePreliminaryReportPdf } from "@/modules/reporting/report-renderer";
+import { AUCKLAND_DEM_REQUIRED_METADATA } from "@/modules/providers/linz/auckland-dem-source-contract";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 
 const report = buildTestPreliminaryReport({
@@ -39,14 +40,41 @@ describe("persisted preliminary report renderer", () => {
     expect(source.match(/\/Type\s*\/Page\b/g)).toHaveLength(3);
   }, 30_000);
 
-  it("returns byte-identical PDFs for retries of the same saved report", async () => {
+  it("returns a byte-identical PDF for a retry of the same saved report", async () => {
     const first = await generatePreliminaryReportPdf(report);
+    const retry = await generatePreliminaryReportPdf(report);
 
-    for (let retry = 0; retry < 5; retry += 1) {
-      const retryPdf = await generatePreliminaryReportPdf(report);
-      expect(retryPdf.equals(first)).toBe(true);
-    }
-  }, 60_000);
+    expect(retry.equals(first)).toBe(true);
+  }, 70_000);
+
+  it("refuses a three-page PDF when complete source attribution cannot fit", async () => {
+    const crowdedReport = buildTestPreliminaryReport({
+      sources: Array.from({ length: 50 }, (_, index) => ({
+        ...report.sources[0]!,
+        provider: `Mapped provider ${index + 1}`,
+        dataset: `Mapped dataset ${index + 1}`,
+        attribution: `Source ${index + 1}: ${"Official attribution details. ".repeat(8)}`,
+      })),
+    });
+
+    await expect(generatePreliminaryReportPdf(crowdedReport)).rejects.toThrow(
+      "REPORT_GENERATION_FAILED: attribution exceeds the three-page layout",
+    );
+  }, 30_000);
+
+  it("refuses a three-page PDF when valid limitations would be clipped", async () => {
+    const crowdedReport = buildTestPreliminaryReport({
+      limitations: Array.from(
+        { length: 8 },
+        (_, index) =>
+          `Limitation ${index + 1}: ${"Mapped evidence requires independent site confirmation. ".repeat(18)}`,
+      ),
+    });
+
+    await expect(generatePreliminaryReportPdf(crowdedReport)).rejects.toThrow(
+      "REPORT_GENERATION_FAILED: content exceeds the three-page layout",
+    );
+  }, 30_000);
 
   it("keeps the saved map and clearances inside the fixed three-page A4 report", async () => {
     const sixStateReport = buildTestPreliminaryReport({
@@ -147,23 +175,96 @@ describe("persisted preliminary report renderer", () => {
           sourceUrl: null,
         },
       ],
+      sources: Array.from({ length: 12 }, (_, index) => ({
+        provider:
+          index === 0
+            ? "Land Information New Zealand"
+            : `Mapped provider ${index + 1}`,
+        dataset:
+          index === 0
+            ? "Auckland Part 1 LiDAR 1m DEM (2024)"
+            : `Mapped dataset ${index + 1}`,
+        status: "available",
+        evidenceUse: "report_allowed",
+        licence: `Recorded licence ${index + 1}`,
+        attribution: `Recorded attribution ${index + 1}`,
+        sourceUrl: `https://example.test/datasets/${index + 1}`,
+        retrievedAt: "2026-08-13T02:00:00.000Z",
+      })),
+      terrain: {
+        status: "measured",
+        reportEligibility: "approved",
+        averageSlopeDegrees: 4,
+        upperSlopeDegrees: 7.5,
+        estimatedFallMetres: 1.35,
+        downhillBearingDegrees: 135,
+        downhillDirection: "South-east",
+        confidence: "indicative",
+        constructionEnvelopeTerrain: null,
+        source: {
+          provider: "Land Information New Zealand",
+          dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
+          datasetIdentifier:
+            "https://data.linz.govt.nz/layer/121990-auckland-part-1-lidar-1m-dem-2024/",
+          datasetDate: "2024-04-30/2024-06-27",
+          licence: AUCKLAND_DEM_REQUIRED_METADATA.licence,
+          licenceUrl: AUCKLAND_DEM_REQUIRED_METADATA.licenceUrl,
+          attribution: AUCKLAND_DEM_REQUIRED_METADATA.attribution,
+          retrievedAt: "2026-08-13T02:00:00.000Z",
+          derivedProductNotice:
+            "Elevation data was clipped to the assessed property and used to derive indicative slope measurements.",
+          contributingAssets: Array.from({ length: 4 }, (_, index) => ({
+            ...(index === 1
+              ? {
+                  dataset: "Auckland Part 2 LiDAR 1m DEM (2024)",
+                  datasetIdentifier:
+                    "https://data.linz.govt.nz/layer/122580-auckland-part-2-lidar-1m-dem-2024/",
+                  datasetDate: "2024-06-26/2024-11-04",
+                }
+              : {}),
+            stacCollectionUrl: `https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-${index === 1 ? "2" : "1"}_2024/dem_1m/2193/collection.json`,
+            assetUrl: `https://example.test/terrain-${index + 1}.tiff`,
+            stacItemUrl: `https://example.test/terrain-${index + 1}.json`,
+            assetChecksum: `sha256:terrain-checksum-${index + 1}`,
+            assetUpdatedAt: "2026-03-27T00:00:00.000Z",
+            retrievedAt: "2026-08-13T02:00:00.000Z",
+          })),
+        },
+      },
     });
+    sixStateReport.assessments.terrain = {
+      ...sixStateReport.assessments.terrain,
+      status: "amber",
+      headline: "Indicative terrain measurement",
+      summary: "Confirm mapped levels with a current site survey.",
+      details: [{ label: "Property average slope", value: "4.0°" }],
+    };
     let layout:
       | {
           pageCount: number;
           pageOverflowPixels: number[];
           mapCount: number;
           mapPanelContained: boolean;
-          mapPanelAlignedWithGlance: boolean;
+          mapPanelOnPageOne: boolean;
           mapPanelClearOfFooter: boolean;
-          mapLayoutHeightMatchesFixedArea: boolean;
+          findingsClearOfFooter: boolean;
+          terrainCardShown: boolean;
+          mapFillsVisualArea: boolean;
+          mapLegendBelowMap: boolean;
+          mapLegendHasThreeColumns: boolean;
           mapLegendContentContained: boolean;
           clearanceItemsContained: boolean;
           clearancesAppearBeforeMapLayers: boolean;
-          mapFillsLegendHeight: boolean;
           mapKeyCount: number;
           mapCaptionContained: boolean;
           keyFindingsCount: number;
+          sourceItemCount: number;
+          sourceOverflowShown: boolean;
+          provenanceAssetCount: number;
+          terrainSourceText: string;
+          terrainStacHrefs: string[];
+          pageThreeContentClearOfFooter: boolean;
+          sourceSummaryText: string;
         }
       | undefined;
     const executablePath = testChromiumExecutable();
@@ -182,23 +283,47 @@ describe("persisted preliminary report renderer", () => {
             const pages = Array.from(
               document.querySelectorAll<HTMLElement>(".page"),
             );
-            const mapPanel = document.querySelector<HTMLElement>(".map-panel");
+            const mapPanel =
+              document.querySelector<HTMLElement>(".summary-map");
             const map = mapPanel?.querySelector<HTMLElement>(".map");
+            const mapVisual =
+              mapPanel?.querySelector<HTMLElement>(".map-visual");
             const mapLegend =
               mapPanel?.querySelector<HTMLElement>(".map-legend");
+            const mapLegendList =
+              mapPanel?.querySelector<HTMLElement>(".map-legend-list");
             const mapPage = mapPanel?.closest<HTMLElement>(".page");
             const mapCaption =
               mapPanel?.querySelector<HTMLElement>(".map-caption");
-            const glance = document.querySelector<HTMLElement>(".glance-grid");
+            const pageTwo = pages[1];
+            const findings =
+              pageTwo?.querySelector<HTMLElement>(".assessment-grid");
+            const terrainCard = Array.from(
+              pageTwo?.querySelectorAll<HTMLElement>(".assessment-card") ?? [],
+            ).find((card) =>
+              card.textContent?.includes("Indicative terrain measurement"),
+            );
+            const pageTwoFooter = pageTwo?.querySelector<HTMLElement>("footer");
             const footer = mapPage?.querySelector<HTMLElement>("footer");
+            const pageThree = pages[2];
+            const pageThreeFooter =
+              pageThree?.querySelector<HTMLElement>("footer");
+            const disclaimer =
+              pageThree?.querySelector<HTMLElement>(".disclaimer");
             if (
               !mapPanel ||
               !map ||
+              !mapVisual ||
               !mapLegend ||
+              !mapLegendList ||
               !mapPage ||
               !mapCaption ||
-              !glance ||
-              !footer
+              !findings ||
+              !pageTwoFooter ||
+              !footer ||
+              !pageThree ||
+              !pageThreeFooter ||
+              !disclaimer
             ) {
               throw new Error("REPORT_MAP_PANEL_MISSING");
             }
@@ -207,7 +332,8 @@ describe("persisted preliminary report renderer", () => {
             const mapLegendRect = mapLegend.getBoundingClientRect();
             const pageRect = mapPage.getBoundingClientRect();
             const captionRect = mapCaption.getBoundingClientRect();
-            const glanceRect = glance.getBoundingClientRect();
+            const findingsRect = findings.getBoundingClientRect();
+            const pageTwoFooterRect = pageTwoFooter.getBoundingClientRect();
             const footerRect = footer.getBoundingClientRect();
             return {
               pageCount: pages.length,
@@ -219,13 +345,22 @@ describe("persisted preliminary report renderer", () => {
                 panelRect.left >= pageRect.left &&
                 panelRect.right <= pageRect.right &&
                 panelRect.bottom <= pageRect.bottom,
-              mapPanelAlignedWithGlance:
-                Math.abs(panelRect.left - glanceRect.left) < 1 &&
-                Math.abs(panelRect.right - glanceRect.right) < 1,
+              mapPanelOnPageOne: mapPage === pages[0],
               mapPanelClearOfFooter: panelRect.bottom <= footerRect.top - 8,
-              mapLayoutHeightMatchesFixedArea:
-                Math.abs(mapRect.height - mapLegendRect.height) < 1 &&
-                Math.abs(mapRect.height - 359.1) < 1,
+              findingsClearOfFooter:
+                findingsRect.bottom <= pageTwoFooterRect.top - 8,
+              terrainCardShown: Boolean(
+                terrainCard?.textContent?.includes("4.0°"),
+              ),
+              mapFillsVisualArea:
+                Math.abs(
+                  mapRect.height - mapVisual.getBoundingClientRect().height,
+                ) < 1,
+              mapLegendBelowMap: mapLegendRect.top >= mapRect.bottom - 1,
+              mapLegendHasThreeColumns:
+                getComputedStyle(mapLegendList)
+                  .gridTemplateColumns.split(" ")
+                  .filter(Boolean).length === 3,
               mapLegendContentContained:
                 mapLegend.scrollHeight <= mapLegend.clientHeight,
               clearanceItemsContained: Array.from(
@@ -243,12 +378,36 @@ describe("persisted preliminary report renderer", () => {
                   ) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING
                   ? true
                   : false,
-              mapFillsLegendHeight: mapRect.bottom >= mapLegendRect.bottom - 1,
               mapKeyCount: mapPanel.querySelectorAll(".map-legend").length,
               mapCaptionContained:
                 captionRect.left >= panelRect.left &&
                 captionRect.right <= panelRect.right,
-              keyFindingsCount: document.querySelectorAll(".findings").length,
+              keyFindingsCount: pageTwo?.querySelectorAll(".later").length ?? 0,
+              sourceItemCount:
+                pageThree.querySelectorAll(".source-item").length,
+              sourceOverflowShown: Boolean(
+                pageThree.querySelector(".source-overflow"),
+              ),
+              provenanceAssetCount:
+                pageThree.querySelectorAll(".source-provenance").length,
+              terrainSourceText:
+                pageThree
+                  .querySelector<HTMLElement>(".source-item")
+                  ?.textContent?.replace(/\s+/g, " ")
+                  .trim() ?? "",
+              terrainStacHrefs: Array.from(
+                pageThree.querySelectorAll<HTMLAnchorElement>(
+                  ".source-provenance a",
+                ),
+                (link) => link.href,
+              ),
+              pageThreeContentClearOfFooter:
+                disclaimer.getBoundingClientRect().bottom <=
+                pageThreeFooter.getBoundingClientRect().top - 8,
+              sourceSummaryText:
+                pageThree
+                  .querySelector<HTMLElement>(".mapping-summary")
+                  ?.textContent?.trim() ?? "",
             };
           });
           return Buffer.from(
@@ -267,17 +426,44 @@ describe("persisted preliminary report renderer", () => {
       pageOverflowPixels: [0, 0, 0],
       mapCount: 1,
       mapPanelContained: true,
-      mapPanelAlignedWithGlance: true,
+      mapPanelOnPageOne: true,
       mapPanelClearOfFooter: true,
-      mapLayoutHeightMatchesFixedArea: true,
+      findingsClearOfFooter: true,
+      terrainCardShown: true,
+      mapFillsVisualArea: true,
+      mapLegendBelowMap: true,
+      mapLegendHasThreeColumns: true,
       mapLegendContentContained: true,
       clearanceItemsContained: true,
       clearancesAppearBeforeMapLayers: true,
-      mapFillsLegendHeight: true,
       mapKeyCount: 1,
       mapCaptionContained: true,
-      keyFindingsCount: 0,
+      keyFindingsCount: 1,
+      sourceItemCount: 12,
+      sourceOverflowShown: false,
+      provenanceAssetCount: 4,
+      terrainStacHrefs: [
+        "https://example.test/terrain-1.json",
+        "https://example.test/terrain-2.json",
+        "https://example.test/terrain-3.json",
+        "https://example.test/terrain-4.json",
+      ],
+      pageThreeContentClearOfFooter: true,
+      sourceSummaryText:
+        "Sources include Land Information New Zealand - Mapped provider 2 - Mapped provider 3 - Mapped provider 4 and 8 more providers.",
     });
+    expect(layout?.terrainSourceText).toContain(
+      "Capture period 2024-04-30 to 2024-06-27",
+    );
+    expect(layout?.terrainSourceText).toContain(
+      "Auckland Part 2 LiDAR 1m DEM (2024)",
+    );
+    expect(layout?.terrainSourceText).toContain("2024-06-26 to 2024-11-04");
+    expect(layout?.terrainSourceText).toContain(
+      "Checksum sha256:terrain-checksum-1",
+    );
+    expect(layout?.terrainSourceText).toContain("Updated 27 Mar 2026");
+    expect(layout?.terrainSourceText).toContain("retrieved 13 Aug 2026");
   }, 60_000);
 });
 

@@ -2,6 +2,18 @@ export type AddressIndexTarget = "development" | "production";
 
 type Environment = Record<string, string | undefined>;
 
+export function requireFullAddressImport(argv: readonly string[]): void {
+  if (!argv.includes("--full")) {
+    throw new Error("CONFIRM_FULL_ADDRESS_IMPORT_REQUIRED");
+  }
+}
+
+export function requireDevelopmentAddressSeed(argv: readonly string[]): void {
+  if (!argv.includes("--confirm-development-address-seed")) {
+    throw new Error("CONFIRM_DEVELOPMENT_ADDRESS_SEED_REQUIRED");
+  }
+}
+
 export function resolveAddressIndexTarget(input: {
   argv: readonly string[];
   env?: Environment;

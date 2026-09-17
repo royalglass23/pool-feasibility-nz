@@ -2,13 +2,7 @@ import { AucklandPropertyJourney } from "@/components/auckland-property-journey"
 import { AnalyticsConsent } from "@/components/analytics-consent";
 import { PoolFeasibilityExplainer } from "@/components/pool-feasibility-explainer";
 import { env } from "@/env";
-import {
-  FileCheck2,
-  MapPinHouse,
-  Move,
-  ScanSearch,
-  type LucideIcon,
-} from "lucide-react";
+import { ArrowDownRight } from "lucide-react";
 import Link from "next/link";
 import { DataAccessInspector } from "./data-access-inspector";
 
@@ -33,54 +27,33 @@ export default function Home() {
 
         <section
           id="how-it-works"
-          className="mt-16 border-t border-[#dbe8f0] py-14 sm:mt-20 sm:py-20"
+          className="mt-14 border-t border-[#dbe8f0] py-10 sm:mt-16 sm:py-12"
           aria-labelledby="how-it-works-heading"
         >
-          <div className="max-w-2xl">
+          <div className="mx-auto max-w-6xl">
             <h2
               id="how-it-works-heading"
-              className="text-3xl leading-tight font-semibold tracking-[-0.03em] text-balance text-[#062f5d] sm:text-4xl"
+              className="text-2xl font-semibold tracking-[-0.03em] text-[#062f5d] sm:text-3xl"
             >
-              How it works
+              How your property check works
             </h2>
-            <p className="mt-4 max-w-xl text-base leading-7 text-pretty text-[#426b87] sm:text-lg sm:leading-8">
-              Start with your address, try a pool position, check for potential
-              constraints, and get your preliminary report.
+            <p className="mt-2 max-w-xl text-base leading-7 text-pretty text-[#426b87] sm:text-lg">
+              From your address to a clearer next step.
             </p>
           </div>
 
-          <div className="mt-10 grid items-stretch gap-12 lg:mt-12 lg:grid-cols-2 lg:gap-16">
-            <div className="mx-auto w-full max-w-[480px]">
-              <PoolFeasibilityExplainer />
-            </div>
+          <div className="mx-auto mt-8 max-w-6xl sm:mt-9">
+            <PoolFeasibilityExplainer />
+          </div>
 
-            <ol className="mx-auto flex w-full max-w-[480px] flex-col border-t border-[#c6dce9] lg:aspect-[480/445]">
-              <ProcessStep
-                icon={MapPinHouse}
-                number="01"
-                title="Find your property"
-                text="Enter your Auckland address and select the matching property."
-              />
-              <ProcessStep
-                icon={Move}
-                number="02"
-                title="Position your pool"
-                text="Choose a pool size, drag the pool to move it, and drag the rotate handle to turn it."
-              />
-              <ProcessStep
-                icon={ScanSearch}
-                number="03"
-                title="Check for constraints"
-                text="Select “Check for constraints” to load available mapped information about potential site constraints."
-              />
-              <ProcessStep
-                icon={FileCheck2}
-                number="04"
-                title="Get your preliminary report"
-                text="Enter your details to get your report, understand what needs checking, and prepare for your next conversation."
-                isLast
-              />
-            </ol>
+          <div className="mt-6 flex justify-center sm:mt-8">
+            <Link
+              href="#property-search"
+              className="inline-flex min-h-13 items-center gap-3 rounded-xl bg-[#062f5d] px-5 text-base font-semibold text-white transition-colors duration-200 ease-out hover:bg-[#0b477a] focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#062f5d] active:bg-[#001f3d] motion-reduce:transition-none"
+            >
+              Check my property
+              <ArrowDownRight aria-hidden="true" className="size-5" />
+            </Link>
           </div>
         </section>
 
@@ -141,47 +114,5 @@ export default function Home() {
         hotjarSiteId={env.NEXT_PUBLIC_HOTJAR_SITE_ID}
       />
     </main>
-  );
-}
-
-function ProcessStep({
-  icon: Icon,
-  number,
-  title,
-  text,
-  isLast = false,
-}: {
-  icon: LucideIcon;
-  number: string;
-  title: string;
-  text: string;
-  isLast?: boolean;
-}) {
-  return (
-    <li
-      className={`grid flex-1 grid-cols-[2rem_2.25rem_minmax(0,1fr)] items-start gap-3 border-b border-[#c6dce9] py-8 sm:grid-cols-[2rem_2.5rem_minmax(0,1fr)] sm:gap-4 sm:py-10 lg:gap-3 lg:py-3 ${
-        isLast ? "border-b-0" : ""
-      }`}
-    >
-      <span
-        aria-hidden="true"
-        className="flex h-9 items-center text-sm leading-5 font-semibold tracking-[-0.02em] text-[#0077bd]"
-      >
-        {number}
-      </span>
-      <Icon
-        aria-hidden="true"
-        strokeWidth={1.5}
-        className="size-9 shrink-0 text-[#0077bd]"
-      />
-      <div>
-        <h3 className="text-xl leading-7 font-semibold text-balance text-[#062f5d] lg:text-lg lg:leading-6">
-          {title}
-        </h3>
-        <p className="mt-2 max-w-xl leading-7 text-pretty text-[#426b87] lg:mt-1 lg:text-sm lg:leading-5">
-          {text}
-        </p>
-      </div>
-    </li>
   );
 }

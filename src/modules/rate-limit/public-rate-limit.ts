@@ -15,9 +15,12 @@ export type PublicRateLimitAction =
   | "aerial_conflict"
   | "aerial_tile"
   | "property_check"
-  | "property_check_stage"
+  | "property_check_automatic_stage"
+  | "property_check_constraints_initial"
+  | "property_check_constraints_retry"
   | "contact_request"
   | "report_delivery"
+  | "report_delivery_status"
   | "report_pdf"
   | "report_request";
 
@@ -34,13 +37,39 @@ export interface PublicRateLimiter {
   ): Promise<PublicRateLimitDecision>;
 }
 
+export type PublicPropertyStage =
+  "automatic" | "constraints_initial" | "constraints_retry";
+
+const propertyStageRateLimitActions = {
+  automatic: "property_check_automatic_stage",
+  constraints_initial: "property_check_constraints_initial",
+  constraints_retry: "property_check_constraints_retry",
+} as const satisfies Record<PublicPropertyStage, PublicRateLimitAction>;
+
 type PublicRateLimitLog = (event: {
   event: "public_rate_limit";
   action: PublicRateLimitAction;
   outcome: "allowed" | "rate_limited" | "unavailable";
+  reason?: PublicRateLimitUnavailableReason;
   correlationId: string;
   status: number;
 }) => void;
+
+type PublicRateLimitUnavailableReason =
+  | "client_ip_missing"
+  | "configuration_missing"
+  | "store_timeout"
+  | "store_error";
+
+class PublicRateLimitUnavailableError extends Error {
+  constructor(
+    readonly reason: PublicRateLimitUnavailableReason,
+    message: string,
+  ) {
+    super(message);
+    this.name = "PublicRateLimitUnavailableError";
+  }
+}
 
 type PublicRateLimitRuntimeOptions = {
   limiter?: PublicRateLimiter;
@@ -79,10 +108,20 @@ const policies = {
     window: { value: 30, unit: "m" },
     prefix: "geomap:public-rate-limit:property-check:v1",
   },
-  property_check_stage: {
-    limit: 2,
+  property_check_automatic_stage: {
+    limit: 1,
     window: { value: 15, unit: "m" },
     prefix: "geomap:public-rate-limit:property-check-stage:v1",
+  },
+  property_check_constraints_initial: {
+    limit: 1,
+    window: { value: 15, unit: "m" },
+    prefix: "geomap:public-rate-limit:property-check-constraints-initial:v1",
+  },
+  property_check_constraints_retry: {
+    limit: 1,
+    window: { value: 15, unit: "m" },
+    prefix: "geomap:public-rate-limit:property-check-constraints-retry:v1",
   },
   contact_request: {
     limit: 3,
@@ -93,6 +132,11 @@ const policies = {
     limit: 3,
     window: { value: 1, unit: "h" },
     prefix: "geomap:public-rate-limit:report-delivery:v1",
+  },
+  report_delivery_status: {
+    limit: 12,
+    window: { value: 15, unit: "m" },
+    prefix: "geomap:public-rate-limit:report-delivery-status:v1",
   },
   report_pdf: {
     limit: 3,
@@ -170,7 +214,10 @@ export function createUpstashPublicRateLimiter(input: {
     async limit(action, identifier) {
       const result = await limiters[action].limit(identifier);
       if (result.reason === "timeout") {
-        throw new Error("Managed public rate-limit store timed out.");
+        throw new PublicRateLimitUnavailableError(
+          "store_timeout",
+          "Managed public rate-limit store timed out.",
+        );
       }
       return {
         success: result.success,
@@ -224,13 +271,14 @@ export async function enforcePublicPropertyStageRateLimit(
     request: Request;
     submissionId: string;
     correlationId: string;
+    stage: PublicPropertyStage;
   },
   options?: PublicRateLimitRuntimeOptions,
 ): Promise<Response | null> {
   return publicRateLimitDeniedResponse(
     {
       request: input.request,
-      action: "property_check_stage",
+      action: propertyStageRateLimitActions[input.stage],
       correlationId: input.correlationId,
       scope: input.submissionId,
     },
@@ -253,15 +301,22 @@ async function publicRateLimitDeniedResponse(
   if (isUnlimitedPreviewReportRequest(input.action)) return null;
 
   const clientIp = trustedClientIp(input.request);
-  if (!clientIp) return unavailableResponseAndLog(input, log);
+  if (!clientIp)
+    return unavailableResponseAndLog(input, log, "client_ip_missing");
 
   let decision: PublicRateLimitDecision;
   try {
     const limiter = options?.limiter ?? configuredPublicRateLimiter();
     const identifier = input.scope ? `${clientIp}:${input.scope}` : clientIp;
     decision = await limiter.limit(input.action, hashClientIp(identifier));
-  } catch {
-    return unavailableResponseAndLog(input, log);
+  } catch (error) {
+    return unavailableResponseAndLog(
+      input,
+      log,
+      error instanceof PublicRateLimitUnavailableError
+        ? error.reason
+        : "store_error",
+    );
   }
 
   if (!decision.success) {
@@ -307,12 +362,14 @@ function isUnlimitedPreviewReportRequest(
 function unavailableResponseAndLog(
   input: { action: PublicRateLimitAction; correlationId: string },
   log: PublicRateLimitLog,
+  reason: PublicRateLimitUnavailableReason,
 ): Response {
   const response = unavailableResponse(input.correlationId);
   log({
     event: "public_rate_limit",
     action: input.action,
     outcome: "unavailable",
+    reason,
     correlationId: input.correlationId,
     status: response.status,
   });
@@ -344,7 +401,10 @@ function configuredPublicRateLimiter(): PublicRateLimiter {
     return managedProductionLimiter;
   }
   if (process.env.NODE_ENV === "production") {
-    throw new Error("Managed public rate-limit credentials are required.");
+    throw new PublicRateLimitUnavailableError(
+      "configuration_missing",
+      "Managed public rate-limit credentials are required.",
+    );
   }
   localDevelopmentLimiter ??= createLocalPublicRateLimiter();
   return localDevelopmentLimiter;
@@ -393,7 +453,7 @@ function hashClientIp(clientIp: string): string {
 
 function unavailableResponse(correlationId: string): Response {
   return apiErrorResponse(
-    { code: "TEMPORARILY_UNAVAILABLE", message: "Please try again shortly." },
+    { code: "RATE_LIMIT_UNAVAILABLE", message: "Please try again shortly." },
     503,
     correlationId,
     { "Cache-Control": "no-store" },

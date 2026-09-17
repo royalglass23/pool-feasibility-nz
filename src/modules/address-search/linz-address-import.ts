@@ -53,17 +53,40 @@ export async function fetchAucklandAddressPage(input: {
   afterObjectId: number;
   fetch?: typeof fetch;
 }): Promise<IndexedLinzAddress[]> {
+  return fetchAddressPage({
+    where: `territorial_authority='Auckland' AND address_lifecycle='Current' AND OBJECTID>${input.afterObjectId}`,
+    fetch: input.fetch,
+  });
+}
+
+export async function fetchBrownsBayAddressPage(input: {
+  offset: number;
+  fetch?: typeof fetch;
+}): Promise<IndexedLinzAddress[]> {
+  return fetchAddressPage({
+    where:
+      "territorial_authority='Auckland' AND suburb_locality='Browns Bay' AND address_lifecycle='Current'",
+    offset: input.offset,
+    fetch: input.fetch,
+  });
+}
+
+async function fetchAddressPage(input: {
+  where: string;
+  offset?: number;
+  fetch?: typeof fetch;
+}): Promise<IndexedLinzAddress[]> {
   const url = new URL(linzAddressQueryUrl);
-  url.searchParams.set(
-    "where",
-    `territorial_authority='Auckland' AND address_lifecycle='Current' AND OBJECTID>${input.afterObjectId}`,
-  );
+  url.searchParams.set("where", input.where);
   url.searchParams.set(
     "outFields",
     "OBJECTID,address_id,full_address,full_address_ascii,full_address_number,unit,territorial_authority,suburb_locality,town_city,address_lifecycle",
   );
   url.searchParams.set("returnGeometry", "true");
   url.searchParams.set("outSR", "4326");
+  if (input.offset !== undefined) {
+    url.searchParams.set("resultOffset", String(input.offset));
+  }
   url.searchParams.set("resultRecordCount", "2000");
   url.searchParams.set("orderByFields", "OBJECTID ASC");
   url.searchParams.set("f", "geojson");

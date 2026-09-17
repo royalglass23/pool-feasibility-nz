@@ -49,6 +49,7 @@ vi.mock("@/modules/reporting/saved-report-access-token", () => ({
 
 import { POST } from "@/app/api/public/assessments/report/pdf/route";
 import { POST as POST_DELIVERY } from "@/app/api/public/assessments/report/delivery/route";
+import { POST as POST_DELIVERY_STATUS } from "@/app/api/public/assessments/report/delivery/status/route";
 
 const report = buildTestPreliminaryReport();
 
@@ -158,6 +159,85 @@ describe("POST public saved report delivery", () => {
     await expect(response.json()).resolves.toEqual({
       delivery: { homeowner: "pending", internal_test_report: "pending" },
     });
+  });
+});
+
+describe("POST public saved report delivery status", () => {
+  it("returns persisted status without starting another delivery", async () => {
+    verifySavedReportAccessToken.mockReturnValue({
+      assessmentId: "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48",
+      reference: report.reference,
+    });
+    getAssessmentDeliveryStateById.mockResolvedValue({
+      reference: report.reference,
+      delivery: { homeowner: "sent", internal_test_report: "failed" },
+    });
+
+    const response = await POST_DELIVERY_STATUS(
+      new Request(
+        "https://pool.example/api/public/assessments/report/delivery/status",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            accessToken: "valid-token-that-is-long-enough-for-validation",
+          }),
+        },
+      ),
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      delivery: { homeowner: "sent", internal_test_report: "failed" },
+    });
+    expect(startAssessmentReportDeliveryByReference).not.toHaveBeenCalled();
+  });
+
+  it("rejects a token for a different saved report", async () => {
+    verifySavedReportAccessToken.mockReturnValue({
+      assessmentId: "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48",
+      reference: "GF-2026-000999",
+    });
+    getAssessmentDeliveryStateById.mockResolvedValue({
+      reference: report.reference,
+      delivery: { homeowner: "sent", internal_test_report: "sent" },
+    });
+
+    const response = await POST_DELIVERY_STATUS(
+      new Request(
+        "https://pool.example/api/public/assessments/report/delivery/status",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            accessToken: "valid-token-that-is-long-enough-for-validation",
+          }),
+        },
+      ),
+    );
+
+    expect(response.status).toBe(404);
+    expect(startAssessmentReportDeliveryByReference).not.toHaveBeenCalled();
+  });
+
+  it("rejects an invalid token before reading persisted status", async () => {
+    verifySavedReportAccessToken.mockImplementation(() => {
+      throw new SavedReportAccessTokenError();
+    });
+
+    const response = await POST_DELIVERY_STATUS(
+      new Request(
+        "https://pool.example/api/public/assessments/report/delivery/status",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            accessToken: "invalid-token-that-is-long-enough-for-validation",
+          }),
+        },
+      ),
+    );
+
+    expect(response.status).toBe(401);
+    expect(getAssessmentDeliveryStateById).not.toHaveBeenCalled();
+    expect(startAssessmentReportDeliveryByReference).not.toHaveBeenCalled();
   });
 });
 

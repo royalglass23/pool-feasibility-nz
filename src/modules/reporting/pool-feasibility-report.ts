@@ -60,9 +60,20 @@ export type ReportDataSource = {
   id?: string;
   provider: string;
   dataset: string;
+  datasetDate?: string | null;
   sourceUrl: string | null;
+  licenceUrl?: string | null;
   licence: string;
   attribution: string | null;
+  notes?: string[];
+  provenanceAssets?: {
+    dataset?: string;
+    datasetDate?: string | null;
+    stacItemUrl: string;
+    assetChecksum: string;
+    assetUpdatedAt: string;
+    retrievedAt: string;
+  }[];
   retrievedAt: string | null;
   queryStatus?: "success" | "empty" | "unavailable" | "error";
   status: string;

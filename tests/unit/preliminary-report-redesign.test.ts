@@ -288,13 +288,18 @@ describe("canonical homeowner feasibility report", () => {
     });
   });
 
-  it("renders exactly three fixed PDF pages without scoring, scenarios, diagnostics or duplicated maps", () => {
+  it("renders one saved map and assessed findings on page two", () => {
     const report = buildReport();
     const html = renderCanonicalPreliminaryReportHtml(report);
 
     expect(html.match(/<section class="page(?: page-two)?">/g)).toHaveLength(3);
     expect(html.match(/<img class="map"/g)).toHaveLength(1);
-    expect(html.match(/class="assessment-card"/g)).toHaveLength(10);
+    const constraintsPage = new DOMParser()
+      .parseFromString(html, "text/html")
+      .querySelectorAll(".page")[1]?.outerHTML;
+    expect(constraintsPage).not.toContain('class="map-panel"');
+    expect(constraintsPage).toContain('class="assessment-grid"');
+    expect(constraintsPage).toContain('class="needs-checking"');
     expect(html).not.toContain("Page 1 of 3");
     expect(html).not.toContain("Page 2 of 3");
     expect(html).not.toContain("Page 3 of 3");
@@ -302,29 +307,88 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).toContain(`${report.reference} - 2/3`);
     expect(html).toContain(`${report.reference} - 3/3`);
     expect(html).toContain(`<h3>${report.property.address}</h3>`);
-    expect(html.match(/What we checked/g)).toHaveLength(1);
-    expect(html.match(/What happens next/g)).toHaveLength(1);
+    expect(html).toContain("At a glance");
+    expect(html).not.toContain("Feasibility score");
+    expect(html).not.toContain("Scenario results");
+    expect(html).toContain("What we checked");
+    expect(html).toContain("Key findings");
+    expect(html).toContain("Still needs checking");
+    expect(html).toContain("What happens next");
+    expect(html).toContain("Prioritised actions");
+    expect(html).toContain("Missing information");
+    expect(html).toContain("Assumptions and limitations");
     expect(html).toContain(report.overall.summary);
     expect(html).toContain(report.overall.recommendedStage);
-    expect(html).toContain("Mapping information");
+    expect(html).toContain("Mapping information &amp; licences");
+    expect(html).toContain("PoolReady");
+    expect(html).toContain("Powered by Blue Haven");
+    expect(html).not.toContain('alt="Blue Haven"');
     expect(html).toContain("Captured map layers");
     expect(html).toContain('class="map-legend"');
+    expect(html.lastIndexOf('class="map-legend"')).toBeGreaterThan(
+      html.lastIndexOf('class="map-visual"'),
+    );
+    expect(html).toContain(
+      ".map-legend-list{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr))",
+    );
     expect(html).toContain("Mapped property boundary");
-    expect(html).toContain("Key findings");
     expect(html).toContain(report.keyFindings[0]!.title);
     expect(html).toContain("Preliminary assessment");
-    expect(html).toContain("Preliminary feasibility only.");
+    expect(html).toContain("Preliminary assessment only.");
     expect(html).not.toContain("Evidence to confirm");
     expect(html).toContain(
       "Preliminary Feasibility Report — indicative desktop screening",
     );
-    expect(html).not.toMatch(/Feasibility score|\/ 100|confidence percentage/i);
-    expect(html).not.toMatch(/Compact Plus|Scenario results|rotation/i);
     expect(html).not.toMatch(/provider error|query status|returned|ArcGIS/i);
     expect(html).not.toContain("Page 4");
+    const overallRule = html.match(/\.overall\{([^}]*)\}/)?.[1];
+    expect(overallRule).not.toContain("background");
+    expect(overallRule).not.toContain("border-radius");
   });
 
-  it("shows the saved layer legend and pool-shell clearances beside the PDF map", () => {
+  it("keeps standard later verification alongside specific missing information on page three", () => {
+    const report = buildReport((submission) => {
+      submission.report.reportData.missingInformation = [
+        {
+          id: "title_review",
+          label: "Current title and registered easements",
+          status: "unverified",
+        },
+        {
+          id: "driveway_review",
+          label: "Confirm driveway clearance onsite",
+          status: "unverified",
+        },
+      ];
+    });
+    const html = renderCanonicalPreliminaryReportHtml(report);
+    const pageThree = new DOMParser()
+      .parseFromString(html, "text/html")
+      .querySelectorAll(".page")[2];
+    const missingInformationSection = Array.from(
+      pageThree?.querySelectorAll(".compact-section") ?? [],
+    ).find(
+      (section) =>
+        section.querySelector("h2")?.textContent === "Missing information",
+    );
+
+    expect(
+      Array.from(
+        missingInformationSection?.querySelectorAll("li") ?? [],
+        (item) => item.textContent?.trim(),
+      ),
+    ).toEqual([
+      "Current title and registered easements",
+      "Confirm driveway clearance onsite",
+      "Exact underground service positions and depths",
+      "Geotechnical and groundwater conditions",
+      "Detailed construction access",
+      "Final structural design",
+      "Final consent and approval requirements",
+    ]);
+  });
+
+  it("shows the saved layer legend and pool-shell clearances below the PDF map", () => {
     const shown = renderCanonicalPreliminaryReportHtml(buildReport());
     expect(shown).toContain("Captured map layers");
     expect(shown).toContain('class="map-legend"');
