@@ -1,6 +1,6 @@
 import { expect, test } from "@playwright/test";
 
-for (const initialOutcome of ["complete", "partial", "error"] as const) {
+for (const initialOutcome of ["complete", "retryable", "error"] as const) {
   test(`loads detailed mapping evidence after ${initialOutcome} response`, async ({
     page,
   }) => {
@@ -55,6 +55,7 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
       if (request.mode !== "detailed") return route.continue();
 
       detailedStageRequests += 1;
+      await new Promise((resolve) => setTimeout(resolve, 150));
       if (initialOutcome === "error" && detailedStageRequests === 1) {
         await route.fulfill({
           status: 503,
@@ -72,37 +73,58 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
           assessmentSnapshot: "server-issued-detailed-snapshot",
           data: {
             status:
-              initialOutcome === "partial" && detailedStageRequests === 1
+              initialOutcome === "retryable" && detailedStageRequests === 1
                 ? "partial"
                 : "complete",
+            constraints: {
+              status:
+                initialOutcome === "retryable" && detailedStageRequests === 1
+                  ? "retryable"
+                  : "complete",
+              retryableLayerKeys:
+                initialOutcome === "retryable" && detailedStageRequests === 1
+                  ? ["wastewater_assets"]
+                  : [],
+              unavailableLayerKeys: ["culverts"],
+            },
             retrievedAt: "2026-07-28T00:00:01.000Z",
             durationMs: 20,
             region: "Auckland",
             limitations: [],
+            terrain: {
+              status: "needs_checking",
+              reasons: ["No valid elevation data covers this property."],
+            },
             layers: [
               {
                 key: "wastewater_assets",
-                state: "returned",
+                state:
+                  initialOutcome === "retryable" && detailedStageRequests === 1
+                    ? "provider_error"
+                    : "returned",
                 evidence: {
                   dataset: "Wastewater pipes",
                   provider: "Watercare",
                 },
-                geometry: {
-                  type: "FeatureCollection",
-                  features: [
-                    {
-                      type: "Feature",
-                      properties: {},
-                      geometry: {
-                        type: "LineString",
-                        coordinates: [
-                          [174.608, -36.8604],
-                          [174.6084, -36.8601],
+                geometry:
+                  initialOutcome === "retryable" && detailedStageRequests === 1
+                    ? null
+                    : {
+                        type: "FeatureCollection",
+                        features: [
+                          {
+                            type: "Feature",
+                            properties: {},
+                            geometry: {
+                              type: "LineString",
+                              coordinates: [
+                                [174.608, -36.8604],
+                                [174.6084, -36.8601],
+                              ],
+                            },
+                          },
                         ],
                       },
-                    },
-                  ],
-                },
                 message: "Returned 1 mapped feature.",
               },
             ],
@@ -140,9 +162,17 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
     ).toBeVisible();
     const legend = page.getByLabel("Map layers");
     await expect(legend).toBeVisible();
-    await expect(legend).toContainText(
-      "Select “Check for constraints” to see terrain contours and mapped services.",
-    );
+    const mapLayersToggle = legend.getByRole("button", {
+      name: /Map layers/,
+    });
+    await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "false");
+    await expect(
+      legend.getByText(
+        "Select “Check for constraints” to see terrain contours and mapped services.",
+      ),
+    ).toHaveCount(0);
+    await mapLayersToggle.click();
+    await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "true");
     await expect(
       page.getByRole("button", { name: "Check for constraints" }),
     ).toBeVisible();
@@ -151,12 +181,15 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
       .filter({ hasText: "Detailed official checks" });
     await expect(detailedChecksPanel).toHaveCount(0);
     await page.getByRole("button", { name: "Check for constraints" }).click();
+    await expect(
+      page.getByRole("button", { name: "Checking constraints…" }),
+    ).toBeDisabled();
     await expect.poll(() => detailedStageRequests).toBe(1);
     if (initialOutcome !== "complete") {
       const retry = page.getByRole("button", {
         name:
-          initialOutcome === "partial"
-            ? "Retry missing checks"
+          initialOutcome === "retryable"
+            ? "Retry unavailable constraints"
             : "Check for constraints",
         exact: true,
       });
@@ -165,8 +198,123 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
       await expect.poll(() => detailedStageRequests).toBe(2);
     }
     await expect(
-      page.getByRole("button", { name: "Map checks loaded", exact: true }),
+      page.getByRole("button", {
+        name: "All available constraints loaded",
+        exact: true,
+      }),
     ).toBeDisabled();
+    if (initialOutcome === "complete") {
+      const clearancesPanel = legend.getByTestId("map-layer-clearances");
+      const slopePanel = legend.getByTestId("map-layer-slope");
+      const contoursPanel = legend.getByTestId("map-layer-contours");
+      const servicesPanel = legend.getByTestId("map-layer-services");
+      const desktopPanels = await Promise.all([
+        clearancesPanel.boundingBox(),
+        slopePanel.boundingBox(),
+        contoursPanel.boundingBox(),
+        servicesPanel.boundingBox(),
+      ]);
+      const [
+        desktopClearances,
+        desktopSlope,
+        desktopContours,
+        desktopServices,
+      ] = desktopPanels;
+
+      expect(desktopClearances).not.toBeNull();
+      expect(desktopSlope).not.toBeNull();
+      expect(desktopContours).not.toBeNull();
+      expect(desktopServices).not.toBeNull();
+      expect(
+        Math.abs(desktopClearances!.y - desktopSlope!.y),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(desktopClearances!.y - desktopContours!.y),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(desktopClearances!.width - desktopSlope!.width),
+      ).toBeLessThanOrEqual(1);
+      expect(
+        Math.abs(desktopClearances!.width - desktopContours!.width),
+      ).toBeLessThanOrEqual(1);
+      expect(desktopServices!.y).toBeGreaterThanOrEqual(
+        desktopClearances!.y + desktopClearances!.height,
+      );
+
+      await page.setViewportSize({ width: 390, height: 844 });
+      const mobilePanels = await Promise.all([
+        clearancesPanel.boundingBox(),
+        slopePanel.boundingBox(),
+        contoursPanel.boundingBox(),
+        servicesPanel.boundingBox(),
+      ]);
+      const [mobileClearances, mobileSlope, mobileContours, mobileServices] =
+        mobilePanels;
+
+      expect(mobileSlope!.y).toBeGreaterThanOrEqual(
+        mobileClearances!.y + mobileClearances!.height,
+      );
+      expect(mobileContours!.y).toBeGreaterThanOrEqual(
+        mobileSlope!.y + mobileSlope!.height,
+      );
+      expect(mobileServices!.y).toBeGreaterThanOrEqual(
+        mobileContours!.y + mobileContours!.height,
+      );
+      await page.setViewportSize({ width: 1280, height: 720 });
+    }
+    await expect(
+      page.getByText(/No valid elevation data covers this property\./),
+    ).toBeVisible();
+    if (initialOutcome === "complete") {
+      const requestCountBeforePlacementChanges = detailedStageRequests;
+      await page.getByRole("button", { name: /Family \(8 × 4 m\)/ }).click();
+      await page.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }).click();
+      await page.getByLabel("Custom length (m)").fill("7.2");
+      await page.getByLabel("Custom width (m)").fill("3.4");
+
+      const rotateControl = page.getByTestId("pool-rotate-control");
+      await expect(rotateControl).toBeVisible();
+      const rotateBounds = (await rotateControl.boundingBox())!;
+      await page.mouse.move(rotateBounds.x + 22, rotateBounds.y + 22);
+      await page.mouse.down();
+      await page.mouse.move(rotateBounds.x + 60, rotateBounds.y - 10, {
+        steps: 6,
+      });
+      await page.mouse.up();
+      await expect
+        .poll(async () =>
+          Number(await rotateControl.getAttribute("data-rotation-degrees")),
+        )
+        .not.toBe(0);
+
+      const canvas = page.locator("canvas.maplibregl-canvas");
+      const canvasBounds = (await canvas.boundingBox())!;
+      const rotateBoundsBeforeMove = (await rotateControl.boundingBox())!;
+      await page.mouse.move(
+        canvasBounds.x + canvasBounds.width / 2,
+        canvasBounds.y + canvasBounds.height / 2,
+      );
+      await page.mouse.down();
+      await page.mouse.move(
+        canvasBounds.x + canvasBounds.width / 2 + 15,
+        canvasBounds.y + canvasBounds.height / 2 + 10,
+        { steps: 4 },
+      );
+      await page.mouse.up();
+      await expect
+        .poll(async () => {
+          const current = (await rotateControl.boundingBox())!;
+          return Math.hypot(
+            current.x - rotateBoundsBeforeMove.x,
+            current.y - rotateBoundsBeforeMove.y,
+          );
+        })
+        .toBeGreaterThan(3);
+
+      await expect
+        .poll(() => detailedStageRequests)
+        .toBe(requestCountBeforePlacementChanges);
+    }
     await expect(
       page.getByRole("button", { name: "Retry property check", exact: true }),
     ).toHaveCount(0);
@@ -177,15 +325,39 @@ for (const initialOutcome of ["complete", "partial", "error"] as const) {
     await expect(
       page.getByRole("button", { name: "Start again", exact: true }),
     ).toBeEnabled();
+    const poolLayout = page.getByLabel("Pool catalogue and placement controls");
+    const detailedAction = poolLayout.getByRole("button", {
+      name: "All available constraints loaded",
+      exact: true,
+    });
+    await expect(
+      page
+        .getByLabel("Property check notices")
+        .getByRole("heading", { name: /Needs Checking|No Warning/ }),
+    ).toBeVisible();
+    await expect(detailedAction).toBeVisible();
+    await expect(
+      poolLayout.getByRole("button", { name: "Start again", exact: true }),
+    ).toBeEnabled();
     const mapBounds = await page
       .getByLabel("Fast aerial map for 42A Bahari Drive, Ranui, Auckland")
       .boundingBox();
-    const actionBounds = await page
-      .getByRole("button", { name: "Map checks loaded", exact: true })
+    const noticeBounds = await page
+      .getByLabel("Property check notices")
       .boundingBox();
-    expect(actionBounds!.y).toBeGreaterThanOrEqual(
-      mapBounds!.y + mapBounds!.height,
+    const poolLayoutBounds = await poolLayout.boundingBox();
+    const actionBounds = await detailedAction.boundingBox();
+    expect(noticeBounds!.y + noticeBounds!.height).toBeLessThanOrEqual(
+      mapBounds!.y,
     );
+    expect(noticeBounds!.x).toBeLessThanOrEqual(mapBounds!.x);
+    expect(noticeBounds!.x + noticeBounds!.width).toBeGreaterThanOrEqual(
+      poolLayoutBounds!.x + poolLayoutBounds!.width,
+    );
+    expect(actionBounds!.x).toBeGreaterThanOrEqual(
+      mapBounds!.x + mapBounds!.width,
+    );
+    expect(actionBounds!.y).toBeLessThan(mapBounds!.y + mapBounds!.height);
     await expect(
       legend.getByRole("checkbox", { name: "Wastewater" }),
     ).toBeChecked();
@@ -256,11 +428,16 @@ test("supports the pool catalogue and bounded custom input", async ({
   expect(desktopControls!.x).toBeGreaterThanOrEqual(
     desktopMap!.x + desktopMap!.width,
   );
+  expect(Math.abs(desktopControls!.y - desktopMap!.y)).toBeLessThanOrEqual(1);
   await page.setViewportSize({ width: 390, height: 844 });
   const mobileControls = await placementControls.boundingBox();
   const mobileMap = await aerialMap.boundingBox();
+  const mobileLayers = await page.getByLabel("Map layers").boundingBox();
+  expect(mobileMap!.y + mobileMap!.height).toBeLessThanOrEqual(
+    mobileControls!.y,
+  );
   expect(mobileControls!.y + mobileControls!.height).toBeLessThanOrEqual(
-    mobileMap!.y,
+    mobileLayers!.y,
   );
 
   await expect(

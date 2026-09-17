@@ -6,6 +6,12 @@ const verifyAssessmentSnapshot = vi.hoisted(() => vi.fn());
 const assertSnapshotAddressMatches = vi.hoisted(() => vi.fn());
 const refreshAssessmentSnapshot = vi.hoisted(() => vi.fn());
 const enforcePublicPropertyStageRateLimit = vi.hoisted(() => vi.fn());
+const terrainGateway = vi.hoisted(() => ({
+  assessParcel: vi.fn(),
+}));
+const createAucklandPropertyTerrainGateway = vi.hoisted(() =>
+  vi.fn(() => terrainGateway),
+);
 const AssessmentSnapshotValidationError = vi.hoisted(
   () => class AssessmentSnapshotValidationError extends Error {},
 );
@@ -13,6 +19,18 @@ const selectedAddressPoint = {
   addressId: "987057",
   coordinates: [174.63963545, -36.81171243],
 } as const;
+const constructionEnvelopeGeometry = {
+  type: "Polygon" as const,
+  coordinates: [
+    [
+      [174.63959, -36.81175],
+      [174.63968, -36.81175],
+      [174.63968, -36.81168],
+      [174.63959, -36.81168],
+      [174.63959, -36.81175],
+    ],
+  ],
+};
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/modules/data-access-spike/fast-property-view", () => ({
@@ -33,6 +51,9 @@ vi.mock("@/modules/assessment/assessment-snapshot", () => ({
 vi.mock("@/modules/rate-limit/public-rate-limit", () => ({
   enforcePublicPropertyStageRateLimit,
 }));
+vi.mock("@/modules/providers/linz/auckland-property-terrain-gateway", () => ({
+  createAucklandPropertyTerrainGateway,
+}));
 
 import { POST } from "@/app/api/internal/fast-property-view/stages/route";
 import { POST as POST_PUBLIC } from "@/app/api/public/property-check/stages/route";
@@ -44,6 +65,7 @@ afterEach(() => {
   assertSnapshotAddressMatches.mockReset();
   refreshAssessmentSnapshot.mockReset();
   enforcePublicPropertyStageRateLimit.mockReset();
+  createAucklandPropertyTerrainGateway.mockClear();
   vi.unstubAllEnvs();
 });
 
@@ -76,14 +98,16 @@ describe("POST /api/internal/fast-property-view/stages", () => {
 
     expect(response.status).toBe(429);
     expect(enforcePublicPropertyStageRateLimit).toHaveBeenCalledWith(
-      expect.objectContaining({ submissionId: "snapshot-id" }),
+      expect.objectContaining({
+        submissionId: "snapshot-id",
+        stage: "automatic",
+      }),
     );
     expect(loadFastPropertyStages).not.toHaveBeenCalled();
     expect(executeFastPropertyDetailsRequest).not.toHaveBeenCalled();
   });
 
-  it("loads detailed checks through the public stage route after rate limiting", async () => {
-    const detailedData = { datasets: {}, durationMs: 10 };
+  it("rejects a pool envelope in detailed checks before provider work", async () => {
     verifyAssessmentSnapshot.mockReturnValue({
       submissionId: "snapshot-id",
       fastResult: {},
@@ -93,9 +117,80 @@ describe("POST /api/internal/fast-property-view/stages", () => {
     executeFastPropertyDetailsRequest.mockResolvedValue({
       ok: true,
       status: 200,
-      data: detailedData,
+      data: { datasets: {}, durationMs: 10 },
     });
     refreshAssessmentSnapshot.mockReturnValue("refreshed-detailed-snapshot");
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/property-check/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...selectedAddressPoint,
+          mode: "detailed",
+          constructionEnvelopeGeometry,
+          assessmentSnapshot: "s".repeat(2_000),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(enforcePublicPropertyStageRateLimit).not.toHaveBeenCalled();
+    expect(executeFastPropertyDetailsRequest).not.toHaveBeenCalled();
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "INVALID_REQUEST" },
+    });
+  });
+
+  it("includes indicative terrain in detailed checks through the production public route", async () => {
+    vi.stubEnv("NODE_ENV", "production");
+    verifyAssessmentSnapshot.mockReturnValue({
+      submissionId: "snapshot-id",
+      fastResult: {},
+      expiresAt: Date.now() + 60_000,
+    });
+    enforcePublicPropertyStageRateLimit.mockResolvedValue(null);
+    executeFastPropertyDetailsRequest.mockResolvedValue({
+      ok: true,
+      status: 200,
+      data: { status: "complete" },
+    });
+    refreshAssessmentSnapshot.mockReturnValue("production-snapshot");
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/property-check/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...selectedAddressPoint,
+          mode: "detailed",
+          assessmentSnapshot: "s".repeat(2_000),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(createAucklandPropertyTerrainGateway).toHaveBeenCalled();
+    expect(executeFastPropertyDetailsRequest).toHaveBeenCalledWith(
+      expect.objectContaining({ terrain: terrainGateway }),
+    );
+  });
+
+  it("allows a constraint retry only from a signed transient-failure snapshot", async () => {
+    verifyAssessmentSnapshot.mockReturnValue({
+      submissionId: "snapshot-id",
+      fastResult: {
+        detailedChecks: { constraints: { status: "retryable" } },
+      },
+      expiresAt: Date.now() + 60_000,
+    });
+    enforcePublicPropertyStageRateLimit.mockResolvedValue(null);
+    executeFastPropertyDetailsRequest.mockResolvedValue({
+      ok: true,
+      status: 200,
+      data: { status: "complete", constraints: { status: "complete" } },
+    });
+    refreshAssessmentSnapshot.mockReturnValue("refreshed-retry-snapshot");
 
     const response = await POST_PUBLIC(
       new Request("https://pool.example/api/public/property-check/stages", {
@@ -111,17 +206,42 @@ describe("POST /api/internal/fast-property-view/stages", () => {
 
     expect(response.status).toBe(200);
     expect(enforcePublicPropertyStageRateLimit).toHaveBeenCalledWith(
-      expect.objectContaining({ submissionId: "snapshot-id" }),
-    );
-    expect(executeFastPropertyDetailsRequest).toHaveBeenCalledWith(
       expect.objectContaining({
-        body: { ...selectedAddressPoint, mode: "detailed" },
+        submissionId: "snapshot-id",
+        stage: "constraints_retry",
       }),
     );
-    await expect(response.json()).resolves.toMatchObject({
-      data: detailedData,
-      assessmentSnapshot: "refreshed-detailed-snapshot",
+    expect(executeFastPropertyDetailsRequest).toHaveBeenCalledOnce();
+  });
+
+  it("rejects detailed replay from a completed signed snapshot before limiting or provider work", async () => {
+    verifyAssessmentSnapshot.mockReturnValue({
+      submissionId: "snapshot-id",
+      fastResult: {
+        detailedChecks: { constraints: { status: "complete" } },
+      },
+      expiresAt: Date.now() + 60_000,
     });
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/property-check/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...selectedAddressPoint,
+          mode: "detailed",
+          assessmentSnapshot: "s".repeat(2_000),
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(409);
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    await expect(response.json()).resolves.toMatchObject({
+      error: { code: "DETAILED_CHECKS_NOT_RETRYABLE" },
+    });
+    expect(enforcePublicPropertyStageRateLimit).not.toHaveBeenCalled();
+    expect(executeFastPropertyDetailsRequest).not.toHaveBeenCalled();
   });
 
   it("identifies malformed stage requests without starting imagery", async () => {

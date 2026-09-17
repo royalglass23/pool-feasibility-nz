@@ -1,112 +1,164 @@
 .pool-feasibility-explainer {
   width: 100%;
-  max-width: 480px;
-  aspect-ratio: 480 / 445;
-  overflow: hidden;
-  border-radius: var(--radius);
-  background: #dbe8f0;
-  box-shadow: 0 14px 30px -24px rgb(8 39 34 / 65%);
-  contain: layout paint;
 }
 
-.pool-explainer-stage,
-.pool-explainer-slide {
-  position: relative;
-  height: 100%;
-  overflow: hidden;
-}
-
-.pool-explainer-slide {
-  position: absolute;
-  inset: 0;
-  color: #fff;
-  opacity: 0;
-  transform: translateX(7%);
-  transition:
-    opacity 500ms cubic-bezier(0.16, 1, 0.3, 1),
-    transform 500ms cubic-bezier(0.16, 1, 0.3, 1);
-  will-change: transform, opacity;
-}
-
-.pool-explainer-slide.is-active {
-  opacity: 1;
-  transform: translateX(0);
-}
-
-.pool-explainer-photo {
-  object-fit: cover;
-}
-
-.pool-explainer-photo-property {
-  object-position: 54% center;
-}
-
-.pool-explainer-photo-position {
-  object-position: 48% center;
-}
-
-.pool-explainer-photo-checks {
-  object-position: 50% center;
-}
-
-.pool-explainer-photo-report {
-  object-position: 58% center;
-}
-
-.pool-explainer-photo-wash {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    rgb(6 47 93 / 8%) 24%,
-    rgb(6 47 93 / 22%) 46%,
-    rgb(4 34 67 / 88%) 100%
-  );
-}
-
-.pool-explainer-step-copy {
-  position: absolute;
-  right: 9%;
-  bottom: 9%;
-  left: 9%;
+.pool-process-rail {
+  --rail-colour: #b8d1de;
   display: grid;
-  grid-template-columns: 2rem minmax(0, 1fr);
-  gap: 0.75rem;
-  align-items: start;
-}
-
-.pool-explainer-step-copy > span {
-  display: grid;
-  width: 2rem;
-  height: 2rem;
-  place-items: center;
-  border: 1px solid rgb(255 255 255 / 60%);
-  border-radius: 50%;
-  color: #fff;
-  font-size: 0.75rem;
-  font-weight: 700;
-}
-
-.pool-explainer-step-copy h3 {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   margin: 0;
-  font-size: clamp(1.4rem, 5.1vw, 1.7rem);
-  line-height: 1.08;
-  letter-spacing: -0.03em;
+  padding: 0 0 1.65rem;
+  list-style: none;
+}
+
+.pool-process-rail li {
+  position: relative;
+  min-width: 0;
+  padding-right: 1.25rem;
+  color: #55778c;
+}
+
+.pool-process-button {
+  display: grid;
+  width: 100%;
+  grid-template-columns: 2.5rem minmax(0, 1fr);
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pool-process-button:focus-visible {
+  border-radius: 0.3rem;
+  outline: 2px solid #0077bd;
+  outline-offset: 4px;
+}
+
+.pool-process-rail li:not(.is-current) .pool-process-button:hover {
+  color: #245a79;
+}
+
+.pool-process-rail li::before {
+  position: absolute;
+  z-index: 0;
+  top: 50%;
+  right: 0;
+  width: 1rem;
+  height: 1px;
+  background: var(--rail-colour);
+  content: "";
+}
+
+.pool-process-rail li:last-child::before {
+  display: none;
+}
+
+.pool-process-number {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 2.5rem;
+  height: 2.5rem;
+  place-items: center;
+  border: 1px solid var(--rail-colour);
+  border-radius: 50%;
+  background: #f5faff;
+  color: #486f87;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.pool-process-title {
+  max-width: 19ch;
+  font-size: 0.875rem;
+  line-height: 1.25;
   font-weight: 650;
   text-wrap: balance;
 }
 
-.pool-explainer-step-copy p {
-  max-width: 28ch;
-  margin: 0.5rem 0 0;
-  color: rgb(255 255 255 / 86%);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  text-wrap: pretty;
+.pool-process-rail li.is-current {
+  color: #062f5d;
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .pool-explainer-slide {
-    transition: none;
+.pool-process-rail li.is-current .pool-process-number {
+  border-color: #0077bd;
+  background: #0077bd;
+  color: #fff;
+  box-shadow: 0 0 0 4px #dff4fb;
+}
+
+.pool-process-rail li.is-current::after {
+  position: absolute;
+  right: 1.25rem;
+  bottom: -0.65rem;
+  left: 0;
+  height: 3px;
+  border-radius: 2px;
+  background: #08a7df;
+  content: "";
+}
+
+.pool-demo-figure {
+  position: relative;
+  aspect-ratio: 5 / 2;
+  margin: 0;
+  overflow: hidden;
+  border: 1px solid #c4dae6;
+  border-radius: 0.4rem;
+  background: #d8e5e9;
+  box-shadow: 0 24px 50px -38px rgb(6 47 93 / 75%);
+}
+
+.pool-demo-image {
+  object-fit: cover;
+}
+
+@media (max-width: 767px) {
+  .pool-process-rail {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 0 0 1.5rem;
+  }
+
+  .pool-process-rail li {
+    min-height: 3.35rem;
+    padding: 0 0 0.4rem;
+  }
+
+  .pool-process-button {
+    grid-template-columns: 2.25rem minmax(0, 1fr);
+  }
+
+  .pool-process-number {
+    width: 2.25rem;
+    height: 2.25rem;
+  }
+
+  .pool-process-rail li.is-current::after {
+    display: none;
+  }
+
+  .pool-process-rail li::before {
+    top: auto;
+    right: auto;
+    bottom: calc(50% + 0.72rem);
+    left: 1.1rem;
+    width: 1px;
+    height: calc(100% - 1.05rem);
+  }
+
+  .pool-process-rail li:last-child::before {
+    display: none;
+  }
+
+  .pool-process-title {
+    max-width: none;
+    font-size: 0.95rem;
   }
 }

@@ -19,7 +19,9 @@ async function main() {
       throw new Error("The Staff Admin passwords do not match.");
     }
     await resetStaffAdminPassword(getDb(), await hashStaffPassword(password));
-    output.write("Staff Admin password reset. All Staff sessions were signed out.\n");
+    output.write(
+      "Staff Admin password reset. All Staff sessions were signed out.\n",
+    );
   } finally {
     prompt.close();
   }

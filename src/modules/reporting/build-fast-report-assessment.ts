@@ -86,6 +86,8 @@ export function buildFastReportAssessment(
     parcelIdentityConfirmed: result.boundary.state === "confirmed",
     parcel,
     datasets,
+    // Keep slope out of suitability scoring until the DEM method has completed
+    // its separate homeowner-report validation gate.
     terrainEvidence: { status: "unknown", maximumSlopeDegrees: null },
     assessedAt,
   });
@@ -113,11 +115,11 @@ function normalizeFastDatasets(
         key === "address_resolution"
           ? result.datasets.address_resolution
           : key === "legal_parcel"
-          ? (result.datasets.legal_parcel ??
-            legalParcelEvidence(result, assessedAt))
-          : key === "aerial_imagery"
-            ? result.datasets.aerial_imagery
-            : null;
+            ? (result.datasets.legal_parcel ??
+              legalParcelEvidence(result, assessedAt))
+            : key === "aerial_imagery"
+              ? result.datasets.aerial_imagery
+              : null;
       const layer = detailed.get(key);
       const evidence =
         direct ?? layer?.evidence ?? unavailableEvidence(key, assessedAt);

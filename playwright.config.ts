@@ -8,15 +8,19 @@ process.env.NEXT_PUBLIC_HOTJAR_SITE_ID ??= "123456";
 export default defineConfig({
   testDir: "./tests/e2e",
   // These submit contact emails and must use the isolated synthetic server.
-  testIgnore: ["**/contact-form.spec.ts", "**/partnership-program.spec.ts"],
-  fullyParallel: true,
+  testIgnore: [
+    "**/contact-form.spec.ts",
+    "**/input-security.spec.ts",
+    "**/partnership-program.spec.ts",
+  ],
+  fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
-  retries: process.env.CI ? 2 : 0,
-  workers: process.env.CI ? 1 : undefined,
+  retries: 0,
+  workers: 1,
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
     baseURL: "http://127.0.0.1:3000",
-    trace: "on-first-retry",
+    trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
   projects: [

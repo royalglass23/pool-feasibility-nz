@@ -2,6 +2,18 @@ export type AddressIndexTarget = "development" | "production";
 
 type Environment = Record<string, string | undefined>;
 
+export function requireFullAddressImport(argv: readonly string[]): void {
+  if (!argv.includes("--full")) {
+    throw new Error("CONFIRM_FULL_ADDRESS_IMPORT_REQUIRED");
+  }
+}
+
+export function requireDevelopmentAddressSeed(argv: readonly string[]): void {
+  if (!argv.includes("--confirm-development-address-seed")) {
+    throw new Error("CONFIRM_DEVELOPMENT_ADDRESS_SEED_REQUIRED");
+  }
+}
+
 export function resolveAddressIndexTarget(input: {
   argv: readonly string[];
   env?: Environment;
@@ -32,8 +44,11 @@ export function resolveAddressIndexTarget(input: {
   }
 
   const expectedHost = env.ADDRESS_INDEX_PRODUCTION_HOST?.trim();
-  if (!expectedHost) throw new Error("ADDRESS_INDEX_PRODUCTION_HOST is required.");
-  if (new URL(databaseUrl).hostname.toLowerCase() !== expectedHost.toLowerCase()) {
+  if (!expectedHost)
+    throw new Error("ADDRESS_INDEX_PRODUCTION_HOST is required.");
+  if (
+    new URL(databaseUrl).hostname.toLowerCase() !== expectedHost.toLowerCase()
+  ) {
     throw new Error("PRODUCTION_ADDRESS_INDEX_HOST_MISMATCH");
   }
   return { target, databaseUrl };

@@ -1,3 +1,4 @@
+import { runInNewContext } from "node:vm";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -18,6 +19,7 @@ describe("analytics consent", () => {
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
+    Reflect.deleteProperty(window, "posthog");
   });
 
   it("keeps GA unloaded until consent and lets the visitor reverse the choice", async () => {
@@ -70,31 +72,108 @@ describe("analytics consent", () => {
     ).toBe(true);
   });
 
-  it("gates Metricool on consent even without GA4 or Hotjar configured", async () => {
+  it("gates Metricool and PostHog on consent even without GA4 or Hotjar", async () => {
     const user = userEvent.setup();
     const { container } = render(<AnalyticsConsent />);
 
-    const pixel = () => container.querySelector('img[src*="tracker.metricool.com"]');
+    const pixel = () =>
+      container.querySelector('img[src*="tracker.metricool.com"]');
     expect(pixel()).toBeNull();
+    expect(document.querySelector("#posthog-loader")).toBeNull();
     expect(within(container).queryByTestId("speed-insights")).toBeNull();
-    await user.click(await screen.findByRole("button", { name: "Reject analytics" }));
+    await user.click(
+      await screen.findByRole("button", { name: "Reject analytics" }),
+    );
     expect(pixel()).toBeNull();
+    expect(document.querySelector("#posthog-loader")).toBeNull();
     expect(within(container).queryByTestId("speed-insights")).toBeNull();
-    await user.click(within(container).getByRole("button", { name: "Analytics settings" }));
+    await user.click(
+      within(container).getByRole("button", { name: "Analytics settings" }),
+    );
 
     await user.click(
       await screen.findByRole("button", { name: "Allow analytics" }),
     );
 
     expect(localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY)).toBe("granted");
-    expect(container.querySelector("script")).toBeNull();
+    const posthogScript = document.querySelector("#posthog-loader");
+    expect(posthogScript?.textContent).toContain("https://eu.i.posthog.com");
+    expect(posthogScript?.textContent).toContain("autocapture: false");
+    expect(posthogScript?.textContent).toContain(
+      "disable_session_recording: true",
+    );
+    const context: Record<string, unknown> = {
+      document: {
+        createElement: () => ({}),
+        getElementsByTagName: () => [
+          { parentNode: { insertBefore: () => undefined } },
+        ],
+      },
+      localStorage,
+    };
+    context.window = context;
+    runInNewContext(posthogScript?.textContent ?? "", context);
+    const posthog = context.posthog as {
+      _i: Array<
+        [
+          string,
+          {
+            before_send: (event: {
+              event: string;
+              properties: Record<string, string>;
+            }) => { properties: Record<string, string> } | null;
+          },
+        ]
+      >;
+    };
+    const [key, config] = posthog._i[0];
+    expect(key).toBe("phc_BCgxNofbcnuCzPePiYFdqzHKRaB6ectcYCRXJzjhDUPd");
+    expect(
+      config.before_send({
+        event: "property_check_completed",
+        properties: { $token: key, address: "1 Test Street" },
+      })?.properties,
+    ).toEqual({ $token: key });
+    expect(
+      config.before_send({ event: "$pageview", properties: { $token: key } }),
+    ).toBeNull();
     expect(pixel()).toHaveAttribute("referrerpolicy", "no-referrer");
     expect(within(container).getByTestId("speed-insights")).toBeInTheDocument();
 
-    await user.click(within(container).getByRole("button", { name: "Analytics settings" }));
-    await user.click(screen.getByRole("button", { name: "Turn analytics off" }));
+    await user.click(
+      within(container).getByRole("button", { name: "Analytics settings" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Turn analytics off" }),
+    );
     expect(pixel()).toBeNull();
+    expect(localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY)).toBe("denied");
     expect(within(container).queryByTestId("speed-insights")).toBeNull();
+  });
+
+  it("opts out of PostHog when consent is withdrawn and back in when granted", async () => {
+    const user = userEvent.setup();
+    const optIn = vi.fn();
+    const optOut = vi.fn();
+    Object.defineProperty(window, "posthog", {
+      configurable: true,
+      value: { opt_in_capturing: optIn, opt_out_capturing: optOut },
+    });
+    const { container } = render(<AnalyticsConsent />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Allow analytics" }),
+    );
+    expect(optIn).toHaveBeenCalled();
+    expect(document.querySelector("#posthog-loader")).not.toBeNull();
+
+    await user.click(
+      within(container).getByRole("button", { name: "Analytics settings" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Turn analytics off" }),
+    );
+    expect(optOut).toHaveBeenCalled();
   });
 
   it("loads Hotjar only after consent and clears its browser storage on withdrawal", async () => {

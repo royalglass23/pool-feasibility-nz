@@ -2,10 +2,21 @@
 
 This file summarises meaningful product changes from the Git history. The
 project does not currently use tagged releases, so entries are grouped by the
-date they reached the `features` branch. This is a code-change record, not proof
+date they reached the shared integration history. Items under **Unreleased** may
+exist only in the local working tree. This is a code-change record, not proof
 that a change was deployed or enabled in production.
 
 ## Unreleased
+
+### Engineering gates
+
+- Separated the public-input attack suite from ordinary browser tests so each
+  lane runs with its intended database and delivery boundary.
+- Made the general browser gate deterministic with one worker, zero retries,
+  retained failure traces, and current expectations for canonical addresses,
+  friendly errors, and Staff Admin authentication.
+- Pinned compatible formatting tooling across npm and pnpm and documented the
+  repository line-ending policy.
 
 ### Documentation
 
@@ -14,6 +25,10 @@ that a change was deployed or enabled in production.
   operational boundaries.
 - Added a first-reader documentation map, documented the implemented database,
   and refreshed the release-evidence guide.
+- Added a testing guide and deployment/rollback runbook, and recorded the exact
+  boundary between the green local candidate and outstanding target checks.
+- Updated professional-review onboarding for the anonymous Property Check and
+  removed obsolete production-login and report-download instructions.
 
 ## 10 September 2026
 
@@ -25,6 +40,11 @@ that a change was deployed or enabled in production.
   production bundle.
 - Improved public form validation, accessible feedback, focus handling, and
   recovery for homeowner, general-contact, and partnership submissions.
+- Standardised calm inline errors across public inputs while allowing ordinary
+  company punctuation such as apostrophes and ampersands.
+- Passed the isolated public-input safety suite with injection-shaped,
+  malformed, control-character, oversized-input, persistence, and data-leakage
+  coverage; the broader deployment sign-off remained blocked on target checks.
 
 ## 9 September 2026
 

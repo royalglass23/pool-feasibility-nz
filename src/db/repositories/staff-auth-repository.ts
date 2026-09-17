@@ -105,7 +105,9 @@ export async function invalidateStaffSession(
   if (!sessionToken) return;
   await db
     .delete(schema.staffSessions)
-    .where(eq(schema.staffSessions.tokenHash, hashStaffSessionToken(sessionToken)));
+    .where(
+      eq(schema.staffSessions.tokenHash, hashStaffSessionToken(sessionToken)),
+    );
 }
 
 export async function provisionStaffAdmin(

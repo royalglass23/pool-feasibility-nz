@@ -72,16 +72,28 @@ const publicRoutes = [
   ["aerial conflicts", publicAerialConflicts, "/api/public/aerial-conflicts"],
   ["assessment submission", publicAssessment, "/api/public/assessments"],
   ["property check", publicPropertyCheck, "/api/public/property-check"],
-  ["property stages", publicPropertyStages, "/api/public/property-check/stages"],
+  [
+    "property stages",
+    publicPropertyStages,
+    "/api/public/property-check/stages",
+  ],
   ["PDF report", publicReport, "/api/public/report/pdf"],
 ] as const;
 
 const internalRoutes = [
   ["address suggestions", internalAddress, "/api/internal/address-suggestions"],
-  ["aerial conflicts", internalAerialConflicts, "/api/internal/aerial-conflicts"],
+  [
+    "aerial conflicts",
+    internalAerialConflicts,
+    "/api/internal/aerial-conflicts",
+  ],
   ["assessment submission", internalAssessment, "/api/internal/assessments"],
   ["property check", internalPropertyCheck, "/api/internal/fast-property-view"],
-  ["property stages", internalPropertyStages, "/api/internal/fast-property-view/stages"],
+  [
+    "property stages",
+    internalPropertyStages,
+    "/api/internal/fast-property-view/stages",
+  ],
   ["PDF report", internalReport, "/api/internal/report/pdf"],
 ] as const;
 

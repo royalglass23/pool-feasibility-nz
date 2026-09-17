@@ -26,7 +26,7 @@ export default async function StaffAssessmentPage({
         <div className="mb-5 flex justify-end">
           <form action={signOutStaffAdmin}>
             <button
-              className="min-h-10 rounded-sm border border-pool-300 bg-white px-4 text-sm font-semibold text-pool-700 shadow-sm hover:border-pool-blue-700/40 hover:text-pool-blue-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-pool-blue-700"
+              className="border-pool-300 text-pool-700 hover:border-pool-blue-700/40 hover:text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-10 rounded-sm border bg-white px-4 text-sm font-semibold shadow-sm focus-visible:outline-2 focus-visible:outline-offset-2"
               type="submit"
             >
               Sign out

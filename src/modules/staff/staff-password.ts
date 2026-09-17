@@ -50,7 +50,10 @@ export function assertStaffPasswordPolicy(password: string): void {
   }
 }
 
-async function derivePasswordKey(password: string, salt: Buffer): Promise<Buffer> {
+async function derivePasswordKey(
+  password: string,
+  salt: Buffer,
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     scryptCallback(
       password,
@@ -73,7 +76,8 @@ async function derivePasswordKey(password: string, salt: Buffer): Promise<Buffer
 function parseEncodedHash(
   encodedHash: string,
 ): { salt: Buffer; expected: Buffer } | null {
-  const [algorithm, n, r, p, salt, derivedKey, ...extra] = encodedHash.split("$");
+  const [algorithm, n, r, p, salt, derivedKey, ...extra] =
+    encodedHash.split("$");
   if (
     algorithm !== "scrypt" ||
     n !== String(SCRYPT_N) ||

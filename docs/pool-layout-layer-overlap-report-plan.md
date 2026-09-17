@@ -49,12 +49,12 @@ itself, a service conflict.
 
 ### Status rules
 
-| Evidence at the selected layout | At a glance result | Meaning |
-| --- | --- | --- |
-| A reliable, report-eligible mapped layer intersects the shell or buffer | `Potential Constraint` | Do not treat the present layout as clear; review, move, or obtain an accepted engineered/service-owner solution. |
-| An indicative, internal-reference, partial, or otherwise unverified mapped layer intersects the shell or buffer | `Further investigation required` | Confirm actual position, depth, clearance, and any requirements before finalising the layout. |
-| Complete, usable evidence has no relevant intersection | `Appears suitable` | No mapped overlap was identified; normal site verification still applies. |
-| Required evidence was unavailable or incomplete | `Not assessed` | The category cannot be safely assessed from this report. |
+| Evidence at the selected layout                                                                                 | At a glance result               | Meaning                                                                                                          |
+| --------------------------------------------------------------------------------------------------------------- | -------------------------------- | ---------------------------------------------------------------------------------------------------------------- |
+| A reliable, report-eligible mapped layer intersects the shell or buffer                                         | `Potential Constraint`           | Do not treat the present layout as clear; review, move, or obtain an accepted engineered/service-owner solution. |
+| An indicative, internal-reference, partial, or otherwise unverified mapped layer intersects the shell or buffer | `Further investigation required` | Confirm actual position, depth, clearance, and any requirements before finalising the layout.                    |
+| Complete, usable evidence has no relevant intersection                                                          | `Appears suitable`               | No mapped overlap was identified; normal site verification still applies.                                        |
+| Required evidence was unavailable or incomplete                                                                 | `Not assessed`                   | The category cannot be safely assessed from this report.                                                         |
 
 Where several mapped layers affect one category, use the highest-severity
 result. `Pool fit` shows the highest result across the entire selected layout.
@@ -66,16 +66,16 @@ unverified wastewater-pipe overlap:
 
 #### At a glance
 
-| Category | Short result |
-| --- | --- |
-| Pool fit | `Potential Constraint` |
-| Water & wastewater | `Further investigation required` |
-| Stormwater | `Potential Constraint` |
+| Category            | Short result                              |
+| ------------------- | ----------------------------------------- |
+| Pool fit            | `Potential Constraint`                    |
+| Water & wastewater  | `Further investigation required`          |
+| Stormwater          | `Potential Constraint`                    |
 | Flooding & drainage | `Appears suitable` (if checked and clear) |
-| Terrain | `Appears suitable` (if checked and clear) |
-| Planning | `Appears suitable` (if checked and clear) |
-| Pool safety barrier | `Further investigation required` |
-| Construction access | `Not assessed` |
+| Terrain             | `Appears suitable` (if checked and clear) |
+| Planning            | `Appears suitable` (if checked and clear) |
+| Pool safety barrier | `Further investigation required`          |
+| Construction access | `Not assessed`                            |
 
 #### Key findings
 
@@ -167,14 +167,14 @@ canonical report model, labels, colours, and ordering.
 Add or extend tests for the following cases:
 
 1. Reliable stormwater overlap: `Pool fit` and `Stormwater` are `Potential
-   Constraint`; the key finding names the stormwater pipe.
+Constraint`; the key finding names the stormwater pipe.
 2. Indicative wastewater overlap: `Water & wastewater` is `Further
-   investigation required`; the key finding asks for position confirmation.
+investigation required`; the key finding asks for position confirmation.
 3. Multiple overlaps across categories: each category receives its own highest
    short status and the key finding describes all affected layers.
 4. A complete, clear layer: it remains `Appears suitable`.
 5. Unavailable or partial evidence: it is `Not assessed` or `Further
-   investigation required`, never green by implication.
+investigation required`, never green by implication.
 6. A contour crossing the pool: it does not create a utility overlap; terrain
    is evaluated only under terrain rules.
 7. Historic saved report without structured findings: legacy fallback renders

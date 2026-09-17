@@ -1,4 +1,4 @@
-# Pool Feasibility Tool - Professional Feedback Guide
+# PoolReady professional feedback guide
 
 ## Why you are reviewing this
 
@@ -24,24 +24,28 @@ It is not:
 
 Every result should currently be treated as a preliminary desktop indication only.
 
-## How to access the live tool
+## How to access the review build
 
-Open the production site in a desktop browser:
+Open the exact Preview or Production URL supplied separately by the Royal Glass
+project owner. Confirm which revision and environment you are reviewing before
+recording feedback.
 
-**Production site:** `[insert Vercel production URL]`
+The public Property Check is anonymous and must not ask for Staff Admin
+credentials. The protected `/staff` workspace is a separate operational tool
+and is outside this walkthrough unless staff review is explicitly authorised.
 
-Use the Royal Glass staff login supplied separately:
-
-**Username:** `[insert production username]`  
-**Password:** `[insert production password]`
-
-Keep the login private. Do not place it in screenshots, emails, feedback documents, or public messages.
+Never place deployment URLs containing bypass tokens, credentials, personal
+contact details, or residential report contents in screenshots, feedback
+documents, or public messages.
 
 ## How to enter the property address
 
-The address field is strict. Enter one complete property address on one line using this pattern:
+Start with the street number and street name, then select the matching full
+address from the suggestions. Do not submit typed text that has not been
+selected as an address result.
 
-`unit number/street number and suffix, street name and type, suburb, Auckland`
+The selected result should contain the complete supported address, including
+the unit or suffix where applicable.
 
 Examples:
 
@@ -61,9 +65,10 @@ If several addresses appear, select the exact full address. Do not choose a simi
 
 ## Basic walkthrough
 
-### 1. Fetch the property
+### 1. Find the property
 
-Enter the complete address and select **Fetch property data**. Wait for the property information to load.
+Enter the address and choose the exact matching suggestion. Wait for the
+property boundary and aerial view to load.
 
 ### 2. Confirm it is the right property
 
@@ -73,13 +78,24 @@ Before reading the recommendation, check the full address, map location, parcel 
 
 Use the map to look at the apparent house position, parcel shape, access, nearby mapped features, and possible pool areas. The map is not a survey. Fences, retaining walls, decks, sheds, services, levels, and drainage may be missing or out of date.
 
-### 4. Review the pool scenarios
+### 4. Position the pool
 
-The tool tests several standard pool sizes and orientations. It checks whether a pool shape and its working/construction allowance appear to fit inside the mapped parcel without overlapping mapped buildings or some mapped constraints.
+Choose a pool size, drag it to an indicative location, and rotate it where
+useful. Review the visible clearance guidance. The tool checks whether the
+selected shell and its working/construction allowance appear to fit inside the
+mapped parcel without overlapping mapped buildings or available constraints.
 
-Look at the pool size, possible position, ranking reason, constraint notes, and missing-information notes. The tool does not test every possible design or position. “No clear candidate area” means the tested examples did not pass the current desktop checks; it does not prove the property is impossible.
+The tool does not test every possible design or position. A placement warning
+or “No clear candidate area” means the current example did not pass the mapped
+desktop checks; it does not prove the property is impossible.
 
-### 5. Read the recommendation
+### 5. Check constraints
+
+Run the optional detailed mapped checks and read each available, unavailable,
+or restricted layer state. An empty or unavailable layer is not proof that a
+real-world constraint is absent.
+
+### 6. Read the recommendation
 
 The result contains two separate ideas:
 
@@ -88,21 +104,25 @@ The result contains two separate ideas:
 
 A high score with low confidence means the visible information looks promising but important information is missing. A lower score with high confidence means the mapped information gives a more reliable warning about constraints. Treat the result as a starting point, not a promise to the customer.
 
-### 6. Read risks and actions
+### 7. Read risks and actions
 
-The risks and actions show what needs to be checked next, such as services, drainage, flooding, access, levels, title matters, or approvals. Download the assessment data before closing the browser if you want to keep a copy. The current tool does not maintain permanent assessment history.
+The risks and actions show what needs to be checked next, such as services,
+drainage, flooding, access, levels, title matters, or approvals. If testing the
+report journey is authorised, use synthetic contact details and request the
+preliminary report by email. Saved reports are available only through the
+protected Staff Workspace; do not use customer details in review evidence.
 
 ## Reading the result in plain language
 
-| What you see | What it means | How to use it |
-|---|---|---|
-| Strong preliminary candidate | The tested information looks favourable. | Complete the normal site investigation before giving customer advice. |
-| Likely feasible with normal investigations | The site looks promising but still needs normal professional checks. | Continue with site, title, service, planning, and design checks. |
-| Potentially feasible but constrained | A pool may be possible, but known constraints need a response. | Work through the constraints before setting expectations. |
-| Significant constraints | The mapped information shows material difficulties. | Discuss alternative sizes or positions and consider specialist advice. |
-| Low preliminary feasibility | The tested options look difficult with the known information. | Do not treat this as an automatic no; check whether better evidence or another design changes the outcome. |
-| Indeterminate | There is not enough reliable information to classify the property. | Resolve the missing property or evidence information first. |
-| No clear candidate area | None of the tested examples passed the current checks. | Review the map, consider another design, and arrange proper site checks. |
+| What you see                               | What it means                                                        | How to use it                                                                                              |
+| ------------------------------------------ | -------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Strong preliminary candidate               | The tested information looks favourable.                             | Complete the normal site investigation before giving customer advice.                                      |
+| Likely feasible with normal investigations | The site looks promising but still needs normal professional checks. | Continue with site, title, service, planning, and design checks.                                           |
+| Potentially feasible but constrained       | A pool may be possible, but known constraints need a response.       | Work through the constraints before setting expectations.                                                  |
+| Significant constraints                    | The mapped information shows material difficulties.                  | Discuss alternative sizes or positions and consider specialist advice.                                     |
+| Low preliminary feasibility                | The tested options look difficult with the known information.        | Do not treat this as an automatic no; check whether better evidence or another design changes the outcome. |
+| Indeterminate                              | There is not enough reliable information to classify the property.   | Resolve the missing property or evidence information first.                                                |
+| No clear candidate area                    | None of the tested examples passed the current checks.               | Review the map, consider another design, and arrange proper site checks.                                   |
 
 ## What the tool may not know
 
@@ -174,18 +194,18 @@ Please identify which of these would make the greatest difference in daily pool 
 
 ## Simple error guide
 
-| Message | Meaning | What to do |
-|---|---|---|
-| Complete address required | The address is incomplete. | Re-enter one full address using the format above. |
-| Address not found | No exact match was found. | Check the number, suffix, street spelling, suburb, and Auckland. |
-| More than one address matched | Several properties may match. | Select the exact full address from the choices. |
-| Parcel could not be confirmed | The legal property boundary is not certain enough. | Stop and verify the parcel/title manually. |
-| Auckland addresses only | The current version does not support that location. | Do not use the result outside Auckland. |
-| Official data temporarily unavailable | A mapped information source did not respond. | Try again later and treat that information as unknown. |
-| No clear candidate area | The tested pool examples did not fit the mapped information. | Review the map, consider another design, and arrange site checks. |
-| Map or aerial image unavailable | The map background or imagery did not load. | Refresh or try again; do not read this as a site problem. |
-| Report could not be downloaded | The assessment is available but the file could not be created. | Save the assessment data and use browser print/save if needed. |
-| Login or access problem | The production site rejected the login. | Check the supplied details and contact the Royal Glass project owner. |
+| Message                               | Meaning                                                      | What to do                                                                                        |
+| ------------------------------------- | ------------------------------------------------------------ | ------------------------------------------------------------------------------------------------- |
+| Complete address required             | The address is incomplete.                                   | Re-enter one full address using the format above.                                                 |
+| Address not found                     | No exact match was found.                                    | Check the number, suffix, street spelling, suburb, and Auckland.                                  |
+| More than one address matched         | Several properties may match.                                | Select the exact full address from the choices.                                                   |
+| Parcel could not be confirmed         | The legal property boundary is not certain enough.           | Stop and verify the parcel/title manually.                                                        |
+| Auckland addresses only               | The current version does not support that location.          | Do not use the result outside Auckland.                                                           |
+| Official data temporarily unavailable | A mapped information source did not respond.                 | Try again later and treat that information as unknown.                                            |
+| No clear candidate area               | The tested pool examples did not fit the mapped information. | Review the map, consider another design, and arrange site checks.                                 |
+| Map or aerial image unavailable       | The map background or imagery did not load.                  | Refresh or try again; do not read this as a site problem.                                         |
+| Report request could not be completed | The report could not be saved or delivered safely.           | Keep the visible reference if one exists and contact the project owner; do not repeatedly submit. |
+| Review build cannot be opened         | The supplied Preview or Production URL is unavailable.       | Confirm the exact URL and revision with the Royal Glass project owner.                            |
 
 ## Suggested professional review
 

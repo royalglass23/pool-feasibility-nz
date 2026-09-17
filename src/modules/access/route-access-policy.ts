@@ -10,7 +10,5 @@ export function classifyRouteAccess(pathname: string): RouteAccess {
     return "admin_session";
   }
 
-  return pathname.startsWith("/api/internal/")
-    ? "legacy_internal"
-    : "public";
+  return pathname.startsWith("/api/internal/") ? "legacy_internal" : "public";
 }

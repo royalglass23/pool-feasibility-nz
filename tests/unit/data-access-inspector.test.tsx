@@ -99,6 +99,58 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     ).toBeVisible();
   });
 
+  it.each([
+    [
+      429,
+      "RATE_LIMITED",
+      "Too many property checks for now",
+      "property-rate-reference",
+    ],
+    [
+      503,
+      "RATE_LIMIT_UNAVAILABLE",
+      "Property check protection is temporarily unavailable",
+      "limiter-failure-reference",
+    ],
+  ])(
+    "explains a %s rate-limit response without mislabelling it as a property provider failure",
+    async (status, code, expectedTitle, correlationId) => {
+      const user = userEvent.setup();
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          Response.json(
+            {
+              error: {
+                code,
+                message: "Please try again shortly.",
+                correlationId,
+              },
+            },
+            { status },
+          ),
+        ),
+      );
+      render(<DataAccessInspector />);
+
+      await user.type(
+        screen.getByLabelText("Auckland property address"),
+        requestedAddress,
+      );
+      await user.keyboard("{Enter}");
+
+      expect(await screen.findByText(expectedTitle)).toBeVisible();
+      expect(
+        screen.queryByText(new RegExp(correlationId)),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(
+          "One of the official map services did not respond in time.",
+        ),
+      ).not.toBeInTheDocument();
+    },
+  );
+
   it("emits only anonymous funnel names for a completed property check", async () => {
     const user = userEvent.setup();
     const result = await createResult();
@@ -294,14 +346,17 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       });
       expect(initial.boundary.state).toBe("loading");
       expect(stages.boundary.state).toBe(boundaryState);
-      const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
-        Response.json({
+      const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input) === "/api/public/address-suggestions") {
+          return Response.json({ suggestions: [] });
+        }
+        return Response.json({
           data: String(input).includes("/api/public/property-check/stages")
             ? stages
             : initial,
           assessmentSnapshot: "server-issued-fixture-snapshot",
-        }),
-      );
+        });
+      });
       vi.stubGlobal("fetch", fetchMock);
 
       render(<DataAccessInspector />);
@@ -309,6 +364,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         screen.getByLabelText("Auckland property address"),
         requestedAddress,
       );
+      await new Promise((resolve) => setTimeout(resolve, 300));
       await user.keyboard("{Enter}");
 
       expect(
@@ -320,6 +376,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       expect(
         screen.getByRole("heading", { name: "Needs Checking" }),
       ).toBeVisible();
+      await user.click(screen.getByText("View details"));
       expect(
         screen.getByText(
           "The mapped property boundary or pool position needs checking before this layout can be assessed.",
@@ -328,7 +385,11 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       expect(
         screen.queryByText("We couldn't complete that property check"),
       ).not.toBeInTheDocument();
-      expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      expect(
+        fetchMock.mock.calls
+          .map(([url]) => String(url))
+          .filter((url) => url.startsWith("/api/public/property-check")),
+      ).toEqual([
         "/api/public/property-check",
         "/api/public/property-check/stages",
       ]);
@@ -892,7 +953,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
     await user.keyboard("{Enter}");
 
-    await screen.findByText(/aerial photo is still loading/i);
+    await screen.findByText(/we couldn't load the aerial photo/i);
     const stageRequestCountBeforeRetry = fetchMock.mock.calls.filter(
       ([input]) => String(input).includes("/api/public/property-check/stages"),
     ).length;
@@ -906,6 +967,324 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         ),
       ).toHaveLength(stageRequestCountBeforeRetry + 1),
     );
+  });
+
+  it("requests parcel-wide detailed checks without sending the pool envelope", async () => {
+    const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      ...splitDataAccessGateway(gateway),
+      basemapApiKey: "test-key",
+    });
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === "/api/public/property-check") {
+          return Response.json({
+            data: fastResult,
+            assessmentSnapshot: "server-issued-initial-snapshot",
+          });
+        }
+        const requestBody = JSON.parse(String(init?.body ?? "{}")) as {
+          mode?: string;
+        };
+        if (requestBody.mode === "detailed") {
+          return Response.json({
+            data: fastResult.detailedChecks,
+            assessmentSnapshot: "server-issued-detailed-snapshot",
+          });
+        }
+        return Response.json({
+          data: fastResult,
+          assessmentSnapshot: "server-issued-stage-snapshot",
+        });
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.keyboard("{Enter}");
+    await user.click(
+      await screen.findByRole("button", { name: "Check for constraints" }),
+    );
+
+    await waitFor(() => {
+      const request = fetchMock.mock.calls
+        .map(([, init]) => JSON.parse(String(init?.body ?? "{}")))
+        .find((body) => body.mode === "detailed");
+      expect(request).toMatchObject({
+        addressId: "2359811",
+      });
+      expect(request).not.toHaveProperty("constructionEnvelopeGeometry");
+    });
+  });
+
+  it("disables detailed checks for the server retry interval without suggesting another address", async () => {
+    const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      ...splitDataAccessGateway(gateway),
+      basemapApiKey: "test-key",
+    });
+    const correlationId = "detailed-limit-reference";
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === "/api/public/property-check") {
+          return Response.json({
+            data: fastResult,
+            assessmentSnapshot: "server-issued-initial-snapshot",
+          });
+        }
+        const requestBody = JSON.parse(String(init?.body ?? "{}")) as {
+          mode?: string;
+        };
+        if (requestBody.mode === "detailed") {
+          return Response.json(
+            {
+              error: {
+                code: "RATE_LIMITED",
+                message: "Please try again shortly.",
+                correlationId,
+              },
+            },
+            { status: 429, headers: { "Retry-After": "75" } },
+          );
+        }
+        return Response.json({
+          data: fastResult,
+          assessmentSnapshot: "server-issued-stage-snapshot",
+        });
+      }),
+    );
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.keyboard("{Enter}");
+    await user.click(
+      await screen.findByRole("button", { name: "Check for constraints" }),
+    );
+
+    expect(
+      await screen.findByText("Detailed checks are temporarily unavailable"),
+    ).toBeVisible();
+    expect(
+      screen.getByText("You can still use your preliminary property view."),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Please try again in 1 minute 15 seconds."),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: "Check for constraints" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: "Retry property check" }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Search a different address" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(new RegExp(correlationId)),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps parcel slope loaded without rerunning checks when the pool changes", async () => {
+    const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      ...splitDataAccessGateway(gateway),
+      basemapApiKey: "test-key",
+    });
+    const detailedChecks = {
+      status: "complete" as const,
+      constraints: {
+        status: "complete" as const,
+        retryableLayerKeys: [],
+        unavailableLayerKeys: [],
+      },
+      layers: [],
+      retrievedAt: "2026-09-14T00:00:00.000Z",
+      durationMs: 50,
+      region: "Auckland",
+      limitations: [],
+      terrain: {
+        status: "measured" as const,
+        averageSlopeDegrees: 2.4,
+        upperSlopeDegrees: 3.8,
+        estimatedFallMetres: 0.36,
+        downhillBearingDegrees: 135,
+        downhillDirection: "SE",
+        confidence: "indicative" as const,
+        source: {
+          dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
+          retrievedAt: "2026-09-14T00:00:00.000Z",
+        },
+      },
+    };
+    let detailedRequestCount = 0;
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === "/api/public/property-check") {
+          return Response.json({
+            data: fastResult,
+            assessmentSnapshot: "server-issued-initial-snapshot",
+          });
+        }
+        const requestBody = JSON.parse(String(init?.body ?? "{}")) as {
+          mode?: string;
+        };
+        if (requestBody.mode === "detailed") {
+          detailedRequestCount += 1;
+          return Response.json({
+            data: detailedChecks,
+            assessmentSnapshot: "server-issued-detailed-snapshot",
+          });
+        }
+        return Response.json({
+          data: fastResult,
+          assessmentSnapshot: "server-issued-stage-snapshot",
+        });
+      },
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.keyboard("{Enter}");
+    await user.click(
+      await screen.findByRole("button", { name: "Check for constraints" }),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "Indicative property slope" }),
+    ).toBeVisible();
+    expect(screen.getByText("2.4°")).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "All available constraints loaded",
+      }),
+    ).toBeDisabled();
+
+    await user.click(
+      screen.getByRole("button", { name: /Plunge \(4 × 2.4 m\)/ }),
+    );
+
+    await user.click(
+      screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+    );
+    await waitFor(() => expect(detailedRequestCount).toBe(1));
+    expect(screen.getByText("2.4°")).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "All available constraints loaded",
+      }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByText(/The pool position changed\./i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("keeps completed constraints disabled when parcel slope needs checking", async () => {
+    const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      ...splitDataAccessGateway(gateway),
+      basemapApiKey: "test-key",
+    });
+    let detailedRequestCount = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input) === "/api/public/property-check") {
+          return Response.json({
+            data: fastResult,
+            assessmentSnapshot: "server-issued-initial-snapshot",
+          });
+        }
+        const requestBody = JSON.parse(String(init?.body ?? "{}")) as {
+          mode?: string;
+        };
+        if (requestBody.mode === "detailed") {
+          detailedRequestCount += 1;
+          return Response.json({
+            data: {
+              status: "partial",
+              constraints: {
+                status: "complete",
+                retryableLayerKeys: [],
+                unavailableLayerKeys: ["culverts"],
+              },
+              layers: [],
+              retrievedAt: "2026-09-14T00:00:00.000Z",
+              durationMs: 50,
+              region: "Auckland",
+              limitations: [],
+              terrain: {
+                status: "needs_checking",
+                reasons: ["No valid elevation data covers this property."],
+              },
+            },
+            assessmentSnapshot: "server-issued-detailed-snapshot",
+          });
+        }
+        return Response.json({
+          data: fastResult,
+          assessmentSnapshot: "server-issued-stage-snapshot",
+        });
+      }),
+    );
+
+    render(<DataAccessInspector />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.keyboard("{Enter}");
+    await user.click(
+      await screen.findByRole("button", { name: "Check for constraints" }),
+    );
+
+    expect(
+      await screen.findByRole("heading", { name: "Indicative property slope" }),
+    ).toBeVisible();
+    expect(
+      screen.getByText(/No valid elevation data covers this property\./),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", {
+        name: "All available constraints loaded",
+      }),
+    ).toBeDisabled();
+
+    await user.click(
+      screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }),
+    );
+    await user.clear(screen.getByLabelText("Custom length (m)"));
+    await user.type(screen.getByLabelText("Custom length (m)"), "7.2");
+    await user.clear(screen.getByLabelText("Custom width (m)"));
+    await user.type(screen.getByLabelText("Custom width (m)"), "3.4");
+
+    await waitFor(() => expect(detailedRequestCount).toBe(1));
+    expect(
+      screen.getByRole("button", {
+        name: "All available constraints loaded",
+      }),
+    ).toBeDisabled();
   });
 
   it("hides the address search after a fast view opens and restores it from Start again", async () => {

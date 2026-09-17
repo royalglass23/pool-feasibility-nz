@@ -19,7 +19,10 @@ export async function GET(
   context: { params: Promise<{ id: string }> },
 ): Promise<Response> {
   const correlationId = requestCorrelationId(request);
-  const sessionDenied = await staffSessionDeniedResponse(request, correlationId);
+  const sessionDenied = await staffSessionDeniedResponse(
+    request,
+    correlationId,
+  );
   if (sessionDenied) return sessionDenied;
   const { id } = await context.params;
   if (!ASSESSMENT_ID_PATTERN.test(id)) {

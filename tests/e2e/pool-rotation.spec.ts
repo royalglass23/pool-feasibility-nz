@@ -182,8 +182,14 @@ test("report image excludes the rotate button while the live map keeps it visibl
   // The fixture has no white map features here: a leaked white button is detectable.
   expect(await whiteFraction(savedButtonRegion)).toBeLessThan(0.05);
   await expect(
-    page.getByText("Test intercepted report request", { exact: true }),
+    page.getByText(
+      "We couldn't save your report just now. Your details are still here. Please try again shortly.",
+      { exact: true },
+    ),
   ).toBeVisible();
+  await expect(
+    page.getByText("Test intercepted report request", { exact: true }),
+  ).toHaveCount(0);
   await control.scrollIntoViewIfNeeded();
   await expect(control).toBeVisible();
 });

@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
 
 const boundary = {
   type: "Polygon",
@@ -122,13 +122,23 @@ async function openFastView(page: import("@playwright/test").Page) {
   ).toBeVisible();
 }
 
+async function documentTop(locator: Locator) {
+  return locator.evaluate(
+    (element) => element.getBoundingClientRect().top + window.scrollY,
+  );
+}
+
 test("shows Needs Checking before detailed evidence, then No Warning after a clean check", async ({
   page,
 }) => {
   await openFastView(page);
+  const aerialMap = page.getByLabel(
+    `Fast aerial map for ${baseResult.resolvedAddress.fullAddress}`,
+  );
   await expect(
     page.getByRole("heading", { name: "Needs Checking", exact: true }),
   ).toBeVisible();
+  const mapTopBeforeCheck = await documentTop(aerialMap);
 
   await page.route("**/api/public/property-check/stages", async (route) => {
     if (route.request().postDataJSON()?.mode !== "detailed")
@@ -144,6 +154,37 @@ test("shows Needs Checking before detailed evidence, then No Warning after a cle
   });
   await page.getByRole("button", { name: "Check for constraints" }).click();
   await expect(page.getByRole("heading", { name: "No Warning" })).toBeVisible();
+  const mapTopAfterCheck = await documentTop(aerialMap);
+  expect(mapTopAfterCheck).toBeCloseTo(mapTopBeforeCheck, 0);
+});
+
+test("keeps the mobile workspace anchored when the live result changes", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 320, height: 720 });
+  await openFastView(page);
+  await page.getByRole("button", { name: "Reject analytics" }).click();
+  const aerialMap = page.getByLabel(
+    `Fast aerial map for ${baseResult.resolvedAddress.fullAddress}`,
+  );
+  const mapTopBeforeCheck = await documentTop(aerialMap);
+
+  await page.route("**/api/public/property-check/stages", async (route) => {
+    if (route.request().postDataJSON()?.mode !== "detailed")
+      return route.continue();
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: detail([emptyLayer()]),
+        assessmentSnapshot,
+      }),
+    });
+  });
+  await page.getByRole("button", { name: "Check for constraints" }).click();
+  await expect(page.getByRole("heading", { name: "No Warning" })).toBeVisible();
+
+  expect(await documentTop(aerialMap)).toBeCloseTo(mapTopBeforeCheck, 0);
 });
 
 test("shows friendly position-review guidance while leaving the pool controls available", async ({
@@ -166,6 +207,13 @@ test("shows friendly position-review guidance while leaving the pool controls av
   await expect(
     page.getByRole("heading", { name: "This pool position needs review" }),
   ).toBeVisible();
+  const notices = page.getByLabel("Property check notices");
+  await expect(
+    notices.getByText(
+      "This pool position overlaps a mapped constraint and needs review.",
+    ),
+  ).toBeVisible();
+  await notices.getByText("View details").click();
   await expect(
     page.getByText(
       "Try a different pool position. If you want to keep this position, confirm the mapped constraint and required clearance with the relevant provider or a qualified pool professional.",

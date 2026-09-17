@@ -11,6 +11,14 @@ import { classifyFastPoolWarning } from "@/modules/data-access-spike/fast-pool-w
 import { buildFastReportAssessment } from "@/modules/reporting/build-fast-report-assessment";
 import { buildReportAssessmentSnapshot } from "@/modules/reporting/report-assessment-snapshot";
 import { isValidPngMapImageDataUrl } from "@/modules/reporting/map-image";
+import { AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED } from "@/modules/providers/linz/auckland-dem-source-contract";
+import { aucklandDemReportEligibility } from "@/modules/providers/linz/auckland-dem-report-eligibility";
+import { assessSelectedPoolTerrain } from "@/modules/terrain/assess-selected-pool-terrain";
+import type {
+  PropertyTerrainAssessment,
+  PropertyTerrainGateway,
+  PropertyTerrainSource,
+} from "@/modules/terrain/property-terrain";
 import type { TrustedAssessmentSnapshot } from "./assessment-snapshot";
 import {
   parsePersistedAssessmentSubmission,
@@ -58,6 +66,7 @@ export function parseBrowserAssessmentSaveRequest(
 export async function buildServerAssessmentSubmission(input: {
   request: BrowserAssessmentSaveRequest;
   snapshot: TrustedAssessmentSnapshot;
+  terrainGateway?: PropertyTerrainGateway;
   now?: () => Date;
 }): Promise<PersistedAssessmentSubmission> {
   const { request, snapshot } = input;
@@ -93,6 +102,18 @@ export async function buildServerAssessmentSubmission(input: {
   ) {
     throw new ServerAssessmentSubmissionError();
   }
+
+  const terrain: PropertyTerrainAssessment | undefined = input.terrainGateway
+    ? boundary.geometry
+      ? await input.terrainGateway.assessParcel(
+          boundary.geometry,
+          constructionEnvelope.geometry,
+        )
+      : {
+          status: "needs_checking",
+          reasons: ["The mapped property parcel is unavailable."],
+        }
+    : snapshot.fastResult.detailedChecks?.terrain;
 
   const warning = classifyFastPoolWarning({
     boundaryState: boundary.state,
@@ -185,12 +206,104 @@ export async function buildServerAssessmentSubmission(input: {
           ],
         provenance: reportAssessment?.provenance ?? { datasets: [] },
         placementLayerFindings: warning.placementLayerFindings ?? [],
+        terrain: reportTerrain(
+          terrain,
+          constructionEnvelope.geometry,
+          Boolean(input.terrainGateway),
+        ),
         assessmentSnapshot: reportAssessment
           ? buildReportAssessmentSnapshot(reportAssessment)
           : null,
       },
     },
   });
+}
+
+function reportTerrain(
+  terrain: PropertyTerrainAssessment | undefined,
+  constructionEnvelope: Extract<Geometry, { type: "Polygon" }>,
+  bufferedProposedPool: boolean,
+): PersistedAssessmentSubmission["report"]["reportData"]["terrain"] {
+  if (!terrain) return undefined;
+  if (terrain.status === "needs_checking") {
+    return { status: "needs_checking", reasons: terrain.reasons };
+  }
+  const constructionEnvelopeTerrain =
+    !bufferedProposedPool && terrain.slopeSamples?.length
+      ? assessSelectedPoolTerrain({
+          samples: terrain.slopeSamples,
+          footprint: constructionEnvelope,
+        })
+      : null;
+  return persistMeasuredTerrain(
+    terrain,
+    constructionEnvelopeTerrain,
+    bufferedProposedPool,
+  );
+}
+
+function persistMeasuredTerrain(
+  terrain: Extract<PropertyTerrainAssessment, { status: "measured" }>,
+  constructionEnvelopeTerrain: ReturnType<
+    typeof assessSelectedPoolTerrain
+  > | null,
+  bufferedProposedPool: boolean,
+): PersistedAssessmentSubmission["report"]["reportData"]["terrain"] {
+  return {
+    status: "measured",
+    ...(bufferedProposedPool
+      ? { analysisArea: "buffered_proposed_pool" as const }
+      : {}),
+    reportEligibility: aucklandDemReportEligibility(
+      terrain.source,
+      AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED,
+    ),
+    averageSlopeDegrees: terrain.averageSlopeDegrees,
+    upperSlopeDegrees: terrain.upperSlopeDegrees,
+    estimatedFallMetres: terrain.estimatedFallMetres,
+    downhillBearingDegrees: terrain.downhillBearingDegrees,
+    downhillDirection: terrain.downhillDirection,
+    confidence: terrain.confidence,
+    constructionEnvelopeTerrain,
+    source: persistTerrainSource(terrain.source, bufferedProposedPool),
+  };
+}
+
+function persistTerrainSource(
+  source: PropertyTerrainSource,
+  bufferedProposedPool: boolean,
+) {
+  return {
+    provider: source.provider,
+    dataset: source.dataset,
+    datasetIdentifier: source.datasetIdentifier,
+    status: source.status,
+    licenceStatus: source.licenceStatus,
+    evidenceUse: source.evidenceUse,
+    datasetDate: source.datasetDate,
+    licence: source.licence,
+    licenceUrl: source.licenceUrl ?? null,
+    attribution: source.attribution,
+    retrievedAt: source.retrievedAt,
+    geometryUsed: source.geometryUsed,
+    attributesUsed: source.attributesUsed,
+    evidenceType: source.evidenceType,
+    confidence: source.confidence,
+    derivedProductNotice: bufferedProposedPool
+      ? ("Elevation data was clipped to the buffered proposed-pool area and used to derive indicative slope measurements." as const)
+      : ("Elevation data was clipped to the assessed property and used to derive indicative slope measurements." as const),
+    contributingAssets: (source.contributingAssets ?? []).map((asset) => ({
+      dataset: asset.dataset,
+      datasetIdentifier: asset.datasetIdentifier,
+      datasetDate: asset.datasetDate ?? null,
+      stacCollectionUrl: asset.stacCollectionUrl,
+      assetUrl: asset.assetUrl,
+      stacItemUrl: asset.stacItemUrl,
+      assetChecksum: asset.assetChecksum,
+      assetUpdatedAt: asset.assetUpdatedAt,
+      retrievedAt: asset.retrievedAt,
+    })),
+  };
 }
 
 function persistedLayerGeometry(

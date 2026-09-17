@@ -215,6 +215,7 @@ export function buildTestPreliminaryReport(
     risks: [],
     actions: [],
     missingInformation: [],
+    terrain: null,
     layers: [],
     sources: [],
     assumptions: ["Preliminary assessment only."],

@@ -60,11 +60,9 @@ export function legalParcelEvidenceForMap(result: DataAccessSpikeResult) {
       geometryUsed: "confirmed parcel boundary",
       attributesUsed: ["parcelId"],
       evidenceType: "official_property_boundary",
-      confidence: (
-        result.parcelMatch.status === "mapped_primary_parcel"
-          ? "high"
-          : "unavailable"
-      ) as "high" | "unavailable",
+      confidence: (result.parcelMatch.status === "mapped_primary_parcel"
+        ? "high"
+        : "unavailable") as "high" | "unavailable",
     },
   };
 }

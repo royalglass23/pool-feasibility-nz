@@ -5,6 +5,7 @@ import {
   REPORT_ASSESSMENT_ORDER,
   reportShortStatus,
   type ReportAssessment,
+  type ReportDataSource,
 } from "@/modules/reporting/pool-feasibility-report";
 import {
   reportMapLegend,
@@ -14,10 +15,8 @@ import {
 import {
   POOL_SHELL_CLEARANCE_LIMITATION,
   PRELIMINARY_FEASIBILITY_REPORT_FOOTER,
-  PRELIMINARY_FEASIBILITY_REPORT_SCOPE,
 } from "@/modules/reporting/preliminary-feasibility-copy";
 import { escapeHtml } from "@/shared/html/escape-html";
-import { BLUE_HAVEN_REPORT_LOGO } from "@/modules/reporting/report-branding";
 
 export function renderCanonicalPreliminaryReportHtml(
   report: SavedPreliminaryReport,
@@ -27,14 +26,13 @@ export function renderCanonicalPreliminaryReportHtml(
   const poolDimensions = `${formatReportNumber(report.pool.lengthMetres)} x ${formatReportNumber(report.pool.widthMetres)} m`;
   const header = () => `
     <header class="report-header">
-      <img class="report-brand-logo" src="${BLUE_HAVEN_REPORT_LOGO}" alt="Blue Haven" width="500" height="266">
+      <div class="report-brand"><strong>PoolReady</strong><span>Powered by Blue Haven</span></div>
       <div class="report-heading"><strong>Preliminary Pool Feasibility Report</strong><h3>${esc(report.property.address)}</h3><div class="page-meta">${esc(generatedDate)}</div></div>
     </header>`;
   const continuationHeader = () => `
     <header class="continuation-header"><span>${esc(generatedDate)}</span><span>Preliminary Feasibility Report</span></header>`;
   const footer = (page: number) => `
     <footer><span>${esc(PRELIMINARY_FEASIBILITY_REPORT_FOOTER)}</span><span>${esc(report.reference)} - ${page}/3</span></footer>`;
-
   const assessments = REPORT_ASSESSMENT_ORDER.map(
     (id) => report.assessments[id],
   );
@@ -47,21 +45,16 @@ export function renderCanonicalPreliminaryReportHtml(
         </div>`,
     )
     .join("");
-  const clearances = reportPoolShellClearances(report);
-  const { entries: mapLegendEntries } = reportMapLegend(report);
-  const clearanceCaption =
-    clearances.length === 4
-      ? `<section class="map-clearances"><h3>Pool-shell clearances</h3><ul>${clearances.map((clearance, index) => `<li>Side ${index + 1}: ${esc(clearance.label)}</li>`).join("")}</ul><p>${esc(POOL_SHELL_CLEARANCE_LIMITATION)}</p></section>`
-      : "";
-  const mapLegend = `<aside class="map-legend" aria-label="Captured map layers">
-    <h3>Captured map layers</h3>
-    <p class="map-legend-intro">This legend records what the saved image shows.</p>
-    ${clearanceCaption}
-    <ul class="map-legend-list">${mapLegendEntries.map((entry) => renderMapLegendEntry(entry, esc)).join("")}</ul>
-  </aside>`;
-
   const assessmentCards = assessments
+    .filter((item) => item.status !== "unknown")
     .map((item) => renderAssessment(item, esc))
+    .join("");
+  const needsChecking = assessments
+    .filter((item) => item.status === "unknown")
+    .map(
+      (item) =>
+        `<li><strong>${esc(item.title)}</strong><span>${esc(item.summary)}</span></li>`,
+    )
     .join("");
   const keyFindings = report.keyFindings
     .map(
@@ -69,9 +62,17 @@ export function renderCanonicalPreliminaryReportHtml(
         `<li><strong>${esc(finding.title)}</strong><br>${esc(finding.clientSummary)}</li>`,
     )
     .join("");
-  const laterVerification = report.laterVerification
-    .map((item) => `<li>${esc(item)}</li>`)
-    .join("");
+  const clearances = reportPoolShellClearances(report);
+  const { entries: mapLegendEntries } = reportMapLegend(report);
+  const clearanceCaption =
+    clearances.length === 4
+      ? `<section class="map-clearances"><h3>Pool-shell clearances</h3><ul>${clearances.map((clearance, index) => `<li>Side ${index + 1}: ${esc(clearance.label)}</li>`).join("")}</ul><p>${esc(POOL_SHELL_CLEARANCE_LIMITATION)}</p></section>`
+      : "";
+  const mapLegend = `<aside class="map-legend" aria-label="Captured map layers">
+    <div class="map-legend-heading"><h3>Captured map layers</h3><p class="map-legend-intro">The saved image shows these mapped layers and clearances.</p></div>
+    ${clearanceCaption}
+    <ul class="map-legend-list">${mapLegendEntries.map((entry) => renderMapLegendEntry(entry, esc)).join("")}</ul>
+  </aside>`;
   const nextSteps = report.nextSteps
     .slice(0, 6)
     .map(
@@ -79,20 +80,40 @@ export function renderCanonicalPreliminaryReportHtml(
         <li><span>${index + 1}</span><div><strong>${esc(step.title)}</strong><p>${esc(step.summary)}</p></div></li>`,
     )
     .join("");
-  const providers = unique(
-    report.sources.map((source) => source.provider).filter(Boolean),
-  );
-  const sourceAttributions = unique(
-    report.sources
-      .map((source) => source.attribution)
-      .filter((value): value is string => Boolean(value)),
-  );
+  const prioritisedActions = report.actions.length
+    ? report.actions
+        .flatMap((action) =>
+          action.items.map(
+            (item) =>
+              `<li><strong>${esc(formatReportValue(action.phase))}</strong><span>${esc(item)}</span></li>`,
+          ),
+        )
+        .join("")
+    : nextSteps;
+  const missingInformation = [
+    ...new Set([
+      ...report.missingInformation.map((item) => item.label),
+      ...report.laterVerification,
+    ]),
+  ]
+    .map((item) => `<li>${esc(item)}</li>`)
+    .join("");
+  const assumptionsAndLimitations = [
+    ...report.assumptions,
+    ...report.limitations,
+  ]
+    .map((item) => `<li>${esc(item)}</li>`)
+    .join("");
+  const mappingSources = reportMappingSources(report);
+  const providers = unique(mappingSources.map((source) => source.provider));
+  const visibleProviders = providers.slice(0, 4);
+  const omittedProviderCount = providers.length - visibleProviders.length;
   const sourceSummary = providers.length
-    ? providers.map(esc).join(" - ")
-    : "No mapping source summary was recorded";
-  const detailedAttribution = sourceAttributions.length
-    ? sourceAttributions.map((item) => `<li>${esc(item)}</li>`).join("")
-    : `<li>Detailed attribution was not available in the saved report.</li>`;
+    ? `Sources include ${visibleProviders.map(esc).join(" - ")}${omittedProviderCount > 0 ? ` and ${omittedProviderCount} more providers` : ""}.`
+    : "No mapping source summary was recorded.";
+  const detailedAttribution = mappingSources.length
+    ? mappingSources.map((source) => renderMappingSource(source, esc)).join("")
+    : `<li>Detailed mapping information was not available in the saved report.</li>`;
   const dataAccessed = latestSourceDate(report) ?? generatedDate;
 
   return `<!doctype html>
@@ -109,9 +130,11 @@ export function renderCanonicalPreliminaryReportHtml(
     .page+.page{break-before:page;page-break-before:always}
     .page:last-child{page-break-after:auto}
     .report-header{min-height:19mm;padding-bottom:3mm;border-bottom:.25mm solid var(--report-border);display:flex;gap:8mm;align-items:flex-start;justify-content:space-between;color:var(--report-muted);font-size:8pt}
-    .report-brand-logo{display:block;width:25mm;height:auto;max-height:14mm;object-fit:contain;flex-shrink:0}
+    .report-brand{display:flex;flex-direction:column;gap:.8mm;flex-shrink:0;color:var(--report-ink)}
+    .report-brand strong{font-size:18pt;line-height:1;font-weight:800;letter-spacing:-.035em}
+    .report-brand span{color:var(--report-muted);font-size:6.4pt;font-weight:600}
     .report-heading{text-align:right;min-width:0;overflow-wrap:anywhere}
-    .report-header strong{display:block;color:var(--report-muted);font-size:8pt;font-weight:400;line-height:1.45}
+    .report-heading>strong{display:block;color:var(--report-muted);font-size:8pt;font-weight:400;line-height:1.45}
     .report-header h3{margin-top:1.2mm;color:var(--report-ink);font-size:11pt}
     .page-meta{margin-top:1mm;text-align:right;font-variant-numeric:tabular-nums;line-height:1.45}
     .continuation-header{display:flex;align-items:center;justify-content:space-between;gap:8mm;padding-bottom:3mm;margin-bottom:4mm;border-bottom:.25mm solid var(--report-border);color:var(--report-muted);font-size:8pt;line-height:1.45}
@@ -127,13 +150,18 @@ export function renderCanonicalPreliminaryReportHtml(
     p,li{font-size:7.7pt;line-height:1.38}
     .property-line{margin-top:4.5mm}
     .property-line p{margin-top:1.5mm;color:var(--report-muted);font-size:8.4pt}
-    .overall{margin-top:4mm;padding:4mm 4.5mm;border-radius:var(--radius);border:.35mm solid var(--state-border);background:var(--state-soft)}
+    .overall{margin-top:4mm;padding:2.6mm 0;border-top:.25mm solid var(--report-border);border-bottom:.25mm solid var(--report-border)}
     .overall.green,.status-text.green,.status-pill.green,.finding-dot.green{--state-border:oklch(89.3% 0.061 235);--state-soft:oklch(97.8% 0.014 235);--state-ink:oklch(40.1% 0.108 235)}
     .overall.amber,.status-text.amber,.status-pill.amber,.finding-dot.amber{--state-border:#fde68a;--state-soft:#fffbeb;--state-ink:#92400e}
     .overall.red,.status-text.red,.status-pill.red,.finding-dot.red{--state-border:#fecaca;--state-soft:#fef2f2;--state-ink:#991b1b}
     .overall.unknown,.status-text.unknown,.status-pill.unknown,.finding-dot.unknown{--state-border:var(--report-border);--state-soft:var(--report-soft);--state-ink:var(--report-muted)}
     .overall .status-label{font-size:7.7pt;font-weight:700;color:var(--state-ink)}
-    .overall p{margin-top:1.7mm;max-width:155mm;font-size:8.7pt;line-height:1.4}
+    .overall p{margin-top:1.2mm;width:100%;font-size:8.7pt;line-height:1.35}
+    .scope-note{margin-top:2.4mm;color:var(--report-muted);font-size:6.8pt;line-height:1.35}
+    .summary-map{height:145mm;margin:3mm 0 0;border:.25mm solid var(--report-border);border-radius:var(--radius);overflow:hidden;background:#edf2f4}
+    .summary-map .map-layout{height:137mm}
+    .summary-map .map-visual{height:106mm}
+    .summary-map .map{height:100%}
     .section-heading{margin:4mm 0 2mm;display:flex;align-items:baseline;justify-content:space-between}
     .section-heading span{font-size:7pt;color:var(--report-muted)}
     .glance-grid{display:grid;grid-template-columns:1fr 1fr;border:.25mm solid var(--report-border);border-radius:var(--radius);overflow:hidden}
@@ -142,50 +170,69 @@ export function renderCanonicalPreliminaryReportHtml(
     .glance-row:nth-last-child(-n+2){border-bottom:0}
     .glance-row>span{font-size:7.5pt;font-weight:700}
     .status-text{font-size:6.8pt;color:var(--state-ink);text-align:right}
-    .map-panel{height:104mm;margin:3.2mm 0 0;border:.25mm solid var(--report-border);border-radius:var(--radius);overflow:hidden;background:#edf2f4}
-    .map-layout{display:grid;grid-template-columns:minmax(0,1fr) 45mm;height:95mm;align-items:stretch;background:#dce5e9}
-    .map-visual{display:flex;min-width:0;height:95mm;min-height:0;background:#dce5e9}
+    .map-layout{display:block;height:137mm;background:#dce5e9}
+    .map-visual{display:flex;min-width:0;height:106mm;min-height:0;background:#dce5e9}
     .map{display:block;width:100%;height:100%;min-height:0;flex:1 1 auto;object-fit:cover;background:#dce5e9}
     .map-caption{padding:1.8mm 2.8mm;background:var(--report-soft);border-top:.25mm solid var(--report-border);color:var(--report-muted);font-size:6.2pt;line-height:1.35}
-    .map-legend{padding:2.5mm;background:#fff;border-left:.25mm solid var(--report-border);color:var(--report-ink);overflow:hidden}
+    .map-legend{height:31mm;padding:2mm 2.8mm;background:#fff;border-top:.25mm solid var(--report-border);color:var(--report-ink);overflow:hidden;display:grid;grid-template-columns:38mm 48mm minmax(0,1fr);gap:3mm}
     .map-legend h3,.map-clearances h3{font-size:7.2pt;line-height:1.2}
     .map-legend-intro{margin-top:.8mm;color:var(--report-muted);font-size:5.4pt;line-height:1.3}
-    .map-legend-list{margin:1.4mm 0 0;padding:0;list-style:none}
-    .map-legend-item{display:flex;gap:1.2mm;padding:.9mm 0;border-top:.2mm solid var(--report-border)}
-    .map-legend-item:first-child{border-top:0;padding-top:0}
+    .map-legend-list{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:2.5mm;align-content:start}
+    .map-legend-item{display:flex;gap:1.2mm;padding:.7mm 0;border-top:.2mm solid var(--report-border);min-width:0}
+    .map-legend-item:nth-child(-n+3){border-top:0;padding-top:0}
     .map-legend-swatch{width:5mm;flex:0 0 5mm;margin-top:1.2mm;border-top:.6mm solid var(--report-ink)}
     .map-legend-swatch.area{height:2.6mm;margin-top:.65mm;border:.4mm solid var(--report-ink);background:#fff}
     .map-legend-copy{min-width:0;font-size:5.5pt;line-height:1.2}
     .map-legend-copy strong{display:block;font-size:6pt}
     .map-legend-copy span{display:block;margin-top:.2mm;color:var(--report-muted)}
-    .map-clearances{margin-top:1.5mm;padding-top:1.5mm;border-top:.25mm solid var(--report-border);color:var(--report-muted)}
+    .map-clearances{margin:0;padding:0;color:var(--report-muted)}
     .map-clearances ul{display:grid;grid-template-columns:1fr 1fr;gap:.6mm 1mm;margin:1mm 0 0;padding:0;list-style:none;font-size:5.5pt;font-weight:700;line-height:1.2}
     .map-clearances p{margin-top:.8mm;color:var(--report-muted);font-size:5pt;line-height:1.25}
     .assessment-intro{margin-top:4.5mm;max-width:150mm;color:var(--report-muted)}
-    .assessment-grid{margin-top:3mm;display:grid;grid-template-columns:1fr 1fr;gap:2mm}
-    .assessment-card{break-inside:avoid;min-height:29mm;padding:2.5mm;border:.25mm solid var(--report-border);border-radius:var(--radius)}
+    .compact-section{margin-top:2.5mm;padding-top:1.8mm;border-top:.3mm solid var(--report-ink)}
+    .compact-section:first-child{margin-top:0}
+    .compact-section h2{font-size:8.5pt}
+    .compact-list{margin:1.2mm 0 0;padding-left:3.5mm}
+    .compact-list li{margin-bottom:.6mm;font-size:5.7pt;line-height:1.2}
+    .compact-list strong,.compact-list span{display:block}
+    .compact-list span{color:var(--report-muted)}
+    .assessment-grid{margin-top:3mm;display:grid;grid-template-columns:1fr 1fr;gap:2mm;align-items:start}
+    .assessment-card{break-inside:avoid;padding:2.2mm 2.5mm;border:.25mm solid var(--report-border);border-radius:var(--radius)}
     .assessment-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:3mm}
     .assessment-card h2,.later h2,.plain-section h2,.disclaimer h2{font-size:11pt;line-height:1.25}
-    .status-pill{max-width:43mm;padding:1mm 1.6mm;border-radius:var(--radius);background:var(--state-soft);color:var(--state-ink);font-size:6.2pt;font-weight:700;text-align:center}
+    .status-pill{max-width:43mm;color:var(--state-ink);font-size:6.2pt;font-weight:700;text-align:right}
     .assessment-card>p{margin-top:1.5mm;color:var(--report-muted)}
     .detail-list{margin:1.5mm 0 0;padding:0;list-style:none}
     .detail-list li{display:flex;justify-content:space-between;gap:3mm;padding-top:1mm;border-top:.2mm solid var(--report-border);font-size:6.8pt}
     .detail-list strong{text-align:right}
+    .needs-checking{margin-top:2.5mm;padding:2.5mm 3mm;background:var(--report-soft);border-radius:var(--radius)}
+    .needs-checking h2{font-size:10pt}
+    .needs-checking ul{margin:1.5mm 0 0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:1mm 5mm}
+    .needs-checking li{display:flex;gap:1.5mm;font-size:6.5pt;line-height:1.3}
+    .needs-checking li strong{flex:0 0 auto}
+    .needs-checking li span{color:var(--report-muted)}
     .later{margin-top:2mm;padding:2.5mm 3mm;background:var(--report-soft);border-radius:var(--radius)}
     .later ul{columns:2;column-gap:8mm;margin:1.5mm 0 0;padding-left:4mm}
     .later li{break-inside:avoid;margin-bottom:.7mm;font-size:6.8pt}
-    .next-stage{margin-top:4.5mm;padding:3.5mm 4mm;background:var(--report-ink);color:#fff;border-radius:var(--radius);display:flex;align-items:center;justify-content:space-between;gap:8mm}
-    .next-stage span{font-size:7pt;color:#cbd6db}
-    .next-stage strong{font-size:11pt}
-    .steps{margin:3mm 0 0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:2.4mm 4mm}
-    .steps li{display:flex;gap:2.5mm;break-inside:avoid}
-    .steps li>span{display:grid;place-items:center;width:6mm;height:6mm;border-radius:50%;background:var(--report-blue-soft);color:var(--report-blue);font-size:7pt;font-weight:700;flex:0 0 auto}
-    .steps p{margin-top:.7mm;color:var(--report-muted);font-size:7pt}
-    .page-three-grid{margin-top:4mm;display:grid;grid-template-columns:1fr 1fr;gap:5mm}
+    .next-stage{margin-top:2mm;font-size:8pt}
+    .next-stage strong{color:var(--report-ink)}
+    .page-three-grid{margin-top:2.5mm;display:grid;grid-template-columns:68mm minmax(0,1fr);gap:5mm}
     .plain-section{border-top:.4mm solid var(--report-ink);padding-top:2.5mm}
     .plain-section ul{margin:2mm 0 0;padding-left:4mm}
     .plain-section li{margin-bottom:1mm;font-size:7pt}
     .mapping-summary{margin-top:2mm;color:var(--report-muted)}
+    .source-list{margin:1.5mm 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1mm 3mm;align-content:start}
+    .source-item{min-width:0;padding-top:1mm;border-top:.2mm solid var(--report-border);break-inside:avoid;overflow-wrap:anywhere}
+    .source-item:nth-child(-n+2){padding-top:0;border-top:0}
+    .source-item strong{display:block;font-size:6.2pt}
+    .source-item span,.source-item p,.source-item a{display:block;margin-top:.25mm;color:var(--report-muted);font-size:5.3pt;line-height:1.2}
+    .source-item a{color:var(--report-blue)}
+    .source-provenance{margin-top:.25mm;color:var(--report-muted);font-size:4.8pt;line-height:1.15}
+    .source-provenance a,.source-provenance span{display:inline;margin:0;font-size:inherit;line-height:inherit}
+    .source-provenance span::before{content:" · "}
+    .source-overflow{padding:1.5mm 2mm;background:var(--report-soft);list-style:none}
+    .source-overflow strong,.source-overflow span{display:block;font-size:6.2pt;line-height:1.3}
+    .source-overflow span{margin-top:.4mm;color:var(--report-muted)}
     .disclaimer{margin-top:4mm;padding:3.5mm;background:var(--report-soft);border-radius:var(--radius);color:var(--report-muted)}
     .disclaimer p{margin-top:1.5mm;font-size:7pt}
   </style>
@@ -199,13 +246,15 @@ export function renderCanonicalPreliminaryReportHtml(
     <section class="overall ${esc(report.overall.status)}" aria-label="Overall assessment">
       <div class="status-label">${esc(assessmentStatusLabel(report.overall.status))}</div>
       <p>${esc(report.overall.summary)}</p>
+      <p><strong>Main recommendation:</strong> ${esc(report.mainRecommendation)}</p>
+      <p><strong>Recommended next stage:</strong> ${esc(report.overall.recommendedStage)}</p>
     </section>
-    <p class="assessment-intro"><strong>Preliminary feasibility only.</strong> ${esc(PRELIMINARY_FEASIBILITY_REPORT_SCOPE)}</p>
+    <p class="scope-note"><strong>Preliminary assessment only.</strong> Confirm property boundaries, services, site levels and approval requirements before design or construction.</p>
     <div class="section-heading"><h2 class="primary-section-title">At a glance</h2><span>Status is shown by colour and description</span></div>
     <div class="glance-grid">${glance}</div>
-    <figure class="map-panel">
+    <figure class="summary-map">
       <div class="map-layout">
-        <div class="map-visual"><img class="map" src="${report.mapImageDataUrl}" alt="Aerial map showing the mapped property and proposed pool"></div>
+        <div class="map-visual"><img class="map" src="${report.mapImageDataUrl}" alt="Aerial overview showing the mapped property and proposed pool"></div>
         ${mapLegend}
       </div>
       <figcaption class="map-caption">Saved aerial map and layer selection used when this report was generated.</figcaption>
@@ -217,31 +266,28 @@ export function renderCanonicalPreliminaryReportHtml(
     ${continuationHeader()}
     <h2 class="page-section-title">What we checked</h2>
     <p class="assessment-intro">These findings use the mapped information saved with this report. Distances and boundaries are indicative, not surveyed.</p>
-    <div class="assessment-grid">${assessmentCards}</div>
+    ${assessmentCards ? `<div class="assessment-grid">${assessmentCards}</div>` : ""}
+    ${needsChecking ? `<section class="needs-checking"><h2>Still needs checking</h2><ul>${needsChecking}</ul></section>` : ""}
     ${keyFindings ? `<section class="later"><h2>Key findings</h2><ul>${keyFindings}</ul></section>` : ""}
-    <section class="later">
-      <h2>Requires later verification</h2>
-      <ul>${laterVerification}</ul>
-    </section>
     ${footer(2)}
   </section>
 
   <section class="page">
     ${continuationHeader()}
     <h2 class="page-section-title">What happens next</h2>
-    <section class="next-stage"><span>Recommended next stage</span><strong>${esc(report.overall.recommendedStage)}</strong></section>
-    <ol class="steps">${nextSteps}</ol>
+    <p class="next-stage"><strong>Recommended next stage:</strong> ${esc(report.overall.recommendedStage)}</p>
     <div class="page-three-grid">
+      <div>
+        <section class="compact-section"><h2>Prioritised actions</h2><ol class="compact-list">${prioritisedActions}</ol></section>
+        <section class="compact-section"><h2>Missing information</h2><ul class="compact-list">${missingInformation}</ul></section>
+        <section class="compact-section"><h2>Assumptions and limitations</h2><ul class="compact-list">${assumptionsAndLimitations}</ul></section>
+      </div>
       <section class="plain-section">
-        <h2>Not verified by this report</h2>
-        <ul>${laterVerification}</ul>
-      </section>
-      <section class="plain-section">
-        <h2>Mapping information</h2>
-        <p class="mapping-summary">Sources include ${sourceSummary}.</p>
+        <h2>Mapping information &amp; licences</h2>
+        <p class="mapping-summary">${sourceSummary}</p>
         <p class="mapping-summary">Data accessed: <strong>${esc(dataAccessed)}</strong></p>
-        <ul>${detailedAttribution}</ul>
-        <p class="mapping-summary">Selected datasets are used under their applicable licences. Mapped information is indicative.</p>
+        <ul class="source-list">${detailedAttribution}</ul>
+        <p class="mapping-summary">Mapped information is indicative and may differ from current site conditions.</p>
       </section>
     </div>
     <section class="disclaimer">
@@ -282,13 +328,91 @@ function renderAssessment(
     .join("");
   return `<article class="assessment-card">
     <header><h2>${esc(item.title)}</h2><span class="status-pill ${esc(item.status)}">${esc(reportShortStatus(item.status))}</span></header>
-    <p>${esc(item.summary)}</p>
+    <p><strong>${esc(item.headline)}</strong> ${esc(item.summary)}</p>
     ${details ? `<ul class="detail-list">${details}</ul>` : ""}
   </article>`;
 }
 
+function reportMappingSources(
+  report: SavedPreliminaryReport,
+): ReportDataSource[] {
+  const sources = [...report.sources];
+  if (
+    report.terrain?.status === "measured" &&
+    report.terrain.reportEligibility === "approved"
+  ) {
+    const source = report.terrain.source;
+    const terrainSource: ReportDataSource = {
+      provider: source.provider,
+      dataset: source.dataset,
+      datasetDate: source.datasetDate,
+      sourceUrl: source.datasetIdentifier,
+      licenceUrl: source.licenceUrl,
+      licence: source.licence,
+      attribution: source.attribution?.text ?? null,
+      notes: [source.derivedProductNotice],
+      provenanceAssets: source.contributingAssets.map((asset) => ({
+        dataset: asset.dataset,
+        datasetDate: asset.datasetDate,
+        stacItemUrl: asset.stacItemUrl,
+        assetChecksum: asset.assetChecksum,
+        assetUpdatedAt: asset.assetUpdatedAt,
+        retrievedAt: asset.retrievedAt,
+      })),
+      retrievedAt: source.retrievedAt,
+      queryStatus: "success",
+      status: "derived_indicative_slope",
+      evidenceUse: "saved_terrain_result",
+    };
+    const existingIndex = sources.findIndex(
+      (item) =>
+        item.provider === source.provider && item.dataset === source.dataset,
+    );
+    if (existingIndex >= 0) {
+      sources[existingIndex] = { ...sources[existingIndex], ...terrainSource };
+    } else {
+      sources.unshift(terrainSource);
+    }
+  }
+  return sources;
+}
+
+function renderMappingSource(
+  source: ReportDataSource,
+  esc: (value: unknown) => string,
+): string {
+  const retrieved = source.retrievedAt
+    ? `<span>Accessed ${esc(formatDate(source.retrievedAt))}</span>`
+    : "";
+  const attribution = source.attribution
+    ? `<p>${esc(source.attribution)}</p>`
+    : "";
+  const notes = (source.notes ?? [])
+    .map((note) => `<p>${esc(note)}</p>`)
+    .join("");
+  const capturePeriod = source.datasetDate
+    ? `<span>Capture period ${esc(source.datasetDate.replace("/", " to "))}</span>`
+    : "";
+  const provenance = (source.provenanceAssets ?? [])
+    .map((asset, index) => {
+      const dataset = asset.dataset ? `${esc(asset.dataset)} · ` : "";
+      const capturePeriod = asset.datasetDate
+        ? `Capture period ${esc(asset.datasetDate.replace("/", " to "))} · `
+        : "";
+      return `<div class="source-provenance">${dataset}${capturePeriod}<a href="${esc(asset.stacItemUrl)}">STAC source ${index + 1}</a><span>Checksum ${esc(asset.assetChecksum)} · Updated ${esc(formatDate(asset.assetUpdatedAt))} · retrieved ${esc(formatDate(asset.retrievedAt))}</span></div>`;
+    })
+    .join("");
+  const sourceLink = source.sourceUrl
+    ? `<a href="${esc(source.sourceUrl)}">Dataset details</a>`
+    : "";
+  const licenceLink = source.licenceUrl
+    ? `<a href="${esc(source.licenceUrl)}">Licence details</a>`
+    : "";
+  return `<li class="source-item"><strong>${esc(source.dataset)}</strong><span>${esc(source.provider)} · ${esc(source.licence)}</span>${capturePeriod}${retrieved}${attribution}${notes}${provenance}${sourceLink}${licenceLink}</li>`;
+}
+
 function latestSourceDate(report: SavedPreliminaryReport): string | null {
-  const timestamps = report.sources
+  const timestamps = reportMappingSources(report)
     .map((source) => source.retrievedAt)
     .filter((value): value is string => Boolean(value))
     .map((value) => new Date(value).getTime())
@@ -308,6 +432,12 @@ function formatDate(value: string): string {
 
 function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
+}
+
+function formatReportValue(value: string): string {
+  return value
+    .replaceAll("_", " ")
+    .replace(/^./, (letter) => letter.toUpperCase());
 }
 
 export const canonicalReportConsistencyFields = (

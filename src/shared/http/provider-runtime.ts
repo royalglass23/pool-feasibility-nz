@@ -37,8 +37,7 @@ export async function fetchProviderBody(input: {
   retryCount?: number;
   signal?: AbortSignal;
 }): Promise<{ response: Response; bytes: Uint8Array | null }> {
-  const gate = providerGate(input.provider);
-  return gate.run(async () => {
+  return runWithProviderConcurrency(input.provider, async () => {
     const retryCount = input.retryCount ?? providerRetryCount();
     let lastError: ProviderFetchError | undefined;
 
@@ -94,7 +93,14 @@ export async function fetchProviderBody(input: {
   });
 }
 
-async function readResponseBytesWithinLimit(
+export function runWithProviderConcurrency<T>(
+  provider: ProviderKey,
+  task: () => Promise<T>,
+): Promise<T> {
+  return providerGate(provider).run(task);
+}
+
+export async function readResponseBytesWithinLimit(
   response: Response,
   maxBytes: number,
 ): Promise<Uint8Array> {

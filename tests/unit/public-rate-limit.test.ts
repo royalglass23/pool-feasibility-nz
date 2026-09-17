@@ -162,6 +162,7 @@ describe("public provider and PDF rate-limit budgets", () => {
     ["aerial conflict checks", "aerial_conflict", 6, 15 * 60 * 1_000],
     ["aerial tiles", "aerial_tile", 300, 15 * 60 * 1_000],
     ["direct PDF generation", "report_pdf", 3, 60 * 60 * 1_000],
+    ["delivery status checks", "report_delivery_status", 12, 15 * 60 * 1_000],
   ] satisfies ReadonlyArray<
     readonly [string, PublicRateLimitAction, number, number]
   >)(
@@ -208,8 +209,8 @@ describe("public provider and PDF rate-limit budgets", () => {
   });
 });
 
-describe("public Property Check stage allowance", () => {
-  it("allows two provider stages per signed session and denies a replay", async () => {
+describe("public Property Check stage allowances", () => {
+  it("keeps the automatic, first constraint, and transient constraint retry budgets independent", async () => {
     const limiter = createLocalPublicRateLimiter();
     const options = { limiter, log: vi.fn() };
     const input = {
@@ -219,14 +220,38 @@ describe("public Property Check stage allowance", () => {
     };
 
     await expect(
-      enforcePublicPropertyStageRateLimit(input, options),
+      enforcePublicPropertyStageRateLimit(
+        { ...input, stage: "automatic" },
+        options,
+      ),
+    ).resolves.toBeNull();
+    const automaticReplay = await enforcePublicPropertyStageRateLimit(
+      { ...input, stage: "automatic" },
+      options,
+    );
+    expect(automaticReplay?.status).toBe(429);
+    expect(automaticReplay?.headers.get("Cache-Control")).toBe("no-store");
+    expect(automaticReplay?.headers.get("Retry-After")).toMatch(/^\d+$/);
+    await expect(
+      enforcePublicPropertyStageRateLimit(
+        { ...input, stage: "constraints_initial" },
+        options,
+      ),
     ).resolves.toBeNull();
     await expect(
-      enforcePublicPropertyStageRateLimit(input, options),
+      enforcePublicPropertyStageRateLimit(
+        { ...input, stage: "constraints_retry" },
+        options,
+      ),
     ).resolves.toBeNull();
 
-    const denied = await enforcePublicPropertyStageRateLimit(input, options);
+    const denied = await enforcePublicPropertyStageRateLimit(
+      { ...input, stage: "constraints_retry" },
+      options,
+    );
     expect(denied?.status).toBe(429);
+    expect(denied?.headers.get("Cache-Control")).toBe("no-store");
+    expect(denied?.headers.get("Retry-After")).toMatch(/^\d+$/);
     await expect(denied?.json()).resolves.toMatchObject({
       error: {
         code: "RATE_LIMITED",
@@ -236,7 +261,11 @@ describe("public Property Check stage allowance", () => {
 
     await expect(
       enforcePublicPropertyStageRateLimit(
-        { ...input, submissionId: "another-signed-session" },
+        {
+          ...input,
+          submissionId: "another-signed-session",
+          stage: "constraints_retry",
+        },
         options,
       ),
     ).resolves.toBeNull();
@@ -256,7 +285,7 @@ describe("public rate-limit deployment configuration", () => {
     expect(response.status).toBe(503);
     expect(await response.json()).toMatchObject({
       error: {
-        code: "TEMPORARILY_UNAVAILABLE",
+        code: "RATE_LIMIT_UNAVAILABLE",
         message: "Please try again shortly.",
       },
     });

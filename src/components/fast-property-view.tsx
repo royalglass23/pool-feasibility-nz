@@ -36,8 +36,17 @@ import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-vi
 import { SELECTED_POOL_MAP_STYLE } from "@/modules/reporting/report-map-style";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
+import { aerialTileRateLimitMessage } from "@/components/map/aerial-tile-error";
 import { FieldValidationMessage } from "@/components/field-validation-message";
+import {
+  readClientApiErrorFromBlobError,
+  type ClientApiError,
+} from "@/shared/http/client-api-error";
 import { bearing, point } from "@turf/turf";
+import {
+  assessSelectedPoolTerrain,
+  type SelectedPoolTerrain,
+} from "@/modules/terrain/assess-selected-pool-terrain";
 
 type UtilityCategory =
   "stormwater" | "wastewater" | "water" | "electricity" | "gas";
@@ -53,6 +62,15 @@ const contourLayer = {
   key: "contours",
   color: "#475569",
   kind: "line",
+} as const;
+
+const terrainSlopeLayer = {
+  key: "terrain-slope",
+  colours: {
+    lower: "#16a34a",
+    medium: "#f59e0b",
+    higher: "#dc2626",
+  },
 } as const;
 
 const utilityCategories: {
@@ -152,6 +170,7 @@ export function FastPropertyView({
   isLoadingDetailed = false,
   onPlacementChange,
   onSnapshotReady,
+  isDetailedRateLimited = false,
 }: {
   result: FastPropertyViewResult;
   onLoadDetailed?: () => void;
@@ -160,6 +179,7 @@ export function FastPropertyView({
   isLoadingDetailed?: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
   onSnapshotReady?: (snapshot: FastPropertyViewMapSnapshot | null) => void;
+  isDetailedRateLimited?: boolean;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const rotationControlVisibleRef = useRef(false);
@@ -182,6 +202,7 @@ export function FastPropertyView({
   );
   const snapshotHandlerRef = useRef(onSnapshotReady);
   const [mapError, setMapError] = useState<"aerial" | "map" | null>(null);
+  const [mapApiError, setMapApiError] = useState<ClientApiError | null>(null);
   const [selectedPoolId, setSelectedPoolId] = useState<FastPoolId>("compact");
   const [customLength, setCustomLength] = useState("6.5");
   const [customWidth, setCustomWidth] = useState("3");
@@ -190,7 +211,9 @@ export function FastPropertyView({
     allUtilityCategoriesVisible,
   );
   const [contoursVisible, setContoursVisible] = useState(true);
+  const [terrainSlopeVisible, setTerrainSlopeVisible] = useState(true);
   const [clearancesVisible, setClearancesVisible] = useState(true);
+  const [mapLayersOpen, setMapLayersOpen] = useState(false);
   const [initialPlacement] = useState(() => defaultPlacement(result));
   const [position, setPosition] = useState<[number, number]>(
     initialPlacement.position,
@@ -230,6 +253,31 @@ export function FastPropertyView({
         : null,
     [dimensions, position, rotationDegrees],
   );
+  const terrainSlopeGeometry = useMemo(() => {
+    const terrain = result.detailedChecks?.terrain;
+    const samples =
+      terrain?.status === "measured" ? (terrain.slopeSamples ?? []) : [];
+    const slopeValues = samples.map(({ slopeDegrees }) => slopeDegrees);
+    const minimumSlope = Math.min(...slopeValues);
+    const slopeRange = Math.max(...slopeValues) - minimumSlope;
+    return {
+      type: "FeatureCollection" as const,
+      features: samples.map((sample) => ({
+        type: "Feature" as const,
+        properties: {
+          slopeDegrees: sample.slopeDegrees,
+          relativeSlope:
+            slopeRange > 0
+              ? (sample.slopeDegrees - minimumSlope) / slopeRange
+              : 0.5,
+        },
+        geometry: {
+          type: "Point" as const,
+          coordinates: sample.position,
+        },
+      })),
+    };
+  }, [result.detailedChecks?.terrain]);
   const constructionEnvelopeGeometry = useMemo(
     () =>
       constructionEnvelopeDimensions
@@ -242,6 +290,20 @@ export function FastPropertyView({
         : null,
     [constructionEnvelopeDimensions, position, rotationDegrees],
   );
+  const selectedPoolTerrain = useMemo(() => {
+    const terrain = result.detailedChecks?.terrain;
+    if (
+      terrain?.status !== "measured" ||
+      !constructionEnvelopeGeometry ||
+      !terrain.slopeSamples?.length
+    ) {
+      return null;
+    }
+    return assessSelectedPoolTerrain({
+      samples: terrain.slopeSamples,
+      footprint: constructionEnvelopeGeometry.geometry,
+    });
+  }, [constructionEnvelopeGeometry, result.detailedChecks?.terrain]);
   const constructionEnvelopeWithinMappedArea = useMemo(() => {
     if (isInitialAddressLoad) return false;
     if (!constructionEnvelopeDimensions) return false;
@@ -286,9 +348,24 @@ export function FastPropertyView({
       result.detailedChecks,
     ],
   );
+  const detailedLayers = result.detailedChecks?.layers;
+  const detailedConstraintStatus = result.detailedChecks
+    ? (result.detailedChecks.constraints?.status ??
+      ((result.detailedChecks.layers ?? []).some(
+        (layer) =>
+          layer.state === "timeout" || layer.state === "provider_error",
+      )
+        ? "retryable"
+        : "complete"))
+    : null;
+  const detailedActionDisabled =
+    isInitialAddressLoad ||
+    isLoadingDetailed ||
+    isDetailedRateLimited ||
+    detailedConstraintStatus === "complete";
   const mappedUtilityLayers = useMemo(
     () =>
-      (result.detailedChecks?.layers ?? []).flatMap((layer) => {
+      (detailedLayers ?? []).flatMap((layer) => {
         const definition = utilityLayerDefinitions.find(
           (candidate) => candidate.key === layer.key,
         );
@@ -296,23 +373,22 @@ export function FastPropertyView({
           ? [{ definition, layer }]
           : [];
       }),
-    [result.detailedChecks],
+    [detailedLayers],
   );
   const mappedContours = useMemo(
     () =>
-      (result.detailedChecks?.layers ?? []).find(
+      (detailedLayers ?? []).find(
         (layer) =>
           layer.key === contourLayer.key &&
           Boolean(layer.geometry?.features.length),
       ) ?? null,
-    [result.detailedChecks],
+    [detailedLayers],
   );
   const contourResult = useMemo(
     () =>
-      (result.detailedChecks?.layers ?? []).find(
-        (layer) => layer.key === contourLayer.key,
-      ) ?? null,
-    [result.detailedChecks],
+      (detailedLayers ?? []).find((layer) => layer.key === contourLayer.key) ??
+      null,
+    [detailedLayers],
   );
   const visibleMapLayerKeys = useMemo(
     () => [
@@ -324,6 +400,20 @@ export function FastPropertyView({
     [contoursVisible, mappedContours, mappedUtilityLayers, utilityVisibility],
   );
   const visibleMapLayerKeysRef = useRef<DatasetKey[]>(visibleMapLayerKeys);
+  const visibleMapLayerCount =
+    (clearancesVisible && poolShellClearances.length === 4 ? 1 : 0) +
+    (terrainSlopeVisible && terrainSlopeGeometry.features.length > 0 ? 1 : 0) +
+    (contoursVisible && mappedContours ? 1 : 0) +
+    utilityCategories.filter(
+      (category) =>
+        utilityVisibility[category.id] &&
+        mappedUtilityLayers.some(
+          ({ definition }) => definition.category === category.id,
+        ),
+    ).length;
+  const mapBoundaryGeometry = result.boundary.geometry;
+  const mapCoordinates = result.resolvedAddress.coordinates;
+  const mapAerialState = result.aerial.state;
 
   useEffect(() => {
     visibleMapLayerKeysRef.current = visibleMapLayerKeys;
@@ -384,9 +474,6 @@ export function FastPropertyView({
         result.boundary.geometry,
       )
     ) {
-      setPlacementMessage(
-        "The construction envelope must remain inside the mapped property area.",
-      );
       return;
     }
     setPlacementMessage(null);
@@ -406,9 +493,6 @@ export function FastPropertyView({
         result.boundary.geometry,
       )
     ) {
-      setPlacementMessage(
-        "That rotation would move the construction envelope outside the mapped property area.",
-      );
       return;
     }
     setPlacementMessage(null);
@@ -459,8 +543,8 @@ export function FastPropertyView({
       if (disposed || !mapRef.current) return;
       configureMapLibreWorker(maplibregl);
       mapLibreRef.current = maplibregl;
-      const boundary = result.boundary.geometry
-        ? feature(result.boundary.geometry)
+      const boundary = mapBoundaryGeometry
+        ? feature(mapBoundaryGeometry)
         : null;
       const emptyGeometry = {
         type: "FeatureCollection" as const,
@@ -473,7 +557,7 @@ export function FastPropertyView({
         {
           address: {
             type: "geojson",
-            data: pointFeature(result.resolvedAddress.coordinates),
+            data: pointFeature(mapCoordinates),
           },
           pool: { type: "geojson", data: pool },
           "construction-envelope": {
@@ -504,8 +588,14 @@ export function FastPropertyView({
           data: mappedContours.geometry,
         };
       }
+      if (terrainSlopeGeometry.features.length > 0) {
+        sources[terrainSlopeLayer.key] = {
+          type: "geojson",
+          data: terrainSlopeGeometry,
+        };
+      }
       const layers: import("maplibre-gl").LayerSpecification[] = [];
-      if (result.aerial.state === "ready") {
+      if (mapAerialState === "ready") {
         sources.aerial = {
           type: "raster",
           tiles: ["/api/public/aerial/tiles/{z}/{x}/{y}"],
@@ -516,20 +606,56 @@ export function FastPropertyView({
         layers.push({ id: "aerial", type: "raster", source: "aerial" });
       }
       if (boundary) {
-        layers.push(
-          {
-            id: "boundary-fill",
-            type: "fill",
-            source: "boundary",
-            paint: { "fill-color": "#14b8a6", "fill-opacity": 0.16 },
+        layers.push({
+          id: "boundary-fill",
+          type: "fill",
+          source: "boundary",
+          paint: { "fill-color": "#14b8a6", "fill-opacity": 0.1 },
+        });
+      }
+      if (terrainSlopeGeometry.features.length > 0) {
+        layers.push({
+          id: terrainSlopeLayer.key,
+          type: "circle",
+          source: terrainSlopeLayer.key,
+          layout: {
+            visibility: terrainSlopeVisible ? "visible" : "none",
           },
-          {
-            id: "boundary-line",
-            type: "line",
-            source: "boundary",
-            paint: { "line-color": "#0f766e", "line-width": 4 },
+          paint: {
+            "circle-color": [
+              "interpolate",
+              ["linear"],
+              ["get", "relativeSlope"],
+              0,
+              terrainSlopeLayer.colours.lower,
+              0.5,
+              terrainSlopeLayer.colours.medium,
+              1,
+              terrainSlopeLayer.colours.higher,
+            ],
+            "circle-radius": [
+              "interpolate",
+              ["linear"],
+              ["zoom"],
+              14,
+              3,
+              18,
+              12,
+              20,
+              22,
+            ],
+            "circle-opacity": 0.1,
+            "circle-blur": 0.72,
           },
-        );
+        });
+      }
+      if (boundary) {
+        layers.push({
+          id: "boundary-line",
+          type: "line",
+          source: "boundary",
+          paint: { "line-color": "#0f766e", "line-width": 4 },
+        });
       }
       if (mappedContours?.geometry) {
         layers.push({
@@ -621,7 +747,7 @@ export function FastPropertyView({
         map = new maplibregl.Map({
           container: mapRef.current,
           style: { version: 8, sources, layers },
-          center: result.resolvedAddress.coordinates,
+          center: mapCoordinates,
           zoom: 15,
           attributionControl: { compact: true },
           canvasContextAttributes: { preserveDrawingBuffer: true },
@@ -638,7 +764,7 @@ export function FastPropertyView({
           element: control,
           anchor: "center",
         })
-          .setLngLat(result.resolvedAddress.coordinates)
+          .setLngLat(mapCoordinates)
           .addTo(map);
         syncRotationControlRef.current = () => {
           const active = placementRef.current;
@@ -670,8 +796,8 @@ export function FastPropertyView({
           clearances: poolShellClearancesRef.current,
           visible: clearancesVisibleRef.current,
         });
-        if (result.boundary.geometry) {
-          map.fitBounds(boundaryBounds(result.boundary.geometry), {
+        if (mapBoundaryGeometry) {
+          map.fitBounds(boundaryBounds(mapBoundaryGeometry), {
             padding: 56,
             duration: 0,
             maxZoom: 20,
@@ -687,11 +813,16 @@ export function FastPropertyView({
             sourceId,
             message,
           });
-          setMapError(
+          const errorKind =
             sourceId === "aerial" || /aerial|tile/i.test(message)
               ? "aerial"
-              : "map",
-          );
+              : "map";
+          setMapError(errorKind);
+          setMapApiError(null);
+          if (errorKind === "aerial")
+            void readClientApiErrorFromBlobError(event.error).then((error) => {
+              if (!disposed) setMapApiError(error);
+            });
         });
         map.on("movestart", () => {
           snapshotHandlerRef.current?.(null);
@@ -832,7 +963,15 @@ export function FastPropertyView({
     // MapLibre is initialized once per resolved property. Placement geometry is
     // updated through GeoJSON source sync so pointer interaction is not rebuilt.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mappedContours, mappedUtilityLayers, result]);
+  }, [
+    isInitialAddressLoad,
+    mapAerialState,
+    mapBoundaryGeometry,
+    mapCoordinates,
+    mappedContours,
+    mappedUtilityLayers,
+    terrainSlopeGeometry,
+  ]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -845,6 +984,13 @@ export function FastPropertyView({
         contoursVisible ? "visible" : "none",
       );
     }
+    if (map.getLayer(terrainSlopeLayer.key)) {
+      map.setLayoutProperty(
+        terrainSlopeLayer.key,
+        "visibility",
+        terrainSlopeVisible ? "visible" : "none",
+      );
+    }
     for (const { definition } of mappedUtilityLayers) {
       const layerId = `utility-${definition.key}`;
       if (map.getLayer(layerId)) {
@@ -855,7 +1001,12 @@ export function FastPropertyView({
         );
       }
     }
-  }, [contoursVisible, mappedUtilityLayers, utilityVisibility]);
+  }, [
+    contoursVisible,
+    mappedUtilityLayers,
+    terrainSlopeVisible,
+    utilityVisibility,
+  ]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -943,11 +1094,84 @@ export function FastPropertyView({
         )}
       </ol>
       <div className="border-pool-200 overflow-hidden rounded-sm border">
-        <div className="grid lg:grid-cols-[minmax(0,1fr)_22rem]">
+        {(!isInitialAddressLoad ||
+          placementMessage ||
+          mapError ||
+          result.aerial.state !== "ready") && (
+          <div
+            aria-label="Property check notices"
+            className="border-pool-200 flex flex-col gap-2 border-b bg-white p-3 sm:p-4"
+          >
+            {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
+            {placementMessage && (
+              <p
+                role="alert"
+                className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 font-semibold text-amber-950 sm:px-4 sm:py-3 sm:text-sm sm:leading-6"
+              >
+                {placementMessage}
+              </p>
+            )}
+            {mapError && (
+              <div
+                role="alert"
+                className="rounded-sm border border-red-200 bg-red-50 px-3 py-2 text-xs leading-5 font-semibold text-red-950 sm:px-4 sm:py-3 sm:text-sm sm:leading-6"
+              >
+                <p>
+                  {mapError === "aerial"
+                    ? (aerialTileRateLimitMessage(mapApiError) ??
+                      "We couldn't load the aerial photo. You can still review the property boundary; try the property check again in a minute.")
+                    : "We couldn't load the interactive map. Try the property check again in a minute."}
+                </p>
+                {detailedConstraintStatus !== "complete" && (
+                  <RetryPropertyCheckButton
+                    disabled={detailedActionDisabled}
+                    onRetry={onRetry}
+                  />
+                )}
+              </div>
+            )}
+            {!mapError && result.aerial.state !== "ready" && (
+              <div className="rounded-sm border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-5 text-amber-950 sm:px-4 sm:py-3 sm:text-sm sm:leading-6">
+                <p>
+                  {result.aerial.state === "loading"
+                    ? "The aerial photo is still loading. You can keep reviewing the address and mapped property area."
+                    : result.aerial.state === "unavailable"
+                      ? "An aerial photo isn't available for this property. You can still review the address and mapped property area."
+                      : "We couldn't load the aerial photo. You can still review the address and mapped property area."}
+                </p>
+                {result.aerial.state === "error" &&
+                  detailedConstraintStatus !== "complete" && (
+                    <RetryPropertyCheckButton
+                      disabled={detailedActionDisabled}
+                      onRetry={onRetry}
+                    />
+                  )}
+              </div>
+            )}
+          </div>
+        )}
+        <div
+          className={
+            isInitialAddressLoad
+              ? "grid"
+              : "grid lg:grid-cols-[minmax(0,1fr)_22rem]"
+          }
+        >
+          <div
+            data-testid="aerial-map-frame"
+            className="relative order-1 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-[600px]"
+          >
+            <div
+              ref={mapRef}
+              className="bg-pool-800 h-full w-full"
+              aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
+            />
+            <PropertySlopeMapOverlay terrain={result.detailedChecks?.terrain} />
+          </div>
           {!isInitialAddressLoad && (
             <div
               aria-label="Pool catalogue and placement controls"
-              className="border-pool-200 order-1 space-y-4 border-b bg-white p-4 lg:col-start-2 lg:row-start-1 lg:border-l"
+              className="border-pool-200 order-2 flex flex-col gap-4 border-t bg-white p-4 lg:col-start-2 lg:row-start-1 lg:border-t-0 lg:border-l"
             >
               <div>
                 <h3 className="text-pool-950 font-semibold">
@@ -1038,102 +1262,256 @@ export function FastPropertyView({
                   increments.
                 </FieldValidationMessage>
               )}
-              {placementMessage && (
+              <div className="border-pool-200 mt-auto space-y-3 border-t pt-4">
                 <p
-                  role="alert"
-                  className="text-sm font-semibold text-amber-800"
+                  className="text-pool-700 text-sm leading-6"
+                  aria-live="polite"
                 >
-                  {placementMessage}
+                  {detailedConstraintStatus === "complete" ? (
+                    "All available constraints are loaded. You can still adjust your pool before creating your report."
+                  ) : detailedConstraintStatus === "retryable" ? (
+                    "Some constraints were temporarily unavailable. Retry to check those layers again."
+                  ) : (
+                    <>
+                      <strong className="text-pool-950 block font-semibold">
+                        Happy with your pool position?
+                      </strong>
+                      Check for potential site constraints, or start again with
+                      another property.
+                    </>
+                  )}
                 </p>
-              )}
+                <div className="grid gap-2">
+                  {onLoadDetailed && (
+                    <button
+                      type="button"
+                      onClick={onLoadDetailed}
+                      disabled={detailedActionDisabled}
+                      className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
+                    >
+                      {isLoadingDetailed
+                        ? "Checking constraints…"
+                        : detailedConstraintStatus === "complete"
+                          ? "All available constraints loaded"
+                          : detailedConstraintStatus === "retryable"
+                            ? "Retry unavailable constraints"
+                            : "Check for constraints"}
+                    </button>
+                  )}
+                  {onStartAgain && (
+                    <button
+                      type="button"
+                      onClick={onStartAgain}
+                      disabled={isLoadingDetailed}
+                      className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      Start again
+                    </button>
+                  )}
+                </div>
+              </div>
             </div>
           )}
-          <div
-            ref={mapRef}
-            className="bg-pool-800 order-2 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-full lg:min-h-[600px]"
-            aria-label={`Fast aerial map for ${result.resolvedAddress.fullAddress}`}
-          />
-          <aside
-            aria-label="Map layers"
-            className="border-pool-200 order-3 border-t bg-white p-4 lg:col-start-2 lg:row-start-2 lg:border-t-0 lg:border-l"
+        </div>
+        <section
+          aria-label="Map layers"
+          className="border-pool-200 border-t bg-white"
+        >
+          <button
+            type="button"
+            aria-expanded={mapLayersOpen}
+            aria-controls="fast-view-map-layers"
+            onClick={() => setMapLayersOpen((current) => !current)}
+            className="hover:bg-pool-50 focus-visible:outline-pool-blue-700 grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3 text-left transition-colors focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] sm:px-5"
           >
-            <h3 className="text-pool-950 font-semibold">Map layers</h3>
-            <div className="border-pool-200 text-pool-700 mt-4 border-b pb-4 text-sm">
-              <label className="flex cursor-pointer items-center gap-2">
-                <input
-                  type="checkbox"
-                  aria-label="Show pool-shell clearances"
-                  checked={clearancesVisible}
-                  onChange={() => setClearancesVisible((current) => !current)}
-                  disabled={poolShellClearances.length !== 4}
-                  className="accent-pool-950 size-4"
-                />
-                <span
-                  aria-hidden="true"
-                  className="w-5 border-t-2 border-dashed"
-                  style={{ borderColor: "#fff" }}
-                />
-                <span className="font-semibold">Pool-shell clearances</span>
-              </label>
-              {clearancesVisible && poolShellClearances.length === 4 ? (
-                <>
-                  <ul
-                    aria-label="Pool-shell clearance measurements"
-                    className="mt-2 grid grid-cols-2 gap-1 pl-7 text-xs font-semibold"
-                  >
-                    {poolShellClearances.map((clearance, index) => (
-                      <li key={clearance.id}>
-                        Side {index + 1}: {clearance.label}
-                      </li>
-                    ))}
-                  </ul>
-                  <p className="text-pool-500 mt-2 ml-7 text-xs leading-5">
-                    {POOL_SHELL_CLEARANCE_LIMITATION}
+            <span>
+              <span className="text-pool-950 block font-semibold">
+                Map layers
+              </span>
+              <span className="text-pool-600 mt-0.5 block text-xs leading-5 sm:text-sm">
+                Clearances, slope, contours and mapped services
+              </span>
+            </span>
+            <span className="border-pool-200 text-pool-600 hidden rounded-full border bg-white px-2.5 py-1 text-xs font-semibold tabular-nums sm:inline">
+              {visibleMapLayerCount}{" "}
+              {visibleMapLayerCount === 1 ? "layer" : "layers"} shown
+            </span>
+            <svg
+              aria-hidden="true"
+              viewBox="0 0 20 20"
+              className={`text-pool-700 size-5 transition-transform ${mapLayersOpen ? "rotate-180" : ""}`}
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="m5 7.5 5 5 5-5" />
+            </svg>
+          </button>
+          <div
+            id="fast-view-map-layers"
+            hidden={!mapLayersOpen}
+            className="border-pool-200 border-t"
+          >
+            <div
+              className={
+                result.detailedChecks ? "grid lg:grid-cols-3" : undefined
+              }
+            >
+              <div
+                data-testid="map-layer-clearances"
+                className={`text-pool-700 p-4 text-sm sm:p-5 ${
+                  result.detailedChecks
+                    ? "border-pool-200 border-b lg:border-r lg:border-b-0"
+                    : ""
+                }`}
+              >
+                <label className="flex cursor-pointer items-center gap-2">
+                  <input
+                    type="checkbox"
+                    aria-label="Show pool-shell clearances"
+                    checked={clearancesVisible}
+                    onChange={() => setClearancesVisible((current) => !current)}
+                    disabled={poolShellClearances.length !== 4}
+                    className="accent-pool-950 size-4"
+                  />
+                  <span
+                    aria-hidden="true"
+                    className="w-5 border-t-2 border-dashed"
+                    style={{ borderColor: "#fff" }}
+                  />
+                  <span className="font-semibold">Pool-shell clearances</span>
+                </label>
+                {clearancesVisible && poolShellClearances.length === 4 ? (
+                  <>
+                    <ul
+                      aria-label="Pool-shell clearance measurements"
+                      className="mt-2 grid grid-cols-2 gap-1 pl-7 text-xs font-semibold"
+                    >
+                      {poolShellClearances.map((clearance, index) => (
+                        <li key={clearance.id}>
+                          Side {index + 1}: {clearance.label}
+                        </li>
+                      ))}
+                    </ul>
+                    <p className="text-pool-500 mt-2 ml-7 text-xs leading-5">
+                      {POOL_SHELL_CLEARANCE_LIMITATION}
+                    </p>
+                  </>
+                ) : (
+                  <p className="text-pool-500 mt-1 ml-7 text-xs leading-5">
+                    {result.boundary.geometry
+                      ? "Clearance lines are hidden."
+                      : "Clearances need a mapped property boundary."}
                   </p>
+                )}
+              </div>
+
+              {result.detailedChecks ? (
+                <>
+                  <div
+                    data-testid="map-layer-slope"
+                    className="border-pool-200 text-pool-700 border-b p-4 text-sm sm:p-5 lg:border-r lg:border-b-0"
+                  >
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        aria-label="Slope shading"
+                        checked={
+                          terrainSlopeGeometry.features.length > 0 &&
+                          terrainSlopeVisible
+                        }
+                        onChange={() =>
+                          setTerrainSlopeVisible((current) => !current)
+                        }
+                        disabled={terrainSlopeGeometry.features.length === 0}
+                        className="accent-pool-950 size-4"
+                      />
+                      <span className="font-semibold">Slope shading</span>
+                    </label>
+                    {terrainSlopeGeometry.features.length > 0 ? (
+                      <div className="mt-2 ml-6">
+                        <ul
+                          aria-label="Slope shading legend"
+                          className="grid gap-1 text-xs"
+                        >
+                          <SlopeLegendItem
+                            colour={terrainSlopeLayer.colours.lower}
+                            label="Lower slope on this property"
+                          />
+                          <SlopeLegendItem
+                            colour={terrainSlopeLayer.colours.medium}
+                            label="Medium slope on this property"
+                          />
+                          <SlopeLegendItem
+                            colour={terrainSlopeLayer.colours.higher}
+                            label="Higher slope on this property"
+                          />
+                        </ul>
+                        <p className="text-pool-500 mt-2 text-xs leading-5">
+                          Relative visual guide only—not a suitability or
+                          engineering classification.
+                        </p>
+                      </div>
+                    ) : (
+                      <p className="text-pool-500 mt-1 ml-6 text-xs leading-5">
+                        Location-based slope data is unavailable.
+                      </p>
+                    )}
+                  </div>
+                  <div
+                    data-testid="map-layer-contours"
+                    className="text-pool-700 p-4 text-sm sm:p-5"
+                  >
+                    <label className="flex cursor-pointer items-center gap-2">
+                      <input
+                        type="checkbox"
+                        aria-label="Contours"
+                        checked={Boolean(mappedContours) && contoursVisible}
+                        onChange={() =>
+                          setContoursVisible((current) => !current)
+                        }
+                        disabled={!mappedContours}
+                        className="accent-pool-950 size-4"
+                      />
+                      <span
+                        aria-hidden="true"
+                        className="h-0 w-5 border-t-2 border-dashed"
+                        style={{ borderColor: contourLayer.color }}
+                      />
+                      <span className="font-semibold">Contours</span>
+                    </label>
+                    <p className="text-pool-500 mt-1 ml-11 text-xs">
+                      {mappedContours
+                        ? "Terrain contours (2016, indicative only)"
+                        : contourResult
+                          ? "No contour geometry returned"
+                          : "Contour data was not checked"}
+                    </p>
+                  </div>
                 </>
-              ) : (
-                <p className="text-pool-500 mt-1 ml-7 text-xs leading-5">
-                  {result.boundary.geometry
-                    ? "Clearance lines are hidden."
-                    : "Clearances need a mapped property boundary."}
-                </p>
-              )}
+              ) : null}
             </div>
 
             {result.detailedChecks ? (
-              <>
-                <div className="border-pool-200 text-pool-700 mt-4 border-b pb-4 text-sm">
-                  <label className="flex cursor-pointer items-center gap-2">
-                    <input
-                      type="checkbox"
-                      aria-label="Contours"
-                      checked={Boolean(mappedContours) && contoursVisible}
-                      onChange={() => setContoursVisible((current) => !current)}
-                      disabled={!mappedContours}
-                      className="accent-pool-950 size-4"
-                    />
-                    <span
-                      aria-hidden="true"
-                      className="h-0 w-5 border-t-2 border-dashed"
-                      style={{ borderColor: contourLayer.color }}
-                    />
-                    <span className="font-semibold">Contours</span>
-                  </label>
-                  <p className="text-pool-500 mt-1 ml-11 text-xs">
-                    {mappedContours
-                      ? "Terrain contours (2016, indicative only)"
-                      : contourResult
-                        ? "No contour geometry returned"
-                        : "Contour data was not checked"}
-                  </p>
-                </div>
-                <ul className="text-pool-700 mt-4 space-y-3 text-sm">
+              <div
+                data-testid="map-layer-services"
+                className="border-pool-200 border-t p-4 sm:p-5"
+              >
+                <p className="text-pool-950 text-sm font-semibold">
+                  Mapped services
+                </p>
+                <ul className="text-pool-700 mt-3 grid grid-cols-2 gap-2 text-sm lg:grid-cols-5">
                   {utilityCategories.map((category) => {
                     const hasGeometry = mappedUtilityLayers.some(
                       ({ definition }) => definition.category === category.id,
                     );
                     return (
-                      <li key={category.id}>
+                      <li
+                        key={category.id}
+                        className="border-pool-200 bg-pool-50 min-w-0 rounded-sm border p-3 last:col-span-2 lg:last:col-span-1"
+                      >
                         <label className="flex cursor-pointer items-center gap-2">
                           <input
                             type="checkbox"
@@ -1162,15 +1540,10 @@ export function FastPropertyView({
                     );
                   })}
                 </ul>
-              </>
-            ) : (
-              <p className="border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900 mt-4 rounded-sm border px-3 py-2 text-sm leading-6">
-                Select “Check for constraints” to see terrain contours and
-                mapped services.
-              </p>
-            )}
-          </aside>
-        </div>
+              </div>
+            ) : null}
+          </div>
+        </section>
         {!isInitialAddressLoad && (
           <div className="flex justify-end bg-white px-4 py-3 text-sm">
             <p className="text-pool-600">
@@ -1181,127 +1554,279 @@ export function FastPropertyView({
           </div>
         )}
       </div>
-      {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
-      {mapError && (
-        <p role="alert" className="text-sm font-semibold text-red-700">
-          {mapError === "aerial"
-            ? "We couldn't load the aerial photo. You can still review the property boundary; try the property check again in a minute."
-            : "We couldn't load the interactive map. Try the property check again in a minute."}
-        </p>
-      )}
-      {result.aerial.state !== "ready" && (
-        <p className="rounded-sm border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
-          The aerial photo is still loading. You can keep reviewing the address
-          and mapped property area.
-        </p>
-      )}
-      <div className="border-pool-200 space-y-3 border-t pt-4">
-        <p
-          className="text-pool-700 max-w-xl text-sm leading-6"
-          aria-live="polite"
-        >
-          {result.detailedChecks?.status === "complete" ? (
-            "Available map checks loaded. You can still adjust your pool before creating your report."
-          ) : result.detailedChecks?.status === "partial" ? (
-            "Some map checks could not be loaded. Try again to check the missing information."
-          ) : (
-            <>
-              {" "}
-              <strong className="block font-semibold">
-                Happy with your pool position?
-              </strong>
-              Check for potential site constraints, or start again with another
-              property.
-            </>
-          )}
-        </p>
-        <div className="flex flex-col gap-2 sm:flex-row">
-          {onStartAgain && (
-            <button
-              type="button"
-              onClick={onStartAgain}
-              disabled={isLoadingDetailed}
-              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              Start again
-            </button>
-          )}
-          {onLoadDetailed && (
-            <button
-              type="button"
-              onClick={onLoadDetailed}
-              disabled={
-                isInitialAddressLoad ||
-                isLoadingDetailed ||
-                result.detailedChecks?.status === "complete"
-              }
-              className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
-            >
-              {isLoadingDetailed
-                ? "Checking constraints…"
-                : isInitialAddressLoad
-                  ? "Finding property boundary…"
-                  : result.detailedChecks?.status === "complete"
-                    ? "Map checks loaded"
-                    : result.detailedChecks?.status === "partial"
-                      ? "Retry missing checks"
-                      : "Check for constraints"}
-            </button>
-          )}
-        </div>
-      </div>
-      {result.detailedChecks?.status !== "complete" &&
-        (mapError || result.aerial.state === "error") && (
-          <div className="flex justify-end">
-            <button
-              type="button"
-              disabled={isLoadingDetailed || isInitialAddressLoad}
-              onClick={onRetry}
-              className="text-pool-blue-800 text-sm font-semibold underline"
-            >
-              Retry property check
-            </button>
-          </div>
-        )}
+      {result.detailedChecks?.terrain ? (
+        <TerrainSlopeResult
+          terrain={result.detailedChecks.terrain}
+          contoursAvailable={Boolean(mappedContours)}
+          selectedPoolTerrain={selectedPoolTerrain}
+        />
+      ) : null}
     </section>
   );
 }
 
+function PropertySlopeMapOverlay({
+  terrain,
+}: {
+  terrain: NonNullable<FastPropertyViewResult["detailedChecks"]>["terrain"];
+}) {
+  if (!terrain || terrain.status !== "measured") return null;
+
+  const downhill = terrain.downhillDirection ?? "approximately flat";
+  return (
+    <div
+      aria-label={`Indicative property slope: average ${terrain.averageSlopeDegrees.toFixed(1)} degrees, downhill ${downhill}`}
+      className="text-pool-950 pointer-events-none absolute top-3 left-3 z-10 flex items-center gap-3 rounded-sm border border-white/80 bg-white/95 px-3 py-2 shadow-md"
+    >
+      <span
+        aria-hidden="true"
+        className="bg-pool-blue-50 text-pool-blue-800 grid size-9 place-items-center rounded-full text-xl font-bold"
+        style={{
+          transform:
+            terrain.downhillBearingDegrees === null
+              ? undefined
+              : `rotate(${terrain.downhillBearingDegrees}deg)`,
+        }}
+      >
+        ↑
+      </span>
+      <span className="leading-tight">
+        <span className="block text-[0.7rem] font-semibold tracking-wide uppercase">
+          Indicative property slope
+        </span>
+        <span className="mt-0.5 block text-sm font-semibold tabular-nums">
+          Average {terrain.averageSlopeDegrees.toFixed(1)}° · downhill{" "}
+          {downhill}
+        </span>
+      </span>
+    </div>
+  );
+}
+
+function SlopeLegendItem({ colour, label }: { colour: string; label: string }) {
+  return (
+    <li className="flex items-center gap-2">
+      <span
+        aria-hidden="true"
+        className="size-2.5 rounded-sm"
+        style={{ backgroundColor: colour }}
+      />
+      <span>{label}</span>
+    </li>
+  );
+}
+
+function TerrainSlopeResult({
+  terrain,
+  contoursAvailable,
+  selectedPoolTerrain,
+}: {
+  terrain: NonNullable<FastPropertyViewResult["detailedChecks"]>["terrain"];
+  contoursAvailable: boolean;
+  selectedPoolTerrain: SelectedPoolTerrain | null;
+}) {
+  if (!terrain) return null;
+  if (terrain.status === "needs_checking") {
+    return (
+      <section
+        aria-labelledby="terrain-slope-heading"
+        className="rounded-sm border border-amber-200 bg-amber-50/60 p-4"
+      >
+        <h3 id="terrain-slope-heading" className="font-semibold">
+          Indicative property slope
+        </h3>
+        <p className="mt-2 text-sm leading-6">
+          Needs Checking — {terrain.reasons.join(" ")}
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section
+      aria-labelledby="terrain-slope-heading"
+      className="border-pool-blue-200 bg-pool-blue-50/50 rounded-sm border p-4"
+    >
+      <div className="flex flex-col gap-1 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <h3 id="terrain-slope-heading" className="font-semibold">
+            Indicative property slope
+          </h3>
+          <p className="text-pool-600 mt-1 text-sm">
+            Across the mapped property parcel, not the selected pool position
+          </p>
+        </div>
+        <div className="sm:text-right">
+          <p className="text-pool-600 text-xs">Average slope</p>
+          <p className="text-pool-950 text-3xl font-semibold tabular-nums">
+            {terrain.averageSlopeDegrees.toFixed(1)}°
+          </p>
+        </div>
+      </div>
+      <dl className="mt-4 grid gap-4 text-sm sm:grid-cols-3">
+        <div>
+          <dt className="text-pool-600">Steeper areas</dt>
+          <dd className="mt-1">
+            <span className="block font-semibold tabular-nums">
+              {terrain.upperSlopeDegrees.toFixed(1)}°
+            </span>
+            <span className="text-pool-500 mt-1 block text-xs leading-5">
+              90% of sampled areas are at or below this angle.
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-pool-600">Estimated height change</dt>
+          <dd className="mt-1">
+            <span className="block font-semibold tabular-nums">
+              {terrain.estimatedFallMetres.toFixed(2)} m
+            </span>
+            <span className="text-pool-500 mt-1 block text-xs leading-5">
+              Across the parcel in the overall slope direction.
+            </span>
+          </dd>
+        </div>
+        <div>
+          <dt className="text-pool-600">Overall downhill direction</dt>
+          <dd className="mt-1 font-semibold">
+            {terrain.downhillDirection ?? "Approximately flat"}
+          </dd>
+        </div>
+      </dl>
+      <div className="border-pool-blue-200 mt-4 border-t pt-4">
+        <h4 className="text-pool-950 text-sm font-semibold">
+          Selected pool position
+        </h4>
+        {selectedPoolTerrain ? (
+          <>
+            <dl className="mt-2 flex flex-wrap gap-x-8 gap-y-3 text-sm">
+              <div>
+                <dt className="text-pool-600">Average slope here</dt>
+                <dd className="mt-1 font-semibold tabular-nums">
+                  {selectedPoolTerrain.averageSlopeDegrees.toFixed(1)}°
+                </dd>
+              </div>
+              <div>
+                <dt className="text-pool-600">Estimated height change here</dt>
+                <dd className="mt-1 font-semibold tabular-nums">
+                  {selectedPoolTerrain.estimatedFallMetres.toFixed(2)} m
+                </dd>
+              </div>
+            </dl>
+            <p className="text-pool-700 mt-3 max-w-3xl text-sm leading-6">
+              Based on {selectedPoolTerrain.sampleCount} nearby terrain samples.
+              Lower figures generally indicate gentler ground, but they do not
+              confirm buildability.
+            </p>
+          </>
+        ) : (
+          <p className="text-pool-700 mt-1 max-w-3xl text-sm leading-6">
+            There are not enough terrain samples beneath this pool position to
+            calculate a local result.{" "}
+            {contoursAvailable ? (
+              <>Use Slope shading or Contours to compare nearby areas. </>
+            ) : null}
+            A current site survey is still required before design, excavation,
+            retaining, consent, or construction decisions.
+          </p>
+        )}
+      </div>
+      {terrain.source.attribution ? (
+        <p className="text-pool-600 border-pool-blue-200 mt-4 border-t pt-3 text-xs leading-5">
+          <a
+            className="underline underline-offset-2"
+            href={terrain.source.attribution.url}
+            rel="noreferrer"
+            target="_blank"
+          >
+            {terrain.source.attribution.text}
+          </a>
+        </p>
+      ) : null}
+    </section>
+  );
+}
+
+const fastPoolWarningPresentation: Record<
+  FastPoolWarning["status"],
+  { dotClassName: string; summary: string }
+> = {
+  blocked: {
+    dotClassName: "bg-red-600",
+    summary:
+      "This pool position overlaps a mapped constraint and needs review.",
+  },
+  needs_checking: {
+    dotClassName: "bg-amber-600",
+    summary:
+      "Some mapped evidence still needs checking for this pool position.",
+  },
+  no_warning: {
+    dotClassName: "bg-emerald-700",
+    summary: "No mapped conflict was found for this pool position.",
+  },
+};
+
 function FastPoolWarning({ warning }: { warning: FastPoolWarning }) {
-  const tone =
-    warning.status === "blocked"
-      ? "border-red-200 bg-red-50/60"
-      : warning.status === "needs_checking"
-        ? "border-amber-200 bg-amber-50/60"
-        : "border-emerald-200 bg-emerald-50/60";
+  const presentation = fastPoolWarningPresentation[warning.status];
 
   return (
     <section
       aria-labelledby="pool-warning-heading"
-      className={`rounded-sm border px-4 py-3 text-[#0d3050] ${tone}`}
+      className="text-pool-950 lg:min-h-32"
     >
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex items-start justify-between gap-2 sm:items-center">
         <h3
           id="pool-warning-heading"
-          className="flex items-center gap-3 font-semibold"
+          className="flex items-center gap-2 font-semibold sm:gap-3"
         >
           <span
             aria-hidden="true"
-            className={`size-2 shrink-0 rounded-full ${warning.status === "blocked" ? "bg-red-600" : warning.status === "needs_checking" ? "bg-amber-600" : "bg-emerald-700"}`}
+            className={`size-2 shrink-0 rounded-full ${presentation.dotClassName}`}
           />
           {warning.label}
         </h3>
-        <span className="text-xs font-bold tracking-wide uppercase">
+        <span className="hidden text-xs font-bold tracking-wide uppercase sm:inline">
           Live pool check
         </span>
       </div>
-      <p className="mt-2 pl-5 text-sm leading-6">{warning.text}</p>
-      {warning.recommendation && (
-        <p className="mt-2 pl-5 text-sm leading-6 font-semibold">
-          Recommendation: {warning.recommendation}
-        </p>
-      )}
+      <p className="mt-1 text-sm leading-5 sm:mt-2 sm:pl-5 sm:leading-6 lg:min-h-6">
+        {presentation.summary}
+      </p>
+      <details className="group mt-1 sm:mt-2 sm:pl-5">
+        <summary className="text-pool-blue-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 -ml-2 inline-flex min-h-11 cursor-pointer items-center rounded-sm px-2 font-semibold underline underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2">
+          <span className="group-open:hidden">View details</span>
+          <span className="hidden group-open:inline">Hide details</span>
+        </summary>
+        <div className="border-pool-200 max-w-4xl border-t pt-3 pb-1 text-sm leading-5 sm:leading-6">
+          <p>{warning.text}</p>
+          {warning.recommendation && (
+            <p className="mt-2 font-semibold">
+              Recommendation: {warning.recommendation}
+            </p>
+          )}
+        </div>
+      </details>
     </section>
+  );
+}
+
+function RetryPropertyCheckButton({
+  disabled,
+  onRetry,
+}: {
+  disabled: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onRetry}
+      className="focus-visible:outline-pool-blue-700 mt-2 min-h-11 font-semibold underline underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+    >
+      Retry property check
+    </button>
   );
 }
 

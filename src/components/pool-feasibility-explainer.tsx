@@ -4,89 +4,88 @@ import Image from "next/image";
 import { useEffect, useState } from "react";
 import "./pool-feasibility-explainer.css";
 
-const slides = [
+const steps = [
   {
     number: "01",
     title: "Find your property",
-    detail: "Enter your Auckland address and select the matching property.",
-    image: "/pool-projects/how-it-works-property-v1.png",
-    imageClassName: "pool-explainer-photo-property",
+    image: "/pool-projects/how-it-works-find-property-v2.png",
+    imageAlt: "PoolReady example: find your property",
   },
   {
     number: "02",
-    title: "Position your pool",
-    detail: "Choose a size, then move and rotate your pool on the map.",
-    image: "/pool-projects/how-it-works-position-v1.png",
-    imageClassName: "pool-explainer-photo-position",
+    title: "Select a pool size",
+    image: "/pool-projects/how-it-works-select-pool-v2.png",
+    imageAlt: "PoolReady example: select a pool size",
   },
   {
     number: "03",
-    title: "Check for constraints",
-    detail:
-      "Load available mapped information about potential site constraints.",
-    image: "/pool-projects/how-it-works-checks-v1.png",
-    imageClassName: "pool-explainer-photo-checks",
+    title: "Position your pool",
+    image: "/pool-projects/how-it-works-position-pool-v2.png",
+    imageAlt: "PoolReady example: position your pool",
   },
   {
     number: "04",
-    title: "Get your preliminary report",
-    detail: "See what needs checking before your next conversation.",
-    image: "/pool-projects/how-it-works-report-v1.png",
-    imageClassName: "pool-explainer-photo-report",
+    title: "Check mapped information",
+    image: "/pool-projects/how-it-works-check-mapped-v2.png",
+    imageAlt: "PoolReady example: check mapped information",
+  },
+  {
+    number: "05",
+    title: "Understand your next steps",
+    image: "/pool-projects/how-it-works-next-steps-v3.png",
+    imageAlt: "PoolReady example: understand your next steps",
   },
 ] as const;
 
 export function PoolFeasibilityExplainer() {
-  const [activeSlide, setActiveSlide] = useState(0);
+  const [activeStepIndex, setActiveStepIndex] = useState(0);
+  const activeStep = steps[activeStepIndex];
 
   useEffect(() => {
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
 
     const timer = window.setInterval(() => {
-      setActiveSlide((currentSlide) => (currentSlide + 1) % slides.length);
-    }, 3600);
+      setActiveStepIndex((currentStep) => (currentStep + 1) % steps.length);
+    }, 3_600);
 
     return () => window.clearInterval(timer);
-  }, []);
+  }, [activeStepIndex]);
 
   return (
-    <section
-      className="pool-feasibility-explainer"
-      aria-labelledby="pool-explainer-title"
-    >
-      <div className="sr-only">
-        <h2 id="pool-explainer-title">How PoolReady works</h2>
-        <p>
-          Find your property, try an indicative pool position, see what needs
-          checking, and receive a preliminary report.
-        </p>
-      </div>
-      <div className="pool-explainer-stage" aria-hidden="true">
-        {slides.map((slide, index) => (
-          <article
-            className={`pool-explainer-slide ${
-              index === activeSlide ? "is-active" : ""
-            }`}
-            key={slide.number}
+    <div className="pool-feasibility-explainer">
+      <ol className="pool-process-rail" aria-label="Property check steps">
+        {steps.map((step, index) => (
+          <li
+            className={index === activeStepIndex ? "is-current" : undefined}
+            aria-current={index === activeStepIndex ? "step" : undefined}
+            key={step.number}
           >
-            <Image
-              alt=""
-              className={`pool-explainer-photo ${slide.imageClassName}`}
-              fill
-              sizes="(max-width: 1023px) 100vw, 480px"
-              src={slide.image}
-            />
-            <div className="pool-explainer-photo-wash" />
-            <div className="pool-explainer-step-copy">
-              <span>{slide.number}</span>
-              <div>
-                <h3>{slide.title}</h3>
-                <p>{slide.detail}</p>
-              </div>
-            </div>
-          </article>
+            <button
+              className="pool-process-button"
+              onClick={() => setActiveStepIndex(index)}
+              type="button"
+            >
+              <span className="pool-process-number" aria-hidden="true">
+                {step.number}
+              </span>
+              <span className="pool-process-title">{step.title}</span>
+            </button>
+          </li>
         ))}
-      </div>
-    </section>
+      </ol>
+
+      <figure className="pool-demo-figure">
+        <Image
+          alt={activeStep.imageAlt}
+          className="pool-demo-image"
+          fill
+          sizes="(max-width: 767px) 100vw, 1216px"
+          src={activeStep.image}
+        />
+        <figcaption className="sr-only">
+          Illustrative example for {activeStep.title.toLowerCase()}.
+        </figcaption>
+      </figure>
+    </div>
   );
 }

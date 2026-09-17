@@ -22,8 +22,7 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
       .getByAltText(
         "Saved aerial assessment map showing the mapped property and proposed pool",
       )
-      .closest("figure")
-      ?.parentElement,
+      .closest("figure")?.parentElement,
   ).toHaveClass("items-start");
   expect(
     screen

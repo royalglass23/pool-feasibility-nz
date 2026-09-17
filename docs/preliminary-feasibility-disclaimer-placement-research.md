@@ -18,14 +18,14 @@ also keeps a limit close to the claim it actually qualifies.
 
 ## Recommended hierarchy and placement
 
-| Surface | Placement | Content | Purpose |
-| --- | --- | --- | --- |
-| Interactive result | Immediately below the result heading and **above the interactive map, score, or recommendation**. It remains visible at normal desktop/mobile use without opening a tooltip or accordion. | One compact scope statement, with a link/button to `How this feasibility check works`. | The visitor sees the qualification before interpreting a favourable layout or clearance. |
-| Interactive map | A neutral, visible map caption/legend beside the clearance controls; not a warning badge on every line. | `Indicative mapped pool-shell clearances — not a survey or setback assessment.` | Says exactly what a dimension represents and excludes. |
-| Specific evidence | Adjacent to the affected feature, result row, or data-source detail only when it could change interpretation. | Plain fact + consequence/action, for example `Boundary source: provisional. Confirm boundary/title before design.` | Preserves material uncertainty without turning ordinary preliminary status into repeated alarm. |
-| PDF page 1 | Directly beneath the executive recommendation/summary, before the main map. | A slightly fuller version of the scope statement. | The qualification travels with the headline conclusion instead of being buried on the final page. |
-| PDF map page and every page footer | Map caption on the map page; short `Preliminary Feasibility Report — indicative desktop screening` footer on every page. | Caption describes measurements; footer identifies document status. | A printed/extracted page keeps its context without duplicating a long disclaimer. |
-| PDF detail page | `Evidence, assumptions and actions` section, after the risks/actions and sources. | Full list of evidence limits, dates, assumptions and required verification. | Provides auditability and the actionable detail without asking a short warning to carry all of it. |
+| Surface                            | Placement                                                                                                                                                                                 | Content                                                                                                            | Purpose                                                                                            |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------- |
+| Interactive result                 | Immediately below the result heading and **above the interactive map, score, or recommendation**. It remains visible at normal desktop/mobile use without opening a tooltip or accordion. | One compact scope statement, with a link/button to `How this feasibility check works`.                             | The visitor sees the qualification before interpreting a favourable layout or clearance.           |
+| Interactive map                    | A neutral, visible map caption/legend beside the clearance controls; not a warning badge on every line.                                                                                   | `Indicative mapped pool-shell clearances — not a survey or setback assessment.`                                    | Says exactly what a dimension represents and excludes.                                             |
+| Specific evidence                  | Adjacent to the affected feature, result row, or data-source detail only when it could change interpretation.                                                                             | Plain fact + consequence/action, for example `Boundary source: provisional. Confirm boundary/title before design.` | Preserves material uncertainty without turning ordinary preliminary status into repeated alarm.    |
+| PDF page 1                         | Directly beneath the executive recommendation/summary, before the main map.                                                                                                               | A slightly fuller version of the scope statement.                                                                  | The qualification travels with the headline conclusion instead of being buried on the final page.  |
+| PDF map page and every page footer | Map caption on the map page; short `Preliminary Feasibility Report — indicative desktop screening` footer on every page.                                                                  | Caption describes measurements; footer identifies document status.                                                 | A printed/extracted page keeps its context without duplicating a long disclaimer.                  |
+| PDF detail page                    | `Evidence, assumptions and actions` section, after the risks/actions and sources.                                                                                                         | Full list of evidence limits, dates, assumptions and required verification.                                        | Provides auditability and the actionable detail without asking a short warning to carry all of it. |
 
 ### Copy
 
@@ -59,13 +59,13 @@ Show a local limitation only when it is material to the particular conclusion.
 State the observed fact, then the effect or next check; do not label the item
 generically as `Needs checking`.
 
-| Evidence condition | Good local wording | Do not say |
-| --- | --- | --- |
-| Parcel/boundary is provisional or ambiguous | `Boundary source: provisional. Confirm boundary/title before design.` | `Needs checking` |
-| Parcel geometry is mapped but a survey is still needed | `Mapped boundary used for this screen; it is not a site survey.` | `Boundary confirmed` |
-| Aerial capture is dated or unclear | `Aerial imagery capture: 2024 (where available); imagery is not a survey.` | `Site condition verified` |
-| No mapped service returned | `No service was returned by this mapped-data query; this does not confirm that services are absent.` | `No services` |
-| Required source unavailable | `Stormwater layer unavailable for this check; it was not assessed.` | `No stormwater constraint found` |
+| Evidence condition                                     | Good local wording                                                                                   | Do not say                       |
+| ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Parcel/boundary is provisional or ambiguous            | `Boundary source: provisional. Confirm boundary/title before design.`                                | `Needs checking`                 |
+| Parcel geometry is mapped but a survey is still needed | `Mapped boundary used for this screen; it is not a site survey.`                                     | `Boundary confirmed`             |
+| Aerial capture is dated or unclear                     | `Aerial imagery capture: 2024 (where available); imagery is not a survey.`                           | `Site condition verified`        |
+| No mapped service returned                             | `No service was returned by this mapped-data query; this does not confirm that services are absent.` | `No services`                    |
+| Required source unavailable                            | `Stormwater layer unavailable for this check; it was not assessed.`                                  | `No stormwater constraint found` |
 
 The universal statement does **not** replace a local, material limitation. For
 example, a provisional boundary can change the meaning of every displayed

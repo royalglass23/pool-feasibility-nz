@@ -9,18 +9,18 @@ export function FeasibilityAssessmentResult({
   return (
     <section
       aria-labelledby="feasibility-assessment-heading"
-      className="rounded-3xl border border-pool-200 bg-white p-5 shadow-sm sm:p-6"
+      className="border-pool-200 rounded-3xl border bg-white p-5 shadow-sm sm:p-6"
     >
-      <p className="text-xs font-bold tracking-[0.18em] text-pool-blue-700 uppercase">
+      <p className="text-pool-blue-700 text-xs font-bold tracking-[0.18em] uppercase">
         Versioned deterministic rules
       </p>
       <h3
         id="feasibility-assessment-heading"
-        className="mt-2 text-xl font-semibold text-pool-950"
+        className="text-pool-950 mt-2 text-xl font-semibold"
       >
         Feasibility assessment
       </h3>
-      <p className="mt-2 max-w-3xl text-sm leading-6 text-pool-600">
+      <p className="text-pool-600 mt-2 max-w-3xl text-sm leading-6">
         Physical feasibility and data confidence are separate. Unknown evidence
         is not treated as proof that a constraint is absent.
       </p>
@@ -60,7 +60,7 @@ export function FeasibilityAssessmentResult({
 
       {assessment.criticalFlags.length > 0 ? (
         <div className="mt-5">
-          <h4 className="font-semibold text-pool-950">Critical flags</h4>
+          <h4 className="text-pool-950 font-semibold">Critical flags</h4>
           <ul className="mt-3 space-y-2 text-sm text-amber-900">
             {assessment.criticalFlags.map((flag) => (
               <li
@@ -79,19 +79,19 @@ export function FeasibilityAssessmentResult({
         {assessment.categories.map((category) => (
           <article
             key={category.id}
-            className="rounded-2xl border border-pool-200 bg-pool-50/70 p-4"
+            className="border-pool-200 bg-pool-50/70 rounded-2xl border p-4"
           >
             <div className="flex items-start justify-between gap-3">
-              <h4 className="font-semibold text-pool-950">
+              <h4 className="text-pool-950 font-semibold">
                 {humanize(category.id)}
               </h4>
-              <span className="rounded-sm bg-white px-2.5 py-1 text-xs font-bold text-pool-700 ring-1 ring-pool-300">
+              <span className="text-pool-700 ring-pool-300 rounded-sm bg-white px-2.5 py-1 text-xs font-bold ring-1">
                 {category.awardedPoints === null
                   ? `Unknown / ${category.maximumPoints}`
                   : `${category.awardedPoints} / ${category.maximumPoints}`}
               </span>
             </div>
-            <p className="mt-3 text-sm leading-6 text-pool-600">
+            <p className="text-pool-600 mt-3 text-sm leading-6">
               {category.rationale}
             </p>
             {category.unknownInputs.length > 0 ? (
@@ -103,7 +103,7 @@ export function FeasibilityAssessmentResult({
         ))}
       </div>
 
-      <p className="mt-5 text-xs leading-5 text-pool-500">
+      <p className="text-pool-500 mt-5 text-xs leading-5">
         Rule {assessment.analysisVersion}. The score is normalized across known
         physical categories; unknown categories lower confidence instead of
         receiving zero points.
@@ -114,11 +114,11 @@ export function FeasibilityAssessmentResult({
 
 function Summary({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl bg-pool-50 px-4 py-3">
-      <p className="text-xs font-semibold tracking-wide text-pool-500 uppercase">
+    <div className="bg-pool-50 rounded-2xl px-4 py-3">
+      <p className="text-pool-500 text-xs font-semibold tracking-wide uppercase">
         {label}
       </p>
-      <p className="mt-2 font-bold text-pool-950">{value}</p>
+      <p className="text-pool-950 mt-2 font-bold">{value}</p>
     </div>
   );
 }
