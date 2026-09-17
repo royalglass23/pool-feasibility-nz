@@ -5,7 +5,7 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { DataAccessInspector } from "@/app/data-access-inspector";
+import { PropertyCheckJourney } from "@/components/property-check-journey";
 import { runDataAccessSpike } from "@/modules/data-access-spike/run-data-access-spike";
 import {
   loadFastPropertyStages,
@@ -28,12 +28,12 @@ afterEach(() => {
   trackAnonymousFunnelEvent.mockReset();
 });
 
-describe("DataAccessInspector", { timeout: 10_000 }, () => {
+describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
   it("shows the shared field validation treatment for an empty address", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
 
     const input = screen.getByLabelText("Auckland property address");
     await user.click(input);
@@ -59,7 +59,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         : Promise.resolve(Response.json({ suggestions: [] }, { status: 200 })),
     );
     vi.stubGlobal("fetch", fetchMock);
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
 
     const input = screen.getByLabelText("Auckland property address");
     expect(input).toHaveValue("");
@@ -131,7 +131,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
           ),
         ),
       );
-      render(<DataAccessInspector />);
+      render(<PropertyCheckJourney />);
 
       await user.type(
         screen.getByLabelText("Auckland property address"),
@@ -159,7 +159,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data: result }, { status: 200 })),
     );
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -200,7 +200,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => undefined);
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -267,7 +267,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data: result }, { status: 200 })),
     );
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -300,7 +300,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         vi.fn(async () => Response.json({ data: result }, { status: 200 })),
       );
 
-      render(<DataAccessInspector />);
+      render(<PropertyCheckJourney />);
       await user.type(
         screen.getByLabelText("Auckland property address"),
         requestedAddress,
@@ -359,7 +359,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       });
       vi.stubGlobal("fetch", fetchMock);
 
-      render(<DataAccessInspector />);
+      render(<PropertyCheckJourney />);
       await user.type(
         screen.getByLabelText("Auckland property address"),
         requestedAddress,
@@ -405,7 +405,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ suggestions: [] }, { status: 200 })),
     );
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       "42A Bahari",
@@ -427,7 +427,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       }),
     );
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       "42A Bahari",
@@ -465,7 +465,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       }),
     );
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       "Bahari Drive, Ranui, Auckland",
@@ -502,7 +502,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data }, { status: 200 })),
     );
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -545,7 +545,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data }, { status: 200 })),
     );
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -573,7 +573,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     expect(
       screen.queryByLabelText("Preferred pool size"),
     ).not.toBeInTheDocument();
@@ -616,7 +616,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data: result }, { status: 200 })),
     );
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -697,7 +697,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data: result }, { status: 200 })),
     );
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -753,7 +753,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       "Bahari Drive, Ranui, Auckland",
@@ -798,7 +798,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       .mockResolvedValueOnce(Response.json({ data: result }, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     const input = screen.getByLabelText("Auckland property address");
     await user.type(input, "42A Bahari");
 
@@ -852,7 +852,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       .mockResolvedValueOnce(Response.json({ data: result }, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -890,7 +890,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       .mockResolvedValueOnce(Response.json({ data: result }, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -946,7 +946,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1002,7 +1002,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1063,7 +1063,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       }),
     );
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1157,7 +1157,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1246,7 +1246,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       }),
     );
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1318,7 +1318,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         <div id="property-search-intro">
           <h2>Begin with a practical property check</h2>
         </div>
-        <DataAccessInspector />
+        <PropertyCheckJourney />
       </>,
     );
     expect(
@@ -1381,7 +1381,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<DataAccessInspector />);
+    render(<PropertyCheckJourney />);
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,

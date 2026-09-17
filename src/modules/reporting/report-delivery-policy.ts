@@ -1,5 +1,7 @@
 import { ReportEmailDeliveryError } from "@/modules/reporting/resend-email-gateway";
 
+export type ReportDeliveryState = "pending" | "sending" | "sent" | "failed";
+
 export type ReportDeliveryEnvironment = {
   mode?: string;
   vercelEnvironment?: string;

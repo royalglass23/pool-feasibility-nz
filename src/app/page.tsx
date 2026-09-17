@@ -1,30 +1,16 @@
 import { AucklandPropertyJourney } from "@/components/auckland-property-journey";
 import { AnalyticsConsent } from "@/components/analytics-consent";
 import { PoolFeasibilityExplainer } from "@/components/pool-feasibility-explainer";
+import { PropertyCheckJourney } from "@/components/property-check-journey";
 import { env } from "@/env";
 import { ArrowDownRight } from "lucide-react";
 import Link from "next/link";
-import { DataAccessInspector } from "./data-access-inspector";
 
 export default function Home() {
   return (
     <main className="min-h-screen bg-[#f5faff] text-[#062f5d]">
       <AucklandPropertyJourney />
       <div className="mx-auto w-full max-w-7xl px-4 py-5 sm:px-6 sm:py-8">
-        <header className="mb-10 hidden max-w-3xl sm:mb-14">
-          <div className="border-pool-blue-700/15 text-pool-blue-800 mb-6 inline-flex items-center gap-2 rounded-sm border bg-white/80 px-3 py-1.5 text-xs font-bold tracking-[0.14em] uppercase shadow-sm backdrop-blur">
-            PoolReady · Data access POC
-          </div>
-          <h1 className="text-pool-950 text-4xl leading-tight font-semibold tracking-[-0.035em] sm:text-6xl">
-            Inspect official property data before assessing pool feasibility.
-          </h1>
-          <p className="text-pool-600 mt-5 max-w-2xl text-base leading-7 sm:text-lg sm:leading-8">
-            Enter a New Zealand address to resolve its LINZ address point, match
-            the mapped property boundary, and check the current official dataset
-            catalogue.
-          </p>
-        </header>
-
         <section
           id="how-it-works"
           className="mt-14 border-t border-[#dbe8f0] py-10 sm:mt-16 sm:py-12"
@@ -78,7 +64,7 @@ export default function Home() {
             </p>
           </div>
           <div data-hj-suppress>
-            <DataAccessInspector />
+            <PropertyCheckJourney />
           </div>
         </section>
 
