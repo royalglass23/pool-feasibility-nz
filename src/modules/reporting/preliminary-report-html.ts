@@ -73,31 +73,6 @@ export function renderCanonicalPreliminaryReportHtml(
     ${clearanceCaption}
     <ul class="map-legend-list">${mapLegendEntries.map((entry) => renderMapLegendEntry(entry, esc)).join("")}</ul>
   </aside>`;
-  const nextSteps = report.nextSteps
-    .slice(0, 6)
-    .map(
-      (step, index) => `
-        <li><span>${index + 1}</span><div><strong>${esc(step.title)}</strong><p>${esc(step.summary)}</p></div></li>`,
-    )
-    .join("");
-  const prioritisedActions = report.actions.length
-    ? report.actions
-        .flatMap((action) =>
-          action.items.map(
-            (item) =>
-              `<li><strong>${esc(formatReportValue(action.phase))}</strong><span>${esc(item)}</span></li>`,
-          ),
-        )
-        .join("")
-    : nextSteps;
-  const missingInformation = [
-    ...new Set([
-      ...report.missingInformation.map((item) => item.label),
-      ...report.laterVerification,
-    ]),
-  ]
-    .map((item) => `<li>${esc(item)}</li>`)
-    .join("");
   const assumptionsAndLimitations = [
     ...report.assumptions,
     ...report.limitations,
@@ -105,14 +80,20 @@ export function renderCanonicalPreliminaryReportHtml(
     .map((item) => `<li>${esc(item)}</li>`)
     .join("");
   const mappingSources = reportMappingSources(report);
-  const providers = unique(mappingSources.map((source) => source.provider));
+  const providers = unique(
+    mappingSources.map((source) =>
+      source.provider === "Land Information New Zealand"
+        ? "LINZ"
+        : source.provider,
+    ),
+  );
   const visibleProviders = providers.slice(0, 4);
   const omittedProviderCount = providers.length - visibleProviders.length;
   const sourceSummary = providers.length
-    ? `Sources include ${visibleProviders.map(esc).join(" - ")}${omittedProviderCount > 0 ? ` and ${omittedProviderCount} more providers` : ""}.`
+    ? `Sources include ${visibleProviders.map(esc).join(" - ")}${omittedProviderCount > 0 ? ` and ${omittedProviderCount} more ${omittedProviderCount === 1 ? "provider" : "providers"}` : ""}.`
     : "No mapping source summary was recorded.";
   const detailedAttribution = mappingSources.length
-    ? mappingSources.map((source) => renderMappingSource(source, esc)).join("")
+    ? renderMappingCredits(mappingSources, esc)
     : `<li>Detailed mapping information was not available in the saved report.</li>`;
   const dataAccessed = latestSourceDate(report) ?? generatedDate;
 
@@ -189,13 +170,6 @@ export function renderCanonicalPreliminaryReportHtml(
     .map-clearances ul{display:grid;grid-template-columns:1fr 1fr;gap:.6mm 1mm;margin:1mm 0 0;padding:0;list-style:none;font-size:5.5pt;font-weight:700;line-height:1.2}
     .map-clearances p{margin-top:.8mm;color:var(--report-muted);font-size:5pt;line-height:1.25}
     .assessment-intro{margin-top:4.5mm;max-width:150mm;color:var(--report-muted)}
-    .compact-section{margin-top:2.5mm;padding-top:1.8mm;border-top:.3mm solid var(--report-ink)}
-    .compact-section:first-child{margin-top:0}
-    .compact-section h2{font-size:8.5pt}
-    .compact-list{margin:1.2mm 0 0;padding-left:3.5mm}
-    .compact-list li{margin-bottom:.6mm;font-size:5.7pt;line-height:1.2}
-    .compact-list strong,.compact-list span{display:block}
-    .compact-list span{color:var(--report-muted)}
     .assessment-grid{margin-top:3mm;display:grid;grid-template-columns:1fr 1fr;gap:2mm;align-items:start}
     .assessment-card{break-inside:avoid;padding:2.2mm 2.5mm;border:.25mm solid var(--report-border);border-radius:var(--radius)}
     .assessment-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:3mm}
@@ -214,25 +188,17 @@ export function renderCanonicalPreliminaryReportHtml(
     .later{margin-top:2mm;padding:2.5mm 3mm;background:var(--report-soft);border-radius:var(--radius)}
     .later ul{columns:2;column-gap:8mm;margin:1.5mm 0 0;padding-left:4mm}
     .later li{break-inside:avoid;margin-bottom:.7mm;font-size:6.8pt}
-    .next-stage{margin-top:2mm;font-size:8pt}
-    .next-stage strong{color:var(--report-ink)}
-    .page-three-grid{margin-top:2.5mm;display:grid;grid-template-columns:68mm minmax(0,1fr);gap:5mm}
+    .recommended-stage{margin-top:3mm;padding:4mm 5mm;background:var(--report-ink);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:5mm}
+    .recommended-stage h2{font-size:8pt;font-weight:400}
+    .recommended-stage strong{font-size:12pt;text-align:right}
+    .page-three-grid{margin-top:5mm;display:grid;grid-template-columns:100mm minmax(0,1fr);gap:5mm;align-items:start}
     .plain-section{border-top:.4mm solid var(--report-ink);padding-top:2.5mm}
     .plain-section ul{margin:2mm 0 0;padding-left:4mm}
     .plain-section li{margin-bottom:1mm;font-size:7pt}
     .mapping-summary{margin-top:2mm;color:var(--report-muted)}
-    .source-list{margin:1.5mm 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:1mm 3mm;align-content:start}
-    .source-item{min-width:0;padding-top:1mm;border-top:.2mm solid var(--report-border);break-inside:avoid;overflow-wrap:anywhere}
-    .source-item:nth-child(-n+2){padding-top:0;border-top:0}
-    .source-item strong{display:block;font-size:6.2pt}
-    .source-item span,.source-item p,.source-item a{display:block;margin-top:.25mm;color:var(--report-muted);font-size:5.3pt;line-height:1.2}
+    .source-list{margin:1.5mm 0 0;padding-left:4mm}
+    .source-item{margin-bottom:.8mm;font-size:7pt;line-height:1.3;overflow-wrap:anywhere}
     .source-item a{color:var(--report-blue)}
-    .source-provenance{margin-top:.25mm;color:var(--report-muted);font-size:4.8pt;line-height:1.15}
-    .source-provenance a,.source-provenance span{display:inline;margin:0;font-size:inherit;line-height:inherit}
-    .source-provenance span::before{content:" · "}
-    .source-overflow{padding:1.5mm 2mm;background:var(--report-soft);list-style:none}
-    .source-overflow strong,.source-overflow span{display:block;font-size:6.2pt;line-height:1.3}
-    .source-overflow span{margin-top:.4mm;color:var(--report-muted)}
     .disclaimer{margin-top:4mm;padding:3.5mm;background:var(--report-soft);border-radius:var(--radius);color:var(--report-muted)}
     .disclaimer p{margin-top:1.5mm;font-size:7pt}
   </style>
@@ -274,14 +240,8 @@ export function renderCanonicalPreliminaryReportHtml(
 
   <section class="page">
     ${continuationHeader()}
-    <h2 class="page-section-title">What happens next</h2>
-    <p class="next-stage"><strong>Recommended next stage:</strong> ${esc(report.overall.recommendedStage)}</p>
+    <section class="recommended-stage"><h2>Recommended next stage</h2><strong>${esc(report.overall.recommendedStage)}</strong></section>
     <div class="page-three-grid">
-      <div>
-        <section class="compact-section"><h2>Prioritised actions</h2><ol class="compact-list">${prioritisedActions}</ol></section>
-        <section class="compact-section"><h2>Missing information</h2><ul class="compact-list">${missingInformation}</ul></section>
-        <section class="compact-section"><h2>Assumptions and limitations</h2><ul class="compact-list">${assumptionsAndLimitations}</ul></section>
-      </div>
       <section class="plain-section">
         <h2>Mapping information &amp; licences</h2>
         <p class="mapping-summary">${sourceSummary}</p>
@@ -289,6 +249,7 @@ export function renderCanonicalPreliminaryReportHtml(
         <ul class="source-list">${detailedAttribution}</ul>
         <p class="mapping-summary">Mapped information is indicative and may differ from current site conditions.</p>
       </section>
+      <section class="plain-section"><h2>Assumptions and limitations</h2><ul>${assumptionsAndLimitations}</ul></section>
     </div>
     <section class="disclaimer">
       <h2>Preliminary assessment</h2>
@@ -377,38 +338,28 @@ function reportMappingSources(
   return sources;
 }
 
-function renderMappingSource(
-  source: ReportDataSource,
+function renderMappingCredits(
+  sources: ReportDataSource[],
   esc: (value: unknown) => string,
 ): string {
-  const retrieved = source.retrievedAt
-    ? `<span>Accessed ${esc(formatDate(source.retrievedAt))}</span>`
-    : "";
-  const attribution = source.attribution
-    ? `<p>${esc(source.attribution)}</p>`
-    : "";
-  const notes = (source.notes ?? [])
-    .map((note) => `<p>${esc(note)}</p>`)
-    .join("");
-  const capturePeriod = source.datasetDate
-    ? `<span>Capture period ${esc(source.datasetDate.replace("/", " to "))}</span>`
-    : "";
-  const provenance = (source.provenanceAssets ?? [])
-    .map((asset, index) => {
-      const dataset = asset.dataset ? `${esc(asset.dataset)} · ` : "";
-      const capturePeriod = asset.datasetDate
-        ? `Capture period ${esc(asset.datasetDate.replace("/", " to "))} · `
+  const credits = new Map<string, ReportDataSource[]>();
+  for (const source of sources) {
+    const credit = source.attribution?.trim() || `${source.provider}, ${source.licence}`;
+    const group = credits.get(credit) ?? [];
+    group.push(source);
+    credits.set(credit, group);
+  }
+  return [...credits.entries()]
+    .map(([credit, group]) => {
+      const licences = unique(group.map((source) => source.licence));
+      const variableLicence = licences.length > 1;
+      const licenceUrl = group.find((source) => source.licenceUrl)?.licenceUrl;
+      const licence = !variableLicence && licenceUrl
+        ? ` <a href="${esc(licenceUrl)}">Licence</a>`
         : "";
-      return `<div class="source-provenance">${dataset}${capturePeriod}<a href="${esc(asset.stacItemUrl)}">STAC source ${index + 1}</a><span>Checksum ${esc(asset.assetChecksum)} · Updated ${esc(formatDate(asset.assetUpdatedAt))} · retrieved ${esc(formatDate(asset.retrievedAt))}</span></div>`;
+      return `<li class="source-item">${esc(credit)}${licence}</li>`;
     })
     .join("");
-  const sourceLink = source.sourceUrl
-    ? `<a href="${esc(source.sourceUrl)}">Dataset details</a>`
-    : "";
-  const licenceLink = source.licenceUrl
-    ? `<a href="${esc(source.licenceUrl)}">Licence details</a>`
-    : "";
-  return `<li class="source-item"><strong>${esc(source.dataset)}</strong><span>${esc(source.provider)} · ${esc(source.licence)}</span>${capturePeriod}${retrieved}${attribution}${notes}${provenance}${sourceLink}${licenceLink}</li>`;
 }
 
 function latestSourceDate(report: SavedPreliminaryReport): string | null {
@@ -432,12 +383,6 @@ function formatDate(value: string): string {
 
 function unique<T>(values: T[]): T[] {
   return [...new Set(values)];
-}
-
-function formatReportValue(value: string): string {
-  return value
-    .replaceAll("_", " ")
-    .replace(/^./, (letter) => letter.toUpperCase());
 }
 
 export const canonicalReportConsistencyFields = (
