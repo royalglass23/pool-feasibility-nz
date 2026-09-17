@@ -1,4 +1,5 @@
 import {
+  act,
   cleanup,
   render,
   screen,
@@ -15,9 +16,11 @@ import {
 } from "../fixtures/preliminary-report";
 
 const trackAnonymousFunnelEvent = vi.hoisted(() => vi.fn());
+const hasAnalyticsConsent = vi.hoisted(() => vi.fn(() => false));
 
 vi.mock("@/modules/anonymous-funnel-analytics", () => ({
   trackAnonymousFunnelEvent,
+  hasAnalyticsConsent,
 }));
 
 const context = {
@@ -98,11 +101,141 @@ const validPoolGeometry = {
 
 afterEach(() => {
   cleanup();
+  vi.useRealTimers();
   vi.unstubAllGlobals();
   trackAnonymousFunnelEvent.mockReset();
+  hasAnalyticsConsent.mockReset();
+  hasAnalyticsConsent.mockReturnValue(false);
 });
 
 describe("homeowner report submission", () => {
+  it.each([
+    ["sent", "sent", "delivered"],
+    ["sent", "failed", "partial"],
+    ["failed", "failed", "failed"],
+  ] as const)(
+    "tracks confirmed %s/%s delivery as %s without starting delivery",
+    async (homeowner, internal_test_report, outcomeCategory) => {
+      hasAnalyticsConsent.mockReturnValue(true);
+      const request = vi
+        .fn()
+        .mockResolvedValue(
+          Response.json({ delivery: { homeowner, internal_test_report } }),
+        );
+      vi.stubGlobal("fetch", request);
+
+      render(
+        <SavedAssessmentReportPanel
+          assessment={{
+            id: "assessment-1",
+            reference: report.reference,
+            status: "new_enquiry",
+            created: true,
+            report,
+            reportAccessToken: "saved-report-access-token",
+            delivery: { homeowner: "pending", internal_test_report: "pending" },
+          }}
+          showReport
+          onOpen={() => undefined}
+          onBack={() => undefined}
+        />,
+      );
+
+      await waitFor(() =>
+        expect(trackAnonymousFunnelEvent).toHaveBeenCalledWith({
+          name: "report_delivery_outcome",
+          outcomeCategory,
+        }),
+      );
+      expect(request).toHaveBeenCalledOnce();
+      expect(request.mock.calls[0]?.[0]).toBe(
+        "/api/public/assessments/report/delivery/status",
+      );
+      expect(request.mock.calls[0]?.[1]).toMatchObject({
+        method: "POST",
+        body: JSON.stringify({ accessToken: "saved-report-access-token" }),
+      });
+    },
+  );
+
+  it("does not report delivery while either channel is still pending", async () => {
+    hasAnalyticsConsent.mockReturnValue(true);
+    const request = vi.fn().mockResolvedValue(
+      Response.json({
+        delivery: { homeowner: "sent", internal_test_report: "pending" },
+      }),
+    );
+    vi.stubGlobal("fetch", request);
+
+    render(
+      <SavedAssessmentReportPanel
+        assessment={{
+          id: "assessment-1",
+          reference: report.reference,
+          status: "new_enquiry",
+          created: true,
+          report,
+          reportAccessToken: "saved-report-access-token",
+          delivery: { homeowner: "pending", internal_test_report: "pending" },
+        }}
+        showReport
+        onOpen={() => undefined}
+        onBack={() => undefined}
+      />,
+    );
+
+    await waitFor(() => expect(request).toHaveBeenCalledOnce());
+    expect(trackAnonymousFunnelEvent).not.toHaveBeenCalledWith(
+      expect.objectContaining({ name: "report_delivery_outcome" }),
+    );
+  });
+
+  it("rechecks pending delivery before reporting a confirmed outcome", async () => {
+    hasAnalyticsConsent.mockReturnValue(true);
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          delivery: { homeowner: "sent", internal_test_report: "pending" },
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json({
+          delivery: { homeowner: "sent", internal_test_report: "sent" },
+        }),
+      );
+    vi.stubGlobal("fetch", request);
+    vi.useFakeTimers();
+
+    render(
+      <SavedAssessmentReportPanel
+        assessment={{
+          id: "assessment-1",
+          reference: report.reference,
+          status: "new_enquiry",
+          created: true,
+          report,
+          reportAccessToken: "saved-report-access-token",
+          delivery: { homeowner: "pending", internal_test_report: "pending" },
+        }}
+        showReport
+        onOpen={() => undefined}
+        onBack={() => undefined}
+      />,
+    );
+
+    await act(async () => {});
+    expect(request).toHaveBeenCalledOnce();
+    expect(trackAnonymousFunnelEvent).not.toHaveBeenCalled();
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(2_000);
+    });
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(trackAnonymousFunnelEvent).toHaveBeenCalledWith({
+      name: "report_delivery_outcome",
+      outcomeCategory: "delivered",
+    });
+  });
   it("submits the saved map and hands the complete report to the browser immediately", async () => {
     const user = userEvent.setup();
     const onSaved = vi.fn();

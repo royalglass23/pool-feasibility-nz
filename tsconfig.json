@@ -32,6 +32,13 @@
   ],
   "exclude": [
     "node_modules",
+    ".worktrees/**",
+    "tmp/**",
+    "output/**",
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
+    "security/**",
     "security/report-input-validation/review/files/**"
   ]
 }

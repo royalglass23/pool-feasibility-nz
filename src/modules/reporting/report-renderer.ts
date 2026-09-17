@@ -133,6 +133,23 @@ const puppeteerRenderer: PdfRenderer = {
           "REPORT_GENERATION_FAILED: attribution exceeds the three-page layout",
         );
       }
+      const contentFits = await page.evaluate(() => {
+        const pages = document.querySelectorAll<HTMLElement>(".page");
+        const pageThree = pages[2];
+        const footer = pageThree?.querySelector<HTMLElement>("footer");
+        if (pages.length !== 3 || !pageThree || !footer) return false;
+        const boundary = footer.getBoundingClientRect().top - 8;
+        return Array.from(pageThree.children).every(
+          (child) =>
+            child === footer ||
+            child.getBoundingClientRect().bottom <= boundary,
+        );
+      });
+      if (!contentFits) {
+        throw new Error(
+          "REPORT_GENERATION_FAILED: content exceeds the three-page layout",
+        );
+      }
       return Buffer.from(
         await page.pdf({
           format: "A4",

@@ -36,6 +36,14 @@ accepts only these anonymous funnel events:
 - `report_request_submitted`
 - `report_delivery_outcome`, with only `delivered`, `partial`, or `failed`
 
+`report_delivery_outcome` is sent only when the consenting visitor's browser
+confirms both persisted email-delivery states through the read-only status
+endpoint. Two sent channels mean `delivered`, one sent and one failed means
+`partial`, and two failed channels mean `failed`. Pending or sending states do
+not produce an outcome event. Browser closure, withdrawn consent, or an
+unavailable status check can leave an outcome unobserved, so this is a
+consented funnel signal, not the authoritative delivery audit log.
+
 The analytics boundary rejects extra fields. Do not add names, phone numbers,
 email addresses, exact addresses, property identifiers, coordinates, map data,
 free text, report content, or advertising-profile data.

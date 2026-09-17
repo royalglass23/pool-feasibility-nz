@@ -73,9 +73,6 @@ export function renderCanonicalPreliminaryReportHtml(
     ${clearanceCaption}
     <ul class="map-legend-list">${mapLegendEntries.map((entry) => renderMapLegendEntry(entry, esc)).join("")}</ul>
   </aside>`;
-  const laterVerification = report.laterVerification
-    .map((item) => `<li>${esc(item)}</li>`)
-    .join("");
   const nextSteps = report.nextSteps
     .slice(0, 6)
     .map(
@@ -93,11 +90,14 @@ export function renderCanonicalPreliminaryReportHtml(
         )
         .join("")
     : nextSteps;
-  const missingInformation = report.missingInformation.length
-    ? report.missingInformation
-        .map((item) => `<li>${esc(item.label)}</li>`)
-        .join("")
-    : laterVerification;
+  const missingInformation = [
+    ...new Set([
+      ...report.missingInformation.map((item) => item.label),
+      ...report.laterVerification,
+    ]),
+  ]
+    .map((item) => `<li>${esc(item)}</li>`)
+    .join("");
   const assumptionsAndLimitations = [
     ...report.assumptions,
     ...report.limitations,
@@ -352,6 +352,8 @@ function reportMappingSources(
       attribution: source.attribution?.text ?? null,
       notes: [source.derivedProductNotice],
       provenanceAssets: source.contributingAssets.map((asset) => ({
+        dataset: asset.dataset,
+        datasetDate: asset.datasetDate,
         stacItemUrl: asset.stacItemUrl,
         assetChecksum: asset.assetChecksum,
         assetUpdatedAt: asset.assetUpdatedAt,
@@ -392,10 +394,13 @@ function renderMappingSource(
     ? `<span>Capture period ${esc(source.datasetDate.replace("/", " to "))}</span>`
     : "";
   const provenance = (source.provenanceAssets ?? [])
-    .map(
-      (asset, index) =>
-        `<div class="source-provenance"><a href="${esc(asset.stacItemUrl)}">STAC source ${index + 1}</a><span>Checksum ${esc(asset.assetChecksum)} · Updated ${esc(formatDate(asset.assetUpdatedAt))} · retrieved ${esc(formatDate(asset.retrievedAt))}</span></div>`,
-    )
+    .map((asset, index) => {
+      const dataset = asset.dataset ? `${esc(asset.dataset)} · ` : "";
+      const capturePeriod = asset.datasetDate
+        ? `Capture period ${esc(asset.datasetDate.replace("/", " to "))} · `
+        : "";
+      return `<div class="source-provenance">${dataset}${capturePeriod}<a href="${esc(asset.stacItemUrl)}">STAC source ${index + 1}</a><span>Checksum ${esc(asset.assetChecksum)} · Updated ${esc(formatDate(asset.assetUpdatedAt))} · retrieved ${esc(formatDate(asset.retrievedAt))}</span></div>`;
+    })
     .join("");
   const sourceLink = source.sourceUrl
     ? `<a href="${esc(source.sourceUrl)}">Dataset details</a>`

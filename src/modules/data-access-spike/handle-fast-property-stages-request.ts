@@ -24,24 +24,6 @@ import { z } from "zod";
 
 const MAX_ASSESSMENT_SNAPSHOT_BYTES = 5_500_000;
 const MAX_STAGE_REQUEST_BYTES = MAX_ASSESSMENT_SNAPSHOT_BYTES + 1_024;
-const constructionEnvelopeSchema = z.object({
-  type: z.literal("Polygon"),
-  coordinates: z
-    .array(
-      z
-        .array(
-          z.tuple([
-            z.number().finite().min(160).max(180),
-            z.number().finite().min(-48).max(-33),
-          ]),
-        )
-        .min(4)
-        .max(100),
-    )
-    .min(1)
-    .max(2),
-});
-
 const stageRequestSchema = z
   .object({
     mode: z.literal("detailed").optional(),
@@ -50,7 +32,6 @@ const stageRequestSchema = z
       z.number().min(160).max(180),
       z.number().min(-48).max(-33),
     ]),
-    constructionEnvelopeGeometry: constructionEnvelopeSchema.optional(),
     assessmentSnapshot: z.string().min(32).max(MAX_ASSESSMENT_SNAPSHOT_BYTES),
   })
   .strict();
@@ -164,12 +145,6 @@ export async function handleFastPropertyStagesRequest(
   const requestBody = {
     addressId: parsed.data.addressId,
     coordinates: parsed.data.coordinates,
-    ...(parsed.data.constructionEnvelopeGeometry
-      ? {
-          constructionEnvelopeGeometry:
-            parsed.data.constructionEnvelopeGeometry,
-        }
-      : {}),
   };
   const response =
     parsed.data.mode === "detailed"

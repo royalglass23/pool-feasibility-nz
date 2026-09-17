@@ -28,11 +28,12 @@ This keeps limits consistent across Vercel function instances.
   Both send a name, email, and message to the support inbox; partnership
   enquiries also include a company name and allow an optional message.
   Neither creates an assessment.
-- A signed Property Check session receives two stage operations in 15 minutes:
-  automatic enrichment plus the optional detailed check. The allowance is
-  scoped by client IP and signed snapshot ID, so replay cannot create unbounded
-  provider work and stage calls do not consume another initial Property Check
-  attempt.
+- A signed Property Check session receives up to three bounded stage operations
+  in 15 minutes: automatic enrichment, one optional detailed check, and one
+  detailed-check retry only when the signed snapshot records a transient
+  provider failure. Each stage can run once and is scoped by client IP and
+  signed snapshot ID, so replay cannot create unbounded provider work and stage
+  calls do not consume another initial Property Check attempt.
 
 Each named action has a separate budget. Address suggestions, aerial analysis,
 aerial tiles, saved-report delivery retries, and the shared direct/saved PDF

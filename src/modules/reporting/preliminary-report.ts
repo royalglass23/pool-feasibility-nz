@@ -248,24 +248,34 @@ function withTerrainAssessment(
       },
     };
   }
+  const bufferedProposedPool =
+    terrain.analysisArea === "buffered_proposed_pool";
   const details = [
     {
-      label: "Property average slope",
+      label: bufferedProposedPool
+        ? "Proposed pool area average slope"
+        : "Property average slope",
       value: `${terrain.averageSlopeDegrees.toFixed(1)}°`,
     },
     {
-      label: "Steeper sampled areas",
+      label: bufferedProposedPool
+        ? "Steeper sampled pool areas"
+        : "Steeper sampled areas",
       value: `${terrain.upperSlopeDegrees.toFixed(1)}°`,
     },
     {
-      label: "Estimated property height change",
+      label: bufferedProposedPool
+        ? "Estimated pool area height change"
+        : "Estimated property height change",
       value: `${terrain.estimatedFallMetres.toFixed(2)} m`,
     },
     {
-      label: "Overall downhill direction",
+      label: bufferedProposedPool
+        ? "Pool area downhill direction"
+        : "Overall downhill direction",
       value: terrain.downhillDirection ?? "Approximately flat",
     },
-    ...(terrain.constructionEnvelopeTerrain
+    ...(!bufferedProposedPool && terrain.constructionEnvelopeTerrain
       ? [
           {
             label: "Proposed pool construction area slope",

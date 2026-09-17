@@ -22,6 +22,12 @@ PoolReady branding, address, report date/ID, proposed pool, a full-width text-on
 
 Compact cards for meaningful assessed results, including approved indicative terrain measurements when available; unavailable or unassessed checks appear in one `Still needs checking` list rather than empty cards. Include key findings without duplicating the map, score, scenarios, or status table. Building-outline geometry remains omitted from the customer map and legend to keep the aerial readable.
 
+For newly saved reports, the four headline DEM slope metrics describe the
+buffered proposed-pool construction envelope, not the whole parcel. Older
+saved parcel-wide measurements retain their original labels. If the selected
+envelope cannot be assessed, show `Needs checking` rather than reusing a
+parcel-wide slope as the pool-area result.
+
 ### Page 3 — Next steps and provenance
 
 Recommended next stage, actionable steps and remaining verification, followed by mapping sources, licences, assumptions, limitations, and the preliminary-assessment disclaimer. Keep the complete provenance for any report-eligible terrain measurement compact and readable.

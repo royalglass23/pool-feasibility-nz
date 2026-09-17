@@ -49,7 +49,7 @@ export function trackAnonymousFunnelEvent(event: unknown): boolean {
   return true;
 }
 
-function hasAnalyticsConsent(): boolean {
+export function hasAnalyticsConsent(): boolean {
   try {
     return localStorage.getItem(ANALYTICS_CONSENT_STORAGE_KEY) === "granted";
   } catch {

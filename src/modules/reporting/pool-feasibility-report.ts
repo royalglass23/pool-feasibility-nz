@@ -67,6 +67,8 @@ export type ReportDataSource = {
   attribution: string | null;
   notes?: string[];
   provenanceAssets?: {
+    dataset?: string;
+    datasetDate?: string | null;
     stacItemUrl: string;
     assetChecksum: string;
     assetUpdatedAt: string;

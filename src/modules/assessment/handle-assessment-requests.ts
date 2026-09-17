@@ -19,6 +19,7 @@ import {
 } from "@/modules/assessment/assessment-snapshot";
 import { executeFastPropertyDetailsRequest } from "@/modules/data-access-spike/execute-fast-property-details";
 import { OfficialGisGateway } from "@/modules/providers/official-gis-gateway";
+import { createAucklandPropertyTerrainGateway } from "@/modules/providers/linz/auckland-property-terrain-gateway";
 import {
   BodyLimitError,
   readRequestBytesWithinLimit,
@@ -133,6 +134,7 @@ export async function POST(request: Request) {
       parsed = await buildServerAssessmentSubmission({
         request: validated.browserRequest,
         snapshot,
+        terrainGateway: createAucklandPropertyTerrainGateway(),
       });
     } catch (error) {
       if (!(

@@ -16,6 +16,7 @@ import { aucklandDemReportEligibility } from "@/modules/providers/linz/auckland-
 import { assessSelectedPoolTerrain } from "@/modules/terrain/assess-selected-pool-terrain";
 import type {
   PropertyTerrainAssessment,
+  PropertyTerrainGateway,
   PropertyTerrainSource,
 } from "@/modules/terrain/property-terrain";
 import type { TrustedAssessmentSnapshot } from "./assessment-snapshot";
@@ -65,6 +66,7 @@ export function parseBrowserAssessmentSaveRequest(
 export async function buildServerAssessmentSubmission(input: {
   request: BrowserAssessmentSaveRequest;
   snapshot: TrustedAssessmentSnapshot;
+  terrainGateway?: PropertyTerrainGateway;
   now?: () => Date;
 }): Promise<PersistedAssessmentSubmission> {
   const { request, snapshot } = input;
@@ -100,6 +102,18 @@ export async function buildServerAssessmentSubmission(input: {
   ) {
     throw new ServerAssessmentSubmissionError();
   }
+
+  const terrain: PropertyTerrainAssessment | undefined = input.terrainGateway
+    ? boundary.geometry
+      ? await input.terrainGateway.assessParcel(
+          boundary.geometry,
+          constructionEnvelope.geometry,
+        )
+      : {
+          status: "needs_checking",
+          reasons: ["The mapped property parcel is unavailable."],
+        }
+    : snapshot.fastResult.detailedChecks?.terrain;
 
   const warning = classifyFastPoolWarning({
     boundaryState: boundary.state,
@@ -193,8 +207,9 @@ export async function buildServerAssessmentSubmission(input: {
         provenance: reportAssessment?.provenance ?? { datasets: [] },
         placementLayerFindings: warning.placementLayerFindings ?? [],
         terrain: reportTerrain(
-          snapshot.fastResult.detailedChecks?.terrain,
+          terrain,
           constructionEnvelope.geometry,
+          Boolean(input.terrainGateway),
         ),
         assessmentSnapshot: reportAssessment
           ? buildReportAssessmentSnapshot(reportAssessment)
@@ -207,18 +222,24 @@ export async function buildServerAssessmentSubmission(input: {
 function reportTerrain(
   terrain: PropertyTerrainAssessment | undefined,
   constructionEnvelope: Extract<Geometry, { type: "Polygon" }>,
+  bufferedProposedPool: boolean,
 ): PersistedAssessmentSubmission["report"]["reportData"]["terrain"] {
   if (!terrain) return undefined;
   if (terrain.status === "needs_checking") {
     return { status: "needs_checking", reasons: terrain.reasons };
   }
-  const constructionEnvelopeTerrain = terrain.slopeSamples?.length
-    ? assessSelectedPoolTerrain({
-        samples: terrain.slopeSamples,
-        footprint: constructionEnvelope,
-      })
-    : null;
-  return persistMeasuredTerrain(terrain, constructionEnvelopeTerrain);
+  const constructionEnvelopeTerrain =
+    !bufferedProposedPool && terrain.slopeSamples?.length
+      ? assessSelectedPoolTerrain({
+          samples: terrain.slopeSamples,
+          footprint: constructionEnvelope,
+        })
+      : null;
+  return persistMeasuredTerrain(
+    terrain,
+    constructionEnvelopeTerrain,
+    bufferedProposedPool,
+  );
 }
 
 function persistMeasuredTerrain(
@@ -226,9 +247,13 @@ function persistMeasuredTerrain(
   constructionEnvelopeTerrain: ReturnType<
     typeof assessSelectedPoolTerrain
   > | null,
+  bufferedProposedPool: boolean,
 ): PersistedAssessmentSubmission["report"]["reportData"]["terrain"] {
   return {
     status: "measured",
+    ...(bufferedProposedPool
+      ? { analysisArea: "buffered_proposed_pool" as const }
+      : {}),
     reportEligibility: aucklandDemReportEligibility(
       terrain.source,
       AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED,
@@ -240,11 +265,14 @@ function persistMeasuredTerrain(
     downhillDirection: terrain.downhillDirection,
     confidence: terrain.confidence,
     constructionEnvelopeTerrain,
-    source: persistTerrainSource(terrain.source),
+    source: persistTerrainSource(terrain.source, bufferedProposedPool),
   };
 }
 
-function persistTerrainSource(source: PropertyTerrainSource) {
+function persistTerrainSource(
+  source: PropertyTerrainSource,
+  bufferedProposedPool: boolean,
+) {
   return {
     provider: source.provider,
     dataset: source.dataset,
@@ -261,9 +289,13 @@ function persistTerrainSource(source: PropertyTerrainSource) {
     attributesUsed: source.attributesUsed,
     evidenceType: source.evidenceType,
     confidence: source.confidence,
-    derivedProductNotice:
-      "Elevation data was clipped to the assessed property and used to derive indicative slope measurements." as const,
+    derivedProductNotice: bufferedProposedPool
+      ? ("Elevation data was clipped to the buffered proposed-pool area and used to derive indicative slope measurements." as const)
+      : ("Elevation data was clipped to the assessed property and used to derive indicative slope measurements." as const),
     contributingAssets: (source.contributingAssets ?? []).map((asset) => ({
+      dataset: asset.dataset,
+      datasetIdentifier: asset.datasetIdentifier,
+      datasetDate: asset.datasetDate ?? null,
       stacCollectionUrl: asset.stacCollectionUrl,
       assetUrl: asset.assetUrl,
       stacItemUrl: asset.stacItemUrl,

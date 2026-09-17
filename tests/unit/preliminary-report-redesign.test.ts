@@ -346,6 +346,48 @@ describe("canonical homeowner feasibility report", () => {
     expect(overallRule).not.toContain("border-radius");
   });
 
+  it("keeps standard later verification alongside specific missing information on page three", () => {
+    const report = buildReport((submission) => {
+      submission.report.reportData.missingInformation = [
+        {
+          id: "title_review",
+          label: "Current title and registered easements",
+          status: "unverified",
+        },
+        {
+          id: "driveway_review",
+          label: "Confirm driveway clearance onsite",
+          status: "unverified",
+        },
+      ];
+    });
+    const html = renderCanonicalPreliminaryReportHtml(report);
+    const pageThree = new DOMParser()
+      .parseFromString(html, "text/html")
+      .querySelectorAll(".page")[2];
+    const missingInformationSection = Array.from(
+      pageThree?.querySelectorAll(".compact-section") ?? [],
+    ).find(
+      (section) =>
+        section.querySelector("h2")?.textContent === "Missing information",
+    );
+
+    expect(
+      Array.from(
+        missingInformationSection?.querySelectorAll("li") ?? [],
+        (item) => item.textContent?.trim(),
+      ),
+    ).toEqual([
+      "Current title and registered easements",
+      "Confirm driveway clearance onsite",
+      "Exact underground service positions and depths",
+      "Geotechnical and groundwater conditions",
+      "Detailed construction access",
+      "Final structural design",
+      "Final consent and approval requirements",
+    ]);
+  });
+
   it("shows the saved layer legend and pool-shell clearances below the PDF map", () => {
     const shown = renderCanonicalPreliminaryReportHtml(buildReport());
     expect(shown).toContain("Captured map layers");

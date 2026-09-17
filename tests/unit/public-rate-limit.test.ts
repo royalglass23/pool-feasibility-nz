@@ -162,6 +162,7 @@ describe("public provider and PDF rate-limit budgets", () => {
     ["aerial conflict checks", "aerial_conflict", 6, 15 * 60 * 1_000],
     ["aerial tiles", "aerial_tile", 300, 15 * 60 * 1_000],
     ["direct PDF generation", "report_pdf", 3, 60 * 60 * 1_000],
+    ["delivery status checks", "report_delivery_status", 12, 15 * 60 * 1_000],
   ] satisfies ReadonlyArray<
     readonly [string, PublicRateLimitAction, number, number]
   >)(

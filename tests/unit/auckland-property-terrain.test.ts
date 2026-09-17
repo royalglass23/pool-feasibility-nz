@@ -147,15 +147,103 @@ describe("Auckland property terrain", () => {
       status: "measured",
       selectedPool: {
         averageSlopeDegrees: expect.closeTo(0.57, 2),
-        sampleCount: 36,
+        sampleCount: 25,
       },
     });
     expect(eastResult).toMatchObject({
       status: "measured",
       selectedPool: {
         averageSlopeDegrees: expect.closeTo(16.7, 2),
-        sampleCount: 36,
+        sampleCount: 25,
       },
+    });
+    expect(westResult).toMatchObject({
+      status: "measured",
+      averageSlopeDegrees: expect.closeTo(0.57, 2),
+      upperSlopeDegrees: expect.closeTo(0.57, 2),
+      estimatedFallMetres: expect.closeTo(0.06, 2),
+      downhillDirection: "W",
+    });
+    expect(eastResult).toMatchObject({
+      status: "measured",
+      averageSlopeDegrees: expect.closeTo(16.7, 2),
+      upperSlopeDegrees: expect.closeTo(16.7, 2),
+      estimatedFallMetres: expect.closeTo(1.8, 2),
+      downhillDirection: "W",
+    });
+  });
+
+  it("does not treat terrain outside the mapped parcel as a proposed-pool measurement", async () => {
+    const parcel = projectNztmPolygonToWgs84(nztmRectangle(0, 0, 20, 20));
+    const outsideEnvelope = projectNztmPolygonToWgs84(
+      nztmRectangle(25, 2, 31, 8),
+    );
+    const readWindow = planarWindowReader();
+    const terrain = createAucklandPropertyTerrainGateway({
+      readWindow,
+      resolveTiles: () => ({
+        status: "resolved",
+        tiles: [resolvedTile("terrain", nztmRectangle(-100, -100, 100, 100))],
+      }),
+    });
+
+    await expect(
+      terrain.assessParcel(parcel, outsideEnvelope),
+    ).resolves.toEqual({
+      status: "needs_checking",
+      reasons: [
+        "The proposed pool area is outside the mapped property parcel.",
+      ],
+    });
+    expect(readWindow).not.toHaveBeenCalled();
+  });
+
+  it("reads only the buffered pool window when the mapped parcel is larger than the DEM budget", async () => {
+    const parcel = projectNztmPolygonToWgs84(nztmRectangle(0, 0, 200, 200));
+    const poolEnvelope = projectNztmPolygonToWgs84(
+      nztmRectangle(10, 10, 16, 16),
+    );
+    const readWindow = planarWindowReader();
+    const terrain = createAucklandPropertyTerrainGateway({
+      readWindow,
+      resolveTiles: () => ({
+        status: "resolved",
+        tiles: [resolvedTile("terrain", nztmRectangle(-100, -100, 300, 300))],
+      }),
+    });
+
+    await expect(
+      terrain.assessParcel(parcel, poolEnvelope),
+    ).resolves.toMatchObject({
+      status: "measured",
+      averageSlopeDegrees: expect.closeTo(12.6, 1),
+    });
+    expect(readWindow).toHaveBeenCalledOnce();
+    const [request] = vi.mocked(readWindow).mock.calls[0];
+    expect(
+      request.boundsNztm.maximumEast - request.boundsNztm.minimumEast,
+    ).toBeLessThan(12);
+    expect(
+      request.boundsNztm.maximumNorth - request.boundsNztm.minimumNorth,
+    ).toBeLessThan(12);
+  });
+
+  it("names the proposed pool area when its elevation coverage is insufficient", async () => {
+    const parcel = projectNztmPolygonToWgs84(nztmRectangle(0, 0, 20, 20));
+    const smallEnvelope = projectNztmPolygonToWgs84(nztmRectangle(2, 2, 4, 4));
+    const terrain = createAucklandPropertyTerrainGateway({
+      readWindow: planarWindowReader(),
+      resolveTiles: () => ({
+        status: "resolved",
+        tiles: [resolvedTile("terrain", nztmRectangle(-100, -100, 100, 100))],
+      }),
+    });
+
+    await expect(terrain.assessParcel(parcel, smallEnvelope)).resolves.toEqual({
+      status: "needs_checking",
+      reasons: [
+        "Insufficient valid elevation coverage across the proposed pool area.",
+      ],
     });
   });
 

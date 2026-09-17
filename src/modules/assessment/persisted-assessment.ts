@@ -159,6 +159,7 @@ const placementLayerFinding = z.object({
 const reportTerrain = z.discriminatedUnion("status", [
   z.object({
     status: z.literal("measured"),
+    analysisArea: z.literal("buffered_proposed_pool").optional(),
     reportEligibility: z.enum(["approved", "not_approved"]),
     averageSlopeDegrees: z.number().finite().min(0).max(90),
     upperSlopeDegrees: z.number().finite().min(0).max(90),
@@ -202,12 +203,16 @@ const reportTerrain = z.discriminatedUnion("status", [
       attributesUsed: z.array(z.string().max(160)).max(50).optional(),
       evidenceType: z.string().min(1).max(160).optional(),
       confidence: z.enum(["high", "limited", "unavailable"]).optional(),
-      derivedProductNotice: z.literal(
+      derivedProductNotice: z.enum([
         "Elevation data was clipped to the assessed property and used to derive indicative slope measurements.",
-      ),
+        "Elevation data was clipped to the buffered proposed-pool area and used to derive indicative slope measurements.",
+      ]),
       contributingAssets: z
         .array(
           z.object({
+            dataset: z.string().min(1).max(160).optional(),
+            datasetIdentifier: z.string().min(1).max(500).optional(),
+            datasetDate: z.string().max(100).nullable().optional(),
             stacCollectionUrl: z.url().max(500),
             assetUrl: z.url().max(500),
             stacItemUrl: z.url().max(500),

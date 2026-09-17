@@ -19,6 +19,7 @@ const getSavedPreliminaryReportById = vi.hoisted(() => vi.fn());
 const issueSavedReportAccessToken = vi.hoisted(() => vi.fn());
 const after = vi.hoisted(() => vi.fn());
 const executeFastPropertyDetailsRequest = vi.hoisted(() => vi.fn());
+const assessBufferedPoolTerrain = vi.hoisted(() => vi.fn());
 const terrainReportPromotion = vi.hoisted(() => ({ enabled: false }));
 
 vi.mock("server-only", () => ({}));
@@ -52,6 +53,11 @@ vi.mock("@/db/repositories/homeowner-assessment-repository", () => ({
 }));
 vi.mock("@/modules/data-access-spike/execute-fast-property-details", () => ({
   executeFastPropertyDetailsRequest,
+}));
+vi.mock("@/modules/providers/linz/auckland-property-terrain-gateway", () => ({
+  createAucklandPropertyTerrainGateway: () => ({
+    assessParcel: assessBufferedPoolTerrain,
+  }),
 }));
 vi.mock("@/modules/reporting/saved-report-access-token", () => ({
   issueSavedReportAccessToken,
@@ -135,6 +141,10 @@ const validSubmission = {
 
 beforeEach(() => {
   terrainReportPromotion.enabled = false;
+  assessBufferedPoolTerrain.mockResolvedValue({
+    status: "needs_checking",
+    reasons: ["The buffered pool area could not be assessed."],
+  });
   getHomeownerAssessmentByIdempotencyKey.mockResolvedValue(null);
   executeFastPropertyDetailsRequest.mockResolvedValue({
     ok: true,
@@ -150,10 +160,74 @@ afterEach(() => {
   getSavedPreliminaryReportById.mockReset();
   issueSavedReportAccessToken.mockReset();
   executeFastPropertyDetailsRequest.mockReset();
+  assessBufferedPoolTerrain.mockReset();
   vi.unstubAllEnvs();
 });
 
 describe("POST /api/internal/assessments", () => {
+  it("saves headline slope metrics assessed for the submitted buffered pool area", async () => {
+    vi.stubEnv("NODE_ENV", "development");
+    vi.stubEnv("INTERNAL_REPORT_SIGNING_SECRET", snapshotSigningKey);
+    terrainReportPromotion.enabled = true;
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const detailedChecks = completeDetailedChecks();
+    detailedChecks.terrain = reportAllowedTerrain();
+    const assessmentSnapshot = snapshotService.issue({
+      ...original.fastResult,
+      detailedChecks,
+    });
+    assessBufferedPoolTerrain.mockResolvedValue({
+      ...reportAllowedTerrain(),
+      averageSlopeDegrees: 16.7,
+      upperSlopeDegrees: 19,
+      estimatedFallMetres: 1.8,
+      downhillBearingDegrees: 270,
+      downhillDirection: "W",
+    });
+    saveHomeownerAssessment.mockResolvedValue({
+      assessment: {
+        id: ASSESSMENT_ID,
+        reference: "GF-2026-000001",
+        status: "new_enquiry",
+        emailDeliveryState: "pending",
+        forwardingState: "pending",
+      },
+      created: true,
+    });
+    getSavedPreliminaryReportById.mockResolvedValue({
+      reference: "GF-2026-000001",
+    });
+    issueSavedReportAccessToken.mockReturnValue("saved-report-access-token");
+
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/assessments", {
+        method: "POST",
+        body: JSON.stringify({ ...validSubmission, assessmentSnapshot }),
+      }),
+    );
+
+    expect(response.status).toBe(201);
+    expect(assessBufferedPoolTerrain).toHaveBeenCalledWith(
+      original.fastResult.boundary.geometry,
+      expect.objectContaining({ type: "Polygon" }),
+    );
+    expect(saveHomeownerAssessment).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({
+        report: expect.objectContaining({
+          reportData: expect.objectContaining({
+            terrain: expect.objectContaining({
+              status: "measured",
+              averageSlopeDegrees: 16.7,
+              upperSlopeDegrees: 19,
+              estimatedFallMetres: 1.8,
+              downhillDirection: "W",
+            }),
+          }),
+        }),
+      }),
+    );
+  });
   it.each([
     { name: "Jane\u0000Smith" },
     { name: "Jane\r\nBcc:other@example.com" },
@@ -490,7 +564,11 @@ describe("POST /api/internal/assessments", () => {
     terrainReportPromotion.enabled = true;
     const original = snapshotService.verify(validSubmission.assessmentSnapshot);
     const detailedChecks = completeDetailedChecks();
-    detailedChecks.terrain = reportAllowedTerrain();
+    const terrain = reportAllowedTerrain();
+    const asset = terrain.source.contributingAssets?.[0];
+    if (!asset) throw new Error("TEST_TERRAIN_ASSET_MISSING");
+    Object.assign(asset, { datasetDate: "2024-06-26/2024-11-04" });
+    detailedChecks.terrain = terrain;
     const assessmentSnapshot = snapshotService.issue({
       ...original.fastResult,
       detailedChecks,
@@ -509,7 +587,61 @@ describe("POST /api/internal/assessments", () => {
     expect(submission.report.reportData.terrain).toMatchObject({
       status: "measured",
       reportEligibility: "approved",
+      source: {
+        contributingAssets: [
+          {
+            dataset: "Auckland Part 2 LiDAR 1m DEM (2024)",
+            datasetIdentifier:
+              "https://data.linz.govt.nz/layer/122580-auckland-part-2-lidar-1m-dem-2024/",
+            datasetDate: "2024-06-26/2024-11-04",
+          },
+        ],
+      },
     });
+  });
+
+  it("presents the approved headline slope values as buffered proposed-pool measurements", async () => {
+    terrainReportPromotion.enabled = true;
+    const snapshot = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const request = parseBrowserAssessmentSaveRequest(validSubmission);
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot,
+      terrainGateway: {
+        assessParcel: async () => ({
+          ...reportAllowedTerrain(),
+          averageSlopeDegrees: 16.7,
+          upperSlopeDegrees: 19,
+          estimatedFallMetres: 1.8,
+          downhillBearingDegrees: 270,
+          downhillDirection: "W",
+        }),
+      },
+      now: () => new Date("2026-07-30T00:00:00.000Z"),
+    });
+    const report = buildSavedPreliminaryReport({
+      submission,
+      reference: "GF-2026-000021",
+      createdAt: "2026-07-30T00:00:00.000Z",
+    });
+
+    expect(report.assessments.terrain.details).toEqual([
+      { label: "Proposed pool area average slope", value: "16.7°" },
+      { label: "Steeper sampled pool areas", value: "19.0°" },
+      { label: "Estimated pool area height change", value: "1.80 m" },
+      { label: "Pool area downhill direction", value: "W" },
+    ]);
+    expect(submission.report.reportData.terrain).toMatchObject({
+      analysisArea: "buffered_proposed_pool",
+      constructionEnvelopeTerrain: null,
+      source: {
+        derivedProductNotice:
+          "Elevation data was clipped to the buffered proposed-pool area and used to derive indicative slope measurements.",
+      },
+    });
+    const html = renderCanonicalPreliminaryReportHtml(report);
+    expect(html).toContain("Proposed pool area average slope");
+    expect(html).toContain("buffered proposed-pool area");
   });
 
   it("rejects a contributing asset URL that is not in the controlled catalogue", async () => {

@@ -38,8 +38,10 @@ export type PoolAreaSlopeAssessment =
 export function assessPoolAreaSlope(input: {
   grid: TerrainGrid;
   footprint: Polygon;
+  areaDescription?: "property parcel" | "proposed pool area";
 }): PoolAreaSlopeAssessment {
   const { grid, footprint } = input;
+  const areaDescription = input.areaDescription ?? "property parcel";
   if (
     !Number.isInteger(grid.width) ||
     !Number.isInteger(grid.height) ||
@@ -109,7 +111,9 @@ export function assessPoolAreaSlope(input: {
   if (gradients.length === 0) {
     return {
       status: "needs_checking",
-      reasons: ["No valid elevation neighbourhoods cover the property parcel."],
+      reasons: [
+        `No valid elevation neighbourhoods cover the ${areaDescription}.`,
+      ],
     };
   }
   if (
@@ -119,7 +123,7 @@ export function assessPoolAreaSlope(input: {
     return {
       status: "needs_checking",
       reasons: [
-        "Insufficient valid elevation coverage across the property parcel.",
+        `Insufficient valid elevation coverage across the ${areaDescription}.`,
       ],
     };
   }

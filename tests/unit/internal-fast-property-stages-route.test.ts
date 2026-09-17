@@ -107,8 +107,7 @@ describe("POST /api/internal/fast-property-view/stages", () => {
     expect(executeFastPropertyDetailsRequest).not.toHaveBeenCalled();
   });
 
-  it("loads detailed checks through the public stage route after rate limiting", async () => {
-    const detailedData = { datasets: {}, durationMs: 10 };
+  it("rejects a pool envelope in detailed checks before provider work", async () => {
     verifyAssessmentSnapshot.mockReturnValue({
       submissionId: "snapshot-id",
       fastResult: {},
@@ -118,7 +117,7 @@ describe("POST /api/internal/fast-property-view/stages", () => {
     executeFastPropertyDetailsRequest.mockResolvedValue({
       ok: true,
       status: 200,
-      data: detailedData,
+      data: { datasets: {}, durationMs: 10 },
     });
     refreshAssessmentSnapshot.mockReturnValue("refreshed-detailed-snapshot");
 
@@ -135,26 +134,11 @@ describe("POST /api/internal/fast-property-view/stages", () => {
       }),
     );
 
-    expect(response.status).toBe(200);
-    expect(enforcePublicPropertyStageRateLimit).toHaveBeenCalledWith(
-      expect.objectContaining({
-        submissionId: "snapshot-id",
-        stage: "constraints_initial",
-      }),
-    );
-    expect(executeFastPropertyDetailsRequest).toHaveBeenCalledWith(
-      expect.objectContaining({
-        body: {
-          ...selectedAddressPoint,
-          mode: "detailed",
-          constructionEnvelopeGeometry,
-        },
-        terrain: terrainGateway,
-      }),
-    );
+    expect(response.status).toBe(400);
+    expect(enforcePublicPropertyStageRateLimit).not.toHaveBeenCalled();
+    expect(executeFastPropertyDetailsRequest).not.toHaveBeenCalled();
     await expect(response.json()).resolves.toMatchObject({
-      data: detailedData,
-      assessmentSnapshot: "refreshed-detailed-snapshot",
+      error: { code: "INVALID_REQUEST" },
     });
   });
 

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import { executeFastPropertyDetailsRequest } from "@/modules/data-access-spike/execute-fast-property-details";
 import { createDataAccessGateway } from "../fixtures/normalized-data-access";
-import type { FeatureCollection, Geometry, Polygon } from "geojson";
+import type { FeatureCollection, Geometry } from "geojson";
 import { queryableDatasetKeys } from "@/modules/data-access-spike/dataset-catalog";
 import type { DatasetEvidence } from "@/modules/data-access-spike/data-access-gateway";
 
@@ -71,62 +71,32 @@ describe("executeFastPropertyDetailsRequest", () => {
     );
   });
 
-  it("passes the buffered pool construction envelope to terrain assessment", async () => {
-    const assessParcel = vi.fn(
-      async (parcel: Polygon, analysisGeometry?: Polygon) => {
-        void parcel;
-        void analysisGeometry;
-        return {
-          status: "needs_checking" as const,
-          reasons: ["Terrain fixture completed."],
-        };
-      },
-    );
-    const gateway = createDataAccessGateway();
-    const baseBody = {
-      mode: "detailed" as const,
-      addressId: "2359811",
-      coordinates: [174.607906917203, -36.8602038189915] as [number, number],
-    };
-    const poolPositions = [
-      [
-        [174.6078, -36.8603],
-        [174.6079, -36.8603],
-        [174.6079, -36.8602],
-        [174.6078, -36.8602],
-        [174.6078, -36.8603],
-      ],
-      [
-        [174.608, -36.8604],
-        [174.6082, -36.8603],
-        [174.6081, -36.8601],
-        [174.6079, -36.8602],
-        [174.608, -36.8604],
-      ],
-    ] as const;
-
-    for (const coordinates of poolPositions) {
-      await executeFastPropertyDetailsRequest({
-        body: {
-          ...baseBody,
-          constructionEnvelopeGeometry: {
-            type: "Polygon",
-            coordinates: [coordinates.map((position) => [...position])],
-          },
+  it("rejects a pool construction envelope in the detailed parcel-slope request", async () => {
+    const response = await executeFastPropertyDetailsRequest({
+      body: {
+        mode: "detailed",
+        addressId: "2359811",
+        coordinates: [174.607906917203, -36.8602038189915],
+        constructionEnvelopeGeometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [174.6078, -36.8603],
+              [174.6079, -36.8603],
+              [174.6079, -36.8602],
+              [174.6078, -36.8602],
+              [174.6078, -36.8603],
+            ],
+          ],
         },
-        gateway,
-        terrain: { assessParcel },
-      });
-    }
-
-    expect(assessParcel).toHaveBeenCalledTimes(2);
-    expect(assessParcel.mock.calls[0][1]).toEqual({
-      type: "Polygon",
-      coordinates: [poolPositions[0].map((position) => [...position])],
+      },
+      gateway: createDataAccessGateway(),
     });
-    expect(assessParcel.mock.calls[1][1]).toEqual({
-      type: "Polygon",
-      coordinates: [poolPositions[1].map((position) => [...position])],
+
+    expect(response).toMatchObject({
+      ok: false,
+      status: 400,
+      error: { code: "INVALID_REQUEST" },
     });
   });
 

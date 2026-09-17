@@ -346,14 +346,17 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       });
       expect(initial.boundary.state).toBe("loading");
       expect(stages.boundary.state).toBe(boundaryState);
-      const fetchMock = vi.fn(async (input: RequestInfo | URL) =>
-        Response.json({
+      const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+        if (String(input) === "/api/public/address-suggestions") {
+          return Response.json({ suggestions: [] });
+        }
+        return Response.json({
           data: String(input).includes("/api/public/property-check/stages")
             ? stages
             : initial,
           assessmentSnapshot: "server-issued-fixture-snapshot",
-        }),
-      );
+        });
+      });
       vi.stubGlobal("fetch", fetchMock);
 
       render(<DataAccessInspector />);
@@ -361,6 +364,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
         screen.getByLabelText("Auckland property address"),
         requestedAddress,
       );
+      await new Promise((resolve) => setTimeout(resolve, 300));
       await user.keyboard("{Enter}");
 
       expect(
@@ -372,6 +376,7 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       expect(
         screen.getByRole("heading", { name: "Needs Checking" }),
       ).toBeVisible();
+      await user.click(screen.getByText("View details"));
       expect(
         screen.getByText(
           "The mapped property boundary or pool position needs checking before this layout can be assessed.",
@@ -380,7 +385,11 @@ describe("DataAccessInspector", { timeout: 10_000 }, () => {
       expect(
         screen.queryByText("We couldn't complete that property check"),
       ).not.toBeInTheDocument();
-      expect(fetchMock.mock.calls.map(([url]) => String(url))).toEqual([
+      expect(
+        fetchMock.mock.calls
+          .map(([url]) => String(url))
+          .filter((url) => url.startsWith("/api/public/property-check")),
+      ).toEqual([
         "/api/public/property-check",
         "/api/public/property-check/stages",
       ]);

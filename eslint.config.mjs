@@ -12,6 +12,15 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Repository-local generated and isolated-checkout artifacts:
+    ".worktrees/**",
+    "tmp/**",
+    "security/**",
+    "output/**",
+    "coverage/**",
+    "playwright-report/**",
+    "test-results/**",
+    "public/maplibre/**",
   ]),
 ]);
 

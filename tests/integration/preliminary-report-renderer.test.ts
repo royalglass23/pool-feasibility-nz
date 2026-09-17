@@ -62,6 +62,20 @@ describe("persisted preliminary report renderer", () => {
     );
   }, 30_000);
 
+  it("refuses a three-page PDF when valid limitations would be clipped", async () => {
+    const crowdedReport = buildTestPreliminaryReport({
+      limitations: Array.from(
+        { length: 8 },
+        (_, index) =>
+          `Limitation ${index + 1}: ${"Mapped evidence requires independent site confirmation. ".repeat(18)}`,
+      ),
+    });
+
+    await expect(generatePreliminaryReportPdf(crowdedReport)).rejects.toThrow(
+      "REPORT_GENERATION_FAILED: content exceeds the three-page layout",
+    );
+  }, 30_000);
+
   it("keeps the saved map and clearances inside the fixed three-page A4 report", async () => {
     const sixStateReport = buildTestPreliminaryReport({
       keyFindings: [
@@ -200,8 +214,15 @@ describe("persisted preliminary report renderer", () => {
           derivedProductNotice:
             "Elevation data was clipped to the assessed property and used to derive indicative slope measurements.",
           contributingAssets: Array.from({ length: 4 }, (_, index) => ({
-            stacCollectionUrl:
-              "https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-1_2024/dem_1m/2193/collection.json",
+            ...(index === 1
+              ? {
+                  dataset: "Auckland Part 2 LiDAR 1m DEM (2024)",
+                  datasetIdentifier:
+                    "https://data.linz.govt.nz/layer/122580-auckland-part-2-lidar-1m-dem-2024/",
+                  datasetDate: "2024-06-26/2024-11-04",
+                }
+              : {}),
+            stacCollectionUrl: `https://nz-elevation.s3-ap-southeast-2.amazonaws.com/auckland/auckland-part-${index === 1 ? "2" : "1"}_2024/dem_1m/2193/collection.json`,
             assetUrl: `https://example.test/terrain-${index + 1}.tiff`,
             stacItemUrl: `https://example.test/terrain-${index + 1}.json`,
             assetChecksum: `sha256:terrain-checksum-${index + 1}`,
@@ -434,6 +455,10 @@ describe("persisted preliminary report renderer", () => {
     expect(layout?.terrainSourceText).toContain(
       "Capture period 2024-04-30 to 2024-06-27",
     );
+    expect(layout?.terrainSourceText).toContain(
+      "Auckland Part 2 LiDAR 1m DEM (2024)",
+    );
+    expect(layout?.terrainSourceText).toContain("2024-06-26 to 2024-11-04");
     expect(layout?.terrainSourceText).toContain(
       "Checksum sha256:terrain-checksum-1",
     );

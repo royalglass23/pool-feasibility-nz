@@ -14,6 +14,7 @@ export type PropertyTerrainSource = DatasetEvidence & {
     provider: string;
     dataset: string;
     datasetIdentifier: string;
+    datasetDate?: string | null;
     stacCollectionUrl: string;
     assetUrl: string;
     stacItemUrl: string;

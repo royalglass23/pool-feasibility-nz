@@ -59,25 +59,6 @@ const requestSchema = z
       z.number().min(160).max(180),
       z.number().min(-48).max(-33),
     ]),
-    constructionEnvelopeGeometry: z
-      .object({
-        type: z.literal("Polygon"),
-        coordinates: z
-          .array(
-            z
-              .array(
-                z.tuple([
-                  z.number().finite().min(160).max(180),
-                  z.number().finite().min(-48).max(-33),
-                ]),
-              )
-              .min(4)
-              .max(100),
-          )
-          .min(1)
-          .max(2),
-      })
-      .optional(),
   })
   .strict();
 
@@ -169,7 +150,6 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
   const [terrain] = await Promise.all([
     assessTerrain({
       parcelGeometry: parcelResult?.parcels[0]?.geometry ?? null,
-      analysisGeometry: request.data.constructionEnvelopeGeometry,
       terrain: input.terrain,
     }),
     Promise.all(
@@ -220,7 +200,6 @@ async function executeFastPropertyDetailsRequestUncoalesced(input: {
 
 async function assessTerrain(input: {
   parcelGeometry: import("geojson").Polygon | null;
-  analysisGeometry?: import("geojson").Polygon;
   terrain?: PropertyTerrainGateway;
 }): Promise<PropertyTerrainAssessment> {
   if (!input.parcelGeometry) {
@@ -237,9 +216,7 @@ async function assessTerrain(input: {
       reasons: ["The Auckland terrain analysis is unavailable."],
     };
   }
-  return input.analysisGeometry
-    ? input.terrain.assessParcel(input.parcelGeometry, input.analysisGeometry)
-    : input.terrain.assessParcel(input.parcelGeometry);
+  return input.terrain.assessParcel(input.parcelGeometry);
 }
 
 async function queryLayer(input: {

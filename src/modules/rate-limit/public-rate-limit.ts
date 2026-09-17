@@ -20,6 +20,7 @@ export type PublicRateLimitAction =
   | "property_check_constraints_retry"
   | "contact_request"
   | "report_delivery"
+  | "report_delivery_status"
   | "report_pdf"
   | "report_request";
 
@@ -131,6 +132,11 @@ const policies = {
     limit: 3,
     window: { value: 1, unit: "h" },
     prefix: "geomap:public-rate-limit:report-delivery:v1",
+  },
+  report_delivery_status: {
+    limit: 12,
+    window: { value: 15, unit: "m" },
+    prefix: "geomap:public-rate-limit:report-delivery-status:v1",
   },
   report_pdf: {
     limit: 3,
@@ -265,16 +271,14 @@ export async function enforcePublicPropertyStageRateLimit(
     request: Request;
     submissionId: string;
     correlationId: string;
-    // Optional only for source compatibility with ignored review snapshots;
-    // the live public route always supplies the classified signed-session stage.
-    stage?: PublicPropertyStage;
+    stage: PublicPropertyStage;
   },
   options?: PublicRateLimitRuntimeOptions,
 ): Promise<Response | null> {
   return publicRateLimitDeniedResponse(
     {
       request: input.request,
-      action: propertyStageRateLimitActions[input.stage ?? "automatic"],
+      action: propertyStageRateLimitActions[input.stage],
       correlationId: input.correlationId,
       scope: input.submissionId,
     },

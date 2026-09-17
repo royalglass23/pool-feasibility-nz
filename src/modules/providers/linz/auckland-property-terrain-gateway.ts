@@ -1,5 +1,6 @@
 import "server-only";
 
+import { booleanWithin } from "@turf/turf";
 import type { Polygon } from "geojson";
 import { aucklandDemTileCatalogue } from "@/modules/providers/linz/auckland-dem-tile-catalogue";
 import {
@@ -72,7 +73,15 @@ export function createAucklandPropertyTerrainGateway(
       analysisGeometry?: Polygon,
     ): Promise<PropertyTerrainAssessment> {
       try {
-        const footprint = projectWgs84PolygonToNztm(parcelGeometry);
+        const parcelFootprint = projectWgs84PolygonToNztm(parcelGeometry);
+        const footprint = analysisGeometry
+          ? projectWgs84PolygonToNztm(analysisGeometry)
+          : parcelFootprint;
+        if (analysisGeometry && !booleanWithin(footprint, parcelFootprint)) {
+          return needsChecking(
+            "The proposed pool area is outside the mapped property parcel.",
+          );
+        }
         const boundsNztm = paddedIntegerBounds(footprint);
         const width = boundsNztm.maximumEast - boundsNztm.minimumEast;
         const height = boundsNztm.maximumNorth - boundsNztm.minimumNorth;
@@ -114,6 +123,9 @@ export function createAucklandPropertyTerrainGateway(
         const slope = assessPoolAreaSlope({
           grid: composed.grid,
           footprint,
+          ...(analysisGeometry
+            ? { areaDescription: "proposed pool area" as const }
+            : {}),
         });
         if (slope.status === "needs_checking") return slope;
         const { samples, ...summary } = slope;
@@ -150,6 +162,7 @@ export function createAucklandPropertyTerrainGateway(
                 provider: provenance.provider,
                 dataset: provenance.dataset,
                 datasetIdentifier: provenance.datasetIdentifier,
+                datasetDate: provenance.datasetDate,
                 stacCollectionUrl: provenance.stacCollectionUrl,
                 assetUrl: provenance.assetUrl,
                 stacItemUrl: provenance.stacItemUrl,
