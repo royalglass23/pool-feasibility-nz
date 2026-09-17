@@ -278,7 +278,8 @@ posthog.init(${JSON.stringify(POSTHOG_PROJECT_KEY)}, {
     } catch (_) { return null; }
     var names = ["address_search_started", "property_check_completed", "report_form_viewed", "report_request_submitted", "report_delivery_outcome"];
     if (names.indexOf(event.event) === -1) return null;
-    var properties = { $token: event.properties && event.properties.$token };
+    if (!event.properties || !event.properties.token || !event.properties.distinct_id) return null;
+    var properties = { token: event.properties.token, distinct_id: event.properties.distinct_id };
     if (event.event === "report_delivery_outcome") {
       var outcome = event.properties && event.properties.outcome_category;
       if (["delivered", "partial", "failed"].indexOf(outcome) === -1) return null;

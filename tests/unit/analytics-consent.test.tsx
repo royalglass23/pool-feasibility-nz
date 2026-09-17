@@ -131,11 +131,24 @@ describe("analytics consent", () => {
     expect(
       config.before_send({
         event: "property_check_completed",
-        properties: { $token: key, address: "1 Test Street" },
+        properties: {
+          token: key,
+          distinct_id: "anonymous-visitor",
+          address: "1 Test Street",
+        },
       })?.properties,
-    ).toEqual({ $token: key });
+    ).toEqual({ token: key, distinct_id: "anonymous-visitor" });
     expect(
-      config.before_send({ event: "$pageview", properties: { $token: key } }),
+      config.before_send({
+        event: "property_check_completed",
+        properties: { token: key },
+      }),
+    ).toBeNull();
+    expect(
+      config.before_send({
+        event: "$pageview",
+        properties: { token: key, distinct_id: "anonymous-visitor" },
+      }),
     ).toBeNull();
     expect(pixel()).toHaveAttribute("referrerpolicy", "no-referrer");
     expect(within(container).getByTestId("speed-insights")).toBeInTheDocument();

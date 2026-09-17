@@ -24,7 +24,8 @@ suppression before enabling recordings.
 PostHog runs only on the public Property Check. Automatic click, pageview,
 pageleave, heatmap, error, and session recording capture is disabled. It sends
 only the anonymous funnel events listed below; the outgoing event filter drops
-all other event names and removes automatic event properties. Do not call
+all other event names and keeps only PostHog's required project token and
+anonymous distinct ID, plus the approved delivery outcome. Do not call
 `identify` or enable automatic capture without revisiting the privacy boundary.
 
 The choice is stored in the browser under `rg_analytics_consent_v1`. Analytics
