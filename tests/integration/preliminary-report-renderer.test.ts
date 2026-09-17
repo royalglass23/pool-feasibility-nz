@@ -3,6 +3,7 @@ import puppeteer from "puppeteer-core";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { generatePreliminaryReportPdf } from "@/modules/reporting/report-renderer";
+import { renderCanonicalPreliminaryReportHtml } from "@/modules/reporting/preliminary-report-html";
 import { AUCKLAND_DEM_REQUIRED_METADATA } from "@/modules/providers/linz/auckland-dem-source-contract";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 
@@ -46,6 +47,67 @@ describe("persisted preliminary report renderer", () => {
 
     expect(retry.equals(first)).toBe(true);
   }, 70_000);
+
+  it("groups repeated map credits and fits the report on three pages", async () => {
+    const fullSourceReport = buildTestPreliminaryReport({
+      sources: Array.from({ length: 23 }, (_, index) => ({
+        ...report.sources[0]!,
+        provider: index === 0 ? "Land Information New Zealand" : "Auckland Council",
+        attribution:
+          index === 0
+            ? "Land Information New Zealand (LINZ), CC BY 4.0"
+            : "Healthy Waters, Auckland Council, CC BY 4.0",
+        dataset:
+          index === 0
+            ? "Auckland Part 1 LiDAR 1m DEM (2024)"
+            : `Mapped infrastructure dataset ${index + 1}`,
+        sourceUrl: `https://example.test/datasets/${index + 1}`,
+        ...(index === 0
+          ? {
+              notes: [
+                "Elevation data was clipped to the assessed property and used to derive indicative slope measurements.",
+              ],
+              provenanceAssets: Array.from({ length: 1 }, (_, asset) => ({
+                dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
+                datasetDate: "2024-04-30/2024-06-27",
+                stacItemUrl: `https://example.test/terrain-${asset + 1}.json`,
+                assetChecksum: `sha256:terrain-checksum-${asset + 1}`,
+                assetUpdatedAt: "2026-03-27T00:00:00.000Z",
+                retrievedAt: "2026-08-13T02:00:00.000Z",
+              })),
+            }
+          : {}),
+      })),
+    });
+
+    const html = renderCanonicalPreliminaryReportHtml(fullSourceReport);
+    const pdf = await generatePreliminaryReportPdf(fullSourceReport);
+
+    expect(html).toContain('<section class="recommended-stage">');
+    expect(html).not.toContain("<h2>Missing information</h2>");
+    expect(html).not.toContain("<h2>Prioritised actions</h2>");
+    expect(html).toContain("<h2>Assumptions and limitations</h2>");
+    expect(html.match(/class="source-item"/g)).toHaveLength(2);
+    expect(html).toContain("Healthy Waters, Auckland Council, CC BY 4.0");
+    expect(html).not.toContain("Mapped infrastructure dataset 23");
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(pdf.toString("latin1").match(/\/Type\s*\/Page\b/g)).toHaveLength(3);
+  }, 30_000);
+
+  it("shows one provider credit when saved layers have differing licence metadata", () => {
+    const sharedCreditReport = buildTestPreliminaryReport({
+      sources: [
+        { ...report.sources[0]!, attribution: "Example provider", licence: "Licence A" },
+        { ...report.sources[0]!, dataset: "Second dataset", attribution: "Example provider", licence: "Licence B" },
+      ],
+    });
+    const html = renderCanonicalPreliminaryReportHtml(sharedCreditReport);
+
+    expect(html.match(/class="source-item"/g)).toHaveLength(1);
+    expect(html).toContain("Example provider");
+    expect(html).not.toContain("Licence terms vary by layer");
+    expect(html).not.toContain("Second dataset");
+  });
 
   it("refuses a three-page PDF when complete source attribution cannot fit", async () => {
     const crowdedReport = buildTestPreliminaryReport({
@@ -259,7 +321,6 @@ describe("persisted preliminary report renderer", () => {
           mapCaptionContained: boolean;
           keyFindingsCount: number;
           sourceItemCount: number;
-          sourceOverflowShown: boolean;
           provenanceAssetCount: number;
           terrainSourceText: string;
           terrainStacHrefs: string[];
@@ -385,9 +446,6 @@ describe("persisted preliminary report renderer", () => {
               keyFindingsCount: pageTwo?.querySelectorAll(".later").length ?? 0,
               sourceItemCount:
                 pageThree.querySelectorAll(".source-item").length,
-              sourceOverflowShown: Boolean(
-                pageThree.querySelector(".source-overflow"),
-              ),
               provenanceAssetCount:
                 pageThree.querySelectorAll(".source-provenance").length,
               terrainSourceText:
@@ -440,30 +498,17 @@ describe("persisted preliminary report renderer", () => {
       mapCaptionContained: true,
       keyFindingsCount: 1,
       sourceItemCount: 12,
-      sourceOverflowShown: false,
-      provenanceAssetCount: 4,
-      terrainStacHrefs: [
-        "https://example.test/terrain-1.json",
-        "https://example.test/terrain-2.json",
-        "https://example.test/terrain-3.json",
-        "https://example.test/terrain-4.json",
-      ],
+      provenanceAssetCount: 0,
+      terrainStacHrefs: [],
       pageThreeContentClearOfFooter: true,
       sourceSummaryText:
-        "Sources include Land Information New Zealand - Mapped provider 2 - Mapped provider 3 - Mapped provider 4 and 8 more providers.",
+        "Sources include LINZ - Mapped provider 2 - Mapped provider 3 - Mapped provider 4 and 8 more providers.",
     });
     expect(layout?.terrainSourceText).toContain(
-      "Capture period 2024-04-30 to 2024-06-27",
+      AUCKLAND_DEM_REQUIRED_METADATA.attribution.text,
     );
-    expect(layout?.terrainSourceText).toContain(
-      "Auckland Part 2 LiDAR 1m DEM (2024)",
-    );
-    expect(layout?.terrainSourceText).toContain("2024-06-26 to 2024-11-04");
-    expect(layout?.terrainSourceText).toContain(
-      "Checksum sha256:terrain-checksum-1",
-    );
-    expect(layout?.terrainSourceText).toContain("Updated 27 Mar 2026");
-    expect(layout?.terrainSourceText).toContain("retrieved 13 Aug 2026");
+    expect(layout?.terrainSourceText).not.toContain("Slope:");
+    expect(layout?.terrainSourceText).not.toContain("Checksum");
   }, 60_000);
 });
 
