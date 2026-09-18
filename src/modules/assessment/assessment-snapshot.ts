@@ -9,6 +9,7 @@ import {
   trustedConstructabilitySubmissionSchema,
   type TrustedConstructabilitySubmission,
 } from "./constructability-evidence";
+import { estimatedPoolDepthSchema } from "./estimated-pool-depth";
 
 const ASSESSMENT_SNAPSHOT_TTL_MS = 15 * 60 * 1_000;
 const snapshotGlobal = globalThis as typeof globalThis & {
@@ -22,6 +23,7 @@ export type TrustedAssessmentSnapshot = {
   fastResult: FastPropertyViewResult;
   expiresAt: number;
   constructability?: TrustedConstructabilitySubmission;
+  lockedEstimatedDepthMetres?: number;
 };
 
 export function issueAssessmentSnapshot(
@@ -166,6 +168,13 @@ export function createAssessmentSnapshotService(
         !trustedConstructabilitySubmissionSchema.safeParse(
           snapshot.constructability,
         ).success
+      ) {
+        throw new AssessmentSnapshotValidationError();
+      }
+      if (
+        snapshot.lockedEstimatedDepthMetres !== undefined &&
+        !estimatedPoolDepthSchema.safeParse(snapshot.lockedEstimatedDepthMetres)
+          .success
       ) {
         throw new AssessmentSnapshotValidationError();
       }

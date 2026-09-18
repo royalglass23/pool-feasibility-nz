@@ -6,6 +6,7 @@ import {
   verifyAssessmentSnapshot,
 } from "./assessment-snapshot";
 import { constructabilityAnswersSchema } from "./constructability-evidence";
+import { DEFAULT_ESTIMATED_POOL_DEPTH_METRES } from "./estimated-pool-depth";
 import { poolLayoutSchema } from "./pool-layout-schema";
 import { suggestAccessRouteFromProperty } from "@/modules/spatial/suggest-access-route";
 import {
@@ -60,7 +61,10 @@ export async function handleSiteAnswersRequest(
             });
     const answers = constructabilityAnswersSchema.parse({
       version: 1,
-      estimatedDepthMetres: previous?.answers.estimatedDepthMetres ?? 1.5,
+      estimatedDepthMetres:
+        snapshot.lockedEstimatedDepthMetres ??
+        previous?.answers.estimatedDepthMetres ??
+        DEFAULT_ESTIMATED_POOL_DEPTH_METRES,
       route,
       accessConditions: parsed.accessConditions,
       nearbyFeatures: parsed.nearbyFeatures,

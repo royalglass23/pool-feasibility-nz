@@ -41,6 +41,8 @@ import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
 import { aerialTileRateLimitMessage } from "@/components/map/aerial-tile-error";
 import { FieldValidationMessage } from "@/components/field-validation-message";
+import { EstimatedPoolDepth } from "@/components/estimated-pool-depth";
+import { parseEstimatedPoolDepth } from "@/modules/assessment/estimated-pool-depth";
 import {
   readClientApiErrorFromBlobError,
   type ClientApiError,
@@ -174,6 +176,10 @@ export function FastPropertyView({
   isLoadingDetailed = false,
   onPlacementChange,
   onSnapshotReady,
+  estimatedDepth,
+  depthLocked = false,
+  onEstimatedDepthChange,
+  onEditEstimatedDepth,
   isDetailedRateLimited = false,
 }: {
   result: FastPropertyViewResult;
@@ -184,6 +190,10 @@ export function FastPropertyView({
   isLoadingDetailed?: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
   onSnapshotReady?: (snapshot: FastPropertyViewMapSnapshot | null) => void;
+  estimatedDepth?: string;
+  depthLocked?: boolean;
+  onEstimatedDepthChange?: (value: string) => void;
+  onEditEstimatedDepth?: () => void;
   isDetailedRateLimited?: boolean;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -371,7 +381,9 @@ export function FastPropertyView({
     isInitialAddressLoad ||
     isLoadingDetailed ||
     isDetailedRateLimited ||
-    detailedConstraintStatus === "complete";
+    detailedConstraintStatus === "complete" ||
+    (estimatedDepth !== undefined &&
+      parseEstimatedPoolDepth(estimatedDepth) === null);
   const mappedUtilityLayers = useMemo(
     () =>
       (detailedLayers ?? []).flatMap((layer) => {
@@ -1301,6 +1313,14 @@ export function FastPropertyView({
                   Enter a length from 2–20 m and width from 1.5–10 m in 0.1 m
                   increments.
                 </FieldValidationMessage>
+              )}
+              {estimatedDepth !== undefined && onEstimatedDepthChange && (
+                <EstimatedPoolDepth
+                  value={estimatedDepth}
+                  locked={depthLocked}
+                  onChange={onEstimatedDepthChange}
+                  onEdit={onEditEstimatedDepth}
+                />
               )}
               <div className="border-pool-200 mt-auto space-y-3 border-t pt-4">
                 <p

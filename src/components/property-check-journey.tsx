@@ -23,6 +23,10 @@ import {
 import { HomeownerSubmissionForm } from "@/components/homeowner-submission-form";
 import { SiteQuestions } from "@/components/site-questions";
 import type { ConstructabilityAnswers } from "@/modules/assessment/constructability-evidence";
+import {
+  DEFAULT_ESTIMATED_POOL_DEPTH_METRES,
+  parseEstimatedPoolDepth,
+} from "@/modules/assessment/estimated-pool-depth";
 import { ActionProgressDialog } from "@/components/action-progress-dialog";
 import {
   SavedAssessmentReportPanel,
@@ -95,6 +99,13 @@ export function PropertyCheckJourney() {
   const [fastAssessmentSnapshot, setFastAssessmentSnapshot] = useState<
     string | null
   >(null);
+  const [estimatedDepth, setEstimatedDepth] = useState(
+    String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES),
+  );
+  const [lockedDepth, setLockedDepth] = useState<number | null>(null);
+  const [preDetailedSnapshot, setPreDetailedSnapshot] = useState<string | null>(
+    null,
+  );
   const [signedSiteAnswers, setSignedSiteAnswers] = useState<{
     sourceSnapshot: string;
     placementKey: string;
@@ -117,6 +128,7 @@ export function PropertyCheckJourney() {
     number | null
   >(null);
   const detailedRequestInFlightRef = useRef(false);
+  const detailedStartedRef = useRef(false);
   const fastRequestIdRef = useRef(0);
   const focusedDetailsForRef = useRef<string | null>(null);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(
@@ -308,6 +320,7 @@ export function PropertyCheckJourney() {
 
     trackAnonymousFunnelEvent({ name: "address_search_started" });
     const requestId = ++fastRequestIdRef.current;
+    detailedStartedRef.current = false;
     setIsLoading(true);
     setError(null);
     setCanRetry(false);
@@ -317,6 +330,9 @@ export function PropertyCheckJourney() {
       selectedId && current?.addressId === selectedId ? current : null,
     );
     setFastAssessmentSnapshot(null);
+    setEstimatedDepth(String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES));
+    setLockedDepth(null);
+    setPreDetailedSnapshot(null);
     setSignedSiteAnswers(null);
     setFastPlacementSnapshot(null);
     setFastMapSnapshot(null);
@@ -437,6 +453,7 @@ export function PropertyCheckJourney() {
         }
         return;
       }
+      if (detailedStartedRef.current) return;
       setFastResult((current) =>
         current?.resolvedAddress.addressId === initial.resolvedAddress.addressId
           ? { ...current, ...body.data }
@@ -458,15 +475,21 @@ export function PropertyCheckJourney() {
   }
 
   async function requestDetailedPropertyData() {
+    const depth = lockedDepth ?? parseEstimatedPoolDepth(estimatedDepth);
     if (
       !fastResult ||
       !fastAssessmentSnapshot ||
+      depth === null ||
       isLoadingDetailed ||
       detailedRequestInFlightRef.current
     )
       return;
     const requestId = fastRequestIdRef.current;
+    const sourceSnapshot = fastAssessmentSnapshot;
     detailedRequestInFlightRef.current = true;
+    detailedStartedRef.current = true;
+    if (preDetailedSnapshot === null) setPreDetailedSnapshot(sourceSnapshot);
+    setLockedDepth(depth);
     setIsLoadingDetailed(true);
     setFastMapSnapshot(null);
     try {
@@ -475,6 +498,7 @@ export function PropertyCheckJourney() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "detailed",
+          estimatedDepthMetres: depth,
           addressId: fastResult.resolvedAddress.addressId,
           coordinates: fastResult.resolvedAddress.coordinates,
           assessmentSnapshot: fastAssessmentSnapshot,
@@ -536,12 +560,16 @@ export function PropertyCheckJourney() {
 
   function startAgain() {
     fastRequestIdRef.current += 1;
+    detailedStartedRef.current = false;
     setAddress("");
     setSelectedAddressId(null);
     setResult(null);
     setFastResult(null);
     setPendingSelectedAddress(null);
     setFastAssessmentSnapshot(null);
+    setEstimatedDepth(String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES));
+    setLockedDepth(null);
+    setPreDetailedSnapshot(null);
     setSignedSiteAnswers(null);
     setFastPlacementSnapshot(null);
     setFastMapSnapshot(null);
@@ -756,6 +784,20 @@ export function PropertyCheckJourney() {
             isLoadingDetailed={isLoadingDetailed}
             onPlacementChange={handleFastPlacementChange}
             onSnapshotReady={setFastMapSnapshot}
+            estimatedDepth={estimatedDepth}
+            depthLocked={lockedDepth !== null}
+            onEstimatedDepthChange={setEstimatedDepth}
+            onEditEstimatedDepth={() => {
+              if (!preDetailedSnapshot || isLoadingDetailed) return;
+              setFastAssessmentSnapshot(preDetailedSnapshot);
+              setPreDetailedSnapshot(null);
+              setFastResult((current) =>
+                current ? { ...current, detailedChecks: undefined } : current,
+              );
+              setSignedSiteAnswers(null);
+              setFastMapSnapshot(null);
+              setLockedDepth(null);
+            }}
             isDetailedRateLimited={detailedRetryAfterSeconds !== null}
           />
           {fastPlacementSnapshot?.dimensions &&

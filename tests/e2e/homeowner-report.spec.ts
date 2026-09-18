@@ -56,8 +56,12 @@ test("keeps the saved preliminary report available without PDF download controls
     });
   });
   await page.route("**/api/public/property-check/stages", async (route) => {
-    const request = route.request().postDataJSON() as { mode?: string };
+    const request = route.request().postDataJSON() as {
+      mode?: string;
+      estimatedDepthMetres?: number;
+    };
     if (request.mode === "detailed") {
+      expect(request.estimatedDepthMetres).toBe(1.5);
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -194,7 +198,12 @@ test("keeps the saved preliminary report available without PDF download controls
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
   await page.keyboard.press("Enter");
+  const depthInput = page.getByRole("spinbutton", {
+    name: "Estimated pool depth (m)",
+  });
+  await expect(depthInput).toHaveValue("1.5");
   await page.getByRole("button", { name: "Check for constraints" }).click();
+  await expect(depthInput).toBeDisabled();
   await page.getByRole("button", { name: /Map layers/ }).click();
   const routeQuestion = page.getByRole("group", {
     name: "Suggested access route",

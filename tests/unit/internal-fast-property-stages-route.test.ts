@@ -70,6 +70,87 @@ afterEach(() => {
 });
 
 describe("POST /api/internal/fast-property-view/stages", () => {
+  it("locks an accepted depth into the refreshed detailed snapshot", async () => {
+    const snapshot = {
+      submissionId: "snapshot-id",
+      fastResult: {},
+      expiresAt: Date.now() + 60_000,
+    };
+    verifyAssessmentSnapshot.mockReturnValue(snapshot);
+    enforcePublicPropertyStageRateLimit.mockResolvedValue(null);
+    executeFastPropertyDetailsRequest.mockResolvedValue({
+      ok: true,
+      status: 200,
+      data: { status: "complete" },
+    });
+    refreshAssessmentSnapshot.mockReturnValue("locked-snapshot");
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/property-check/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...selectedAddressPoint,
+          mode: "detailed",
+          estimatedDepthMetres: 1.9,
+          assessmentSnapshot: "s".repeat(2_000),
+        }),
+      }),
+    );
+    expect(response.status).toBe(200);
+    expect(refreshAssessmentSnapshot).toHaveBeenCalledWith(
+      { ...snapshot, lockedEstimatedDepthMetres: 1.9 },
+      { detailedChecks: { status: "complete" } },
+    );
+  });
+
+  it.each([0, 2.1, "Infinity", null])(
+    "rejects invalid depth %s before provider work",
+    async (depth) => {
+      verifyAssessmentSnapshot.mockReturnValue({
+        submissionId: "snapshot-id",
+        fastResult: {},
+        expiresAt: Date.now() + 60_000,
+      });
+      const response = await POST_PUBLIC(
+        new Request("https://pool.example/api/public/property-check/stages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...selectedAddressPoint,
+            mode: "detailed",
+            estimatedDepthMetres: depth,
+            assessmentSnapshot: "s".repeat(2_000),
+          }),
+        }),
+      );
+      expect(response.status).toBe(400);
+      expect(executeFastPropertyDetailsRequest).not.toHaveBeenCalled();
+    },
+  );
+
+  it("rejects a new depth that conflicts with already signed Site answers", async () => {
+    verifyAssessmentSnapshot.mockReturnValue({
+      submissionId: "snapshot-id",
+      fastResult: {},
+      expiresAt: Date.now() + 60_000,
+      constructability: { answers: { estimatedDepthMetres: 1.5 } },
+    });
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/property-check/stages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...selectedAddressPoint,
+          mode: "detailed",
+          estimatedDepthMetres: 1.9,
+          assessmentSnapshot: "s".repeat(2_000),
+        }),
+      }),
+    );
+    expect(response.status).toBe(400);
+    expect(executeFastPropertyDetailsRequest).not.toHaveBeenCalled();
+  });
+
   it("rate-limits a public snapshot replay before starting provider work", async () => {
     verifyAssessmentSnapshot.mockReturnValue({
       submissionId: "snapshot-id",

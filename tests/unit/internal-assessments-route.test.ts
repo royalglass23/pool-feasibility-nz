@@ -505,6 +505,54 @@ describe("POST /api/internal/assessments", () => {
     expect(saved.constructability.routePolicyVersion).toBe(1);
   });
 
+  it("carries the locked depth through Site answers, public submission and saved report", async () => {
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const locked = snapshotService.refresh(
+      { ...original, lockedEstimatedDepthMetres: 1.9 },
+      { detailedChecks: completeDetailedChecks() },
+    );
+    const response = await handleSiteAnswersRequest(
+      new Request(
+        "http://localhost/api/public/assessment-snapshot/site-answers",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            assessmentSnapshot: locked,
+            accessConditions: ["none_of_these"],
+            nearbyFeatures: ["none_of_these"],
+          }),
+        },
+      ),
+    );
+    expect(response.status).toBe(200);
+    const signed = await response.json();
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot: signed.assessmentSnapshot,
+      constructability: signed.answers,
+    });
+    const snapshot = snapshotService.verify(request.assessmentSnapshot);
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot,
+    });
+    const saved = buildSavedPreliminaryReport({
+      submission,
+      reference: "GF-2026-000099",
+      createdAt: "2026-07-30T00:00:00.000Z",
+    });
+    expect(saved.constructability).toMatchObject({
+      version: 1,
+      estimatedDepthMetres: 1.9,
+    });
+    await expect(
+      buildServerAssessmentSubmission({
+        request,
+        snapshot: { ...snapshot, lockedEstimatedDepthMetres: 2 },
+      }),
+    ).rejects.toThrow("INVALID_CONSTRUCTABILITY_ROUTE");
+  });
+
   it("rejects malformed Site evidence before any assessment is saved", async () => {
     const response = await POST_PUBLIC(
       new Request("https://pool.example/api/public/assessments", {

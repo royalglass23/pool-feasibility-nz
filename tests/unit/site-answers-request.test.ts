@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 vi.mock("server-only", () => ({}));
 import {
   issueAssessmentSnapshot,
+  refreshAssessmentSnapshot,
   verifyAssessmentSnapshot,
 } from "@/modules/assessment/assessment-snapshot";
 import { handleSiteAnswersRequest } from "@/modules/assessment/handle-site-answers-request";
@@ -33,6 +34,29 @@ function request(body: unknown) {
 }
 
 describe("public Site answers boundary", () => {
+  it("uses the locked depth in signed Site answers and the constructability snapshot", async () => {
+    const initial = verifyAssessmentSnapshot(
+      issueAssessmentSnapshot(fastResult),
+    );
+    const locked = refreshAssessmentSnapshot(
+      { ...initial, lockedEstimatedDepthMetres: 1.9 },
+      { detailedChecks: { status: "complete" } as never },
+    );
+    const response = await handleSiteAnswersRequest(
+      request({
+        assessmentSnapshot: locked,
+        ...answers,
+      }),
+    );
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body.answers.estimatedDepthMetres).toBe(1.9);
+    expect(
+      verifyAssessmentSnapshot(body.assessmentSnapshot).constructability
+        ?.answers.estimatedDepthMetres,
+    ).toBe(1.9);
+  });
+
   it("rejects a pool position that the final assessment cannot save", async () => {
     const response = await handleSiteAnswersRequest(
       request({

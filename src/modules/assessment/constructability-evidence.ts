@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { estimatedPoolDepthSchema } from "./estimated-pool-depth";
 
 const coordinate = z.tuple([
   z.number().finite().min(160).max(180),
@@ -60,7 +61,7 @@ function exclusiveAnswers(values: string[]): boolean {
 export const constructabilityAnswersSchema = z
   .object({
     version: z.literal(1),
-    estimatedDepthMetres: z.number().finite().positive().max(2),
+    estimatedDepthMetres: estimatedPoolDepthSchema,
     route: z
       .object({
         provenance: z.enum([
