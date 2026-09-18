@@ -1,8 +1,8 @@
-# RG-337 interim excavation guidance contract
+# RG-337 provisional excavation allowance contract
 
-Status: **Interim guidance approved; numeric excavation modelling pending builder confirmation.**
+Status: **300 mm side allowance approved as a provisional PoolReady assumption; builder-specific settings remain future work.**
 
-On 18 September 2026, the product direction was to use New Zealand Building Code and excavation-safety guidance for now, with a builder-confirmed allowance setting later. This record captures the RG-337 interim boundary and the decisions moved to [RG-346](https://linear.app/royalglass/issue/RG-346) before implementing the indicative excavation-volume range in [RG-342](https://linear.app/royalglass/issue/RG-342). It is not an excavation specification or a quantity survey. No working-clearance or base-allowance number has been builder-approved.
+On 18 September 2026, the product decision changed: use the published [Firth masonry-pool specification](https://www.firth.co.nz/assets/Uploads/Resources/Documents/FIR0744-Masonry-Swimming-Pools.pdf) as the source of a temporary **300 mm side allowance**, disclose it in the Preliminary report, and add builder-specific settings later under [RG-346](https://linear.app/royalglass/issue/RG-346). The number is a PoolReady modelling assumption, not a Building Code requirement, a builder-approved value, an excavation instruction or a quantity survey. [RG-342](https://linear.app/royalglass/issue/RG-342) may implement the bounded provisional calculation after the depth input in [RG-340](https://linear.app/royalglass/issue/RG-340) is ready.
 
 ## Interim guidance contract
 
@@ -26,24 +26,33 @@ WorkSafe notes that its excavation guide has not been updated to reflect the cur
 
 Where mapped evidence or a user answer identifies a concern, the interim result is **Needs checking** with the source shown. Where critical evidence is unavailable or the answer is uncertain, use **Not fully assessed** and the affected **Not assessed — data unavailable** explanation as appropriate. No mapped concern means at most **No obvious concern identified — confirm onsite**. These are screening labels, not Building Code compliance findings.
 
-**Do not display an excavation-volume range under this interim contract.** The cited B1 material and WorkSafe guidance do not establish the builder-specific working clearance, base allowance and application rule needed for the high estimate. A pool professional must still approve those assumptions before numeric excavation-volume implementation. No staff or homeowner setting receives a placeholder default.
+**The provisional figure is 300 mm on each side only.** Firth measures it outward from the **outside masonry wall** for backfill and drainage. PoolReady's selected outline is a generic pool-shell footprint rather than a confirmed Firth outside-wall drawing; applying 300 mm around that outline is an explicitly disclosed product proxy. It must not be described as a measured excavation footprint, a universal clearance, or the maximum possible dig. Do not apply Firth's 100 + 25 + 125 mm floor layers as an extra 250 mm beneath the selected depth: the selected depth's reference level, wall/footing geometry and floor falls do not establish that conversion.
+
+The Preliminary report may show two **illustrative geometry scenarios** using the locked selected dimensions and depth: the pool-outline volume and the same rectangular outline with 300 mm added to each side. It must label the second figure **“300 mm side-allowance scenario”**, not a definitive upper excavation quantity. State that base excavation, wall/footing thickness, floor profile, drainage, terrain cut, battering/support, services and actual installation method are not included. The selected pool/installer's dig sheet and site-specific professional assessment govern the actual excavation. If the report presentation only supports a low-to-high range, it must still explain that the higher figure is a bounded side-only scenario and **not an upper bound**.
+
+Suggested report disclosure: **“Illustrative excavation geometry: [pool-outline value] m³ for the selected pool outline; [side-scenario value] m³ with 300 mm added on each side. The 300 mm assumption is adapted from Firth's masonry-pool guidance, which measures from the outside wall. PoolReady applies it to your selected pool outline as a temporary estimate. These are not minimum and maximum excavation quantities. Base depth, pool walls and footings, drainage, ground slope and construction method are not included. Your pool builder must confirm the actual excavation from the chosen pool's plans and site conditions.”** Use the saved numeric values and assumption version in every report representation.
 
 ## Existing product boundary
 
 - Inputs are the selected pool length, width and locked Estimated pool depth, all in metres. The initial depth is 1.5 m; PoolReady supports up to 2.0 m and flags values over 1.8 m for specialist confirmation.
-- The low estimate starts at `length × width × depth`, in cubic metres of in situ ground. It represents pool geometry only and does not assert an exact excavation quantity.
-- The high estimate must account for builder-confirmed working clearance and base allowance, then an indicative terrain-cut adjustment when suitable mapped terrain evidence is available.
+- The pool-outline scenario starts at `length × width × depth`, in cubic metres of in situ ground. It represents pool geometry only and does not assert an exact excavation quantity.
+- The provisional side-only scenario is `(L + 0.6) × (W + 0.6) × D` cubic metres, where `L` and `W` are the selected PoolReady outline in metres, `D` is locked Estimated pool depth, and `0.6 m` represents `0.3 m` on each of two opposing sides. The additional width and length are a proxy around the selected outline, not an assertion that it is a Firth masonry wall.
+- No extra base depth or terrain-cut amount is assumed. Missing base or terrain evidence is labelled **not modelled**, never measured as zero. RG-342 must decide how to present terrain evidence without turning this scenario into a purported full excavation quantity.
 - The orange construction envelope and the internal 1.2 m placement `barrier` envelope are not excavation footprints. Neither supplies a clearance value.
-- The range excludes loose-spoil expansion, truckloads, onsite reuse, disposal, price and construction-method recommendations.
-- Once allowances are approved, if terrain is unavailable, the report may show only the base-geometry range using **approved** allowances, labelled “Base geometry estimate only — terrain adjustment unavailable,” with the affected assessment Not fully assessed. Missing terrain is never treated as a zero measured cut.
+- The scenarios exclude loose-spoil expansion, truckloads, onsite reuse, disposal, price and construction-method recommendations.
+- If terrain is unavailable, the report may still show the two side-only scenarios with **“Base geometry estimate only — terrain adjustment unavailable”** and the affected assessment **Not fully assessed**. Missing terrain is never treated as a measured zero cut.
+
+### Hand calculation for RG-342
+
+For a selected `6.0 m × 3.0 m` outline and locked `1.5 m` depth, pool-outline volume is `6.0 × 3.0 × 1.5 = 27.00 m³`. The 300 mm side-allowance scenario is `(6.0 + 0.6) × (3.0 + 0.6) × 1.5 = 35.64 m³`. The difference is `8.64 m³`. These figures exclude extra base depth and terrain cut; `35.64 m³` is **not** a maximum or a construction quantity. RG-342 must test this fixture and show the assumption beside the figure.
 
 ## Later builder setting — RG-346
 
-Store approved allowance values, units, application rule, residential-pool scope, specialist exclusions, approving builder, evidence reference and effective date together as one versioned setting. Preserve the applied version in each saved assessment so a later setting change cannot rewrite an earlier report. A staff editing interface is not required to record the first approved version; its access and approval workflow can be designed separately.
+Store later builder-approved allowance values, units, application rule, residential-pool scope, specialist exclusions, approving builder, evidence reference and effective date together as one versioned setting. Preserve the applied assumption version in each saved assessment, including this provisional `firth-masonry-side-300mm-v1` assumption, so a later setting change cannot rewrite an earlier report. A staff editing interface is not required for the provisional assumption; the later access and approval workflow can be designed separately.
 
-The [published NZ pool excavation allowance review](./pool-excavation-allowance-source-review.md) records construction-specific measurements that can inform the builder discussion. Its figures are evidence candidates, not default setting values. The setting remains **future work** and must not be populated from those examples without builder approval of the construction scope, reference dimensions and application rule.
+The [published NZ pool excavation allowance review](./pool-excavation-allowance-source-review.md) records the source and its construction-specific limits. The builder setting remains **future work**; a later value must replace the provisional proxy only for its approved construction scope, reference dimensions and application rule.
 
-## Builder confirmation required in RG-346
+## Builder confirmation required for later RG-346 settings
 
 Record the builder's name, company, role, date and confirmation medium or linked evidence with these answers. Do not mark this contract approved from an unattributed number or a generic published rate.
 
@@ -57,15 +66,15 @@ Record the builder's name, company, role, date and confirmation medium or linked
 | Terrain cut               | Whether the proposed terrain adjustment below matches the builder's understanding of the high-side in situ cut and how double counting with clearance/base allowances is avoided.                            |
 | Rounding and presentation | Appropriate reporting precision for an indicative cubic-metre range.                                                                                                                                         |
 
-## Proposed calculation relationship for confirmation
+## Later full-calculation relationship for builder confirmation
 
 Let `L`, `W` and `D` be selected length, width and locked depth in metres. `V_low = L × W × D` cubic metres. Let `V_allowanced` be the volume produced by the **builder-confirmed application rule**, using the confirmed clearance and base allowance. Let `V_terrain_cut` be a nonnegative, indicative _additional_ in situ cut derived from mapped terrain over the approved excavation footprint, without counting material already represented in `V_allowanced`. Then the proposed high-side relationship is `V_high = V_allowanced + V_terrain_cut`, with `V_high ≥ V_low`.
 
-The exact definition of `V_allowanced`, the terrain reference surface, the terrain integration rule and rounding remain **unapproved**. RG-342 must not infer them from the diagram envelopes or treat an unavailable terrain adjustment as a measured zero. The saved assessment must preserve the assumption version and terrain-availability state needed to reproduce the shown range.
+The exact definition of `V_allowanced`, the terrain reference surface, the terrain integration rule and rounding for a later **full** excavation-volume range remain **unapproved**. RG-342's provisional side-only scenario must not silently implement this full relationship, infer values from the diagram envelopes, or treat unavailable terrain as a measured zero. The saved assessment must preserve the provisional assumption version and terrain-availability state needed to reproduce what was shown.
 
 ## Deterministic fixture checklist
 
-Numeric expected outputs cannot be approved until the builder has supplied the values and application rule. RG-346 must record hand-calculated expected cubic-metre results for these fixtures before RG-342 starts:
+The provisional hand calculation above is approved as a **side-only scenario fixture**. RG-346 must later record builder-approved expected cubic-metre results for a full model using these fixtures:
 
 1. **Flat site:** named `L`, `W`, `D`, confirmed allowances, zero mapped terrain cut, expected low and high.
 2. **Sloping site:** the same geometry and allowances with a specified terrain surface or explicit cut input, expected additional in situ cut and high result, including the rule that prevents double counting.
@@ -75,10 +84,9 @@ For each fixture, include unit conversions, unrounded intermediate values, final
 
 ## Approval record
 
-- Builder and evidence: **pending**
-- Confirmed values, units, application and scope: **pending**
-- Reviewed calculation rules and numeric fixtures: **pending**
-- Approved assumption version: **pending**
+- Provisional side allowance: **300 mm per side**, adopted by product decision on 18 September 2026 from Firth's masonry-pool example; **not builder-approved**
+- Provisional assumption version: **`firth-masonry-side-300mm-v1`**; implementation and saved-snapshot use remain pending RG-342
+- Provisional side-only fixture: **27.00 m³ outline; 35.64 m³ side scenario** for `6.0 × 3.0 × 1.5 m`
 - Interim qualitative guidance: **approved for later Site-question and report integration; not yet implemented**
-- RG-346 builder-setting gate: **open, awaiting builder confirmation**
-- RG-342 numeric excavation-volume implementation gate: **closed until RG-346 completes**
+- Builder and evidence for later settings: **pending under RG-346**
+- Full working/base/terrain calculation and numeric fixtures: **pending under RG-346 and a later implementation slice**
