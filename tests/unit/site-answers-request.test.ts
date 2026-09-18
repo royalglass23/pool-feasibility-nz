@@ -33,6 +33,127 @@ function request(body: unknown) {
 }
 
 describe("public Site answers boundary", () => {
+  it("rejects a pool position that the final assessment cannot save", async () => {
+    const response = await handleSiteAnswersRequest(
+      request({
+        assessmentSnapshot: issueAssessmentSnapshot(fastResult),
+        ...answers,
+        routeResponse: "not_sure",
+        poolLayout: {
+          position: [0, 0],
+          lengthMetres: 4,
+          widthMetres: 2.4,
+          rotationDegrees: 0,
+        },
+      }),
+    );
+
+    expect(response.status).toBe(400);
+  });
+
+  it("signs the deterministic suggestion and the homeowner's confirmation for the selected pool", async () => {
+    const property = {
+      ...fastResult,
+      boundary: {
+        state: "confirmed",
+        geometry: {
+          type: "Polygon",
+          coordinates: [
+            [
+              [174.76, -36.85],
+              [174.7603, -36.85],
+              [174.7603, -36.8498],
+              [174.76, -36.8498],
+              [174.76, -36.85],
+            ],
+          ],
+        },
+      },
+      resolvedAddress: {
+        ...fastResult.resolvedAddress,
+        coordinates: [174.76015, -36.850005],
+      },
+      detailedChecks: {
+        layers: [
+          {
+            key: "building_footprints",
+            state: "verified_empty",
+            geometry: null,
+          },
+        ],
+        terrain: {
+          status: "measured",
+          upperSlopeDegrees: 2,
+          source: { evidenceUse: "report_allowed" },
+        },
+      },
+    } as FastPropertyViewResult;
+    const poolLayout = {
+      position: [174.76015, -36.8499],
+      lengthMetres: 4,
+      widthMetres: 2.4,
+      rotationDegrees: 0,
+    };
+    const response = await handleSiteAnswersRequest(
+      request({
+        assessmentSnapshot: issueAssessmentSnapshot(property),
+        ...answers,
+        routeResponse: "confirm",
+        poolLayout,
+      }),
+    );
+    expect(response.status).toBe(200);
+    const signed = verifyAssessmentSnapshot(
+      (await response.json()).assessmentSnapshot,
+    );
+    expect(signed.constructability?.answers.route).toMatchObject({
+      provenance: "confirmed",
+      geometry: { type: "LineString" },
+    });
+    expect(signed.constructability?.evidence.suggestedRoute).toEqual(
+      signed.constructability?.answers.route.geometry,
+    );
+    expect(signed.constructability?.evidence.routePolicyVersion).toBe(1);
+  });
+
+  it("keeps the Site journey completable with uncertain provenance when route evidence is unavailable", async () => {
+    const poolLayout = {
+      position: [174.76015, -36.8499],
+      lengthMetres: 4,
+      widthMetres: 2.4,
+      rotationDegrees: 0,
+    };
+    const token = issueAssessmentSnapshot(fastResult);
+    const response = await handleSiteAnswersRequest(
+      request({
+        assessmentSnapshot: token,
+        ...answers,
+        routeResponse: "not_sure",
+        poolLayout,
+      }),
+    );
+    expect(response.status).toBe(200);
+    const signed = verifyAssessmentSnapshot(
+      (await response.json()).assessmentSnapshot,
+    );
+    expect(signed.constructability?.answers.route).toEqual({
+      provenance: "uncertain",
+      geometry: null,
+    });
+    expect(signed.constructability?.evidence).toMatchObject({
+      suggestedRoute: null,
+      routePolicyVersion: 1,
+    });
+    const invalidConfirmation = await handleSiteAnswersRequest(
+      request({
+        assessmentSnapshot: token,
+        ...answers,
+        routeResponse: "confirm",
+        poolLayout,
+      }),
+    );
+    expect(invalidConfirmation.status).toBe(400);
+  });
   it("signs fixed user answers while preserving the original submission identity", async () => {
     const token = issueAssessmentSnapshot(fastResult);
     const original = verifyAssessmentSnapshot(token);

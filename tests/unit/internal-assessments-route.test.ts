@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { TEST_MAP_IMAGE_DATA_URL } from "../fixtures/preliminary-report";
 import { createAssessmentSnapshotService } from "@/modules/assessment/assessment-snapshot";
+import { handleSiteAnswersRequest } from "@/modules/assessment/handle-site-answers-request";
 import {
   buildServerAssessmentSubmission,
   parseBrowserAssessmentSaveRequest,
@@ -384,6 +385,124 @@ describe("POST /api/internal/assessments", () => {
       userEvidence: [{ category: "barrier", condition: "fences" }],
     });
     expect(saved.overall.headline).toBe("Needs checking");
+  });
+
+  it("persists a confirmed suggested route and rejects a later change to the pool layout", async () => {
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const detailedChecks = completeDetailedChecks();
+    detailedChecks.terrain = reportAllowedTerrain();
+    const property = {
+      ...original.fastResult,
+      resolvedAddress: {
+        ...original.fastResult.resolvedAddress,
+        coordinates: [174.76015, -36.850005] as [number, number],
+      },
+      boundary: {
+        ...original.fastResult.boundary,
+        geometry: {
+          type: "Polygon" as const,
+          coordinates: [
+            [
+              [174.76, -36.85],
+              [174.7603, -36.85],
+              [174.7603, -36.8498],
+              [174.76, -36.8498],
+              [174.76, -36.85],
+            ],
+          ],
+        },
+      },
+      detailedChecks,
+    };
+    const poolLayout = {
+      ...validSubmission.poolLayout,
+      position: [174.76015, -36.8499],
+    };
+    const response = await handleSiteAnswersRequest(
+      new Request(
+        "http://localhost/api/public/assessment-snapshot/site-answers",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            assessmentSnapshot: snapshotService.issue(property),
+            accessConditions: ["none_of_these"],
+            nearbyFeatures: ["none_of_these"],
+            routeResponse: "confirm",
+            poolLayout,
+          }),
+        },
+      ),
+    );
+    expect(response.status).toBe(200);
+    const signed = await response.json();
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot: signed.assessmentSnapshot,
+      constructability: signed.answers,
+      poolLayout,
+    });
+    const snapshot = snapshotService.verify(request.assessmentSnapshot);
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot,
+    });
+    expect(
+      submission.report.reportData.constructability?.route.provenance,
+    ).toBe("confirmed");
+    expect(
+      submission.report.reportData.constructability?.route.geometry,
+    ).toEqual(snapshot.constructability?.evidence.suggestedRoute);
+    const changed = parseBrowserAssessmentSaveRequest({
+      ...request,
+      poolLayout: { ...poolLayout, position: [174.7602, -36.8499] },
+    });
+    await expect(
+      buildServerAssessmentSubmission({ request: changed, snapshot }),
+    ).rejects.toThrow("INVALID_CONSTRUCTABILITY_ROUTE");
+  });
+
+  it("persists an uncertain route with no geometry when mapping cannot suggest access", async () => {
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const response = await handleSiteAnswersRequest(
+      new Request(
+        "http://localhost/api/public/assessment-snapshot/site-answers",
+        {
+          method: "POST",
+          body: JSON.stringify({
+            assessmentSnapshot: snapshotService.issue(original.fastResult),
+            accessConditions: ["none_of_these"],
+            nearbyFeatures: ["none_of_these"],
+            routeResponse: "not_sure",
+            poolLayout: validSubmission.poolLayout,
+          }),
+        },
+      ),
+    );
+    expect(response.status).toBe(200);
+    const signed = await response.json();
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot: signed.assessmentSnapshot,
+      constructability: signed.answers,
+    });
+    const snapshot = snapshotService.verify(request.assessmentSnapshot);
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot,
+    });
+    const saved = buildSavedPreliminaryReport({
+      submission,
+      reference: "GF-2026-000099",
+      createdAt: "2026-07-30T00:00:00.000Z",
+    });
+    expect(saved.constructability.version).toBe(1);
+    if (saved.constructability.version !== 1)
+      throw new Error("Expected saved route evidence");
+    expect(saved.constructability.route).toEqual({
+      provenance: "uncertain",
+      geometry: null,
+    });
+    expect(saved.constructability.routePolicyVersion).toBe(1);
   });
 
   it("rejects malformed Site evidence before any assessment is saved", async () => {
@@ -852,9 +971,17 @@ describe("POST /api/internal/assessments", () => {
           "Elevation data was clipped to the buffered proposed-pool area and used to derive indicative slope measurements.",
       },
     });
+    expect(report.terrain).toMatchObject({
+      analysisArea: "buffered_proposed_pool",
+      source: {
+        derivedProductNotice:
+          "Elevation data was clipped to the buffered proposed-pool area and used to derive indicative slope measurements.",
+      },
+    });
     const html = renderCanonicalPreliminaryReportHtml(report);
     expect(html).toContain("Proposed pool area average slope");
-    expect(html).toContain("buffered proposed-pool area");
+    expect(html).toContain("16.7°");
+    expect(html).not.toContain("Property average slope");
   });
 
   it("rejects a contributing asset URL that is not in the controlled catalogue", async () => {

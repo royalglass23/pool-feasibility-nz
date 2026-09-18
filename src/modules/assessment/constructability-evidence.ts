@@ -115,6 +115,7 @@ export const constructabilityProviderSchema = z
 export const trustedConstructabilityEvidenceSchema = z
   .object({
     suggestedRoute: routeGeometrySchema.nullable(),
+    routePolicyVersion: z.literal(1).optional(),
     mappedEvidence: z.array(mappedConstructabilityEvidenceSchema).max(50),
     providerAvailability: z.array(constructabilityProviderSchema).max(50),
     assumptions: z.array(z.string().trim().min(1).max(500)).max(20),
@@ -131,6 +132,8 @@ export const trustedConstructabilitySubmissionSchema = z
 export const constructabilitySnapshotSchema = z
   .object({
     version: z.literal(1),
+    routePolicyVersion: z.literal(1).optional(),
+    suggestedRoute: routeGeometrySchema.nullable().optional(),
     estimatedDepthMetres:
       constructabilityAnswersSchema.shape.estimatedDepthMetres,
     route: constructabilityAnswersSchema.shape.route,
@@ -215,6 +218,7 @@ export function buildConstructabilitySnapshot(input: {
   providerAvailability?: TrustedConstructabilityEvidence["providerAvailability"];
   assumptions?: string[];
   suggestedRoute?: TrustedConstructabilityEvidence["suggestedRoute"];
+  routePolicyVersion?: TrustedConstructabilityEvidence["routePolicyVersion"];
 }): ConstructabilitySnapshot {
   const answers = constructabilityAnswersSchema.parse(input.answers);
   const mappedEvidence = z
@@ -257,6 +261,9 @@ export function buildConstructabilitySnapshot(input: {
   });
   return constructabilitySnapshotSchema.parse({
     ...answers,
+    ...(input.routePolicyVersion === 1
+      ? { routePolicyVersion: 1, suggestedRoute }
+      : {}),
     mappedEvidence,
     ...derived,
     providerAvailability,

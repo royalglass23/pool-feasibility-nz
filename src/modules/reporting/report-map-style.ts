@@ -23,6 +23,11 @@ export const REPORT_MAP_BASE_STYLES = {
     colour: "#f97316",
     dashed: true,
   },
+  suggestedAccessRoute: {
+    label: "Suggested access route",
+    colour: "#1d4ed8",
+    dashed: true,
+  },
 } as const;
 
 const REPORT_MAP_LAYER_KEY_ALIASES: Readonly<Record<string, string>> = {

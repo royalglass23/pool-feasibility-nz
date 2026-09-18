@@ -176,6 +176,51 @@ function openMapLayers() {
   }
 }
 
+it("draws a preliminary suggested route on the property map", async () => {
+  const suggestedRoute = {
+    type: "LineString" as const,
+    coordinates: [
+      [174.76, -36.85],
+      [174.7601, -36.8499],
+    ],
+  };
+  render(
+    <FastPropertyView
+      result={fastResult}
+      suggestedRoute={suggestedRoute}
+      onRetry={() => {}}
+    />,
+  );
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const style = mapStyles.mock.calls[0]?.[0] as {
+    sources: Record<string, { data: { geometry?: unknown } }>;
+    layers: { id: string }[];
+  };
+  expect(style.sources["suggested-access-route"].data.geometry).toEqual(
+    suggestedRoute,
+  );
+  expect(style.layers).toEqual(
+    expect.arrayContaining([
+      expect.objectContaining({ id: "suggested-access-route" }),
+    ]),
+  );
+});
+
+it("keeps the route map source empty when no credible route exists", async () => {
+  render(
+    <FastPropertyView
+      result={fastResult}
+      suggestedRoute={null}
+      onRetry={() => {}}
+    />,
+  );
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const style = mapStyles.mock.calls[0]?.[0] as {
+    sources: Record<string, { data: { features?: unknown[] } }>;
+  };
+  expect(style.sources["suggested-access-route"].data.features).toEqual([]);
+});
+
 it("keeps map layers collapsed until the user asks to see them", async () => {
   render(<FastPropertyView result={fastResult} onRetry={() => {}} />);
 

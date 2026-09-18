@@ -16,6 +16,95 @@ afterEach(() => {
 });
 
 describe("Site questions", () => {
+  it("shows uncertainty without a confirm action when mapped route evidence is insufficient", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (...args: [string, RequestInit?]) => {
+      void args;
+      return Response.json({
+        assessmentSnapshot: "signed-uncertain",
+        answers: { version: 1 },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <SiteQuestions
+        assessmentSnapshot="original-token"
+        placementKey="pool-a"
+        routeSuggestion={{
+          confidence: "uncertain",
+          geometry: null,
+          reason: "terrain_unavailable_or_steep",
+        }}
+        onSigned={vi.fn()}
+      />,
+    );
+    expect(
+      screen.queryByRole("radio", { name: "Confirm route" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("radio", { name: "I’m not sure" })).toBeChecked();
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "None of these" })[0]!,
+    );
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "None of these" })[1]!,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Continue to your details" }),
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+  });
+  it("requires a response to a visible route suggestion and submits confirmation with the pool layout", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => {
+      void _url;
+      void _init;
+      return Response.json({
+        assessmentSnapshot: "signed-route",
+        answers: { version: 1 },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const poolLayout = {
+      position: [174.76015, -36.8499] as [number, number],
+      lengthMetres: 4,
+      widthMetres: 2.4,
+      rotationDegrees: 0,
+    };
+    render(
+      <SiteQuestions
+        assessmentSnapshot="original-token"
+        placementKey="pool-a"
+        poolLayout={poolLayout}
+        routeSuggestion={{
+          confidence: "credible",
+          reason: "direct_clear_corridor",
+          geometry: {
+            type: "LineString",
+            coordinates: [[174.76015, -36.85], poolLayout.position],
+          },
+        }}
+        onSigned={vi.fn()}
+      />,
+    );
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "None of these" })[0]!,
+    );
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "None of these" })[1]!,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Continue to your details" }),
+    );
+    expect(fetchMock).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("radio", { name: "Confirm route" }));
+    await user.click(
+      screen.getByRole("button", { name: "Continue to your details" }),
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(
+      JSON.parse(fetchMock.mock.calls[0]![1]!.body as string),
+    ).toMatchObject({ routeResponse: "confirm", poolLayout });
+  });
   it("shows both fixed questions, supports multiple selections and exclusive answers by keyboard", async () => {
     const user = userEvent.setup();
     const onSigned = vi.fn();

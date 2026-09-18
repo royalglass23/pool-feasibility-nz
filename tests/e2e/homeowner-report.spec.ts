@@ -196,6 +196,15 @@ test("keeps the saved preliminary report available without PDF download controls
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Check for constraints" }).click();
   await page.getByRole("button", { name: /Map layers/ }).click();
+  const routeQuestion = page.getByRole("group", {
+    name: "Suggested access route",
+  });
+  await expect(
+    routeQuestion.getByRole("radio", { name: "I’m not sure" }),
+  ).toBeChecked();
+  await expect(
+    routeQuestion.getByRole("radio", { name: "Confirm route" }),
+  ).toHaveCount(0);
   await answerSiteQuestions(page);
   const clearanceToggle = page.getByRole("checkbox", {
     name: "Show pool-shell clearances",

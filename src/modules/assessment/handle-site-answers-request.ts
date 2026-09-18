@@ -6,6 +6,8 @@ import {
   verifyAssessmentSnapshot,
 } from "./assessment-snapshot";
 import { constructabilityAnswersSchema } from "./constructability-evidence";
+import { poolLayoutSchema } from "./pool-layout-schema";
+import { suggestAccessRouteFromProperty } from "@/modules/spatial/suggest-access-route";
 import {
   apiErrorResponse,
   apiJsonResponse,
@@ -21,6 +23,8 @@ const requestSchema = z
     assessmentSnapshot: z.string().min(32).max(5_500_000),
     accessConditions: constructabilityAnswersSchema.shape.accessConditions,
     nearbyFeatures: constructabilityAnswersSchema.shape.nearbyFeatures,
+    routeResponse: z.enum(["confirm", "not_sure"]).optional(),
+    poolLayout: poolLayoutSchema.optional(),
   })
   .strict();
 
@@ -35,23 +39,51 @@ export async function handleSiteAnswersRequest(
     );
     const snapshot = verifyAssessmentSnapshot(parsed.assessmentSnapshot);
     const previous = snapshot.constructability;
+    if (Boolean(parsed.routeResponse) !== Boolean(parsed.poolLayout))
+      throw new AssessmentSnapshotValidationError();
+    const suggestion = parsed.poolLayout
+      ? suggestAccessRouteFromProperty(snapshot.fastResult, parsed.poolLayout)
+      : null;
+    if (
+      parsed.routeResponse === "confirm" &&
+      suggestion?.confidence !== "credible"
+    )
+      throw new AssessmentSnapshotValidationError();
+    const route =
+      parsed.routeResponse === "confirm" && suggestion?.geometry
+        ? { provenance: "confirmed" as const, geometry: suggestion.geometry }
+        : parsed.routeResponse === "not_sure"
+          ? { provenance: "uncertain" as const, geometry: null }
+          : (previous?.answers.route ?? {
+              provenance: "uncertain" as const,
+              geometry: null,
+            });
     const answers = constructabilityAnswersSchema.parse({
       version: 1,
       estimatedDepthMetres: previous?.answers.estimatedDepthMetres ?? 1.5,
-      route: previous?.answers.route ?? {
-        provenance: "uncertain",
-        geometry: null,
-      },
+      route,
       accessConditions: parsed.accessConditions,
       nearbyFeatures: parsed.nearbyFeatures,
     });
     const assessmentSnapshot = attachConstructabilityAnswers(snapshot, {
       answers,
-      evidence: previous?.evidence ?? {
-        suggestedRoute: null,
-        mappedEvidence: [],
-        providerAvailability: [],
-        assumptions: [],
+      evidence: {
+        suggestedRoute: suggestion
+          ? suggestion.geometry
+          : (previous?.evidence.suggestedRoute ?? null),
+        ...(suggestion || previous?.evidence.routePolicyVersion === 1
+          ? { routePolicyVersion: 1 as const }
+          : {}),
+        mappedEvidence: previous?.evidence.mappedEvidence ?? [],
+        providerAvailability: previous?.evidence.providerAvailability ?? [],
+        assumptions: suggestion
+          ? [
+              ...(previous?.evidence.assumptions ?? []).filter(
+                (item) => !item.startsWith("Access route policy v1:"),
+              ),
+              `Access route policy v1: ${suggestion.reason}`,
+            ]
+          : (previous?.evidence.assumptions ?? []),
       },
     });
     return apiJsonResponse(

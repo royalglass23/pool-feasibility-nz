@@ -2,6 +2,10 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { ConstructabilityAnswers } from "@/modules/assessment/constructability-evidence";
+import type {
+  AccessRoutePlacement,
+  AccessRouteResult,
+} from "@/modules/spatial/suggest-access-route";
 
 type AccessCondition = ConstructabilityAnswers["accessConditions"][number];
 type NearbyFeature = ConstructabilityAnswers["nearbyFeatures"][number];
@@ -56,10 +60,14 @@ function toggleExclusive<T extends string>(selected: T[], choice: T): T[] {
 export function SiteQuestions({
   assessmentSnapshot,
   placementKey,
+  poolLayout,
+  routeSuggestion,
   onSigned,
 }: {
   assessmentSnapshot: string;
   placementKey: string;
+  poolLayout?: AccessRoutePlacement;
+  routeSuggestion?: AccessRouteResult;
   onSigned: (
     signed: {
       sourceSnapshot: string;
@@ -73,10 +81,14 @@ export function SiteQuestions({
     [],
   );
   const [nearbyFeatures, setNearbyFeatures] = useState<NearbyFeature[]>([]);
+  const [routeResponse, setRouteResponse] = useState<
+    "confirm" | "not_sure" | null
+  >(routeSuggestion?.confidence === "credible" ? null : "not_sure");
   const [errors, setErrors] = useState({ access: false, nearby: false });
   const [requestError, setRequestError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const accessRef = useRef<HTMLFieldSetElement>(null);
+  const routeRef = useRef<HTMLFieldSetElement>(null);
   const nearbyRef = useRef<HTMLFieldSetElement>(null);
   const requestGenerationRef = useRef(0);
 
@@ -92,6 +104,10 @@ export function SiteQuestions({
       access: accessConditions.length === 0,
       nearby: nearbyFeatures.length === 0,
     };
+    if (routeSuggestion?.confidence === "credible" && !routeResponse) {
+      routeRef.current?.focus();
+      return;
+    }
     setErrors(nextErrors);
     if (nextErrors.access || nextErrors.nearby) {
       (nextErrors.access ? accessRef : nearbyRef).current?.focus();
@@ -109,6 +125,9 @@ export function SiteQuestions({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             assessmentSnapshot,
+            ...(poolLayout
+              ? { poolLayout, routeResponse: routeResponse ?? "not_sure" }
+              : {}),
             accessConditions,
             nearbyFeatures,
           }),
@@ -159,6 +178,57 @@ export function SiteQuestions({
           conditions onsite.
         </p>
       </div>
+      <fieldset
+        ref={routeRef}
+        tabIndex={-1}
+        className="space-y-3 focus-visible:outline-2 focus-visible:outline-offset-2"
+      >
+        <legend className="text-pool-950 font-semibold">
+          Suggested access route
+        </legend>
+        {routeSuggestion?.confidence === "credible" ? (
+          <p className="text-pool-700 text-sm">
+            A preliminary straight route is shown on the map. Please confirm
+            whether it looks plausible. A pool professional must check access
+            onsite.
+          </p>
+        ) : (
+          <p className="text-pool-700 text-sm">
+            We couldn’t identify an obvious access route from the mapped
+            evidence. You can still complete your property check.
+          </p>
+        )}
+        {routeSuggestion?.confidence === "credible" && (
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input
+              type="radio"
+              name="route-response"
+              checked={routeResponse === "confirm"}
+              onChange={() => {
+                requestGenerationRef.current += 1;
+                setSaving(false);
+                setRouteResponse("confirm");
+                onSigned(null);
+              }}
+            />
+            Confirm route
+          </label>
+        )}
+        <label className="flex min-h-11 items-center gap-3 text-sm">
+          <input
+            type="radio"
+            name="route-response"
+            checked={routeResponse === "not_sure"}
+            onChange={() => {
+              requestGenerationRef.current += 1;
+              setSaving(false);
+              setRouteResponse("not_sure");
+              onSigned(null);
+            }}
+          />
+          I’m not sure
+        </label>
+      </fieldset>
       <fieldset
         ref={accessRef}
         tabIndex={-1}

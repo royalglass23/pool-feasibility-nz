@@ -33,7 +33,10 @@ import {
   PRELIMINARY_FEASIBILITY_SCOPE,
 } from "@/modules/reporting/preliminary-feasibility-copy";
 import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-view-map-capture";
-import { SELECTED_POOL_MAP_STYLE } from "@/modules/reporting/report-map-style";
+import {
+  REPORT_MAP_BASE_STYLES,
+  SELECTED_POOL_MAP_STYLE,
+} from "@/modules/reporting/report-map-style";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
 import { aerialTileRateLimitMessage } from "@/components/map/aerial-tile-error";
@@ -164,6 +167,7 @@ export type FastPropertyViewMapSnapshot = {
 
 export function FastPropertyView({
   result,
+  suggestedRoute,
   onLoadDetailed,
   onRetry,
   onStartAgain,
@@ -173,6 +177,7 @@ export function FastPropertyView({
   isDetailedRateLimited = false,
 }: {
   result: FastPropertyViewResult;
+  suggestedRoute?: LineString | null;
   onLoadDetailed?: () => void;
   onRetry: () => void;
   onStartAgain?: () => void;
@@ -185,7 +190,11 @@ export function FastPropertyView({
   const rotationControlVisibleRef = useRef(false);
   const syncRotationControlRef = useRef<() => void>(() => {});
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
+  const suggestedRouteRef = useRef(suggestedRoute);
   const mapLibreRef = useRef<typeof import("maplibre-gl") | null>(null);
+  useEffect(() => {
+    suggestedRouteRef.current = suggestedRoute;
+  }, [suggestedRoute]);
   const clearanceLabelMarkersRef = useRef<import("maplibre-gl").Marker[]>([]);
   const poolShellClearancesRef = useRef<PoolShellClearance[]>([]);
   const clearancesVisibleRef = useRef(true);
@@ -560,6 +569,16 @@ export function FastPropertyView({
             data: pointFeature(mapCoordinates),
           },
           pool: { type: "geojson", data: pool },
+          "suggested-access-route": {
+            type: "geojson",
+            data: suggestedRouteRef.current
+              ? {
+                  type: "Feature",
+                  properties: {},
+                  geometry: suggestedRouteRef.current,
+                }
+              : emptyGeometry,
+          },
           "construction-envelope": {
             type: "geojson",
             data: isInitialAddressLoad
@@ -693,6 +712,16 @@ export function FastPropertyView({
         );
       }
       layers.push(
+        {
+          id: "suggested-access-route",
+          type: "line",
+          source: "suggested-access-route",
+          paint: {
+            "line-color": REPORT_MAP_BASE_STYLES.suggestedAccessRoute.colour,
+            "line-width": 4,
+            "line-dasharray": [2, 1],
+          },
+        },
         {
           id: "pool-fill",
           type: "fill",
@@ -972,6 +1001,17 @@ export function FastPropertyView({
     mappedUtilityLayers,
     terrainSlopeGeometry,
   ]);
+
+  useEffect(() => {
+    const source = mapInstanceRef.current?.getSource(
+      "suggested-access-route",
+    ) as import("maplibre-gl").GeoJSONSource | undefined;
+    source?.setData(
+      suggestedRoute
+        ? { type: "Feature", properties: {}, geometry: suggestedRoute }
+        : { type: "FeatureCollection", features: [] },
+    );
+  }, [suggestedRoute]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;

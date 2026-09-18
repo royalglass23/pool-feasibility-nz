@@ -3,6 +3,7 @@
 import {
   useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
@@ -31,6 +32,7 @@ import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-pr
 import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fast-property-details";
 import type { FastPropertyViewRequestError } from "@/modules/data-access-spike/execute-fast-property-view-request";
 import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
+import { suggestAccessRouteFromProperty } from "@/modules/spatial/suggest-access-route";
 import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
 import {
   readClientApiError,
@@ -128,6 +130,25 @@ export function PropertyCheckJourney() {
   const placementKey = fastPlacementSnapshot
     ? placementIdentity(fastPlacementSnapshot)
     : null;
+  const routePoolLayout = useMemo(
+    () =>
+      fastPlacementSnapshot?.dimensions
+        ? {
+            position: fastPlacementSnapshot.position,
+            lengthMetres: fastPlacementSnapshot.dimensions.lengthMetres,
+            widthMetres: fastPlacementSnapshot.dimensions.widthMetres,
+            rotationDegrees: fastPlacementSnapshot.rotationDegrees,
+          }
+        : null,
+    [fastPlacementSnapshot],
+  );
+  const routeSuggestion = useMemo(
+    () =>
+      fastResult && routePoolLayout
+        ? suggestAccessRouteFromProperty(fastResult, routePoolLayout)
+        : null,
+    [fastResult, routePoolLayout],
+  );
   const handleFastPlacementChange = useCallback(
     (placement: FastPoolPlacementSnapshot) => {
       setFastPlacementSnapshot(placement);
@@ -728,6 +749,7 @@ export function PropertyCheckJourney() {
           )}
           <FastPropertyView
             result={fastResult}
+            suggestedRoute={routeSuggestion?.geometry ?? null}
             onLoadDetailed={() => void requestDetailedPropertyData()}
             onRetry={() => void requestDetailedPropertyData()}
             onStartAgain={startAgain}
@@ -746,6 +768,8 @@ export function PropertyCheckJourney() {
                 key={`${fastAssessmentSnapshot}:${placementKey}`}
                 assessmentSnapshot={fastAssessmentSnapshot}
                 placementKey={placementKey}
+                poolLayout={routePoolLayout ?? undefined}
+                routeSuggestion={routeSuggestion ?? undefined}
                 onSigned={setSignedSiteAnswers}
               />
               {signedSiteAnswers?.sourceSnapshot === fastAssessmentSnapshot &&
