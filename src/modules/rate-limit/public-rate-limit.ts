@@ -22,7 +22,8 @@ export type PublicRateLimitAction =
   | "report_delivery"
   | "report_delivery_status"
   | "report_pdf"
-  | "report_request";
+  | "report_request"
+  | "site_answers";
 
 type PublicRateLimitDecision = {
   success: boolean;
@@ -147,6 +148,11 @@ const policies = {
     limit: 3,
     window: { value: 1, unit: "h" },
     prefix: "geomap:public-rate-limit:report-request:v1",
+  },
+  site_answers: {
+    limit: 30,
+    window: { value: 15, unit: "m" },
+    prefix: "geomap:public-rate-limit:site-answers:v1",
   },
 } as const satisfies Record<PublicRateLimitAction, PublicRateLimitPolicy>;
 const logger = pino({ base: undefined });

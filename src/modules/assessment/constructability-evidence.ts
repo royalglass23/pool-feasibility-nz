@@ -377,13 +377,15 @@ function deriveConstructability(
   return {
     userEvidence,
     findings,
-    overallStatus: findings.some(
-      (finding) => finding.status === "needs_checking",
-    )
-      ? ("needs_checking" as const)
-      : findings.some((finding) => finding.status === "not_assessed")
+    overallStatus:
+      input.accessConditions.includes("not_sure") ||
+      input.nearbyFeatures.includes("not_sure")
         ? ("not_fully_assessed" as const)
-        : ("no_obvious_concern" as const),
+        : findings.some((finding) => finding.status === "needs_checking")
+          ? ("needs_checking" as const)
+          : findings.some((finding) => finding.status === "not_assessed")
+            ? ("not_fully_assessed" as const)
+            : ("no_obvious_concern" as const),
     sectionStatus: findings.some(
       (finding) => finding.status === "needs_checking",
     )

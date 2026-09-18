@@ -1,4 +1,8 @@
 import { expect, test } from "@playwright/test";
+import {
+  answerSiteQuestions,
+  mockSiteAnswerSigning,
+} from "./site-questions-helper";
 import sharp from "sharp";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 
@@ -87,6 +91,7 @@ for (const input of ["mouse", "touch"] as const) {
     expect(
       Math.hypot(after!.x - before!.x, after!.y - before!.y),
     ).toBeGreaterThan(8);
+    await page.getByRole("button", { name: /Map layers/ }).click();
     await page
       .getByRole("checkbox", { name: "Show pool-shell clearances" })
       .click();
@@ -113,6 +118,7 @@ for (const input of ["mouse", "touch"] as const) {
 test("report image excludes the rotate button while the live map keeps it visible", async ({
   page,
 }) => {
+  await mockSiteAnswerSigning(page);
   await page.route("**/api/public/property-check", (route) =>
     route.fulfill({
       json: { data: fastResult, assessmentSnapshot: "test-snapshot" },
@@ -137,6 +143,7 @@ test("report image excludes the rotate button while the live map keeps it visibl
   await page.keyboard.press("Enter");
   const control = page.getByTestId("pool-rotate-control");
   await expect(control).toBeVisible();
+  await page.getByRole("button", { name: /Map layers/ }).click();
   await page
     .getByRole("checkbox", { name: "Show pool-shell clearances" })
     .uncheck();
@@ -146,6 +153,8 @@ test("report image excludes the rotate button while the live map keeps it visibl
   const buttonBounds = (await control.boundingBox())!;
   const liveButton = await control.screenshot();
   expect(await whiteFraction(liveButton)).toBeGreaterThan(0.4);
+
+  await answerSiteQuestions(page);
 
   const form = page.getByRole("form", {
     name: "Your details for the preliminary report",

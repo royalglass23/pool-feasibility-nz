@@ -100,6 +100,67 @@ describe("constructability evidence", () => {
     );
   });
 
+  it("retains mapped and user provenances when observations disagree", () => {
+    const snapshot = buildConstructabilitySnapshot({
+      answers: { ...answers, accessConditions: ["retaining_wall"] },
+      mappedEvidence: [
+        {
+          id: "mapped-ground",
+          category: "access_excavation",
+          status: "no_concern",
+          provider: "official-map",
+          dataset: "ground-map",
+        },
+        {
+          id: "mapped-barrier",
+          category: "barrier",
+          status: "concern",
+          provider: "official-map",
+          dataset: "building-map",
+        },
+      ],
+    });
+    expect(snapshot.mappedEvidence).toHaveLength(2);
+    expect(snapshot.userEvidence).toEqual([
+      { category: "access_excavation", condition: "retaining_wall" },
+    ]);
+    expect(snapshot.findings).toContainEqual(
+      expect.objectContaining({
+        source: "mapped",
+        evidenceId: "mapped-barrier",
+      }),
+    );
+    expect(snapshot.findings).toContainEqual(
+      expect.objectContaining({ source: "user", evidenceId: "retaining_wall" }),
+    );
+    expect(snapshot.overallStatus).toBe("needs_checking");
+  });
+
+  it("keeps a declared concern visible while critical uncertainty makes the overall result not fully assessed", () => {
+    const snapshot = buildConstructabilitySnapshot({
+      answers: {
+        ...answers,
+        accessConditions: ["rocky_ground"],
+        nearbyFeatures: ["not_sure"],
+      },
+    });
+    expect(snapshot.overallStatus).toBe("not_fully_assessed");
+    expect(snapshot.findings).toContainEqual(
+      expect.objectContaining({
+        source: "user",
+        evidenceId: "rocky_ground",
+        status: "needs_checking",
+      }),
+    );
+    expect(snapshot.findings).toContainEqual(
+      expect.objectContaining({
+        source: "user",
+        evidenceId: "nearby_not_sure",
+        status: "not_assessed",
+      }),
+    );
+  });
+
   it("requires a signed suggested route before accepting a claimed confirmation", () => {
     expect(() =>
       buildConstructabilitySnapshot({

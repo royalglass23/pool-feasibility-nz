@@ -20,6 +20,8 @@ import {
   type FastPropertyViewMapSnapshot,
 } from "@/components/fast-property-view";
 import { HomeownerSubmissionForm } from "@/components/homeowner-submission-form";
+import { SiteQuestions } from "@/components/site-questions";
+import type { ConstructabilityAnswers } from "@/modules/assessment/constructability-evidence";
 import { ActionProgressDialog } from "@/components/action-progress-dialog";
 import {
   SavedAssessmentReportPanel,
@@ -68,6 +70,15 @@ type PropertyCheckIssue = {
   allowAddressChange?: boolean;
 };
 
+function placementIdentity(placement: FastPoolPlacementSnapshot): string {
+  return JSON.stringify([
+    placement.position,
+    placement.dimensions,
+    placement.rotationDegrees,
+    placement.constructionEnvelopeWithinMappedArea,
+  ]);
+}
+
 export function PropertyCheckJourney() {
   const [address, setAddress] = useState("");
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
@@ -82,6 +93,12 @@ export function PropertyCheckJourney() {
   const [fastAssessmentSnapshot, setFastAssessmentSnapshot] = useState<
     string | null
   >(null);
+  const [signedSiteAnswers, setSignedSiteAnswers] = useState<{
+    sourceSnapshot: string;
+    placementKey: string;
+    snapshot: string;
+    answers: ConstructabilityAnswers;
+  } | null>(null);
   const [fastPlacementSnapshot, setFastPlacementSnapshot] =
     useState<FastPoolPlacementSnapshot | null>(null);
   const [fastMapSnapshot, setFastMapSnapshot] =
@@ -99,6 +116,7 @@ export function PropertyCheckJourney() {
   >(null);
   const detailedRequestInFlightRef = useRef(false);
   const fastRequestIdRef = useRef(0);
+  const focusedDetailsForRef = useRef<string | null>(null);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(
     null,
   );
@@ -107,10 +125,17 @@ export function PropertyCheckJourney() {
     !fastResult &&
     !result &&
     !fastSavedReport.assessment;
+  const placementKey = fastPlacementSnapshot
+    ? placementIdentity(fastPlacementSnapshot)
+    : null;
   const handleFastPlacementChange = useCallback(
     (placement: FastPoolPlacementSnapshot) => {
       setFastPlacementSnapshot(placement);
       setFastMapSnapshot(null);
+      const nextKey = placementIdentity(placement);
+      setSignedSiteAnswers((current) =>
+        current?.placementKey === nextKey ? current : null,
+      );
     },
     [],
   );
@@ -123,6 +148,31 @@ export function PropertyCheckJourney() {
     );
     return () => window.clearTimeout(timeout);
   }, [detailedRetryAfterSeconds]);
+
+  useEffect(() => {
+    if (!signedSiteAnswers) {
+      focusedDetailsForRef.current = null;
+      return;
+    }
+    const focusKey = `${signedSiteAnswers.snapshot}:${signedSiteAnswers.placementKey}`;
+    if (
+      signedSiteAnswers.sourceSnapshot === fastAssessmentSnapshot &&
+      signedSiteAnswers.placementKey === placementKey &&
+      fastMapSnapshot &&
+      focusedDetailsForRef.current !== focusKey
+    ) {
+      const heading = document.getElementById("homeowner-details-heading");
+      if (heading) {
+        heading.focus();
+        focusedDetailsForRef.current = focusKey;
+      }
+    }
+  }, [
+    signedSiteAnswers,
+    fastAssessmentSnapshot,
+    placementKey,
+    fastMapSnapshot,
+  ]);
 
   useEffect(() => {
     const query = address.trim();
@@ -246,6 +296,7 @@ export function PropertyCheckJourney() {
       selectedId && current?.addressId === selectedId ? current : null,
     );
     setFastAssessmentSnapshot(null);
+    setSignedSiteAnswers(null);
     setFastPlacementSnapshot(null);
     setFastMapSnapshot(null);
     setDetailedRetryAfterSeconds(null);
@@ -312,6 +363,7 @@ export function PropertyCheckJourney() {
       setFastResult(body.data);
       setPendingSelectedAddress(null);
       setFastAssessmentSnapshot(body.assessmentSnapshot);
+      setSignedSiteAnswers(null);
       trackAnonymousFunnelEvent({ name: "property_check_completed" });
       setCanRetry(false);
       void requestFastStages(body.data, body.assessmentSnapshot, requestId);
@@ -370,6 +422,7 @@ export function PropertyCheckJourney() {
           : current,
       );
       setFastAssessmentSnapshot(body.assessmentSnapshot);
+      setSignedSiteAnswers(null);
     } catch {
       setFastResult((current) =>
         current?.resolvedAddress.addressId === initial.resolvedAddress.addressId
@@ -425,6 +478,7 @@ export function PropertyCheckJourney() {
       }
       setFastMapSnapshot(null);
       setFastAssessmentSnapshot(body.assessmentSnapshot);
+      setSignedSiteAnswers(null);
       setFastResult((current) =>
         current ? { ...current, detailedChecks: body.data } : current,
       );
@@ -467,6 +521,7 @@ export function PropertyCheckJourney() {
     setFastResult(null);
     setPendingSelectedAddress(null);
     setFastAssessmentSnapshot(null);
+    setSignedSiteAnswers(null);
     setFastPlacementSnapshot(null);
     setFastMapSnapshot(null);
     setError(null);
@@ -684,15 +739,28 @@ export function PropertyCheckJourney() {
           {fastPlacementSnapshot?.dimensions &&
           fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
           fastAssessmentSnapshot &&
-          fastMapSnapshot &&
-          fastResult.detailedChecks ? (
-            <HomeownerSubmissionForm
-              assessmentSnapshot={fastAssessmentSnapshot}
-              mapImageDataUrl={fastMapSnapshot.imageDataUrl}
-              mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
-              placement={fastPlacementSnapshot}
-              onSaved={fastSavedReport.saveAssessment}
-            />
+          fastResult.detailedChecks &&
+          placementKey ? (
+            <>
+              <SiteQuestions
+                key={`${fastAssessmentSnapshot}:${placementKey}`}
+                assessmentSnapshot={fastAssessmentSnapshot}
+                placementKey={placementKey}
+                onSigned={setSignedSiteAnswers}
+              />
+              {signedSiteAnswers?.sourceSnapshot === fastAssessmentSnapshot &&
+                signedSiteAnswers.placementKey === placementKey &&
+                fastMapSnapshot && (
+                  <HomeownerSubmissionForm
+                    assessmentSnapshot={signedSiteAnswers.snapshot}
+                    constructability={signedSiteAnswers.answers}
+                    mapImageDataUrl={fastMapSnapshot.imageDataUrl}
+                    mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
+                    placement={fastPlacementSnapshot}
+                    onSaved={fastSavedReport.saveAssessment}
+                  />
+                )}
+            </>
           ) : null}
         </>
       )}

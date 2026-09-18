@@ -38,6 +38,16 @@ export function refreshAssessmentSnapshot(
   return configuredSnapshotService().refresh(snapshot, patch);
 }
 
+export function attachConstructabilityAnswers(
+  snapshot: TrustedAssessmentSnapshot,
+  constructability: TrustedConstructabilitySubmission,
+): string {
+  return configuredSnapshotService().attachConstructability(
+    snapshot,
+    constructability,
+  );
+}
+
 export function verifyAssessmentSnapshot(
   token: string,
 ): TrustedAssessmentSnapshot {
@@ -105,6 +115,21 @@ export function createAssessmentSnapshotService(
         {
           ...snapshot,
           fastResult: { ...snapshot.fastResult, ...patch },
+        },
+        signingKey,
+      );
+    },
+    attachConstructability(
+      snapshot: TrustedAssessmentSnapshot,
+      constructability: TrustedConstructabilitySubmission,
+    ): string {
+      if (snapshot.expiresAt <= now())
+        throw new AssessmentSnapshotValidationError();
+      return encodeAndSign(
+        {
+          ...snapshot,
+          constructability:
+            trustedConstructabilitySubmissionSchema.parse(constructability),
         },
         signingKey,
       );
