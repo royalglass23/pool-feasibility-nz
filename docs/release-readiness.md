@@ -20,7 +20,12 @@ The documentation refresh that followed passed repository formatting and
 relative-link checks. This remains development evidence rather than an exact
 deployed-revision sign-off.
 
-Latest local candidate results:
+The current `features` history includes later DEM terrain, Property Check,
+three-page PDF, and PostHog changes. The 11 September gate does not cover those
+commits. A new full code gate and target verification are needed for whichever
+exact revision is proposed for release.
+
+11 September baseline results for `6f97d6c`:
 
 | Gate                                         | Result                                                                                               |
 | -------------------------------------------- | ---------------------------------------------------------------------------------------------------- |

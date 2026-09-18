@@ -27,12 +27,13 @@ The current codebase contains:
 - an anonymous Auckland Property Check journey at `/`;
 - indexed LINZ address suggestions and official parcel/aerial evidence;
 - interactive pool-size, placement, and rotation controls;
-- an opt-in detailed constraint check with deterministic overlap reporting;
-- preliminary web reports and server-rendered PDF email attachments;
+- an opt-in detailed constraint check with deterministic overlap reporting and
+  indicative Auckland DEM terrain measurements when eligible evidence exists;
+- preliminary web reports and three-page server-rendered PDF email attachments;
 - persisted assessment requests backed by PostgreSQL/Neon;
 - an Admin-only Staff Workspace at `/staff` for saved assessments;
 - privacy controls, scheduled retention, shared public rate limits, and
-  consent-gated analytics;
+  consent-gated analytics, including anonymous PostHog funnel events;
 - public information pages and a BlueHaven-backed Founding Partner Program at
   `/partners`; and
 - privacy-safe general and partnership enquiry forms.
@@ -55,8 +56,10 @@ and security sign-off must each be verified separately for the exact target and
 commit.
 
 A candidate based on shared commit `6f97d6c` passed the complete local code gate
-on 11 September 2026. That development result is not an exact deployed-revision
-sign-off, and the target-environment checks remain incomplete. See
+on 11 September 2026. The terrain, report, analytics, and Property Check changes
+since then require a new exact-commit gate. The earlier development result is
+not a deployed-revision sign-off, and target-environment checks remain
+incomplete. See
 [`docs/release-readiness.md`](docs/release-readiness.md) before promoting a
 build.
 
@@ -80,6 +83,7 @@ credentials; they are not the public browser journey.
 
 - Next.js 16.3, React 19, strict TypeScript, Tailwind CSS, and Base UI
 - MapLibre GL JS and Turf.js for the mapped property experience
+- GeoTIFF and Proj4 for bounded Auckland DEM readings and terrain calculations
 - PostgreSQL/Neon with Drizzle ORM for address indexing, assessments, and staff
   access
 - Puppeteer Core with `@sparticuz/chromium` for PDF rendering
@@ -122,7 +126,8 @@ Use [`.env.example`](.env.example) as the inventory. Important groups are:
 - Upstash REST credentials, required for deployed public routes;
 - report-signing, Resend, sender, and delivery-mode settings;
 - Admin bootstrap/reset inputs supplied interactively, never committed; and
-- optional GA4 and Hotjar identifiers, both still gated by visitor consent.
+- optional GA4 and Hotjar identifiers; PostHog's public project key is embedded
+  in the client integration. All analytics remain gated by visitor consent.
 
 See [`docs/staff-admin-access.md`](docs/staff-admin-access.md),
 [`docs/public-rate-limiting.md`](docs/public-rate-limiting.md), and
@@ -170,12 +175,12 @@ their presence is not permission to run them.
 ## Architecture in one paragraph
 
 PoolReady is a modular Next.js monolith. Route handlers are thin adapters.
-Official provider responses are validated and normalised before the domain
-layer uses them. Deterministic spatial analysis, scoring, confidence, risks,
-and recommendations operate on internal evidence models. A completed assessment
-is persisted as a versioned snapshot and reused by the web report, map capture,
-PDF renderer, email delivery, and staff view; report rendering does not repeat
-live GIS analysis.
+Official provider responses, including DEM raster evidence, are validated and
+normalised before the domain layer uses them. Deterministic spatial analysis,
+scoring, confidence, risks, and recommendations operate on internal evidence
+models. A completed assessment is persisted as a versioned snapshot and reused
+by the web report, map capture, PDF renderer, email delivery, and staff view;
+report rendering does not repeat live GIS analysis.
 
 ## Project rules
 

@@ -72,6 +72,18 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
       kind: "line",
     },
   ];
+  if (
+    isFastPropertyViewCapture &&
+    report.constructability.version === 1 &&
+    report.constructability.routePolicyVersion === 1 &&
+    report.constructability.suggestedRoute
+  ) {
+    entries.push({
+      id: "suggested-access-route",
+      ...REPORT_MAP_BASE_STYLES.suggestedAccessRoute,
+      kind: "line",
+    });
+  }
   const seen = new Set(entries.map((entry) => entry.label));
   const excludedLayers: string[] = [];
   const visibleLayerKeys = new Set(report.mapVisibleLayerKeys ?? []);

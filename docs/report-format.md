@@ -2,7 +2,7 @@
 
 ## Rendering model
 
-Build one saved `GeneratedReport` view model and render it into both the interactive report page and a print-only HTML route. The PDF generator consumes only that persisted model and pre-rendered/static map imagery derived from the same verified geometries. It must not call live GIS providers during PDF rendering.
+Build one saved `SavedPreliminaryReport` view model and render it into both the interactive report page and a print-only HTML route. The PDF generator consumes only that persisted model and the saved map capture derived from the same verified geometries. It must not call live GIS providers during PDF rendering.
 
 MT-249 implements this as `SavedPreliminaryReport`. The assessment response returns that model
 immediately for browser display. The PDF renderer and both email destinations consume the same
@@ -10,7 +10,7 @@ saved model and map capture. During the ADR-0005 controlled test, the submitted 
 email and `support@bluehaven.nz` receive the same PDF bytes and filename. ServiceM8 delivery
 remains disabled.
 
-HTML-to-PDF is preferred, but the browser binary/runtime is not selected until a Vercel deployment spike proves compatibility, cold-start and bundle limits, A4 pagination, map capture, and attribution. Playwright is installed for application and E2E testing; that does not yet prove it is the production PDF runtime.
+The current HTML-to-PDF implementation uses Puppeteer Core with `@sparticuz/chromium`. Playwright is used for application and E2E testing. Runtime compatibility, cold starts, A4 pagination, map capture, and attribution still require verification on the exact deployment target before release sign-off.
 
 ## Page contract
 
@@ -47,5 +47,5 @@ Each A4 page carries `Preliminary Feasibility Report`, report ID, page number, a
 - Exactly three A4 pages at the supported viewport/font configuration.
 - No clipped legends, tables, footers, or attribution.
 - PDF metadata and report timestamps are deterministic for a saved fixture.
-- The download route returns the correct content type, disposition, safe filename, and error code.
+- The signed PDF route returns the correct content type, disposition, safe filename, and error code; browser report views do not offer a PDF download control.
 - Visual regression uses controlled map/provider fixtures and a licensed test tile strategy.

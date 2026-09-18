@@ -1,9 +1,14 @@
 import { expect, test } from "@playwright/test";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
+import {
+  answerSiteQuestions,
+  mockSiteAnswerSigning,
+} from "./site-questions-helper";
 
 test("keeps the saved preliminary report available without PDF download controls when background email delivery fails", async ({
   page,
 }) => {
+  await mockSiteAnswerSigning(page);
   let assessmentSubmissionCount = 0;
   let releaseAssessmentSubmission: (() => void) | undefined;
   const assessmentSubmissionHeld = new Promise<void>((resolve) => {
@@ -51,8 +56,12 @@ test("keeps the saved preliminary report available without PDF download controls
     });
   });
   await page.route("**/api/public/property-check/stages", async (route) => {
-    const request = route.request().postDataJSON() as { mode?: string };
+    const request = route.request().postDataJSON() as {
+      mode?: string;
+      estimatedDepthMetres?: number;
+    };
     if (request.mode === "detailed") {
+      expect(request.estimatedDepthMetres).toBe(1.5);
       await route.fulfill({
         status: 200,
         contentType: "application/json",
@@ -115,7 +124,7 @@ test("keeps the saved preliminary report available without PDF download controls
     const clearancesVisible = submission.poolLayout?.clearancesVisible;
     assessmentSubmissionCount += 1;
     expect(submission).toMatchObject({
-      assessmentSnapshot: "server-issued-detailed-snapshot",
+      assessmentSnapshot: "site-signed-server-issued-detailed-snapshot",
       poolLayout: {
         lengthMetres: 6.5,
         widthMetres: 3,
@@ -189,7 +198,23 @@ test("keeps the saved preliminary report available without PDF download controls
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
   await page.keyboard.press("Enter");
+  const depthInput = page.getByRole("spinbutton", {
+    name: "Estimated pool depth (m)",
+  });
+  await expect(depthInput).toHaveValue("1.5");
   await page.getByRole("button", { name: "Check for constraints" }).click();
+  await expect(depthInput).toBeDisabled();
+  await page.getByRole("button", { name: /Map layers/ }).click();
+  const routeQuestion = page.getByRole("group", {
+    name: "Suggested access route",
+  });
+  await expect(
+    routeQuestion.getByRole("radio", { name: "I’m not sure" }),
+  ).toBeChecked();
+  await expect(
+    routeQuestion.getByRole("radio", { name: "Confirm route" }),
+  ).toHaveCount(0);
+  await answerSiteQuestions(page);
   const clearanceToggle = page.getByRole("checkbox", {
     name: "Show pool-shell clearances",
   });
@@ -288,6 +313,8 @@ test("keeps the saved preliminary report available without PDF download controls
     .fill("42A Bahari Drive, Ranui, Auckland");
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Check for constraints" }).click();
+  await page.getByRole("button", { name: /Map layers/ }).click();
+  await answerSiteQuestions(page);
   const hiddenClearanceToggle = page.getByRole("checkbox", {
     name: "Show pool-shell clearances",
   });

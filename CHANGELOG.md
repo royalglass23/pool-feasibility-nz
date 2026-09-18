@@ -30,6 +30,61 @@ that a change was deployed or enabled in production.
 - Updated professional-review onboarding for the anonymous Property Check and
   removed obsolete production-login and report-download instructions.
 
+## 18 September 2026
+
+### Documentation
+
+- Brought the product overview, report contract, dependency roles, and
+  release-evidence pointers up to date with the September changes.
+
+### Report and Property Check maintenance
+
+- Kept page three of the preliminary PDF focused on next steps, grouped source
+  credits, assumptions, and the disclaimer.
+- Removed unused Property Check code and default scaffold assets, and clarified
+  the current component and dependency documentation.
+- Preserved the fields PostHog needs to accept consented, anonymous funnel
+  events while continuing to reject unapproved event fields.
+
+## 17 September 2026
+
+### Indicative terrain and preliminary report
+
+- Enabled Auckland 2024 LINZ LiDAR DEM measurements in detailed checks and
+  eligible saved reports. New reports describe the buffered proposed-pool
+  construction area; older saved parcel-wide measurements retain their labels.
+- Required controlled DEM source and asset provenance before displaying a
+  measured slope in the report. Unavailable or ineligible terrain remains
+  **Needs checking**.
+- Refined the preliminary PDF into three pages: property and saved map,
+  assessed results and remaining checks, then next steps and source credits.
+- Stabilised report rendering and the constructability evidence boundary; the
+  wider site-constructability journey remains planned work.
+
+### Analytics
+
+- Added consent-gated PostHog events for the anonymous Property Check funnel,
+  including a bounded email-delivery outcome observed by the visitor's browser.
+  Automatic capture and session recording remain disabled.
+
+## 15-16 September 2026
+
+### Property Check map
+
+- Added an indicative relative slope display across mapped parcel terrain and
+  refined the pool-area calculation, including DEM tile-boundary handling.
+- Improved mobile map layout, layer controls, property notices, pool guidance,
+  and recovery after a constrained detailed-check request.
+- Refreshed the homepage journey illustrations and copy.
+
+## 11-14 September 2026
+
+### Terrain foundation
+
+- Added the bounded Auckland DEM reader and property-specific indicative slope
+  foundation. Provider coverage and source checks remain explicit so missing
+  terrain evidence cannot appear as a clear result.
+
 ## 10 September 2026
 
 ### Security and reliability

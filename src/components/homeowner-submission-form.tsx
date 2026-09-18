@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
+import type { ConstructabilityAnswers } from "@/modules/assessment/constructability-evidence";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 import type { PersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
@@ -41,12 +42,14 @@ export type SavedAssessmentResponse = {
 
 export function HomeownerSubmissionForm({
   assessmentSnapshot,
+  constructability,
   mapImageDataUrl,
   mapVisibleLayerKeys = [],
   placement,
   onSaved,
 }: {
   assessmentSnapshot: string;
+  constructability?: ConstructabilityAnswers;
   mapImageDataUrl: string;
   mapVisibleLayerKeys?: string[];
   placement: FastPoolPlacementSnapshot;
@@ -103,6 +106,7 @@ export function HomeownerSubmissionForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assessmentSnapshot,
+          ...(constructability ? { constructability } : {}),
           mapImageDataUrl,
           mapVisibleLayerKeys,
           poolLayout: {

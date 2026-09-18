@@ -8,6 +8,7 @@ import {
   saveHomeownerAssessment,
 } from "@/db/repositories/homeowner-assessment-repository";
 import {
+  assertConstructabilityMatchesSnapshot,
   buildServerAssessmentSubmission,
   parseBrowserAssessmentSaveRequest,
   ServerAssessmentSubmissionError,
@@ -34,6 +35,7 @@ import {
   requestCorrelationId,
 } from "@/shared/http/api-response";
 import { ZodError } from "zod";
+import { ConstructabilityEvidenceError } from "./constructability-evidence";
 
 const MAX_BODY_BYTES = 6_500_000;
 const logger = pino({ base: undefined });
@@ -91,15 +93,17 @@ export async function POST(request: Request) {
   };
   try {
     const browserRequest = parseBrowserAssessmentSaveRequest(input);
-    validated = {
-      browserRequest,
-      snapshot: verifyAssessmentSnapshot(browserRequest.assessmentSnapshot),
-    };
+    const snapshot = verifyAssessmentSnapshot(
+      browserRequest.assessmentSnapshot,
+    );
+    assertConstructabilityMatchesSnapshot(browserRequest, snapshot);
+    validated = { browserRequest, snapshot };
   } catch (error) {
     if (!(
       error instanceof ZodError ||
       error instanceof AssessmentSnapshotValidationError ||
-      error instanceof ServerAssessmentSubmissionError
+      error instanceof ServerAssessmentSubmissionError ||
+      error instanceof ConstructabilityEvidenceError
     )) {
       throw error;
     }
@@ -140,7 +144,8 @@ export async function POST(request: Request) {
       if (!(
         error instanceof ZodError ||
         error instanceof AssessmentSnapshotValidationError ||
-        error instanceof ServerAssessmentSubmissionError
+        error instanceof ServerAssessmentSubmissionError ||
+        error instanceof ConstructabilityEvidenceError
       )) {
         throw error;
       }
