@@ -1,14 +1,17 @@
-# Dependency proposal
+# Dependency roles and earlier proposal
 
-## Installed Stage 1 baseline
+## Installed dependencies
 
-Exact versions are locked in `package-lock.json`; the major responsibilities are:
+Exact versions are locked in `package-lock.json` and `pnpm-lock.yaml`; the major
+responsibilities are:
 
 | Package group        | Packages                                                                                       | Purpose                                                      |
 | -------------------- | ---------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | Web runtime          | `next`, `react`, `react-dom`                                                                   | App Router UI, route handlers, server rendering              |
 | Styling/UI           | `tailwindcss`, `shadcn`, `clsx`, `tailwind-merge`, `lucide-react`, `tw-animate-css`            | Design system and accessible primitives                      |
 | GIS                  | `maplibre-gl`, `@turf/turf`, `@types/geojson`                                                  | Interactive map and deterministic GeoJSON operations         |
+| Terrain              | `geotiff`, `proj4`                                                                             | Bounded Auckland DEM reads and NZTM2000 projection           |
+| PDF                  | `puppeteer-core`, `@sparticuz/chromium`                                                        | Server-rendered preliminary report PDF                       |
 | Validation           | `zod`, `@t3-oss/env-nextjs`                                                                    | Input, provider-response, domain, and environment validation |
 | Persistence          | `drizzle-orm`, `drizzle-kit`, `@neondatabase/serverless`, `dotenv`                             | PostgreSQL access and migrations compatible with Vercel      |
 | Public rate limiting | `@upstash/ratelimit`, `@upstash/redis`                                                         | Distributed rolling limits for serverless public routes      |
@@ -17,17 +20,20 @@ Exact versions are locked in `package-lock.json`; the major responsibilities are
 | End-to-end tests     | `@playwright/test`                                                                             | Fixture-backed browser workflow and PDF endpoint checks      |
 | Quality tooling      | `typescript`, `eslint`, `eslint-config-next`, `prettier`, `prettier-plugin-tailwindcss`, `tsx` | Type, lint, formatting, and script execution                 |
 
-## Deferred until the owning spike
+## Deferred decisions
 
-| Need                          | Candidate                                                                   | Decision gate                                                                |
-| ----------------------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| NZTM2000/WGS84 transformation | `proj4` or a narrowly scoped equivalent                                     | Confirm actual source CRSs and accuracy tests in Stage 2                     |
-| PDF browser runtime           | Playwright plus a Vercel-compatible Chromium build, or an external renderer | Prove cold-start, binary size, three-page fidelity, and licensing in Stage 7 |
-| Durable PDF storage           | Vercel Blob or compatible object storage                                    | Decide whether immutable PDFs must persist                                   |
-| Distributed provider cache    | Upstash Redis or equivalent                                                 | Confirm deployment topology, cost, and licence caching rules                 |
-| Optional narrative AI         | Provider SDK                                                                | Add only after deterministic report completion and constrained-output tests  |
+| Need                       | Candidate                                | Decision gate                                                               |
+| -------------------------- | ---------------------------------------- | --------------------------------------------------------------------------- |
+| Durable PDF storage        | Vercel Blob or compatible object storage | Decide whether immutable PDFs must persist                                  |
+| Distributed provider cache | Upstash Redis or equivalent              | Confirm deployment topology, cost, and licence caching rules                |
+| Optional narrative AI      | Provider SDK                             | Add only after deterministic report completion and constrained-output tests |
 
 No PostGIS dependency is proposed for the POC. Introduce it only after measured application-side spatial limits or cross-property spatial query requirements emerge.
+
+The terrain projection and PDF runtime choices above are implemented in this
+branch. Their presence does not establish successful rendering or provider
+access in a particular deployment; use the exact-target checks in
+[`release-readiness.md`](release-readiness.md).
 
 ## Package hygiene
 
