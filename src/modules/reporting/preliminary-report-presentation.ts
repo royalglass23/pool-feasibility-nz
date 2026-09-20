@@ -81,6 +81,10 @@ export function reportMapLegend(report: SavedPreliminaryReport): {
     entries.push({
       id: "suggested-access-route",
       ...REPORT_MAP_BASE_STYLES.suggestedAccessRoute,
+      label:
+        report.constructability.route.provenance === "user-supplied"
+          ? "Route supplied by user — confirm onsite"
+          : REPORT_MAP_BASE_STYLES.suggestedAccessRoute.label,
       kind: "line",
     });
   }

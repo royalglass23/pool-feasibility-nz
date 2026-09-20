@@ -1,30 +1,39 @@
 import { z } from "zod";
 import { estimatedPoolDepthSchema } from "./estimated-pool-depth";
+import type { AccessRouteFacts } from "@/modules/spatial/analyse-access-route";
+
+const fact = <T extends z.ZodType>(value: T) =>
+  z.discriminatedUnion("status", [
+    z.object({ status: z.literal("assessed"), value }).strict(),
+    z
+      .object({
+        status: z.literal("not_assessed"),
+        reason: z.enum(["invalid_geometry", "data_unavailable"]),
+      })
+      .strict(),
+  ]);
+const routeFactsSchema = z
+  .object({
+    valid: z.boolean(),
+    length: fact(z.number().finite().nonnegative()),
+    elevationChange: fact(z.number().finite()),
+    steepestGradient: fact(z.number().finite().nonnegative()),
+    parcelDeparture: fact(z.boolean()),
+    buildings: fact(z.boolean()),
+    services: fact(z.boolean()),
+  })
+  .strict();
 
 const coordinate = z.tuple([
-  z.number().finite().min(160).max(180),
-  z.number().finite().min(-48).max(-33),
+  z.number().finite().min(-180).max(180),
+  z.number().finite().min(-90).max(90),
 ]);
 const routeGeometrySchema = z
   .object({
     type: z.literal("LineString"),
     coordinates: z.array(coordinate).min(2).max(4),
   })
-  .strict()
-  .superRefine((route, context) => {
-    if (
-      route.coordinates.some(
-        (point, index) =>
-          index > 0 &&
-          point[0] === route.coordinates[index - 1][0] &&
-          point[1] === route.coordinates[index - 1][1],
-      )
-    )
-      context.addIssue({
-        code: "custom",
-        message: "Route must not contain duplicate adjacent points.",
-      });
-  });
+  .strict();
 
 const accessCondition = z.enum([
   "gate_or_narrow_passage",
@@ -117,6 +126,7 @@ export const trustedConstructabilityEvidenceSchema = z
   .object({
     suggestedRoute: routeGeometrySchema.nullable(),
     routePolicyVersion: z.literal(1).optional(),
+    routeFacts: routeFactsSchema.optional(),
     mappedEvidence: z.array(mappedConstructabilityEvidenceSchema).max(50),
     providerAvailability: z.array(constructabilityProviderSchema).max(50),
     assumptions: z.array(z.string().trim().min(1).max(500)).max(20),
@@ -135,6 +145,7 @@ export const constructabilitySnapshotSchema = z
     version: z.literal(1),
     routePolicyVersion: z.literal(1).optional(),
     suggestedRoute: routeGeometrySchema.nullable().optional(),
+    routeFacts: routeFactsSchema.optional(),
     estimatedDepthMetres:
       constructabilityAnswersSchema.shape.estimatedDepthMetres,
     route: constructabilityAnswersSchema.shape.route,
@@ -220,6 +231,7 @@ export function buildConstructabilitySnapshot(input: {
   assumptions?: string[];
   suggestedRoute?: TrustedConstructabilityEvidence["suggestedRoute"];
   routePolicyVersion?: TrustedConstructabilityEvidence["routePolicyVersion"];
+  routeFacts?: AccessRouteFacts;
 }): ConstructabilitySnapshot {
   const answers = constructabilityAnswersSchema.parse(input.answers);
   const mappedEvidence = z
@@ -257,6 +269,7 @@ export function buildConstructabilitySnapshot(input: {
   }
   const derived = deriveConstructability({
     ...answers,
+    routeFacts: input.routeFacts,
     mappedEvidence,
     providerAvailability,
   });
@@ -265,6 +278,7 @@ export function buildConstructabilitySnapshot(input: {
     ...(input.routePolicyVersion === 1
       ? { routePolicyVersion: 1, suggestedRoute }
       : {}),
+    ...(input.routeFacts ? { routeFacts: input.routeFacts } : {}),
     mappedEvidence,
     ...derived,
     providerAvailability,
@@ -277,6 +291,7 @@ function deriveConstructability(
     z.infer<typeof constructabilityAnswersSchema>,
     "route" | "accessConditions" | "nearbyFeatures"
   > & {
+    routeFacts?: AccessRouteFacts;
     mappedEvidence: z.infer<typeof mappedConstructabilityEvidenceSchema>[];
     providerAvailability: z.infer<typeof constructabilityProviderSchema>[];
   },
@@ -299,6 +314,30 @@ function deriveConstructability(
       .map((condition) => ({ category: "barrier" as const, condition })),
   ];
   const findings = [
+    ...(input.routeFacts && !input.routeFacts.valid
+      ? [
+          {
+            source: "user" as const,
+            evidenceId: "route_invalid",
+            category: "access_excavation" as const,
+            status: "not_assessed" as const,
+            label: "Not assessed — invalid route geometry",
+          },
+        ]
+      : []),
+    ...(["parcelDeparture", "buildings", "services"] as const)
+      .filter(
+        (key) =>
+          input.routeFacts?.[key].status === "assessed" &&
+          input.routeFacts[key].value,
+      )
+      .map((key) => ({
+        source: "mapped" as const,
+        evidenceId: `route_${key}`,
+        category: "access_excavation" as const,
+        status: "needs_checking" as const,
+        label: "Potential site consideration",
+      })),
     ...input.mappedEvidence
       .filter((evidence) => evidence.status === "concern")
       .map((evidence) => ({

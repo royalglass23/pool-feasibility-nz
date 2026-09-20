@@ -39,6 +39,45 @@ describe("captured pool legend", () => {
       }),
     );
   });
+  it("labels the captured adjusted route as user supplied", () => {
+    const suggestedRoute = {
+      type: "LineString" as const,
+      coordinates: [
+        [174.76, -36.85],
+        [174.76015, -36.8499],
+      ] as [number, number][],
+    };
+    const report = buildTestPreliminaryReport({
+      mapImageSource: "fast_property_view_capture",
+      constructability: buildConstructabilitySnapshot({
+        answers: {
+          version: 1,
+          estimatedDepthMetres: 1.5,
+          route: {
+            provenance: "user-supplied",
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                suggestedRoute.coordinates[0]!,
+                [174.76008, -36.84994],
+                suggestedRoute.coordinates[1]!,
+              ],
+            },
+          },
+          accessConditions: ["none_of_these"],
+          nearbyFeatures: ["none_of_these"],
+        },
+        routePolicyVersion: 1,
+        suggestedRoute,
+      }),
+    });
+    expect(reportMapLegend(report).entries).toContainEqual(
+      expect.objectContaining({
+        id: "suggested-access-route",
+        label: "Route supplied by user — confirm onsite",
+      }),
+    );
+  });
 
   it.each(["blocked", "needs_checking", "no_warning"] as const)(
     "matches the blue captured pool when the warning is %s",

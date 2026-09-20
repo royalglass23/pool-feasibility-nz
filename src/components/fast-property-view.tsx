@@ -38,6 +38,7 @@ import {
   SELECTED_POOL_MAP_STYLE,
 } from "@/modules/reporting/report-map-style";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
+import type { AccessRouteGeometry } from "@/modules/spatial/suggest-access-route";
 import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
 import { aerialTileRateLimitMessage } from "@/components/map/aerial-tile-error";
 import { FieldValidationMessage } from "@/components/field-validation-message";
@@ -47,7 +48,7 @@ import {
   readClientApiErrorFromBlobError,
   type ClientApiError,
 } from "@/shared/http/client-api-error";
-import { bearing, point } from "@turf/turf";
+import { bearing, destination, point } from "@turf/turf";
 import {
   assessSelectedPoolTerrain,
   type SelectedPoolTerrain,
@@ -170,6 +171,8 @@ export type FastPropertyViewMapSnapshot = {
 export function FastPropertyView({
   result,
   suggestedRoute,
+  editableRoute,
+  onRouteEdit,
   onLoadDetailed,
   onRetry,
   onStartAgain,
@@ -184,6 +187,8 @@ export function FastPropertyView({
 }: {
   result: FastPropertyViewResult;
   suggestedRoute?: LineString | null;
+  editableRoute?: AccessRouteGeometry | null;
+  onRouteEdit?: (route: AccessRouteGeometry, complete: boolean) => void;
   onLoadDetailed?: () => void;
   onRetry: () => void;
   onStartAgain?: () => void;
@@ -201,10 +206,18 @@ export function FastPropertyView({
   const syncRotationControlRef = useRef<() => void>(() => {});
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
   const suggestedRouteRef = useRef(suggestedRoute);
+  const editableRouteRef = useRef(editableRoute);
+  const routeEditHandlerRef = useRef(onRouteEdit);
+  const routeMarkersRef = useRef<import("maplibre-gl").Marker[]>([]);
+  const [mapReady, setMapReady] = useState(false);
   const mapLibreRef = useRef<typeof import("maplibre-gl") | null>(null);
   useEffect(() => {
     suggestedRouteRef.current = suggestedRoute;
   }, [suggestedRoute]);
+  useEffect(() => {
+    editableRouteRef.current = editableRoute;
+    routeEditHandlerRef.current = onRouteEdit;
+  }, [editableRoute, onRouteEdit]);
   const clearanceLabelMarkersRef = useRef<import("maplibre-gl").Marker[]>([]);
   const poolShellClearancesRef = useRef<PoolShellClearance[]>([]);
   const clearancesVisibleRef = useRef(true);
@@ -829,6 +842,7 @@ export function FastPropertyView({
         syncRotationControlRef.current();
         map.on("move", () => syncRotationControlRef.current());
         mapInstanceRef.current = map;
+        setMapReady(true);
         map.addControl(new maplibregl.NavigationControl(), "top-right");
         syncPoolShellClearanceLabels({
           map,
@@ -994,6 +1008,7 @@ export function FastPropertyView({
     });
     return () => {
       disposed = true;
+      setMapReady(false);
       rotationMarker?.remove();
       syncRotationControlRef.current = () => {};
       removePoolShellClearanceLabels(clearanceLabelMarkers);
@@ -1024,6 +1039,79 @@ export function FastPropertyView({
         : { type: "FeatureCollection", features: [] },
     );
   }, [suggestedRoute]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const maplibregl = mapLibreRef.current;
+    const route = editableRouteRef.current;
+    if (
+      !mapReady ||
+      !map ||
+      !maplibregl ||
+      !route ||
+      route.coordinates.length < 3
+    )
+      return;
+    const markers = route.coordinates.slice(1, -1).map((coordinate, offset) => {
+      const index = offset + 1;
+      const element = document.createElement("button");
+      element.type = "button";
+      element.setAttribute(
+        "aria-label",
+        `Access route turning point ${index}. Use arrow keys to move.`,
+      );
+      element.className =
+        "size-6 rounded-full border-2 border-white bg-blue-800 shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-800";
+      const marker = new maplibregl.Marker({ element, draggable: true })
+        .setLngLat(coordinate)
+        .addTo(map);
+      const update = (complete: boolean) => {
+        const current = editableRouteRef.current;
+        if (!current) return;
+        const coordinates = [...current.coordinates];
+        coordinates[index] = marker.getLngLat().toArray() as [number, number];
+        routeEditHandlerRef.current?.(
+          { type: "LineString", coordinates },
+          complete,
+        );
+      };
+      marker.on("drag", () => update(false));
+      marker.on("dragend", () => update(true));
+      element.addEventListener("keydown", (event) => {
+        const headings: Record<string, number> = {
+          ArrowUp: 0,
+          ArrowRight: 90,
+          ArrowDown: 180,
+          ArrowLeft: 270,
+        };
+        const heading = headings[event.key];
+        if (heading === undefined) return;
+        event.preventDefault();
+        const next = destination(
+          point(marker.getLngLat().toArray()),
+          1,
+          heading,
+          { units: "meters" },
+        ).geometry.coordinates as [number, number];
+        marker.setLngLat(next);
+        update(true);
+      });
+      return marker;
+    });
+    routeMarkersRef.current = markers;
+    return () => {
+      markers.forEach((marker) => marker.remove());
+      routeMarkersRef.current = [];
+    };
+  }, [mapReady, editableRoute?.coordinates.length]);
+
+  useEffect(() => {
+    editableRoute?.coordinates
+      .slice(1, -1)
+      .forEach((coordinate, index) =>
+        routeMarkersRef.current[index]?.setLngLat(coordinate),
+      );
+  }, [editableRoute]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;

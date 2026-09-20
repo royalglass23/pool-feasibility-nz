@@ -139,6 +139,7 @@ export function createAucklandPropertyTerrainGateway(
               number,
               number,
             ],
+            elevationMetres: roundTo(sample.elevationMetres, 3),
             slopeDegrees: roundTo(sample.slopeDegrees, 2),
             eastGradient: roundTo(sample.eastGradient, 5),
             northGradient: roundTo(sample.northGradient, 5),

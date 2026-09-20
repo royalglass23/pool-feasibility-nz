@@ -3,6 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import type { ConstructabilityAnswers } from "@/modules/assessment/constructability-evidence";
 import type {
+  AccessRouteFacts,
+  RouteFact,
+} from "@/modules/spatial/analyse-access-route";
+import type {
+  AccessRouteGeometry,
   AccessRoutePlacement,
   AccessRouteResult,
 } from "@/modules/spatial/suggest-access-route";
@@ -62,12 +67,20 @@ export function SiteQuestions({
   placementKey,
   poolLayout,
   routeSuggestion,
+  adjustedRoute,
+  routeFacts,
+  onRouteEdit,
+  onRouteReset,
   onSigned,
 }: {
   assessmentSnapshot: string;
   placementKey: string;
   poolLayout?: AccessRoutePlacement;
   routeSuggestion?: AccessRouteResult;
+  adjustedRoute?: AccessRouteGeometry | null;
+  routeFacts?: AccessRouteFacts | null;
+  onRouteEdit?: (route: AccessRouteGeometry, complete: boolean) => void;
+  onRouteReset?: () => void;
   onSigned: (
     signed: {
       sourceSnapshot: string;
@@ -82,11 +95,12 @@ export function SiteQuestions({
   );
   const [nearbyFeatures, setNearbyFeatures] = useState<NearbyFeature[]>([]);
   const [routeResponse, setRouteResponse] = useState<
-    "confirm" | "not_sure" | null
+    "confirm" | "adjust" | "not_sure" | null
   >(routeSuggestion?.confidence === "credible" ? null : "not_sure");
   const [errors, setErrors] = useState({ access: false, nearby: false });
   const [requestError, setRequestError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
+  const [savedFacts, setSavedFacts] = useState<AccessRouteFacts | null>(null);
   const accessRef = useRef<HTMLFieldSetElement>(null);
   const routeRef = useRef<HTMLFieldSetElement>(null);
   const nearbyRef = useRef<HTMLFieldSetElement>(null);
@@ -98,13 +112,17 @@ export function SiteQuestions({
     },
     [assessmentSnapshot, placementKey],
   );
+  const effectiveRouteResponse =
+    adjustedRoute && adjustedRoute.coordinates.length > 2
+      ? "adjust"
+      : routeResponse;
 
   async function continueToDetails() {
     const nextErrors = {
       access: accessConditions.length === 0,
       nearby: nearbyFeatures.length === 0,
     };
-    if (routeSuggestion?.confidence === "credible" && !routeResponse) {
+    if (routeSuggestion?.confidence === "credible" && !effectiveRouteResponse) {
       routeRef.current?.focus();
       return;
     }
@@ -126,7 +144,13 @@ export function SiteQuestions({
           body: JSON.stringify({
             assessmentSnapshot,
             ...(poolLayout
-              ? { poolLayout, routeResponse: routeResponse ?? "not_sure" }
+              ? {
+                  poolLayout,
+                  routeResponse: effectiveRouteResponse ?? "not_sure",
+                }
+              : {}),
+            ...(effectiveRouteResponse === "adjust" && adjustedRoute
+              ? { adjustedRoute }
               : {}),
             accessConditions,
             nearbyFeatures,
@@ -151,6 +175,7 @@ export function SiteQuestions({
         snapshot: body.assessmentSnapshot,
         answers: body.answers,
       });
+      setSavedFacts(body.routeFacts ?? null);
     } catch {
       if (generation !== requestGenerationRef.current) return;
       setRequestError(
@@ -199,20 +224,120 @@ export function SiteQuestions({
           </p>
         )}
         {routeSuggestion?.confidence === "credible" && (
-          <label className="flex min-h-11 items-center gap-3 text-sm">
-            <input
-              type="radio"
-              name="route-response"
-              checked={routeResponse === "confirm"}
-              onChange={() => {
-                requestGenerationRef.current += 1;
-                setSaving(false);
-                setRouteResponse("confirm");
-                onSigned(null);
-              }}
-            />
-            Confirm route
-          </label>
+          <>
+            <label className="flex min-h-11 items-center gap-3 text-sm">
+              <input
+                type="radio"
+                name="route-response"
+                checked={routeResponse === "confirm"}
+                onChange={() => {
+                  requestGenerationRef.current += 1;
+                  setSaving(false);
+                  setRouteResponse("confirm");
+                  setSavedFacts(null);
+                  onRouteReset?.();
+                  onSigned(null);
+                }}
+              />
+              Confirm route
+            </label>
+            <div className="space-y-2">
+              <button
+                type="button"
+                disabled={(adjustedRoute?.coordinates.length ?? 2) >= 4}
+                onClick={() => {
+                  const source = adjustedRoute ?? routeSuggestion.geometry;
+                  const coordinates = [...source.coordinates];
+                  const before = coordinates[coordinates.length - 2]!;
+                  const after = coordinates[coordinates.length - 1]!;
+                  coordinates.splice(coordinates.length - 1, 0, [
+                    (before[0] + after[0]) / 2,
+                    (before[1] + after[1]) / 2,
+                  ]);
+                  requestGenerationRef.current += 1;
+                  setRouteResponse("adjust");
+                  onRouteEdit?.({ type: "LineString", coordinates }, true);
+                  onSigned(null);
+                }}
+                className="min-h-11 rounded-lg border px-3 text-sm disabled:opacity-50"
+              >
+                Add turning point
+              </button>
+              {adjustedRoute && adjustedRoute.coordinates.length > 2 && (
+                <>
+                  <p className="text-sm font-semibold">
+                    Route supplied by user — confirm onsite
+                  </p>
+                  <p className="text-sm">
+                    Drag a turning point on the map, or focus it and use arrow
+                    keys. Start and pool-area endpoints stay fixed.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const coordinates = [...adjustedRoute.coordinates];
+                      coordinates.splice(coordinates.length - 2, 1);
+                      const next = { type: "LineString" as const, coordinates };
+                      setRouteResponse(
+                        coordinates.length > 2 ? "adjust" : null,
+                      );
+                      onRouteEdit?.(next, true);
+                      onSigned(null);
+                    }}
+                    className="min-h-11 rounded-lg border px-3 text-sm"
+                  >
+                    Remove last turning point
+                  </button>
+                </>
+              )}
+              {(routeFacts ?? (adjustedRoute ? null : savedFacts)) && (
+                <dl
+                  className="grid gap-1 text-sm"
+                  aria-label="Preliminary access route facts"
+                >
+                  {(
+                    [
+                      [
+                        "Approximate length",
+                        (routeFacts ?? savedFacts)!.length,
+                        "m",
+                      ],
+                      [
+                        "Elevation change",
+                        (routeFacts ?? savedFacts)!.elevationChange,
+                        "m",
+                      ],
+                      [
+                        "Steepest mapped gradient",
+                        (routeFacts ?? savedFacts)!.steepestGradient,
+                        "°",
+                      ],
+                      [
+                        "Parcel departure",
+                        (routeFacts ?? savedFacts)!.parcelDeparture,
+                        "",
+                      ],
+                      [
+                        "Mapped-building intersection",
+                        (routeFacts ?? savedFacts)!.buildings,
+                        "",
+                      ],
+                      [
+                        "Mapped-service intersection or close approach",
+                        (routeFacts ?? savedFacts)!.services,
+                        "",
+                      ],
+                    ] as const
+                  ).map(([label, fact, suffix]) => (
+                    <div key={label} className="flex justify-between gap-4">
+                      <dt>{label}</dt>
+                      <dd>{formatRouteFact(fact, suffix)}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </div>
+          </>
         )}
         <label className="flex min-h-11 items-center gap-3 text-sm">
           <input
@@ -223,6 +348,8 @@ export function SiteQuestions({
               requestGenerationRef.current += 1;
               setSaving(false);
               setRouteResponse("not_sure");
+              setSavedFacts(null);
+              onRouteReset?.();
               onSigned(null);
             }}
           />
@@ -331,4 +458,19 @@ export function SiteQuestions({
       </button>
     </section>
   );
+}
+
+function formatRouteFact(
+  fact: RouteFact<number | boolean>,
+  suffix: string,
+): string {
+  if (fact.status === "not_assessed")
+    return fact.reason === "invalid_geometry"
+      ? "Not assessed — invalid route geometry"
+      : "Not assessed — data unavailable";
+  if (typeof fact.value === "boolean")
+    return fact.value
+      ? "Potential consideration — confirm onsite"
+      : "No mapped intersection identified — confirm onsite";
+  return `${fact.value.toFixed(1)}${suffix}`;
 }

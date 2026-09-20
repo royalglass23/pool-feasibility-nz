@@ -27,6 +27,7 @@ import type {
 } from "@/modules/terrain/property-terrain";
 import type { TrustedAssessmentSnapshot } from "./assessment-snapshot";
 import { suggestAccessRouteFromProperty } from "@/modules/spatial/suggest-access-route";
+import { analyseAccessRouteFromProperty } from "@/modules/spatial/analyse-access-route";
 import { poolLayoutSchema } from "./pool-layout-schema";
 import {
   parsePersistedAssessmentSubmission,
@@ -160,7 +161,15 @@ export async function buildServerAssessmentSubmission(input: {
           !isDeepStrictEqual(
             snapshot.constructability.answers.route.geometry,
             expected.geometry,
-          )))
+          ))) ||
+      (snapshot.constructability.answers.route.geometry &&
+        !isDeepStrictEqual(
+          snapshot.constructability.evidence.routeFacts,
+          analyseAccessRouteFromProperty(
+            snapshot.fastResult,
+            snapshot.constructability.answers.route.geometry,
+          ),
+        ))
     )
       throw new ConstructabilityEvidenceError();
   }

@@ -105,6 +105,93 @@ describe("Site questions", () => {
       JSON.parse(fetchMock.mock.calls[0]![1]!.body as string),
     ).toMatchObject({ routeResponse: "confirm", poolLayout });
   });
+  it("adds no more than two turning points and sends adjusted provenance", async () => {
+    const user = userEvent.setup();
+    const onRouteEdit = vi.fn();
+    const fetchMock = vi.fn(async (_url: string, _init?: RequestInit) => {
+      void _url;
+      void _init;
+      return Response.json({
+        assessmentSnapshot: "signed-adjustment",
+        answers: { version: 1 },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    const suggestion = {
+      confidence: "credible" as const,
+      reason: "direct_clear_corridor" as const,
+      geometry: {
+        type: "LineString" as const,
+        coordinates: [
+          [174.76, -36.85],
+          [174.7601, -36.8499],
+        ] as [number, number][],
+      },
+    };
+    const poolLayout = {
+      position: [174.7601, -36.8499] as [number, number],
+      lengthMetres: 4,
+      widthMetres: 2.4,
+      rotationDegrees: 0,
+    };
+    const view = render(
+      <SiteQuestions
+        assessmentSnapshot="token"
+        placementKey="pool-a"
+        routeSuggestion={suggestion}
+        poolLayout={poolLayout}
+        onRouteEdit={onRouteEdit}
+        onSigned={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Add turning point" }));
+    const first = onRouteEdit.mock.lastCall![0];
+    expect(first.coordinates).toHaveLength(3);
+    view.rerender(
+      <SiteQuestions
+        assessmentSnapshot="token"
+        placementKey="pool-a"
+        routeSuggestion={suggestion}
+        poolLayout={poolLayout}
+        adjustedRoute={first}
+        onRouteEdit={onRouteEdit}
+        onSigned={vi.fn()}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Add turning point" }));
+    const second = onRouteEdit.mock.lastCall![0];
+    expect(second.coordinates).toHaveLength(4);
+    view.rerender(
+      <SiteQuestions
+        assessmentSnapshot="token"
+        placementKey="pool-a"
+        routeSuggestion={suggestion}
+        poolLayout={poolLayout}
+        adjustedRoute={second}
+        onRouteEdit={onRouteEdit}
+        onSigned={vi.fn()}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Add turning point" }),
+    ).toBeDisabled();
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "None of these" })[0]!,
+    );
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "None of these" })[1]!,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Continue to your details" }),
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(
+      JSON.parse(fetchMock.mock.calls[0]![1]!.body as string),
+    ).toMatchObject({
+      routeResponse: "adjust",
+      adjustedRoute: second,
+    });
+  });
   it("shows both fixed questions, supports multiple selections and exclusive answers by keyboard", async () => {
     const user = userEvent.setup();
     const onSigned = vi.fn();

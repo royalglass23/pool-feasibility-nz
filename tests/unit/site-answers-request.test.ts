@@ -138,6 +138,68 @@ describe("public Site answers boundary", () => {
       signed.constructability?.answers.route.geometry,
     );
     expect(signed.constructability?.evidence.routePolicyVersion).toBe(1);
+    const suggestion = signed.constructability!.evidence.suggestedRoute!;
+    const [start, end] = suggestion.coordinates;
+    const adjustedRoute = {
+      type: "LineString",
+      coordinates: [
+        start,
+        [(start![0] + end![0]) / 2 + 0.00001, (start![1] + end![1]) / 2],
+        end,
+      ],
+    };
+    const adjusted = await handleSiteAnswersRequest(
+      request({
+        assessmentSnapshot: issueAssessmentSnapshot(property),
+        ...answers,
+        routeResponse: "adjust",
+        poolLayout,
+        adjustedRoute,
+      }),
+    );
+    expect(adjusted.status).toBe(200);
+    const saved = verifyAssessmentSnapshot(
+      (await adjusted.json()).assessmentSnapshot,
+    );
+    expect(saved.constructability?.answers.route).toEqual({
+      provenance: "user-supplied",
+      geometry: adjustedRoute,
+    });
+    expect(saved.constructability?.evidence.routeFacts).toMatchObject({
+      valid: true,
+      length: { status: "assessed" },
+      services: { status: "not_assessed", reason: "data_unavailable" },
+    });
+    const changedEndpoint = await handleSiteAnswersRequest(
+      request({
+        assessmentSnapshot: issueAssessmentSnapshot(property),
+        ...answers,
+        routeResponse: "adjust",
+        poolLayout,
+        adjustedRoute: {
+          ...adjustedRoute,
+          coordinates: [[174.76, -36.85], adjustedRoute.coordinates[1], end],
+        },
+      }),
+    );
+    expect(changedEndpoint.status).toBe(400);
+    const invalidGeometry = await handleSiteAnswersRequest(
+      request({
+        assessmentSnapshot: issueAssessmentSnapshot(property),
+        ...answers,
+        routeResponse: "adjust",
+        poolLayout,
+        adjustedRoute: { type: "LineString", coordinates: [start, start, end] },
+      }),
+    );
+    expect(invalidGeometry.status).toBe(200);
+    const invalidSaved = verifyAssessmentSnapshot(
+      (await invalidGeometry.json()).assessmentSnapshot,
+    );
+    expect(invalidSaved.constructability?.evidence.routeFacts).toMatchObject({
+      valid: false,
+      length: { status: "not_assessed", reason: "invalid_geometry" },
+    });
   });
 
   it("keeps the Site journey completable with uncertain provenance when route evidence is unavailable", async () => {

@@ -4,6 +4,8 @@ import {
   constructabilityAnswersSchema,
   constructabilitySnapshotSchema,
 } from "@/modules/assessment/constructability-evidence";
+import { parsePersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
+import { buildTestPersistedAssessmentSubmission } from "../fixtures/preliminary-report";
 
 const answers = {
   version: 1,
@@ -14,6 +16,62 @@ const answers = {
 } satisfies import("@/modules/assessment/constructability-evidence").ConstructabilityAnswers;
 
 describe("constructability evidence", () => {
+  it("round-trips a user supplied line and its route facts in the saved report payload", () => {
+    const suggestedRoute = {
+      type: "LineString" as const,
+      coordinates: [
+        [174.76, -36.85],
+        [174.76015, -36.8499],
+      ] as [number, number][],
+    };
+    const adjustedRoute = {
+      type: "LineString" as const,
+      coordinates: [
+        suggestedRoute.coordinates[0]!,
+        [174.76008, -36.84994],
+        suggestedRoute.coordinates[1]!,
+      ] as [number, number][],
+    };
+    const routeFacts = {
+      valid: true,
+      length: { status: "assessed" as const, value: 15.2 },
+      elevationChange: {
+        status: "not_assessed" as const,
+        reason: "data_unavailable" as const,
+      },
+      steepestGradient: {
+        status: "not_assessed" as const,
+        reason: "data_unavailable" as const,
+      },
+      parcelDeparture: { status: "assessed" as const, value: false },
+      buildings: { status: "assessed" as const, value: false },
+      services: {
+        status: "not_assessed" as const,
+        reason: "data_unavailable" as const,
+      },
+    };
+    const submission = buildTestPersistedAssessmentSubmission(
+      "rg-341-route-roundtrip",
+    );
+    submission.homeowner.name = "Jane Homeowner";
+    submission.report.reportData.constructability =
+      buildConstructabilitySnapshot({
+        answers: {
+          ...answers,
+          route: { provenance: "user-supplied", geometry: adjustedRoute },
+        },
+        suggestedRoute,
+        routePolicyVersion: 1,
+        routeFacts,
+      });
+    const saved = parsePersistedAssessmentSubmission(
+      JSON.parse(JSON.stringify(submission)),
+    );
+    expect(saved.report.reportData.constructability).toMatchObject({
+      route: { provenance: "user-supplied", geometry: adjustedRoute },
+      routeFacts,
+    });
+  });
   it("preserves mapped and user concerns independently", () => {
     const snapshot = buildConstructabilitySnapshot({
       answers,

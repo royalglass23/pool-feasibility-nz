@@ -9,6 +9,7 @@ import { constructabilityAnswersSchema } from "./constructability-evidence";
 import { DEFAULT_ESTIMATED_POOL_DEPTH_METRES } from "./estimated-pool-depth";
 import { poolLayoutSchema } from "./pool-layout-schema";
 import { suggestAccessRouteFromProperty } from "@/modules/spatial/suggest-access-route";
+import { analyseAccessRouteFromProperty } from "@/modules/spatial/analyse-access-route";
 import {
   apiErrorResponse,
   apiJsonResponse,
@@ -24,7 +25,9 @@ const requestSchema = z
     assessmentSnapshot: z.string().min(32).max(5_500_000),
     accessConditions: constructabilityAnswersSchema.shape.accessConditions,
     nearbyFeatures: constructabilityAnswersSchema.shape.nearbyFeatures,
-    routeResponse: z.enum(["confirm", "not_sure"]).optional(),
+    routeResponse: z.enum(["confirm", "adjust", "not_sure"]).optional(),
+    adjustedRoute:
+      constructabilityAnswersSchema.shape.route.shape.geometry.optional(),
     poolLayout: poolLayoutSchema.optional(),
   })
   .strict();
@@ -50,15 +53,34 @@ export async function handleSiteAnswersRequest(
       suggestion?.confidence !== "credible"
     )
       throw new AssessmentSnapshotValidationError();
+    if (parsed.routeResponse === "adjust") {
+      if (
+        suggestion?.confidence !== "credible" ||
+        !parsed.adjustedRoute ||
+        parsed.adjustedRoute.coordinates.length < 3 ||
+        JSON.stringify(parsed.adjustedRoute.coordinates[0]) !==
+          JSON.stringify(suggestion.geometry.coordinates[0]) ||
+        JSON.stringify(parsed.adjustedRoute.coordinates.at(-1)) !==
+          JSON.stringify(suggestion.geometry.coordinates.at(-1))
+      )
+        throw new AssessmentSnapshotValidationError();
+    } else if (parsed.adjustedRoute !== undefined) {
+      throw new AssessmentSnapshotValidationError();
+    }
     const route =
-      parsed.routeResponse === "confirm" && suggestion?.geometry
-        ? { provenance: "confirmed" as const, geometry: suggestion.geometry }
-        : parsed.routeResponse === "not_sure"
-          ? { provenance: "uncertain" as const, geometry: null }
-          : (previous?.answers.route ?? {
-              provenance: "uncertain" as const,
-              geometry: null,
-            });
+      parsed.routeResponse === "adjust" && parsed.adjustedRoute
+        ? {
+            provenance: "user-supplied" as const,
+            geometry: parsed.adjustedRoute,
+          }
+        : parsed.routeResponse === "confirm" && suggestion?.geometry
+          ? { provenance: "confirmed" as const, geometry: suggestion.geometry }
+          : parsed.routeResponse === "not_sure"
+            ? { provenance: "uncertain" as const, geometry: null }
+            : (previous?.answers.route ?? {
+                provenance: "uncertain" as const,
+                geometry: null,
+              });
     const answers = constructabilityAnswersSchema.parse({
       version: 1,
       estimatedDepthMetres:
@@ -78,6 +100,14 @@ export async function handleSiteAnswersRequest(
         ...(suggestion || previous?.evidence.routePolicyVersion === 1
           ? { routePolicyVersion: 1 as const }
           : {}),
+        ...(route.geometry
+          ? {
+              routeFacts: analyseAccessRouteFromProperty(
+                snapshot.fastResult,
+                route.geometry,
+              ),
+            }
+          : {}),
         mappedEvidence: previous?.evidence.mappedEvidence ?? [],
         providerAvailability: previous?.evidence.providerAvailability ?? [],
         assumptions: suggestion
@@ -91,7 +121,13 @@ export async function handleSiteAnswersRequest(
       },
     });
     return apiJsonResponse(
-      { assessmentSnapshot, answers },
+      {
+        assessmentSnapshot,
+        answers,
+        routeFacts: route.geometry
+          ? analyseAccessRouteFromProperty(snapshot.fastResult, route.geometry)
+          : null,
+      },
       200,
       correlationId,
       {

@@ -37,6 +37,11 @@ import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fa
 import type { FastPropertyViewRequestError } from "@/modules/data-access-spike/execute-fast-property-view-request";
 import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
 import { suggestAccessRouteFromProperty } from "@/modules/spatial/suggest-access-route";
+import type { AccessRouteGeometry } from "@/modules/spatial/suggest-access-route";
+import {
+  analyseAccessRouteFromProperty,
+  type AccessRouteFacts,
+} from "@/modules/spatial/analyse-access-route";
 import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
 import {
   readClientApiError,
@@ -112,6 +117,14 @@ export function PropertyCheckJourney() {
     snapshot: string;
     answers: ConstructabilityAnswers;
   } | null>(null);
+  const [routeDraft, setRouteDraft] = useState<{
+    placementKey: string;
+    geometry: AccessRouteGeometry;
+  } | null>(null);
+  const [routeFacts, setRouteFacts] = useState<{
+    placementKey: string;
+    facts: AccessRouteFacts;
+  } | null>(null);
   const [fastPlacementSnapshot, setFastPlacementSnapshot] =
     useState<FastPoolPlacementSnapshot | null>(null);
   const [fastMapSnapshot, setFastMapSnapshot] =
@@ -165,12 +178,35 @@ export function PropertyCheckJourney() {
     (placement: FastPoolPlacementSnapshot) => {
       setFastPlacementSnapshot(placement);
       setFastMapSnapshot(null);
+      setRouteDraft((current) =>
+        current?.placementKey === placementIdentity(placement) ? current : null,
+      );
+      setRouteFacts((current) =>
+        current?.placementKey === placementIdentity(placement) ? current : null,
+      );
       const nextKey = placementIdentity(placement);
       setSignedSiteAnswers((current) =>
         current?.placementKey === nextKey ? current : null,
       );
     },
     [],
+  );
+  const handleRouteEdit = useCallback(
+    (geometry: AccessRouteGeometry, complete: boolean) => {
+      if (!placementKey || !fastResult) return;
+      setRouteDraft({ placementKey, geometry });
+      setRouteFacts(
+        complete
+          ? {
+              placementKey,
+              facts: analyseAccessRouteFromProperty(fastResult, geometry),
+            }
+          : null,
+      );
+      setSignedSiteAnswers(null);
+      setFastMapSnapshot(null);
+    },
+    [fastResult, placementKey],
   );
 
   useEffect(() => {
@@ -334,6 +370,8 @@ export function PropertyCheckJourney() {
     setLockedDepth(null);
     setPreDetailedSnapshot(null);
     setSignedSiteAnswers(null);
+    setRouteDraft(null);
+    setRouteFacts(null);
     setFastPlacementSnapshot(null);
     setFastMapSnapshot(null);
     setDetailedRetryAfterSeconds(null);
@@ -777,7 +815,21 @@ export function PropertyCheckJourney() {
           )}
           <FastPropertyView
             result={fastResult}
-            suggestedRoute={routeSuggestion?.geometry ?? null}
+            suggestedRoute={
+              routeDraft?.placementKey === placementKey
+                ? routeDraft.geometry
+                : (routeSuggestion?.geometry ?? null)
+            }
+            editableRoute={
+              routeSuggestion?.confidence === "credible" &&
+              placementKey &&
+              fastResult.detailedChecks
+                ? routeDraft?.placementKey === placementKey
+                  ? routeDraft.geometry
+                  : routeSuggestion.geometry
+                : null
+            }
+            onRouteEdit={handleRouteEdit}
             onLoadDetailed={() => void requestDetailedPropertyData()}
             onRetry={() => void requestDetailedPropertyData()}
             onStartAgain={startAgain}
@@ -812,6 +864,22 @@ export function PropertyCheckJourney() {
                 placementKey={placementKey}
                 poolLayout={routePoolLayout ?? undefined}
                 routeSuggestion={routeSuggestion ?? undefined}
+                adjustedRoute={
+                  routeDraft?.placementKey === placementKey
+                    ? routeDraft.geometry
+                    : null
+                }
+                routeFacts={
+                  routeFacts?.placementKey === placementKey
+                    ? routeFacts.facts
+                    : null
+                }
+                onRouteEdit={handleRouteEdit}
+                onRouteReset={() => {
+                  setRouteDraft(null);
+                  setRouteFacts(null);
+                  setFastMapSnapshot(null);
+                }}
                 onSigned={setSignedSiteAnswers}
               />
               {signedSiteAnswers?.sourceSnapshot === fastAssessmentSnapshot &&
