@@ -177,6 +177,17 @@ export async function buildServerAssessmentSubmission(input: {
     ? buildConstructabilitySnapshot({
         answers: snapshot.constructability!.answers,
         ...snapshot.constructability!.evidence,
+        excavation: {
+          dimensions,
+          terrainAdjustment:
+            terrain?.status === "measured" &&
+            aucklandDemReportEligibility(
+              terrain.source,
+              AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED,
+            ) === "approved"
+              ? "available_separate"
+              : "unavailable",
+        },
       })
     : undefined;
   return parsePersistedAssessmentSubmission({

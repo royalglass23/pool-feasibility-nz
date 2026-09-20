@@ -530,6 +530,11 @@ describe("POST /api/internal/assessments", () => {
       ...validSubmission,
       assessmentSnapshot: signed.assessmentSnapshot,
       constructability: signed.answers,
+      poolLayout: {
+        ...validSubmission.poolLayout,
+        lengthMetres: 6,
+        widthMetres: 3,
+      },
     });
     const snapshot = snapshotService.verify(request.assessmentSnapshot);
     const submission = await buildServerAssessmentSubmission({
@@ -544,6 +549,18 @@ describe("POST /api/internal/assessments", () => {
     expect(saved.constructability).toMatchObject({
       version: 1,
       estimatedDepthMetres: 1.9,
+      excavationGeometry: {
+        assumptionId: "firth-masonry-side-300mm-v1",
+        inputs: {
+          lengthMetres: 6,
+          widthMetres: 3,
+          estimatedDepthMetres: 1.9,
+        },
+        poolOutlineCubicMetres: 34.2,
+        sideAllowanceCubicMetres: 45.14,
+        specialistDepthWarning: true,
+        terrainAdjustment: "unavailable",
+      },
     });
     await expect(
       buildServerAssessmentSubmission({
@@ -833,13 +850,29 @@ describe("POST /api/internal/assessments", () => {
         confidence: "limited",
       },
     };
-    const assessmentSnapshot = snapshotService.issue({
-      ...original.fastResult,
-      detailedChecks,
-    });
+    const constructabilityAnswers = {
+      version: 1 as const,
+      estimatedDepthMetres: 1.5,
+      route: { provenance: "uncertain" as const, geometry: null },
+      accessConditions: ["none_of_these" as const],
+      nearbyFeatures: ["none_of_these" as const],
+    };
+    const assessmentSnapshot = snapshotService.issue(
+      { ...original.fastResult, detailedChecks },
+      {
+        answers: constructabilityAnswers,
+        evidence: {
+          suggestedRoute: null,
+          mappedEvidence: [],
+          providerAvailability: [],
+          assumptions: [],
+        },
+      },
+    );
     const request = parseBrowserAssessmentSaveRequest({
       ...validSubmission,
       assessmentSnapshot,
+      constructability: constructabilityAnswers,
     });
     const submission = await buildServerAssessmentSubmission({
       request,
@@ -872,6 +905,10 @@ describe("POST /api/internal/assessments", () => {
     ).toContainEqual(
       expect.objectContaining({ id: "terrain_and_slope", status: "unknown" }),
     );
+    expect(
+      submission.report.reportData.constructability?.excavationGeometry
+        ?.terrainAdjustment,
+    ).toBe("unavailable");
 
     const report = buildSavedPreliminaryReport({
       submission,
@@ -949,13 +986,29 @@ describe("POST /api/internal/assessments", () => {
     if (!asset) throw new Error("TEST_TERRAIN_ASSET_MISSING");
     Object.assign(asset, { datasetDate: "2024-06-26/2024-11-04" });
     detailedChecks.terrain = terrain;
-    const assessmentSnapshot = snapshotService.issue({
-      ...original.fastResult,
-      detailedChecks,
-    });
+    const constructabilityAnswers = {
+      version: 1 as const,
+      estimatedDepthMetres: 1.5,
+      route: { provenance: "uncertain" as const, geometry: null },
+      accessConditions: ["none_of_these" as const],
+      nearbyFeatures: ["none_of_these" as const],
+    };
+    const assessmentSnapshot = snapshotService.issue(
+      { ...original.fastResult, detailedChecks },
+      {
+        answers: constructabilityAnswers,
+        evidence: {
+          suggestedRoute: null,
+          mappedEvidence: [],
+          providerAvailability: [],
+          assumptions: [],
+        },
+      },
+    );
     const request = parseBrowserAssessmentSaveRequest({
       ...validSubmission,
       assessmentSnapshot,
+      constructability: constructabilityAnswers,
     });
 
     const submission = await buildServerAssessmentSubmission({
@@ -978,6 +1031,10 @@ describe("POST /api/internal/assessments", () => {
         ],
       },
     });
+    expect(
+      submission.report.reportData.constructability?.excavationGeometry
+        ?.terrainAdjustment,
+    ).toBe("available_separate");
   });
 
   it("presents the approved headline slope values as buffered proposed-pool measurements", async () => {

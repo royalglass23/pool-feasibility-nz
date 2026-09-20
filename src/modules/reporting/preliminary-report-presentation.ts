@@ -15,6 +15,8 @@ import {
 
 export const CC_BY_4_LICENCE_URL =
   "https://creativecommons.org/licenses/by/4.0/legalcode";
+export const FIRTH_MASONRY_POOL_GUIDANCE_URL =
+  "https://www.firth.co.nz/assets/Uploads/Resources/Documents/FIR0744-Masonry-Swimming-Pools.pdf";
 
 export function reportLicenceUrl(licence: string): string | null {
   return /(?:Creative Commons Attribution 4\.0|CC BY 4\.0)/i.test(licence)
@@ -235,6 +237,52 @@ export function formatReportGeneratedAt(generatedAt: string): string {
     timeStyle: "short",
     timeZone: "Pacific/Auckland",
   }).format(new Date(generatedAt));
+}
+
+export function reportExcavationGeometry(report: SavedPreliminaryReport) {
+  if (
+    report.constructability.version !== 1 ||
+    !report.constructability.excavationGeometry
+  ) {
+    return null;
+  }
+  const geometry = report.constructability.excavationGeometry;
+  const terrainUnavailable = geometry.terrainAdjustment === "unavailable";
+  return {
+    heading: "Illustrative excavation geometry",
+    scenarios: [
+      {
+        id: "pool-outline" as const,
+        label: "Selected pool outline",
+        valueCubicMetres: geometry.poolOutlineCubicMetres,
+        formattedValue: `${geometry.poolOutlineCubicMetres.toFixed(geometry.rounding.decimalPlaces)} m³`,
+      },
+      {
+        id: "300mm-side-allowance" as const,
+        label: "300 mm side-allowance scenario",
+        valueCubicMetres: geometry.sideAllowanceCubicMetres,
+        formattedValue: `${geometry.sideAllowanceCubicMetres.toFixed(geometry.rounding.decimalPlaces)} m³`,
+      },
+    ],
+    assumptionId: geometry.assumptionId,
+    sourceUrl: FIRTH_MASONRY_POOL_GUIDANCE_URL,
+    assumptionDisclosure:
+      "300 mm added on each side of the selected pool outline. This assumption is adapted from Firth's masonry-pool guidance, which measures from the outside masonry wall; applying it to the generic selected outline is a temporary PoolReady proxy, not a builder-approved construction specification.",
+    rangeDisclosure:
+      "These are illustrative geometry scenarios, not minimum and maximum excavation quantities. The larger figure is not an upper bound, and the actual excavation may fall outside these two numbers.",
+    exclusions:
+      "Extra base depth, masonry wall and footing dimensions, floor falls, drainage, terrain cut, battering or support, services, and installation method are not modelled.",
+    terrainStatus: terrainUnavailable
+      ? ("not_fully_assessed" as const)
+      : ("available_separate" as const),
+    terrainStatusLabel: terrainUnavailable ? "Not fully assessed" : null,
+    terrainLabel: terrainUnavailable
+      ? "Base geometry estimate only — terrain adjustment unavailable"
+      : "Terrain information is considered separately and is not added to these geometry scenarios.",
+    specialistDepthWarning: geometry.specialistDepthWarning
+      ? "Specialist depth — professional confirmation required"
+      : null,
+  };
 }
 
 export function reportRecommendations(

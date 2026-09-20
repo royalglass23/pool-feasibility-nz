@@ -1,5 +1,9 @@
 import { z } from "zod";
 import { estimatedPoolDepthSchema } from "./estimated-pool-depth";
+import {
+  calculateExcavationGeometryScenarios,
+  excavationGeometryScenariosSchema,
+} from "./excavation-geometry";
 import type { AccessRouteFacts } from "@/modules/spatial/analyse-access-route";
 
 const fact = <T extends z.ZodType>(value: T) =>
@@ -148,6 +152,7 @@ export const constructabilitySnapshotSchema = z
     routeFacts: routeFactsSchema.optional(),
     estimatedDepthMetres:
       constructabilityAnswersSchema.shape.estimatedDepthMetres,
+    excavationGeometry: excavationGeometryScenariosSchema.optional(),
     route: constructabilityAnswersSchema.shape.route,
     accessConditions: constructabilityAnswersSchema.shape.accessConditions,
     nearbyFeatures: constructabilityAnswersSchema.shape.nearbyFeatures,
@@ -209,6 +214,17 @@ export const constructabilitySnapshotSchema = z
         });
       }
     }
+    if (
+      snapshot.excavationGeometry &&
+      snapshot.excavationGeometry.inputs.estimatedDepthMetres !==
+        snapshot.estimatedDepthMetres
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["excavationGeometry", "inputs", "estimatedDepthMetres"],
+        message: "Excavation geometry must use the locked estimated depth.",
+      });
+    }
   });
 
 export type ConstructabilityAnswers = z.input<
@@ -232,6 +248,10 @@ export function buildConstructabilitySnapshot(input: {
   suggestedRoute?: TrustedConstructabilityEvidence["suggestedRoute"];
   routePolicyVersion?: TrustedConstructabilityEvidence["routePolicyVersion"];
   routeFacts?: AccessRouteFacts;
+  excavation?: {
+    dimensions: { lengthMetres: number; widthMetres: number };
+    terrainAdjustment: "available_separate" | "unavailable";
+  };
 }): ConstructabilitySnapshot {
   const answers = constructabilityAnswersSchema.parse(input.answers);
   const mappedEvidence = z
@@ -275,6 +295,15 @@ export function buildConstructabilitySnapshot(input: {
   });
   return constructabilitySnapshotSchema.parse({
     ...answers,
+    ...(input.excavation
+      ? {
+          excavationGeometry: calculateExcavationGeometryScenarios({
+            ...input.excavation.dimensions,
+            estimatedDepthMetres: answers.estimatedDepthMetres,
+            terrainAdjustment: input.excavation.terrainAdjustment,
+          }),
+        }
+      : {}),
     ...(input.routePolicyVersion === 1
       ? { routePolicyVersion: 1, suggestedRoute }
       : {}),

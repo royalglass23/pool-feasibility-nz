@@ -31,6 +31,10 @@ describe.skipIf(!databaseUrl)(
             accessConditions: ["none_of_these"],
             nearbyFeatures: ["none_of_these"],
           },
+          excavation: {
+            dimensions: { lengthMetres: 6, widthMetres: 3 },
+            terrainAdjustment: "unavailable",
+          },
         });
       let savedId: string | undefined;
       try {
@@ -40,6 +44,11 @@ describe.skipIf(!databaseUrl)(
         expect(report?.constructability).toMatchObject({
           version: 1,
           estimatedDepthMetres: 1.9,
+          excavationGeometry: {
+            assumptionId: "firth-masonry-side-300mm-v1",
+            poolOutlineCubicMetres: 34.2,
+            sideAllowanceCubicMetres: 45.14,
+          },
         });
       } finally {
         if (savedId) {

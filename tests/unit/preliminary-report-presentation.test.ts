@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  reportExcavationGeometry,
   reportMapLegend,
   reportWarningLabel,
 } from "@/modules/reporting/preliminary-report-presentation";
@@ -100,5 +101,87 @@ describe("reportWarningLabel", () => {
     expect(reportWarningLabel("blocked")).toBe(
       "This pool position needs review",
     );
+  });
+});
+
+describe("reportExcavationGeometry", () => {
+  it("presents saved values as disclosed geometry scenarios rather than a range", () => {
+    const report = buildTestPreliminaryReport({
+      constructability: buildConstructabilitySnapshot({
+        answers: {
+          version: 1,
+          estimatedDepthMetres: 1.5,
+          route: { provenance: "uncertain", geometry: null },
+          accessConditions: ["none_of_these"],
+          nearbyFeatures: ["none_of_these"],
+        },
+        excavation: {
+          dimensions: { lengthMetres: 6, widthMetres: 3 },
+          terrainAdjustment: "unavailable",
+        },
+      }),
+    });
+
+    expect(reportExcavationGeometry(report)).toEqual({
+      heading: "Illustrative excavation geometry",
+      scenarios: [
+        {
+          id: "pool-outline",
+          label: "Selected pool outline",
+          valueCubicMetres: 27,
+          formattedValue: "27.00 m³",
+        },
+        {
+          id: "300mm-side-allowance",
+          label: "300 mm side-allowance scenario",
+          valueCubicMetres: 35.64,
+          formattedValue: "35.64 m³",
+        },
+      ],
+      assumptionId: "firth-masonry-side-300mm-v1",
+      sourceUrl:
+        "https://www.firth.co.nz/assets/Uploads/Resources/Documents/FIR0744-Masonry-Swimming-Pools.pdf",
+      assumptionDisclosure: expect.stringMatching(
+        /300 mm added on each side.*outside masonry wall.*temporary PoolReady proxy/i,
+      ),
+      rangeDisclosure: expect.stringMatching(
+        /geometry scenarios.*not an upper bound.*actual excavation/i,
+      ),
+      exclusions: expect.stringMatching(
+        /extra base depth.*masonry wall and footing dimensions.*floor falls.*drainage.*terrain cut.*battering or support.*services.*installation method.*not modelled/i,
+      ),
+      terrainStatus: "not_fully_assessed",
+      terrainStatusLabel: "Not fully assessed",
+      terrainLabel:
+        "Base geometry estimate only — terrain adjustment unavailable",
+      specialistDepthWarning: null,
+    });
+  });
+
+  it("keeps the specialist-depth warning and treats available terrain separately", () => {
+    const report = buildTestPreliminaryReport({
+      constructability: buildConstructabilitySnapshot({
+        answers: {
+          version: 1,
+          estimatedDepthMetres: 1.9,
+          route: { provenance: "uncertain", geometry: null },
+          accessConditions: ["none_of_these"],
+          nearbyFeatures: ["none_of_these"],
+        },
+        excavation: {
+          dimensions: { lengthMetres: 6, widthMetres: 3 },
+          terrainAdjustment: "available_separate",
+        },
+      }),
+    });
+
+    expect(reportExcavationGeometry(report)).toMatchObject({
+      terrainStatus: "available_separate",
+      terrainStatusLabel: null,
+      terrainLabel:
+        "Terrain information is considered separately and is not added to these geometry scenarios.",
+      specialistDepthWarning:
+        "Specialist depth — professional confirmation required",
+    });
   });
 });

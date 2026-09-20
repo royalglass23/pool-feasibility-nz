@@ -4,6 +4,7 @@ import {
   constructabilityAnswersSchema,
   constructabilitySnapshotSchema,
 } from "@/modules/assessment/constructability-evidence";
+import { calculateExcavationGeometryScenarios } from "@/modules/assessment/excavation-geometry";
 import { parsePersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
 import { buildTestPersistedAssessmentSubmission } from "../fixtures/preliminary-report";
 
@@ -309,5 +310,65 @@ describe("constructability evidence", () => {
         label: "Not assessed — data unavailable",
       }),
     );
+  });
+
+  it("reproduces saved excavation geometry from its versioned inputs and rejects altered totals", () => {
+    const snapshot = buildConstructabilitySnapshot({
+      answers,
+      excavation: {
+        dimensions: { lengthMetres: 6, widthMetres: 3 },
+        terrainAdjustment: "unavailable",
+      },
+    });
+    const saved = constructabilitySnapshotSchema.parse(
+      JSON.parse(JSON.stringify(snapshot)),
+    );
+    expect(saved.excavationGeometry).toMatchObject({
+      assumptionId: "firth-masonry-side-300mm-v1",
+      poolOutlineCubicMetres: 27,
+      sideAllowanceCubicMetres: 35.64,
+    });
+    expect(() =>
+      constructabilitySnapshotSchema.parse({
+        ...saved,
+        excavationGeometry: {
+          ...saved.excavationGeometry!,
+          sideAllowanceCubicMetres: 35.65,
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      constructabilitySnapshotSchema.parse({
+        ...saved,
+        excavationGeometry: calculateExcavationGeometryScenarios({
+          lengthMetres: 6,
+          widthMetres: 3,
+          estimatedDepthMetres: 1.6,
+          terrainAdjustment: "unavailable",
+        }),
+      }),
+    ).toThrow();
+  });
+
+  it("rejects saved excavation inputs that contradict the saved pool layout", () => {
+    const submission = buildTestPersistedAssessmentSubmission(
+      "rg-342-layout-integrity",
+    );
+    submission.homeowner.name = "Jane Homeowner";
+    submission.report.reportData.constructability =
+      buildConstructabilitySnapshot({
+        answers,
+        excavation: {
+          dimensions: { lengthMetres: 6.5, widthMetres: 3 },
+          terrainAdjustment: "unavailable",
+        },
+      });
+    expect(() => parsePersistedAssessmentSubmission(submission)).not.toThrow();
+    expect(() =>
+      parsePersistedAssessmentSubmission({
+        ...submission,
+        poolLayout: { ...submission.poolLayout, lengthMetres: 7 },
+      }),
+    ).toThrow();
   });
 });
