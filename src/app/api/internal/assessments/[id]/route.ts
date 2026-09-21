@@ -4,6 +4,7 @@ import {
   getSavedPreliminaryReportById,
 } from "@/db/repositories/homeowner-assessment-repository";
 import { staffSessionDeniedResponse } from "@/modules/staff/staff-session";
+import { projectStaffConstructabilityEvidence } from "@/modules/staff/staff-assessment-read-model";
 import {
   apiErrorResponse,
   apiJsonResponse,
@@ -42,7 +43,17 @@ export async function GET(
   }
 
   return apiJsonResponse(
-    { data: { assessment: { ...assessment, report } } },
+    {
+      data: {
+        assessment: {
+          ...assessment,
+          report,
+          constructabilityEvidence: projectStaffConstructabilityEvidence(
+            report.constructability,
+          ),
+        },
+      },
+    },
     200,
     correlationId,
     { "Cache-Control": "no-store" },

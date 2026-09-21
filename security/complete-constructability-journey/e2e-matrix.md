@@ -1,0 +1,21 @@
+# RG-345 E2E coverage matrix
+
+Environment: isolated local Next.js server on `http://127.0.0.1:3100`, one Chromium worker, zero retries, synthetic records in the configured development database only.
+
+| Requirement or threat | Actor and boundary | Journey or abuse case | Test | Expected result | Required |
+|---|---|---|---|---|---|
+| RG345-AC1 | Homeowner, public Property Check and real save API | Default and edited depth, Site answers, consent, save, database reload, and reproduced report | `homeowner-report.spec.ts` — complete public journey | Both 1.50 m and 1.70 m are signed, submitted through the production handler, persisted, reloaded, and reproduced in the saved report | yes |
+| RG345-AC2 | Homeowner and pool builder, public save API | Submit identical constructability under both audience values | `constructability-persistence.spec.ts` — audience-equivalent scenarios | The two database-reloaded constructability snapshots are exactly equal | yes |
+| RG345-AC3a | Homeowner, public save API | Mapped-only concern | `constructability-persistence.spec.ts` — mapped scenario | Saved report says `Needs checking` and retains mapped provenance and finding | yes |
+| RG345-AC3b | Homeowner, public save API | User-only gate concern | `constructability-persistence.spec.ts` — audience-equivalent scenario | Saved report says `Needs checking` and retains the Site-answer provenance | yes |
+| RG345-AC3c | Homeowner, public save API | Mapped no-concern conflicts with a user-reported gate | `constructability-persistence.spec.ts` — conflict scenario | Saved report conservatively says `Needs checking` and retains both mapped and user provenance | yes |
+| RG345-AC4 | Homeowner, public provider-failure path | Terrain provider is unavailable while the report is still saved | `homeowner-report.spec.ts` — complete public journey | Database-reloaded report remains available, says `Not fully assessed`, and discloses provider error | yes |
+| RG345-AC5 | Keyboard user, public Site journey and real save API | Edit depth, adjust route by keyboard and pointer, exercise exclusive Site choices, recover from invalid input, save and reload | `access-route-adjustment.spec.ts` and `homeowner-report.spec.ts` | Adjusted route and route facts persist; depth locks; exclusive choice remains exclusive; invalid field receives focus and an accessible description | yes |
+| RG345-AC6 | Authenticated Royal Glass staff | Open the real staff route and internal API with a server-validated session | `staff-assessments.spec.ts` — authenticated staff snapshot | Persisted evidence is visible and contains no edit controls | yes |
+| RG345-AC7 | Homeowner, public save and delivery boundary | Delivery is deliberately unavailable after a real save | `homeowner-report.spec.ts` — complete public journey with disabled test delivery | Saved report remains visible; no public resend/PDF control leaks; delivery copy remains intact | yes |
+| RG345-AC8 | Anonymous visitor, privileged route and API | Force-browse staff list and detail | `staff-assessments.spec.ts` — requires staff sign-in | Browser is redirected before assessment data is requested | yes |
+| RG345-T1 | Test/runtime isolation | Another local app already owns port 3000 | Full Playwright configuration | GeoMap starts a fresh server on dedicated port 3100, never reuses an arbitrary process, and targets the development database | yes |
+| RG345-T2 | Staff session and PII | Temporary privileged session or synthetic assessment survives the test | `staff-assessments.spec.ts` — authenticated staff snapshot | Exact session, assessment, and test-created admin rows are removed in `finally` | yes |
+| RG345-T3 | Browser artifacts | Secret or real customer data leaks into committed state | Full Playwright lane plus repository checks | Only synthetic `.example.test` data is used; cookies remain ephemeral; `.env` is untracked | yes |
+
+All required rows map to executable Playwright tests. Address/property provider responses are synthetic at the public provider boundary and provider timeouts are bounded; site-answer signing, public assessment validation, persistence, saved-report reconstruction, staff authentication, authorization, routing, and serialization remain real against the development database.

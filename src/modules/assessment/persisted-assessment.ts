@@ -3,6 +3,7 @@ import { homeownerContactFields } from "./homeowner-contact";
 import { requireOtherDetails } from "@/modules/assessment/visitor-context";
 import { isValidPngMapImageDataUrl } from "@/modules/reporting/map-image";
 import { reportAssessmentSnapshotSchema } from "@/modules/reporting/report-assessment-snapshot";
+import { constructabilitySnapshotSchema } from "./constructability-evidence";
 
 const isoDateTime = z.string().datetime({ offset: true });
 
@@ -253,6 +254,7 @@ const reportData = z.object({
   placementLayerFindings: z.array(placementLayerFinding).max(50).optional(),
   terrain: reportTerrain.optional(),
   assessmentSnapshot: reportAssessmentSnapshotSchema.nullable().optional(),
+  constructability: constructabilitySnapshotSchema.optional(),
 });
 
 export const persistedAssessmentSubmissionSchema = z
@@ -314,6 +316,25 @@ export const persistedAssessmentSubmissionSchema = z
         });
       }
     });
+    const excavation =
+      submission.report.reportData.constructability?.excavationGeometry;
+    if (
+      excavation &&
+      (excavation.inputs.lengthMetres !== submission.poolLayout.lengthMetres ||
+        excavation.inputs.widthMetres !== submission.poolLayout.widthMetres)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: [
+          "report",
+          "reportData",
+          "constructability",
+          "excavationGeometry",
+          "inputs",
+        ],
+        message: "Excavation geometry must use the saved pool layout.",
+      });
+    }
   });
 
 export type PersistedAssessmentSubmission = z.infer<

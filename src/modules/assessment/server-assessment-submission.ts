@@ -1,4 +1,10 @@
+import { isDeepStrictEqual } from "node:util";
 import { z } from "zod";
+import {
+  buildConstructabilitySnapshot,
+  constructabilityAnswersSchema,
+  ConstructabilityEvidenceError,
+} from "./constructability-evidence";
 import { homeownerContactSchema } from "./homeowner-contact";
 import type { Geometry } from "geojson";
 import {
@@ -20,6 +26,9 @@ import type {
   PropertyTerrainSource,
 } from "@/modules/terrain/property-terrain";
 import type { TrustedAssessmentSnapshot } from "./assessment-snapshot";
+import { suggestAccessRouteFromProperty } from "@/modules/spatial/suggest-access-route";
+import { analyseAccessRouteFromProperty } from "@/modules/spatial/analyse-access-route";
+import { poolLayoutSchema } from "./pool-layout-schema";
 import {
   parsePersistedAssessmentSubmission,
   type PersistedAssessmentSubmission,
@@ -38,18 +47,10 @@ const browserSubmissionSchema = z
       .max(50)
       .default([]),
     homeowner: homeownerContactSchema,
-    poolLayout: z
-      .object({
-        lengthMetres: z.number().finite().min(2).max(20),
-        widthMetres: z.number().finite().min(1.5).max(10),
-        rotationDegrees: z.number().finite().min(-360).max(360),
-        position: z.tuple([
-          z.number().finite().min(160).max(180),
-          z.number().finite().min(-48).max(-33),
-        ]),
-        clearancesVisible: z.boolean().default(true),
-      })
-      .strict(),
+    constructability: constructabilityAnswersSchema.optional(),
+    poolLayout: poolLayoutSchema.extend({
+      clearancesVisible: z.boolean().default(true),
+    }),
   })
   .strict();
 
@@ -61,6 +62,25 @@ export function parseBrowserAssessmentSaveRequest(
   input: unknown,
 ): BrowserAssessmentSaveRequest {
   return browserSubmissionSchema.parse(input);
+}
+
+export function assertConstructabilityMatchesSnapshot(
+  request: BrowserAssessmentSaveRequest,
+  snapshot: TrustedAssessmentSnapshot,
+): void {
+  if (
+    Boolean(request.constructability) !== Boolean(snapshot.constructability) ||
+    (snapshot.lockedEstimatedDepthMetres !== undefined &&
+      snapshot.constructability?.answers.estimatedDepthMetres !==
+        snapshot.lockedEstimatedDepthMetres) ||
+    (request.constructability &&
+      !isDeepStrictEqual(
+        request.constructability,
+        snapshot.constructability!.answers,
+      ))
+  ) {
+    throw new ConstructabilityEvidenceError();
+  }
 }
 
 export async function buildServerAssessmentSubmission(input: {
@@ -125,6 +145,51 @@ export async function buildServerAssessmentSubmission(input: {
     snapshot.fastResult,
     submittedAt,
   );
+  assertConstructabilityMatchesSnapshot(request, snapshot);
+  if (snapshot.constructability?.evidence.routePolicyVersion === 1) {
+    const expected = suggestAccessRouteFromProperty(
+      snapshot.fastResult,
+      request.poolLayout,
+    );
+    if (
+      !isDeepStrictEqual(
+        snapshot.constructability.evidence.suggestedRoute,
+        expected.geometry,
+      ) ||
+      (snapshot.constructability.answers.route.provenance === "confirmed" &&
+        (expected.confidence !== "credible" ||
+          !isDeepStrictEqual(
+            snapshot.constructability.answers.route.geometry,
+            expected.geometry,
+          ))) ||
+      (snapshot.constructability.answers.route.geometry &&
+        !isDeepStrictEqual(
+          snapshot.constructability.evidence.routeFacts,
+          analyseAccessRouteFromProperty(
+            snapshot.fastResult,
+            snapshot.constructability.answers.route.geometry,
+          ),
+        ))
+    )
+      throw new ConstructabilityEvidenceError();
+  }
+  const constructability = request.constructability
+    ? buildConstructabilitySnapshot({
+        answers: snapshot.constructability!.answers,
+        ...snapshot.constructability!.evidence,
+        excavation: {
+          dimensions,
+          terrainAdjustment:
+            terrain?.status === "measured" &&
+            aucklandDemReportEligibility(
+              terrain.source,
+              AUCKLAND_DEM_HOMEOWNER_REPORT_APPROVED,
+            ) === "approved"
+              ? "available_separate"
+              : "unavailable",
+        },
+      })
+    : undefined;
   return parsePersistedAssessmentSubmission({
     idempotencyKey: snapshot.submissionId,
     homeowner: {
@@ -214,6 +279,7 @@ export async function buildServerAssessmentSubmission(input: {
         assessmentSnapshot: reportAssessment
           ? buildReportAssessmentSnapshot(reportAssessment)
           : null,
+        constructability,
       },
     },
   });

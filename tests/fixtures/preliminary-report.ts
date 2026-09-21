@@ -216,6 +216,12 @@ export function buildTestPreliminaryReport(
     actions: [],
     missingInformation: [],
     terrain: null,
+    constructability: {
+      version: 0,
+      status: "not_assessed",
+      reason:
+        "Site constructability evidence was not captured for this assessment.",
+    },
     layers: [],
     sources: [],
     assumptions: ["Preliminary assessment only."],

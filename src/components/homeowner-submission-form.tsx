@@ -3,6 +3,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
 import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
+import type { ConstructabilityAnswers } from "@/modules/assessment/constructability-evidence";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 import type { PersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
@@ -41,12 +42,14 @@ export type SavedAssessmentResponse = {
 
 export function HomeownerSubmissionForm({
   assessmentSnapshot,
+  constructability,
   mapImageDataUrl,
   mapVisibleLayerKeys = [],
   placement,
   onSaved,
 }: {
   assessmentSnapshot: string;
+  constructability?: ConstructabilityAnswers;
   mapImageDataUrl: string;
   mapVisibleLayerKeys?: string[];
   placement: FastPoolPlacementSnapshot;
@@ -57,7 +60,6 @@ export function HomeownerSubmissionForm({
   const [error, setError] = useState<string | null>(null);
   const [visitorType, setVisitorType] = useState("homeowner");
   const [desiredTiming, setDesiredTiming] = useState("asap");
-
   useEffect(() => {
     trackAnonymousFunnelEvent({ name: "report_form_viewed" });
   }, []);
@@ -87,10 +89,14 @@ export function HomeownerSubmissionForm({
     if (!contact.success) {
       setFieldErrors(friendlyFieldErrors(contact.error.issues));
       setError(null);
-      const field = event.currentTarget.elements.namedItem(
-        String(contact.error.issues[0]?.path[0]),
-      );
-      if (field instanceof HTMLElement) field.focus();
+      const formElement = event.currentTarget;
+      const firstInvalidField = String(contact.error.issues[0]?.path[0]);
+      queueMicrotask(() => {
+        const field = formElement.elements.namedItem(
+          firstInvalidField === "consentGiven" ? "consent" : firstInvalidField,
+        );
+        if (field instanceof HTMLElement) field.focus();
+      });
       return;
     }
     setFieldErrors({});
@@ -103,6 +109,7 @@ export function HomeownerSubmissionForm({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           assessmentSnapshot,
+          ...(constructability ? { constructability } : {}),
           mapImageDataUrl,
           mapVisibleLayerKeys,
           poolLayout: {

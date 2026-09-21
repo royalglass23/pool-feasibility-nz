@@ -11,7 +11,11 @@ import {
   type AssessmentStatus,
   type ReportAssessment,
 } from "@/modules/reporting/pool-feasibility-report";
-import { formatReportGeneratedAt } from "@/modules/reporting/preliminary-report-presentation";
+import {
+  formatReportGeneratedAt,
+  reportConstructabilitySections,
+  type ReportConstructabilitySection,
+} from "@/modules/reporting/preliminary-report-presentation";
 import {
   PRELIMINARY_FEASIBILITY_READING_GUIDE,
   PRELIMINARY_FEASIBILITY_SCOPE,
@@ -34,6 +38,7 @@ export function HomeownerFeasibilityReportView({
   onStartAgain?: () => void;
 }) {
   void delivery;
+  const constructabilitySections = reportConstructabilitySections(report);
 
   return (
     <article
@@ -207,6 +212,25 @@ export function HomeownerFeasibilityReportView({
           </div>
         </section>
 
+        <section aria-labelledby="constructability-heading">
+          <h3
+            id="constructability-heading"
+            className="text-pool-950 text-xl font-semibold tracking-[-0.02em]"
+          >
+            Site constructability
+          </h3>
+          <p className="text-pool-600 mt-2 max-w-3xl text-sm leading-6">
+            These sections reproduce the saved Site answers, mapped evidence,
+            route analysis, provider availability and assumptions from this
+            assessment. They do not use current provider data.
+          </p>
+          <div className="mt-5 space-y-4">
+            {constructabilitySections.map((section) => (
+              <ConstructabilitySection key={section.id} section={section} />
+            ))}
+          </div>
+        </section>
+
         <section
           aria-labelledby="later-verification-heading"
           className="bg-pool-50 rounded-xl p-5 sm:p-6"
@@ -350,6 +374,95 @@ export function HomeownerFeasibilityReportView({
           </div>
         )}
       </div>
+    </article>
+  );
+}
+
+function ConstructabilitySection({
+  section,
+}: {
+  section: ReportConstructabilitySection;
+}) {
+  return (
+    <article className="border-pool-200 rounded-xl border p-5 sm:p-6">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+        <h4 className="text-pool-950 font-semibold">{section.title}</h4>
+        <p className="text-pool-800 text-sm font-bold">{section.statusLabel}</p>
+      </div>
+      <p className="text-pool-700 mt-2 text-sm leading-6">{section.summary}</p>
+      {section.details.length > 0 && (
+        <dl className="mt-4 grid gap-2 text-sm sm:grid-cols-2 lg:grid-cols-3">
+          {section.details.map((detail) => (
+            <div
+              key={`${detail.label}-${detail.value}`}
+              className="border-pool-200 border-t pt-2"
+            >
+              <dt className="text-pool-600">{detail.label}</dt>
+              <dd className="text-pool-900 mt-1 font-semibold">
+                {detail.value}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      )}
+      {section.evidence.length > 0 && (
+        <ul className="mt-4 space-y-2 text-sm">
+          {section.evidence.map((item, index) => (
+            <li
+              key={`${item.provenance}-${item.description}-${index}`}
+              className="text-pool-700"
+            >
+              <strong className="text-pool-900">{item.provenance}:</strong>{" "}
+              {item.description}
+            </li>
+          ))}
+        </ul>
+      )}
+      {section.provenanceNote && (
+        <p className="border-pool-200 bg-pool-50 text-pool-800 mt-4 rounded-lg border p-3 text-sm leading-6">
+          {section.provenanceNote}
+        </p>
+      )}
+      {section.excavation && (
+        <div className="border-pool-200 mt-5 border-t pt-4">
+          <h5 className="text-pool-950 font-semibold">
+            {section.excavation.heading}
+          </h5>
+          <dl className="mt-3 grid gap-3 sm:grid-cols-2">
+            {section.excavation.scenarios.map((scenario) => (
+              <div key={scenario.id} className="bg-pool-50 rounded-lg p-3">
+                <dt className="text-pool-600 text-sm">{scenario.label}</dt>
+                <dd className="text-pool-950 mt-1 text-lg font-bold">
+                  {scenario.formattedValue}
+                </dd>
+              </div>
+            ))}
+          </dl>
+          <div className="text-pool-700 mt-3 space-y-2 text-sm leading-6">
+            <p>{section.excavation.rangeDisclosure}</p>
+            <p>{section.excavation.exclusions}</p>
+            <p>{section.excavation.terrainLabel}</p>
+            {section.excavation.specialistDepthWarning && (
+              <p className="font-semibold">
+                {section.excavation.specialistDepthWarning}
+              </p>
+            )}
+            <p>
+              Assumption {section.excavation.assumptionId}.{" "}
+              <a
+                href={section.excavation.sourceUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="text-pool-blue-800 font-semibold underline underline-offset-2"
+              >
+                Firth masonry guidance
+              </a>
+              . {section.excavation.assumptionDisclosure}
+            </p>
+          </div>
+        </div>
+      )}
+      <p className="text-pool-600 mt-4 text-xs leading-5">{section.boundary}</p>
     </article>
   );
 }

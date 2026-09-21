@@ -5,6 +5,11 @@ import type {
   FastPropertyViewResult,
   FastPropertyViewStage,
 } from "@/modules/data-access-spike/fast-property-view";
+import {
+  trustedConstructabilitySubmissionSchema,
+  type TrustedConstructabilitySubmission,
+} from "./constructability-evidence";
+import { estimatedPoolDepthSchema } from "./estimated-pool-depth";
 
 const ASSESSMENT_SNAPSHOT_TTL_MS = 15 * 60 * 1_000;
 const snapshotGlobal = globalThis as typeof globalThis & {
@@ -17,12 +22,15 @@ export type TrustedAssessmentSnapshot = {
   submissionId: string;
   fastResult: FastPropertyViewResult;
   expiresAt: number;
+  constructability?: TrustedConstructabilitySubmission;
+  lockedEstimatedDepthMetres?: number;
 };
 
 export function issueAssessmentSnapshot(
   fastResult: FastPropertyViewResult,
+  constructability?: TrustedConstructabilitySubmission,
 ): string {
-  return configuredSnapshotService().issue(fastResult);
+  return configuredSnapshotService().issue(fastResult, constructability);
 }
 
 export function refreshAssessmentSnapshot(
@@ -30,6 +38,16 @@ export function refreshAssessmentSnapshot(
   patch: FastPropertyViewStage | { detailedChecks: FastPropertyDetails },
 ): string {
   return configuredSnapshotService().refresh(snapshot, patch);
+}
+
+export function attachConstructabilityAnswers(
+  snapshot: TrustedAssessmentSnapshot,
+  constructability: TrustedConstructabilitySubmission,
+): string {
+  return configuredSnapshotService().attachConstructability(
+    snapshot,
+    constructability,
+  );
 }
 
 export function verifyAssessmentSnapshot(
@@ -68,12 +86,23 @@ export function createAssessmentSnapshotService(
   }
 
   return {
-    issue(fastResult: FastPropertyViewResult): string {
+    issue(
+      fastResult: FastPropertyViewResult,
+      constructability?: TrustedConstructabilitySubmission,
+    ): string {
       return encodeAndSign(
         {
           submissionId: randomUUID(),
           fastResult,
           expiresAt: now() + ASSESSMENT_SNAPSHOT_TTL_MS,
+          ...(constructability
+            ? {
+                constructability:
+                  trustedConstructabilitySubmissionSchema.parse(
+                    constructability,
+                  ),
+              }
+            : {}),
         },
         signingKey,
       );
@@ -88,6 +117,21 @@ export function createAssessmentSnapshotService(
         {
           ...snapshot,
           fastResult: { ...snapshot.fastResult, ...patch },
+        },
+        signingKey,
+      );
+    },
+    attachConstructability(
+      snapshot: TrustedAssessmentSnapshot,
+      constructability: TrustedConstructabilitySubmission,
+    ): string {
+      if (snapshot.expiresAt <= now())
+        throw new AssessmentSnapshotValidationError();
+      return encodeAndSign(
+        {
+          ...snapshot,
+          constructability:
+            trustedConstructabilitySubmissionSchema.parse(constructability),
         },
         signingKey,
       );
@@ -116,6 +160,21 @@ export function createAssessmentSnapshotService(
         !isTrustedSnapshot(snapshot) ||
         !Number.isFinite(snapshot.expiresAt) ||
         snapshot.expiresAt <= now()
+      ) {
+        throw new AssessmentSnapshotValidationError();
+      }
+      if (
+        snapshot.constructability !== undefined &&
+        !trustedConstructabilitySubmissionSchema.safeParse(
+          snapshot.constructability,
+        ).success
+      ) {
+        throw new AssessmentSnapshotValidationError();
+      }
+      if (
+        snapshot.lockedEstimatedDepthMetres !== undefined &&
+        !estimatedPoolDepthSchema.safeParse(snapshot.lockedEstimatedDepthMetres)
+          .success
       ) {
         throw new AssessmentSnapshotValidationError();
       }

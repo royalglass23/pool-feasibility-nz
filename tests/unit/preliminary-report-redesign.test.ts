@@ -313,9 +313,7 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).toContain("What we checked");
     expect(html).toContain("Key findings");
     expect(html).toContain("Still needs checking");
-    expect(html).toContain("What happens next");
-    expect(html).toContain("Prioritised actions");
-    expect(html).toContain("Missing information");
+    expect(html).toContain("Recommended next stage");
     expect(html).toContain("Assumptions and limitations");
     expect(html).toContain(report.overall.summary);
     expect(html).toContain(report.overall.recommendedStage);
@@ -346,7 +344,7 @@ describe("canonical homeowner feasibility report", () => {
     expect(overallRule).not.toContain("border-radius");
   });
 
-  it("keeps standard later verification alongside specific missing information on page three", () => {
+  it("retains specific missing information without adding it to page three", () => {
     const report = buildReport((submission) => {
       submission.report.reportData.missingInformation = [
         {
@@ -365,27 +363,26 @@ describe("canonical homeowner feasibility report", () => {
     const pageThree = new DOMParser()
       .parseFromString(html, "text/html")
       .querySelectorAll(".page")[2];
-    const missingInformationSection = Array.from(
-      pageThree?.querySelectorAll(".compact-section") ?? [],
-    ).find(
-      (section) =>
-        section.querySelector("h2")?.textContent === "Missing information",
-    );
-
-    expect(
-      Array.from(
-        missingInformationSection?.querySelectorAll("li") ?? [],
-        (item) => item.textContent?.trim(),
-      ),
-    ).toEqual([
+    expect(report.missingInformation.map((item) => item.label)).toEqual([
       "Current title and registered easements",
       "Confirm driveway clearance onsite",
-      "Exact underground service positions and depths",
-      "Geotechnical and groundwater conditions",
-      "Detailed construction access",
-      "Final structural design",
-      "Final consent and approval requirements",
     ]);
+    expect(report.laterVerification).toContain(
+      "Geotechnical and groundwater conditions",
+    );
+    expect(
+      Array.from(pageThree?.querySelectorAll("h2") ?? [], (heading) =>
+        heading.textContent?.trim(),
+      ),
+    ).toEqual([
+      "Recommended next stage",
+      "Mapping information & licences",
+      "Assumptions and limitations",
+      "Preliminary assessment",
+    ]);
+    expect(pageThree?.textContent).not.toContain(
+      "Confirm driveway clearance onsite",
+    );
   });
 
   it("shows the saved layer legend and pool-shell clearances below the PDF map", () => {

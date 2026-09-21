@@ -21,12 +21,17 @@ import {
 } from "@/shared/http/provider-runtime";
 import type { PublicPropertyStage } from "@/modules/rate-limit/public-rate-limit";
 import { z } from "zod";
+import {
+  DEFAULT_ESTIMATED_POOL_DEPTH_METRES,
+  estimatedPoolDepthSchema,
+} from "@/modules/assessment/estimated-pool-depth";
 
 const MAX_ASSESSMENT_SNAPSHOT_BYTES = 5_500_000;
 const MAX_STAGE_REQUEST_BYTES = MAX_ASSESSMENT_SNAPSHOT_BYTES + 1_024;
 const stageRequestSchema = z
   .object({
     mode: z.literal("detailed").optional(),
+    estimatedDepthMetres: estimatedPoolDepthSchema.optional(),
     addressId: z.string().trim().min(1).max(100),
     coordinates: z.tuple([
       z.number().min(160).max(180),
@@ -78,7 +83,11 @@ export async function handleFastPropertyStagesRequest(
     );
   }
   const parsed = stageRequestSchema.safeParse(body);
-  if (!parsed.success) {
+  if (
+    !parsed.success ||
+    (parsed.data?.mode !== "detailed" &&
+      parsed.data?.estimatedDepthMetres !== undefined)
+  ) {
     return apiErrorResponse(
       stageRequestValidationError(body),
       400,
@@ -86,6 +95,8 @@ export async function handleFastPropertyStagesRequest(
       { "Cache-Control": "no-store" },
     );
   }
+  const requestedDepth =
+    parsed.data.estimatedDepthMetres ?? DEFAULT_ESTIMATED_POOL_DEPTH_METRES;
   if (parsed.data.mode === "detailed" && !allowDetailedChecks) {
     return apiErrorResponse(
       {
@@ -106,6 +117,18 @@ export async function handleFastPropertyStagesRequest(
       parsed.data.addressId,
       parsed.data.coordinates,
     );
+    if (
+      parsed.data.mode === "detailed" &&
+      snapshot.lockedEstimatedDepthMetres !== undefined &&
+      snapshot.lockedEstimatedDepthMetres !== requestedDepth
+    )
+      throw new AssessmentSnapshotValidationError();
+    if (
+      parsed.data.mode === "detailed" &&
+      snapshot.constructability &&
+      snapshot.constructability.answers.estimatedDepthMetres !== requestedDepth
+    )
+      throw new AssessmentSnapshotValidationError();
   } catch (error) {
     if (!(error instanceof AssessmentSnapshotValidationError)) throw error;
     return apiErrorResponse(
@@ -173,10 +196,13 @@ export async function handleFastPropertyStagesRequest(
   if (response.ok) {
     const assessmentSnapshot =
       parsed.data.mode === "detailed"
-        ? refreshAssessmentSnapshot(snapshot, {
-            detailedChecks:
-              response.data as import("@/modules/data-access-spike/execute-fast-property-details").FastPropertyDetails,
-          })
+        ? refreshAssessmentSnapshot(
+            { ...snapshot, lockedEstimatedDepthMetres: requestedDepth },
+            {
+              detailedChecks:
+                response.data as import("@/modules/data-access-spike/execute-fast-property-details").FastPropertyDetails,
+            },
+          )
         : refreshAssessmentSnapshot(
             snapshot,
             response.data as import("@/modules/data-access-spike/fast-property-view").FastPropertyViewStage,

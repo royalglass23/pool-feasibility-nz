@@ -1,6 +1,6 @@
 # Site Constructability Report Plan
 
-Status: Working draft for the wider constructability journey. The bounded report remediation authorised on 16 September 2026 is limited to preserving terrain audit evidence, keeping unpromoted DEM evidence out of homeowner conclusions, retaining complete report attribution, and conforming the existing three-page report implementation to [the approved report contract](./report-format.md). Site questions, route interaction, excavation modelling, barrier assessment and other wider-plan behavior remain unapproved.
+Status: Working draft for the wider constructability journey. The bounded report remediation authorised on 16 September 2026 is limited to preserving terrain audit evidence, keeping unpromoted DEM evidence out of homeowner conclusions, retaining complete report attribution, and conforming the existing three-page report implementation to [the approved report contract](./report-format.md). The provisional 300 mm side-only assumption was approved on 18 September 2026 under RG-337; its application and report presentation remain future RG-342/RG-343 work. The remaining Site questions, route interaction and barrier assessment are separate planned slices.
 
 ## Objective
 
@@ -45,7 +45,7 @@ The existing report structure remains intact. The bounded remediation may change
 - Version one adds no new external data-provider integration. It uses the existing parcel, address, aerial, building, DEM/terrain, contour, flood, drainage, planning, stormwater, water/wastewater, electricity and gas evidence. Landslide susceptibility, groundwater bores, NZGD investigations, regional geology and transport/vehicle-crossing datasets are deferred.
 - The saved assessment snapshot preserves the Estimated pool depth, all three Site answers, access-route geometry and route provenance (`suggested`, `confirmed`, `user-supplied` or `uncertain`). Report results must be reproducible from that saved evidence rather than recalculated from later user or provider state.
 - Failure or unavailability of terrain or another provider does not block the user from completing the journey or accessing the report. The affected result becomes **“Not assessed — data unavailable,”** confidence is reduced, and missing evidence cannot be treated as absence of a concern.
-- When terrain data alone is unavailable, PoolReady may still show the range derived from pool dimensions, Estimated pool depth and approved working/base allowances, labelled **“Base geometry estimate only — terrain adjustment unavailable.”** The section and overall result remain Not fully assessed.
+- When terrain data alone is unavailable, PoolReady may still show the provisional pool-outline and 300 mm side-allowance geometry scenarios, labelled **“Base geometry estimate only — terrain adjustment unavailable.”** The section and overall result remain Not fully assessed. The side scenario does not include base depth or terrain cut.
 - Royal Glass staff can view the saved depth, route, Site answers, provenance and resulting findings through the existing staff assessment workflow. Staff correction, override and onsite-verification controls are deferred to a later slice.
 - The locked Estimated pool depth, the three Site answers, access-route geometry and route provenance are saved in the trusted assessment snapshot used to produce the consolidated report.
 
@@ -84,11 +84,12 @@ The first version does not infer machinery fit, minimum usable width, crane requ
 
 ### Indicative excavation volume
 
-PoolReady may calculate a preliminary excavation-volume range from the selected pool dimensions, Estimated pool depth, mapped terrain and approved modelling assumptions. The output is a visible low-to-high range, never a single value, and exposes the assumptions that produced it. The volume requires professional confirmation and is not a quantity survey.
+PoolReady may calculate preliminary **geometry scenarios** from the selected pool dimensions and locked Estimated pool depth. The initial side-only scenario uses the temporary, disclosed 300 mm per-side proxy recorded in [RG-337](./excavation-modelling-contract.md). It requires professional confirmation and is not a quantity survey or a maximum excavation quantity.
 
-- The low estimate begins with the selected pool length × width × Estimated pool depth.
-- The high estimate applies configurable working-clearance and base-allowance values, plus an indicative terrain-cut adjustment where mapped ground slopes across the excavation.
-- A pool builder must confirm the working-clearance and base-allowance values before implementation. The existing map construction envelope is not treated as the full-depth excavation footprint.
+- The pool-outline scenario is selected length × width × Estimated pool depth.
+- The 300 mm side-allowance scenario is `(length + 0.6 m) × (width + 0.6 m) × depth`. It uses the Firth masonry specification's side allowance as a proxy around PoolReady's generic selected outline; Firth's actual reference is the outside masonry wall.
+- Report text must state that base depth, wall/footing dimensions, floor profile, drainage, terrain cut and excavation method are not included. It must not call the larger scenario an upper bound.
+- A later builder-specific setting and full working/base/terrain model remain [RG-346](https://linear.app/royalglass/issue/RG-346) work. The existing map construction envelope is not treated as a full-depth excavation footprint.
 
 Spare-material expansion, loose spoil quantity, onsite reuse, truckloads, offsite disposal and dollar-cost estimation are outside this feature. They remain discussion topics between the homeowner and pool professional after they review the preliminary excavation volume and site considerations.
 
@@ -109,6 +110,6 @@ Use `potential consideration` or `condition that could affect` in homeowner-faci
 
 ## Open decisions
 
-- **Implementation gate:** obtain pool-builder confirmation of the working-clearance and base-allowance values used by the high excavation-volume estimate. No generic values may be substituted.
+- **Later full-model gate:** obtain pool-builder confirmation of construction-specific working-clearance and base-allowance values under RG-346. The provisional 300 mm side-only geometry scenario is separately authorized under RG-337 and must be disclosed as a proxy.
 - The deterministic confidence rules that decide whether PoolReady may display a Suggested access route.
 - Detailed report layout and copy, which are intentionally deferred while separate report work is in progress.

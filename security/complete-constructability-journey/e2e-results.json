@@ -1,0 +1,33 @@
+{
+  "schemaVersion": 1,
+  "feature": "complete-constructability-journey",
+  "commit": "32491d48c4808325745b9465e879e4b41d9e7c6a",
+  "command": "npm run test:e2e",
+  "retries": 0,
+  "environment": {
+    "name": "isolated-local-development-database",
+    "baseUrl": "http://127.0.0.1:3100",
+    "production": false,
+    "fingerprint": "sha256:5dcbedb31a8f0c479efd7f4d4c27f62daf165c41ab60877d12b5940dac2bfffc"
+  },
+  "configHash": "sha256:a72ad0a2436c5f07d0e02227952e04985cd34fe6ca176bc81d1ada49fe17e103",
+  "fixtureVersion": "rg345-v1",
+  "matrixHash": "sha256:444fde0ff3f239cb36489770c6997ba6b215b0eb39633775029cf8d56d585984",
+  "projects": ["chromium"],
+  "coverage": {
+    "required": 13,
+    "covered": 13
+  },
+  "counts": {
+    "total": 21,
+    "passed": 21,
+    "failed": 0,
+    "skipped": 0,
+    "flaky": 0
+  },
+  "artifacts": {
+    "report": "playwright-report/index.html",
+    "traces": []
+  },
+  "verdict": "PASS"
+}
