@@ -873,10 +873,14 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
   it("retries the same address after a provider failure", async () => {
     const user = userEvent.setup();
     const result = await createResult();
-    const fetchMock = vi
-      .fn()
-      .mockResolvedValueOnce(
-        Response.json(
+    let propertyCheckRequests = 0;
+    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
+      if (String(input).includes("/api/public/address-suggestions")) {
+        return Response.json({ suggestions: [] });
+      }
+      propertyCheckRequests += 1;
+      if (propertyCheckRequests === 1) {
+        return Response.json(
           {
             error: {
               code: "DATA_PROVIDER_ERROR",
@@ -885,9 +889,10 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
             },
           },
           { status: 502 },
-        ),
-      )
-      .mockResolvedValueOnce(Response.json({ data: result }, { status: 200 }));
+        );
+      }
+      return Response.json({ data: result }, { status: 200 });
+    });
     vi.stubGlobal("fetch", fetchMock);
 
     render(<PropertyCheckJourney />);
@@ -909,7 +914,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     expect(
       await screen.findByRole("heading", { name: requestedAddress }),
     ).toBeVisible();
-    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(propertyCheckRequests).toBe(2);
   });
 
   it("loads detailed checks when the property resolves but LINZ imagery fails", async () => {

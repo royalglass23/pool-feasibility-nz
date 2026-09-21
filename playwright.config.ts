@@ -1,3 +1,4 @@
+import "dotenv/config";
 import { defineConfig, devices } from "@playwright/test";
 
 process.env.INTERNAL_REPORT_SIGNING_SECRET ??=
@@ -19,7 +20,7 @@ export default defineConfig({
   workers: 1,
   reporter: [["html", { open: "never" }], ["list"]],
   use: {
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: "http://127.0.0.1:3100",
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
   },
@@ -30,9 +31,21 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npm run dev",
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: !process.env.CI,
+    command: "npm run dev -- --port 3100",
+    url: "http://127.0.0.1:3100",
+    env: {
+      VERCEL_ENV: "preview",
+      REPORT_DELIVERY_MODE: "disabled",
+      PROVIDER_RETRY_COUNT: "0",
+      PROVIDER_TIMEOUT_MS: "1000",
+      ...(process.env.DATABASE_URL_DEV
+        ? {
+            DATABASE_URL: process.env.DATABASE_URL_DEV,
+            DATABASE_URL_DEV: process.env.DATABASE_URL_DEV,
+          }
+        : {}),
+    },
+    reuseExistingServer: false,
     timeout: 240_000,
   },
 });

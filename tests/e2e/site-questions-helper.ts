@@ -27,7 +27,12 @@ export async function mockSiteAnswerSigning(page: Page) {
   );
 }
 
-export async function answerSiteQuestions(page: Page) {
+export async function answerSiteQuestions(
+  page: Page,
+  options: {
+    accessCondition?: "None of these" | "Gate or narrow passage";
+  } = {},
+) {
   const access = page.getByRole("group", {
     name: "Are there any visible conditions that could affect construction access or excavation?",
   });
@@ -36,7 +41,16 @@ export async function answerSiteQuestions(page: Page) {
   });
   await expect(access).toBeVisible();
   await expect(nearby).toBeVisible();
-  await access.getByRole("checkbox", { name: "None of these" }).check();
+  await access
+    .getByRole("checkbox", {
+      name: options.accessCondition ?? "None of these",
+    })
+    .check();
+  if (options.accessCondition === "Gate or narrow passage") {
+    await expect(
+      access.getByRole("checkbox", { name: "None of these" }),
+    ).not.toBeChecked();
+  }
   await nearby.getByRole("checkbox", { name: "None of these" }).check();
   await page.getByRole("button", { name: "Continue to your details" }).click();
   await expect(

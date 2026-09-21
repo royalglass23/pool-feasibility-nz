@@ -60,7 +60,6 @@ export function HomeownerSubmissionForm({
   const [error, setError] = useState<string | null>(null);
   const [visitorType, setVisitorType] = useState("homeowner");
   const [desiredTiming, setDesiredTiming] = useState("asap");
-
   useEffect(() => {
     trackAnonymousFunnelEvent({ name: "report_form_viewed" });
   }, []);
@@ -90,10 +89,14 @@ export function HomeownerSubmissionForm({
     if (!contact.success) {
       setFieldErrors(friendlyFieldErrors(contact.error.issues));
       setError(null);
-      const field = event.currentTarget.elements.namedItem(
-        String(contact.error.issues[0]?.path[0]),
-      );
-      if (field instanceof HTMLElement) field.focus();
+      const formElement = event.currentTarget;
+      const firstInvalidField = String(contact.error.issues[0]?.path[0]);
+      queueMicrotask(() => {
+        const field = formElement.elements.namedItem(
+          firstInvalidField === "consentGiven" ? "consent" : firstInvalidField,
+        );
+        if (field instanceof HTMLElement) field.focus();
+      });
       return;
     }
     setFieldErrors({});
