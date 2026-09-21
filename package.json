@@ -15,6 +15,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:build-tracing": "npm run build && node ./scripts/check-next-build-tracing.mjs",
     "test:e2e": "playwright test",
     "test:e2e:contact": "playwright test --config playwright.contact.config.ts",
     "spike:data-access": "tsx scripts/data-access-spike.ts",
