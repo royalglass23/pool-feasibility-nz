@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  reportConstructabilitySections,
   reportExcavationGeometry,
   reportMapLegend,
   reportWarningLabel,
@@ -183,5 +184,159 @@ describe("reportExcavationGeometry", () => {
       specialistDepthWarning:
         "Specialist depth — professional confirmation required",
     });
+  });
+});
+
+describe("reportConstructabilitySections", () => {
+  it("builds the three conservative sections from the saved submission evidence", () => {
+    const route = {
+      type: "LineString" as const,
+      coordinates: [
+        [174.76, -36.85],
+        [174.76015, -36.8499],
+      ] as [number, number][],
+    };
+    const report = buildTestPreliminaryReport({
+      constructability: buildConstructabilitySnapshot({
+        answers: {
+          version: 1,
+          estimatedDepthMetres: 1.9,
+          route: { provenance: "confirmed", geometry: route },
+          accessConditions: ["rocky_ground"],
+          nearbyFeatures: ["fences", "doors_or_windows"],
+        },
+        suggestedRoute: route,
+        routePolicyVersion: 1,
+        routeFacts: {
+          valid: true,
+          length: { status: "assessed", value: 18.4 },
+          elevationChange: {
+            status: "not_assessed",
+            reason: "data_unavailable",
+          },
+          steepestGradient: {
+            status: "not_assessed",
+            reason: "data_unavailable",
+          },
+          parcelDeparture: { status: "assessed", value: false },
+          buildings: { status: "assessed", value: false },
+          services: { status: "not_assessed", reason: "data_unavailable" },
+        },
+        mappedEvidence: [
+          {
+            id: "saved-ground-check",
+            category: "terrain_ground",
+            status: "no_concern",
+            provider: "Auckland DEM",
+            dataset: "Indicative terrain",
+          },
+          {
+            id: "saved-barrier-check",
+            category: "barrier",
+            status: "concern",
+            provider: "Saved placement",
+            dataset: "Nearby features",
+          },
+        ],
+        providerAvailability: [
+          {
+            category: "terrain_ground",
+            provider: "Auckland DEM",
+            dataset: "Indicative terrain",
+            status: "available",
+          },
+          {
+            category: "barrier",
+            provider: "Auckland Council",
+            dataset: "Barrier evidence",
+            status: "available",
+          },
+          {
+            category: "access_excavation",
+            provider: "Vector",
+            dataset: "Mapped services",
+            status: "error",
+          },
+        ],
+        assumptions: ["Route policy v1 retained from the saved assessment."],
+        excavation: {
+          dimensions: { lengthMetres: 6, widthMetres: 3 },
+          terrainAdjustment: "unavailable",
+        },
+      }),
+    });
+
+    const sections = reportConstructabilitySections(report);
+
+    expect(sections.map((section) => section.title)).toEqual([
+      "Terrain and ground conditions",
+      "Pool barrier feasibility",
+      "Excavation and construction access",
+    ]);
+    expect(sections.map((section) => section.statusLabel)).toEqual([
+      "Needs checking",
+      "Needs checking",
+      "Needs checking",
+    ]);
+    expect(sections[0]).toMatchObject({
+      evidence: expect.arrayContaining([
+        expect.objectContaining({
+          provenance: "Mapped evidence",
+          description: expect.stringContaining("Auckland DEM"),
+        }),
+        expect.objectContaining({
+          provenance: "Your Site answer",
+          description: "Apparently rocky ground",
+        }),
+      ]),
+      provenanceNote: expect.stringMatching(
+        /both retained.*neither source clears the other/i,
+      ),
+    });
+    expect(sections[1]).toMatchObject({
+      boundary: expect.stringMatching(
+        /does not propose a barrier.*compliance/i,
+      ),
+      evidence: expect.arrayContaining([
+        expect.objectContaining({
+          provenance: "Your Site answer",
+          description: "Fences; Doors or windows",
+        }),
+      ]),
+    });
+    expect(sections[2]).toMatchObject({
+      details: expect.arrayContaining([
+        { label: "Estimated pool depth", value: "1.90 m" },
+        { label: "Saved route", value: "Confirmed suggested route" },
+        { label: "Route length", value: "18.4 m" },
+      ]),
+      excavation: expect.objectContaining({
+        assumptionId: "firth-masonry-side-300mm-v1",
+        specialistDepthWarning:
+          "Specialist depth — professional confirmation required",
+        terrainLabel:
+          "Base geometry estimate only — terrain adjustment unavailable",
+      }),
+      evidence: expect.arrayContaining([
+        expect.objectContaining({
+          provenance: "Provider availability",
+          description: "Vector — Mapped services: provider error",
+        }),
+      ]),
+    });
+  });
+
+  it("keeps older reports accessible while marking every new section not fully assessed", () => {
+    const sections = reportConstructabilitySections(
+      buildTestPreliminaryReport(),
+    );
+
+    expect(sections).toHaveLength(3);
+    expect(
+      sections.every((section) => section.status === "not_fully_assessed"),
+    ).toBe(true);
+    expect(
+      sections.every((section) => section.statusLabel === "Not fully assessed"),
+    ).toBe(true);
   });
 });

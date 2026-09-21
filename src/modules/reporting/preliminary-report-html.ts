@@ -8,8 +8,10 @@ import {
   type ReportDataSource,
 } from "@/modules/reporting/pool-feasibility-report";
 import {
+  reportConstructabilitySections,
   reportMapLegend,
   reportPoolShellClearances,
+  type ReportConstructabilitySection,
   type ReportMapLegendEntry,
 } from "@/modules/reporting/preliminary-report-presentation";
 import {
@@ -55,6 +57,9 @@ export function renderCanonicalPreliminaryReportHtml(
       (item) =>
         `<li><strong>${esc(item.title)}</strong><span>${esc(item.summary)}</span></li>`,
     )
+    .join("");
+  const constructabilitySections = reportConstructabilitySections(report)
+    .map((section) => renderConstructabilitySection(section, esc))
     .join("");
   const keyFindings = report.keyFindings
     .map(
@@ -179,6 +184,24 @@ export function renderCanonicalPreliminaryReportHtml(
     .detail-list{margin:1.5mm 0 0;padding:0;list-style:none}
     .detail-list li{display:flex;justify-content:space-between;gap:3mm;padding-top:1mm;border-top:.2mm solid var(--report-border);font-size:6.8pt}
     .detail-list strong{text-align:right}
+    .constructability{margin-top:2.5mm}
+    .constructability>h2{font-size:10pt}
+    .constructability-grid{margin-top:1.5mm;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.6mm;align-items:start}
+    .constructability-card{break-inside:avoid;padding:2mm;border:.25mm solid var(--report-border);border-radius:var(--radius)}
+    .constructability-card.needs_checking{--state-ink:#92400e}
+    .constructability-card.not_fully_assessed{--state-ink:var(--report-muted)}
+    .constructability-card.no_obvious_concern{--state-ink:oklch(40.1% 0.108 235)}
+    .constructability-card h3{font-size:8pt}
+    .constructability-status{margin-top:.8mm;color:var(--state-ink);font-size:6.3pt;font-weight:700}
+    .constructability-summary,.constructability-boundary,.constructability-note{margin-top:.8mm;color:var(--report-muted);font-size:5.8pt;line-height:1.25}
+    .constructability-details,.constructability-evidence,.excavation-scenarios{margin:1mm 0 0;padding:0;list-style:none}
+    .constructability-details li,.constructability-evidence li,.excavation-scenarios li{margin-top:.55mm;font-size:5.7pt;line-height:1.25}
+    .constructability-evidence strong{color:var(--report-ink)}
+    .constructability-note{padding:.8mm;background:var(--report-soft)}
+    .excavation{margin-top:1.2mm;padding-top:1mm;border-top:.2mm solid var(--report-border)}
+    .excavation h4{font-size:6.6pt}
+    .excavation p{margin-top:.6mm;color:var(--report-muted);font-size:5.5pt;line-height:1.22}
+    .excavation a{color:var(--report-blue)}
     .needs-checking{margin-top:2.5mm;padding:2.5mm 3mm;background:var(--report-soft);border-radius:var(--radius)}
     .needs-checking h2{font-size:10pt}
     .needs-checking ul{margin:1.5mm 0 0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:1mm 5mm}
@@ -233,6 +256,7 @@ export function renderCanonicalPreliminaryReportHtml(
     <h2 class="page-section-title">What we checked</h2>
     <p class="assessment-intro">These findings use the mapped information saved with this report. Distances and boundaries are indicative, not surveyed.</p>
     ${assessmentCards ? `<div class="assessment-grid">${assessmentCards}</div>` : ""}
+    <section class="constructability"><h2>Site constructability</h2><div class="constructability-grid">${constructabilitySections}</div></section>
     ${needsChecking ? `<section class="needs-checking"><h2>Still needs checking</h2><ul>${needsChecking}</ul></section>` : ""}
     ${keyFindings ? `<section class="later"><h2>Key findings</h2><ul>${keyFindings}</ul></section>` : ""}
     ${footer(2)}
@@ -294,6 +318,28 @@ function renderAssessment(
   </article>`;
 }
 
+function renderConstructabilitySection(
+  section: ReportConstructabilitySection,
+  esc: (value: unknown) => string,
+): string {
+  const details = section.details
+    .map(
+      (detail) =>
+        `<li><strong>${esc(detail.label)}:</strong> ${esc(detail.value)}</li>`,
+    )
+    .join("");
+  const evidence = section.evidence
+    .map(
+      (item) =>
+        `<li><strong>${esc(item.provenance)}:</strong> ${esc(item.description)}</li>`,
+    )
+    .join("");
+  const excavation = section.excavation
+    ? `<section class="excavation"><h4>${esc(section.excavation.heading)}</h4><ul class="excavation-scenarios">${section.excavation.scenarios.map((scenario) => `<li><strong>${esc(scenario.label)}:</strong> ${esc(scenario.formattedValue)}</li>`).join("")}</ul><p>${esc(section.excavation.rangeDisclosure)}</p><p>${esc(section.excavation.exclusions)}</p><p>${esc(section.excavation.terrainLabel)}</p>${section.excavation.specialistDepthWarning ? `<p><strong>${esc(section.excavation.specialistDepthWarning)}</strong></p>` : ""}<p>Assumption ${esc(section.excavation.assumptionId)}. <a href="${esc(section.excavation.sourceUrl)}">Firth masonry guidance</a>. ${esc(section.excavation.assumptionDisclosure)}</p></section>`
+    : "";
+  return `<article class="constructability-card ${esc(section.status)}"><h3>${esc(section.title)}</h3><p class="constructability-status">${esc(section.statusLabel)}</p><p class="constructability-summary">${esc(section.summary)}</p>${details ? `<ul class="constructability-details">${details}</ul>` : ""}${evidence ? `<ul class="constructability-evidence">${evidence}</ul>` : ""}${section.provenanceNote ? `<p class="constructability-note">${esc(section.provenanceNote)}</p>` : ""}${excavation}<p class="constructability-boundary">${esc(section.boundary)}</p></article>`;
+}
+
 function reportMappingSources(
   report: SavedPreliminaryReport,
 ): ReportDataSource[] {
@@ -344,7 +390,8 @@ function renderMappingCredits(
 ): string {
   const credits = new Map<string, ReportDataSource[]>();
   for (const source of sources) {
-    const credit = source.attribution?.trim() || `${source.provider}, ${source.licence}`;
+    const credit =
+      source.attribution?.trim() || `${source.provider}, ${source.licence}`;
     const group = credits.get(credit) ?? [];
     group.push(source);
     credits.set(credit, group);
@@ -354,9 +401,10 @@ function renderMappingCredits(
       const licences = unique(group.map((source) => source.licence));
       const variableLicence = licences.length > 1;
       const licenceUrl = group.find((source) => source.licenceUrl)?.licenceUrl;
-      const licence = !variableLicence && licenceUrl
-        ? ` <a href="${esc(licenceUrl)}">Licence</a>`
-        : "";
+      const licence =
+        !variableLicence && licenceUrl
+          ? ` <a href="${esc(licenceUrl)}">Licence</a>`
+          : "";
       return `<li class="source-item">${esc(credit)}${licence}</li>`;
     })
     .join("");

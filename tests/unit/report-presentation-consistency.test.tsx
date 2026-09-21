@@ -8,6 +8,7 @@ import {
 } from "@/modules/reporting/assessment-report-delivery";
 import { renderCanonicalPreliminaryReportHtml } from "@/modules/reporting/preliminary-report-html";
 import { assessmentStatusLabel } from "@/modules/reporting/pool-feasibility-report";
+import { buildConstructabilitySnapshot } from "@/modules/assessment/constructability-evidence";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 
 afterEach(cleanup);
@@ -192,5 +193,141 @@ describe("web, PDF and email report consistency", () => {
       "Your Preliminary Pool Feasibility Report - 42A Bahari Drive",
     );
     expect(email.attachment).toEqual(Buffer.from("%PDF-same-snapshot"));
+  });
+
+  it("keeps saved constructability status and provenance consistent across web, PDF and email", async () => {
+    const route = {
+      type: "LineString" as const,
+      coordinates: [
+        [174.76, -36.85],
+        [174.76015, -36.8499],
+      ] as [number, number][],
+    };
+    const report = buildTestPreliminaryReport({
+      reference: "GF-2026-000343",
+      constructability: buildConstructabilitySnapshot({
+        answers: {
+          version: 1,
+          estimatedDepthMetres: 1.5,
+          route: { provenance: "confirmed", geometry: route },
+          accessConditions: ["rocky_ground"],
+          nearbyFeatures: ["fences"],
+        },
+        suggestedRoute: route,
+        routePolicyVersion: 1,
+        mappedEvidence: [
+          {
+            id: "ground-clear",
+            category: "terrain_ground",
+            status: "no_concern",
+            provider: "Auckland DEM",
+            dataset: "Indicative terrain",
+          },
+          {
+            id: "barrier-feature",
+            category: "barrier",
+            status: "concern",
+            provider: "Saved placement",
+            dataset: "Nearby features",
+          },
+        ],
+        providerAvailability: [
+          {
+            category: "terrain_ground",
+            provider: "Auckland DEM",
+            dataset: "Indicative terrain",
+            status: "available",
+          },
+          {
+            category: "barrier",
+            provider: "Saved placement",
+            dataset: "Nearby features",
+            status: "available",
+          },
+          {
+            category: "access_excavation",
+            provider: "Vector",
+            dataset: "Mapped services",
+            status: "error",
+          },
+        ],
+        assumptions: ["Route policy v1 retained from the saved assessment."],
+        excavation: {
+          dimensions: { lengthMetres: 6, widthMetres: 3 },
+          terrainAdjustment: "unavailable",
+        },
+      }),
+    });
+
+    render(
+      <HomeownerFeasibilityReportView
+        report={report}
+        delivery={{ homeowner: "sent", internal_test_report: "sent" }}
+        onBack={() => undefined}
+      />,
+    );
+    const pdfHtml = renderCanonicalPreliminaryReportHtml(report);
+    const send = vi.fn().mockResolvedValue({ id: "email-343" });
+    const store: AssessmentDeliveryStore = {
+      claim: vi.fn(
+        async (_reference, channel): Promise<AssessmentDeliveryClaim | null> =>
+          channel === "homeowner"
+            ? {
+                channel,
+                claimToken: "homeowner-343",
+                homeownerName: "Jane Homeowner",
+                homeownerPhone: "021 123 4567",
+                homeownerEmail: "jane@example.com",
+                visitorType: "homeowner",
+                visitorTypeOtherDetail: null,
+                desiredTiming: "3_months",
+                desiredTimingOtherDetail: null,
+                additionalInfo: null,
+                report,
+              }
+            : null,
+      ),
+      markSent: vi.fn(async () => undefined),
+      markFailed: vi.fn(async () => undefined),
+    };
+    await deliverAssessmentReport(report.reference, {
+      store,
+      renderPdf: vi.fn().mockResolvedValue(Buffer.from("%PDF-343")),
+      send,
+      from: "PoolReady <reports@example.com>",
+      deliveryEnvironment: {
+        mode: "synthetic_test",
+        vercelEnvironment: "preview",
+        nodeEnvironment: "production",
+      },
+    });
+    const email = send.mock.calls[0]?.[0] as { html: string; text: string };
+
+    for (const heading of [
+      "Terrain and ground conditions",
+      "Pool barrier feasibility",
+      "Excavation and construction access",
+    ]) {
+      expect(screen.getByRole("heading", { name: heading })).toBeVisible();
+      expect(pdfHtml).toContain(heading);
+      expect(email.html).toContain(heading);
+      expect(email.text).toContain(heading);
+    }
+    expect(screen.getAllByText("Needs checking")).not.toHaveLength(0);
+    expect(screen.getAllByText("Apparently rocky ground")).not.toHaveLength(0);
+    expect(screen.getByText("27.00 m³")).toBeVisible();
+    expect(screen.getByText("35.64 m³")).toBeVisible();
+    expect(pdfHtml).toContain("Mapped evidence");
+    expect(pdfHtml).toContain("Your Site answer");
+    expect(pdfHtml).toContain("27.00 m³");
+    expect(pdfHtml).toContain("35.64 m³");
+    expect(pdfHtml).toContain("firth-masonry-side-300mm-v1");
+    expect(pdfHtml).toContain("FIR0744-Masonry-Swimming-Pools.pdf");
+    expect(pdfHtml).toContain(
+      "Base geometry estimate only — terrain adjustment unavailable",
+    );
+    expect(pdfHtml).not.toMatch(
+      /spoil (?:volume|quantity)|price estimate: \$/i,
+    );
   });
 });

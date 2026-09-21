@@ -5,10 +5,54 @@ import { join } from "node:path";
 import { generatePreliminaryReportPdf } from "@/modules/reporting/report-renderer";
 import { renderCanonicalPreliminaryReportHtml } from "@/modules/reporting/preliminary-report-html";
 import { AUCKLAND_DEM_REQUIRED_METADATA } from "@/modules/providers/linz/auckland-dem-source-contract";
+import { buildConstructabilitySnapshot } from "@/modules/assessment/constructability-evidence";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 
 const report = buildTestPreliminaryReport({
   summary: "The selected pool needs checking.",
+  constructability: buildConstructabilitySnapshot({
+    answers: {
+      version: 1,
+      estimatedDepthMetres: 1.5,
+      route: { provenance: "uncertain", geometry: null },
+      accessConditions: ["rocky_ground"],
+      nearbyFeatures: ["fences"],
+    },
+    mappedEvidence: [
+      {
+        id: "saved-ground-check",
+        category: "terrain_ground",
+        status: "no_concern",
+        provider: "Auckland DEM",
+        dataset: "Indicative terrain",
+      },
+    ],
+    providerAvailability: [
+      {
+        category: "terrain_ground",
+        provider: "Auckland DEM",
+        dataset: "Indicative terrain",
+        status: "available",
+      },
+      {
+        category: "barrier",
+        provider: "Auckland Council",
+        dataset: "Barrier evidence",
+        status: "unavailable",
+      },
+      {
+        category: "access_excavation",
+        provider: "Vector",
+        dataset: "Mapped services",
+        status: "error",
+      },
+    ],
+    assumptions: ["Route policy v1 retained from the saved assessment."],
+    excavation: {
+      dimensions: { lengthMetres: 6, widthMetres: 3 },
+      terrainAdjustment: "unavailable",
+    },
+  }),
   recommendations: [
     {
       phase: "before_concept_design",
@@ -52,7 +96,8 @@ describe("persisted preliminary report renderer", () => {
     const fullSourceReport = buildTestPreliminaryReport({
       sources: Array.from({ length: 23 }, (_, index) => ({
         ...report.sources[0]!,
-        provider: index === 0 ? "Land Information New Zealand" : "Auckland Council",
+        provider:
+          index === 0 ? "Land Information New Zealand" : "Auckland Council",
         attribution:
           index === 0
             ? "Land Information New Zealand (LINZ), CC BY 4.0"
@@ -97,8 +142,17 @@ describe("persisted preliminary report renderer", () => {
   it("shows one provider credit when saved layers have differing licence metadata", () => {
     const sharedCreditReport = buildTestPreliminaryReport({
       sources: [
-        { ...report.sources[0]!, attribution: "Example provider", licence: "Licence A" },
-        { ...report.sources[0]!, dataset: "Second dataset", attribution: "Example provider", licence: "Licence B" },
+        {
+          ...report.sources[0]!,
+          attribution: "Example provider",
+          licence: "Licence A",
+        },
+        {
+          ...report.sources[0]!,
+          dataset: "Second dataset",
+          attribution: "Example provider",
+          licence: "Licence B",
+        },
       ],
     });
     const html = renderCanonicalPreliminaryReportHtml(sharedCreditReport);
