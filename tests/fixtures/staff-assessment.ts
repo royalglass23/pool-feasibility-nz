@@ -2,10 +2,12 @@ import {
   buildTestPreliminaryReport,
   TEST_MAP_IMAGE_DATA_URL,
 } from "./preliminary-report";
+import { buildConstructabilitySnapshot } from "@/modules/assessment/constructability-evidence";
 import type {
   StaffAssessmentDetail,
   StaffAssessmentSummary,
 } from "@/modules/staff/staff-assessment-read-model";
+import { projectStaffConstructabilityEvidence } from "@/modules/staff/staff-assessment-read-model";
 
 export const SAVED_MAP_IMAGE_DATA_URL = TEST_MAP_IMAGE_DATA_URL;
 
@@ -102,6 +104,89 @@ export const staffAssessmentDetail = {
   forwardingState: "pending",
   createdAt: new Date("2026-07-29T01:30:00.000Z"),
   report: savedPreliminaryReport,
+  constructabilityEvidence: {
+    status: "not_assessed",
+    reason:
+      "Site constructability evidence was not captured for this assessment.",
+  },
+} satisfies StaffAssessmentDetail;
+
+const route = {
+  type: "LineString" as const,
+  coordinates: [
+    [174.7598, -36.8502],
+    [174.76, -36.85],
+  ] as [number, number][],
+};
+
+export const savedConstructabilitySnapshot = buildConstructabilitySnapshot({
+  answers: {
+    version: 1,
+    estimatedDepthMetres: 1.7,
+    route: { provenance: "confirmed", geometry: route },
+    accessConditions: ["gate_or_narrow_passage"],
+    nearbyFeatures: ["not_sure"],
+  },
+  suggestedRoute: route,
+  routePolicyVersion: 1,
+  routeFacts: {
+    valid: true,
+    length: { status: "assessed", value: 18.4 },
+    elevationChange: { status: "not_assessed", reason: "data_unavailable" },
+    steepestGradient: { status: "assessed", value: 8.2 },
+    parcelDeparture: { status: "assessed", value: false },
+    buildings: { status: "assessed", value: true },
+    services: { status: "not_assessed", reason: "data_unavailable" },
+  },
+  mappedEvidence: [
+    {
+      id: "mapped-building-intersection",
+      category: "access_excavation",
+      status: "concern",
+      provider: "Auckland Council",
+      dataset: "Building outlines",
+    },
+    {
+      id: "terrain-unavailable",
+      category: "terrain_ground",
+      status: "unavailable",
+      provider: "LINZ",
+      dataset: "Auckland DEM",
+    },
+  ],
+  providerAvailability: [
+    {
+      category: "access_excavation",
+      provider: "Auckland Council",
+      dataset: "Building outlines",
+      status: "available",
+    },
+    {
+      category: "terrain_ground",
+      provider: "LINZ",
+      dataset: "Auckland DEM",
+      status: "error",
+    },
+  ],
+  assumptions: ["Access route facts use the saved confirmed route."],
+  excavation: {
+    dimensions: { lengthMetres: 6.5, widthMetres: 3 },
+    terrainAdjustment: "unavailable",
+  },
+});
+
+export const savedConstructabilityReport = buildTestPreliminaryReport({
+  reference: savedPreliminaryReport.reference,
+  generatedAt: savedPreliminaryReport.generatedAt,
+  constructability: savedConstructabilitySnapshot,
+});
+
+export const staffAssessmentWithConstructabilityEvidence = {
+  ...staffAssessmentDetail,
+  report: savedConstructabilityReport,
+  constructabilityEvidence: projectStaffConstructabilityEvidence(
+    savedConstructabilitySnapshot,
+  ),
 } satisfies StaffAssessmentDetail;
 
 export const staffAssessmentSummaries = [

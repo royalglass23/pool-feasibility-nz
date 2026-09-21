@@ -992,9 +992,16 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
         ),
       ).toHaveLength(stageRequestCountBeforeRetry + 1),
     );
-    expect(
-      JSON.parse(String(fetchMock.mock.calls.at(-1)?.[1]?.body ?? "{}")),
-    ).toMatchObject({ mode: "detailed", estimatedDepthMetres: 1.5 });
+    const detailedRequest = fetchMock.mock.calls
+      .filter(([input]) =>
+        String(input).includes("/api/public/property-check/stages"),
+      )
+      .map(([, init]) => JSON.parse(String(init?.body ?? "{}")))
+      .find((body) => body.mode === "detailed");
+    expect(detailedRequest).toMatchObject({
+      mode: "detailed",
+      estimatedDepthMetres: 1.5,
+    });
   });
 
   it("requests parcel-wide detailed checks without sending the pool envelope", async () => {

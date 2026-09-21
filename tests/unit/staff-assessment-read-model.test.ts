@@ -3,6 +3,9 @@ import {
   getHomeownerAssessmentById,
   listHomeownerAssessments,
 } from "@/db/repositories/homeowner-assessment-repository";
+import { projectStaffConstructabilityEvidence } from "@/modules/staff/staff-assessment-read-model";
+import { buildConstructabilitySnapshot } from "@/modules/assessment/constructability-evidence";
+import { savedConstructabilitySnapshot } from "../fixtures/staff-assessment";
 
 function assessmentRow(
   overrides: Partial<Record<string, unknown>> = {},
@@ -60,6 +63,119 @@ function assessmentRow(
 }
 
 describe("staff assessment read model", () => {
+  it("projects complete saved constructability evidence without recalculating it", () => {
+    const evidence = projectStaffConstructabilityEvidence(
+      savedConstructabilitySnapshot,
+    );
+
+    expect(evidence).toMatchObject({
+      status: "captured",
+      estimatedDepth: "1.70 m",
+      overallStatus: {
+        value: savedConstructabilitySnapshot.overallStatus,
+        label: "Not fully assessed",
+      },
+      siteAnswers: {
+        accessConditions: ["Gate or narrow passage"],
+        nearbyFeatures: ["I’m not sure"],
+      },
+      route: {
+        response: "Confirmed suggested route",
+        provenance: "confirmed",
+        points: [
+          { label: "Start", coordinate: "174.759800, -36.850200" },
+          { label: "Pool area", coordinate: "174.760000, -36.850000" },
+        ],
+      },
+      routeFacts: expect.arrayContaining([
+        { label: "Approximate length", value: "18.4 m" },
+        {
+          label: "Elevation change",
+          value: "Not assessed — data unavailable",
+        },
+        { label: "Mapped building intersection", value: "Identified" },
+      ]),
+      excavation: {
+        status: "captured",
+        scenarios: [
+          { label: "Selected pool outline", value: "33.15 m³" },
+          { label: "300 mm side-allowance scenario", value: "43.45 m³" },
+        ],
+        terrain: "Base geometry estimate only — terrain adjustment unavailable",
+      },
+      providerAvailability: expect.arrayContaining([
+        expect.objectContaining({ status: "Available when assessed" }),
+        expect.objectContaining({ status: "Not assessed — provider error" }),
+      ]),
+      mappedEvidence: expect.arrayContaining([
+        expect.objectContaining({ status: "Potential site consideration" }),
+        expect.objectContaining({ status: "Not assessed — data unavailable" }),
+      ]),
+      userEvidence: expect.arrayContaining([
+        expect.objectContaining({ evidence: "Gate or narrow passage" }),
+      ]),
+    });
+  });
+
+  it("projects historical reports as explicitly not assessed", () => {
+    expect(
+      projectStaffConstructabilityEvidence({
+        version: 0,
+        status: "not_assessed",
+        reason: "Site constructability evidence was not captured.",
+      }),
+    ).toEqual({
+      status: "not_assessed",
+      reason: "Site constructability evidence was not captured.",
+    });
+  });
+
+  it("keeps section Not assessed distinct and exposes adjusted route geometry", () => {
+    const suggestedRoute = {
+      type: "LineString" as const,
+      coordinates: [
+        [174.7598, -36.8502],
+        [174.76, -36.85],
+      ] as [number, number][],
+    };
+    const adjustedRoute = {
+      type: "LineString" as const,
+      coordinates: [
+        [174.7598, -36.8502],
+        [174.7599, -36.8501],
+        [174.76, -36.85],
+      ] as [number, number][],
+    };
+    const snapshot = buildConstructabilitySnapshot({
+      answers: {
+        version: 1,
+        estimatedDepthMetres: 1.5,
+        route: { provenance: "user-supplied", geometry: adjustedRoute },
+        accessConditions: ["not_sure"],
+        nearbyFeatures: ["not_sure"],
+      },
+      suggestedRoute,
+      routePolicyVersion: 1,
+    });
+
+    expect(projectStaffConstructabilityEvidence(snapshot)).toMatchObject({
+      status: "captured",
+      sectionStatus: { value: "not_assessed", label: "Not assessed" },
+      route: {
+        response: "Route supplied by user — confirm onsite",
+        provenance: "user-supplied",
+        points: [
+          { label: "Start", coordinate: "174.759800, -36.850200" },
+          {
+            label: "Turning point 1",
+            coordinate: "174.759900, -36.850100",
+          },
+          { label: "Pool area", coordinate: "174.760000, -36.850000" },
+        ],
+      },
+    });
+  });
+
   it("returns active dashboard entries newest first", async () => {
     const findMany = vi.fn().mockResolvedValue([
       assessmentRow({
