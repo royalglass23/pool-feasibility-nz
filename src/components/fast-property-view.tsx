@@ -33,16 +33,22 @@ import {
   PRELIMINARY_FEASIBILITY_SCOPE,
 } from "@/modules/reporting/preliminary-feasibility-copy";
 import { captureFastPropertyViewMap } from "@/modules/reporting/fast-property-view-map-capture";
-import { SELECTED_POOL_MAP_STYLE } from "@/modules/reporting/report-map-style";
+import {
+  REPORT_MAP_BASE_STYLES,
+  SELECTED_POOL_MAP_STYLE,
+} from "@/modules/reporting/report-map-style";
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
+import type { AccessRouteGeometry } from "@/modules/spatial/suggest-access-route";
 import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
 import { aerialTileRateLimitMessage } from "@/components/map/aerial-tile-error";
 import { FieldValidationMessage } from "@/components/field-validation-message";
+import { EstimatedPoolDepth } from "@/components/estimated-pool-depth";
+import { parseEstimatedPoolDepth } from "@/modules/assessment/estimated-pool-depth";
 import {
   readClientApiErrorFromBlobError,
   type ClientApiError,
 } from "@/shared/http/client-api-error";
-import { bearing, point } from "@turf/turf";
+import { bearing, destination, point } from "@turf/turf";
 import {
   assessSelectedPoolTerrain,
   type SelectedPoolTerrain,
@@ -164,28 +170,54 @@ export type FastPropertyViewMapSnapshot = {
 
 export function FastPropertyView({
   result,
+  suggestedRoute,
+  editableRoute,
+  onRouteEdit,
   onLoadDetailed,
   onRetry,
   onStartAgain,
   isLoadingDetailed = false,
   onPlacementChange,
   onSnapshotReady,
+  estimatedDepth,
+  depthLocked = false,
+  onEstimatedDepthChange,
+  onEditEstimatedDepth,
   isDetailedRateLimited = false,
 }: {
   result: FastPropertyViewResult;
+  suggestedRoute?: LineString | null;
+  editableRoute?: AccessRouteGeometry | null;
+  onRouteEdit?: (route: AccessRouteGeometry, complete: boolean) => void;
   onLoadDetailed?: () => void;
   onRetry: () => void;
   onStartAgain?: () => void;
   isLoadingDetailed?: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
   onSnapshotReady?: (snapshot: FastPropertyViewMapSnapshot | null) => void;
+  estimatedDepth?: string;
+  depthLocked?: boolean;
+  onEstimatedDepthChange?: (value: string) => void;
+  onEditEstimatedDepth?: () => void;
   isDetailedRateLimited?: boolean;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const rotationControlVisibleRef = useRef(false);
   const syncRotationControlRef = useRef<() => void>(() => {});
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
+  const suggestedRouteRef = useRef(suggestedRoute);
+  const editableRouteRef = useRef(editableRoute);
+  const routeEditHandlerRef = useRef(onRouteEdit);
+  const routeMarkersRef = useRef<import("maplibre-gl").Marker[]>([]);
+  const [mapReady, setMapReady] = useState(false);
   const mapLibreRef = useRef<typeof import("maplibre-gl") | null>(null);
+  useEffect(() => {
+    suggestedRouteRef.current = suggestedRoute;
+  }, [suggestedRoute]);
+  useEffect(() => {
+    editableRouteRef.current = editableRoute;
+    routeEditHandlerRef.current = onRouteEdit;
+  }, [editableRoute, onRouteEdit]);
   const clearanceLabelMarkersRef = useRef<import("maplibre-gl").Marker[]>([]);
   const poolShellClearancesRef = useRef<PoolShellClearance[]>([]);
   const clearancesVisibleRef = useRef(true);
@@ -362,7 +394,9 @@ export function FastPropertyView({
     isInitialAddressLoad ||
     isLoadingDetailed ||
     isDetailedRateLimited ||
-    detailedConstraintStatus === "complete";
+    detailedConstraintStatus === "complete" ||
+    (estimatedDepth !== undefined &&
+      parseEstimatedPoolDepth(estimatedDepth) === null);
   const mappedUtilityLayers = useMemo(
     () =>
       (detailedLayers ?? []).flatMap((layer) => {
@@ -560,6 +594,16 @@ export function FastPropertyView({
             data: pointFeature(mapCoordinates),
           },
           pool: { type: "geojson", data: pool },
+          "suggested-access-route": {
+            type: "geojson",
+            data: suggestedRouteRef.current
+              ? {
+                  type: "Feature",
+                  properties: {},
+                  geometry: suggestedRouteRef.current,
+                }
+              : emptyGeometry,
+          },
           "construction-envelope": {
             type: "geojson",
             data: isInitialAddressLoad
@@ -694,6 +738,16 @@ export function FastPropertyView({
       }
       layers.push(
         {
+          id: "suggested-access-route",
+          type: "line",
+          source: "suggested-access-route",
+          paint: {
+            "line-color": REPORT_MAP_BASE_STYLES.suggestedAccessRoute.colour,
+            "line-width": 4,
+            "line-dasharray": [2, 1],
+          },
+        },
+        {
           id: "pool-fill",
           type: "fill",
           source: "pool",
@@ -788,6 +842,7 @@ export function FastPropertyView({
         syncRotationControlRef.current();
         map.on("move", () => syncRotationControlRef.current());
         mapInstanceRef.current = map;
+        setMapReady(true);
         map.addControl(new maplibregl.NavigationControl(), "top-right");
         syncPoolShellClearanceLabels({
           map,
@@ -953,6 +1008,7 @@ export function FastPropertyView({
     });
     return () => {
       disposed = true;
+      setMapReady(false);
       rotationMarker?.remove();
       syncRotationControlRef.current = () => {};
       removePoolShellClearanceLabels(clearanceLabelMarkers);
@@ -972,6 +1028,90 @@ export function FastPropertyView({
     mappedUtilityLayers,
     terrainSlopeGeometry,
   ]);
+
+  useEffect(() => {
+    const source = mapInstanceRef.current?.getSource(
+      "suggested-access-route",
+    ) as import("maplibre-gl").GeoJSONSource | undefined;
+    source?.setData(
+      suggestedRoute
+        ? { type: "Feature", properties: {}, geometry: suggestedRoute }
+        : { type: "FeatureCollection", features: [] },
+    );
+  }, [suggestedRoute]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const maplibregl = mapLibreRef.current;
+    const route = editableRouteRef.current;
+    if (
+      !mapReady ||
+      !map ||
+      !maplibregl ||
+      !route ||
+      route.coordinates.length < 3
+    )
+      return;
+    const markers = route.coordinates.slice(1, -1).map((coordinate, offset) => {
+      const index = offset + 1;
+      const element = document.createElement("button");
+      element.type = "button";
+      element.setAttribute(
+        "aria-label",
+        `Access route turning point ${index}. Use arrow keys to move.`,
+      );
+      element.className =
+        "size-6 rounded-full border-2 border-white bg-blue-800 shadow-lg focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-800";
+      const marker = new maplibregl.Marker({ element, draggable: true })
+        .setLngLat(coordinate)
+        .addTo(map);
+      const update = (complete: boolean) => {
+        const current = editableRouteRef.current;
+        if (!current) return;
+        const coordinates = [...current.coordinates];
+        coordinates[index] = marker.getLngLat().toArray() as [number, number];
+        routeEditHandlerRef.current?.(
+          { type: "LineString", coordinates },
+          complete,
+        );
+      };
+      marker.on("drag", () => update(false));
+      marker.on("dragend", () => update(true));
+      element.addEventListener("keydown", (event) => {
+        const headings: Record<string, number> = {
+          ArrowUp: 0,
+          ArrowRight: 90,
+          ArrowDown: 180,
+          ArrowLeft: 270,
+        };
+        const heading = headings[event.key];
+        if (heading === undefined) return;
+        event.preventDefault();
+        const next = destination(
+          point(marker.getLngLat().toArray()),
+          1,
+          heading,
+          { units: "meters" },
+        ).geometry.coordinates as [number, number];
+        marker.setLngLat(next);
+        update(true);
+      });
+      return marker;
+    });
+    routeMarkersRef.current = markers;
+    return () => {
+      markers.forEach((marker) => marker.remove());
+      routeMarkersRef.current = [];
+    };
+  }, [mapReady, editableRoute?.coordinates.length]);
+
+  useEffect(() => {
+    editableRoute?.coordinates
+      .slice(1, -1)
+      .forEach((coordinate, index) =>
+        routeMarkersRef.current[index]?.setLngLat(coordinate),
+      );
+  }, [editableRoute]);
 
   useEffect(() => {
     const map = mapInstanceRef.current;
@@ -1261,6 +1401,14 @@ export function FastPropertyView({
                   Enter a length from 2–20 m and width from 1.5–10 m in 0.1 m
                   increments.
                 </FieldValidationMessage>
+              )}
+              {estimatedDepth !== undefined && onEstimatedDepthChange && (
+                <EstimatedPoolDepth
+                  value={estimatedDepth}
+                  locked={depthLocked}
+                  onChange={onEstimatedDepthChange}
+                  onEdit={onEditEstimatedDepth}
+                />
               )}
               <div className="border-pool-200 mt-auto space-y-3 border-t pt-4">
                 <p

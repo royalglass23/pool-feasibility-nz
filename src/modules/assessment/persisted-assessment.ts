@@ -316,6 +316,25 @@ export const persistedAssessmentSubmissionSchema = z
         });
       }
     });
+    const excavation =
+      submission.report.reportData.constructability?.excavationGeometry;
+    if (
+      excavation &&
+      (excavation.inputs.lengthMetres !== submission.poolLayout.lengthMetres ||
+        excavation.inputs.widthMetres !== submission.poolLayout.widthMetres)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: [
+          "report",
+          "reportData",
+          "constructability",
+          "excavationGeometry",
+          "inputs",
+        ],
+        message: "Excavation geometry must use the saved pool layout.",
+      });
+    }
   });
 
 export type PersistedAssessmentSubmission = z.infer<

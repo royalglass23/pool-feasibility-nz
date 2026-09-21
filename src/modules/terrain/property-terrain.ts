@@ -3,6 +3,7 @@ import type { DatasetEvidence } from "@/modules/data-access-spike/data-access-ga
 
 export type TerrainSlopeSample = {
   position: [longitude: number, latitude: number];
+  elevationMetres?: number;
   slopeDegrees: number;
   eastGradient: number;
   northGradient: number;

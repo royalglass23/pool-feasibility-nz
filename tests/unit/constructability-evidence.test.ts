@@ -4,6 +4,9 @@ import {
   constructabilityAnswersSchema,
   constructabilitySnapshotSchema,
 } from "@/modules/assessment/constructability-evidence";
+import { calculateExcavationGeometryScenarios } from "@/modules/assessment/excavation-geometry";
+import { parsePersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
+import { buildTestPersistedAssessmentSubmission } from "../fixtures/preliminary-report";
 
 const answers = {
   version: 1,
@@ -14,6 +17,62 @@ const answers = {
 } satisfies import("@/modules/assessment/constructability-evidence").ConstructabilityAnswers;
 
 describe("constructability evidence", () => {
+  it("round-trips a user supplied line and its route facts in the saved report payload", () => {
+    const suggestedRoute = {
+      type: "LineString" as const,
+      coordinates: [
+        [174.76, -36.85],
+        [174.76015, -36.8499],
+      ] as [number, number][],
+    };
+    const adjustedRoute = {
+      type: "LineString" as const,
+      coordinates: [
+        suggestedRoute.coordinates[0]!,
+        [174.76008, -36.84994],
+        suggestedRoute.coordinates[1]!,
+      ] as [number, number][],
+    };
+    const routeFacts = {
+      valid: true,
+      length: { status: "assessed" as const, value: 15.2 },
+      elevationChange: {
+        status: "not_assessed" as const,
+        reason: "data_unavailable" as const,
+      },
+      steepestGradient: {
+        status: "not_assessed" as const,
+        reason: "data_unavailable" as const,
+      },
+      parcelDeparture: { status: "assessed" as const, value: false },
+      buildings: { status: "assessed" as const, value: false },
+      services: {
+        status: "not_assessed" as const,
+        reason: "data_unavailable" as const,
+      },
+    };
+    const submission = buildTestPersistedAssessmentSubmission(
+      "rg-341-route-roundtrip",
+    );
+    submission.homeowner.name = "Jane Homeowner";
+    submission.report.reportData.constructability =
+      buildConstructabilitySnapshot({
+        answers: {
+          ...answers,
+          route: { provenance: "user-supplied", geometry: adjustedRoute },
+        },
+        suggestedRoute,
+        routePolicyVersion: 1,
+        routeFacts,
+      });
+    const saved = parsePersistedAssessmentSubmission(
+      JSON.parse(JSON.stringify(submission)),
+    );
+    expect(saved.report.reportData.constructability).toMatchObject({
+      route: { provenance: "user-supplied", geometry: adjustedRoute },
+      routeFacts,
+    });
+  });
   it("preserves mapped and user concerns independently", () => {
     const snapshot = buildConstructabilitySnapshot({
       answers,
@@ -96,6 +155,67 @@ describe("constructability evidence", () => {
       expect.objectContaining({
         source: "user",
         evidenceId: "rocky_ground",
+      }),
+    );
+  });
+
+  it("retains mapped and user provenances when observations disagree", () => {
+    const snapshot = buildConstructabilitySnapshot({
+      answers: { ...answers, accessConditions: ["retaining_wall"] },
+      mappedEvidence: [
+        {
+          id: "mapped-ground",
+          category: "access_excavation",
+          status: "no_concern",
+          provider: "official-map",
+          dataset: "ground-map",
+        },
+        {
+          id: "mapped-barrier",
+          category: "barrier",
+          status: "concern",
+          provider: "official-map",
+          dataset: "building-map",
+        },
+      ],
+    });
+    expect(snapshot.mappedEvidence).toHaveLength(2);
+    expect(snapshot.userEvidence).toEqual([
+      { category: "access_excavation", condition: "retaining_wall" },
+    ]);
+    expect(snapshot.findings).toContainEqual(
+      expect.objectContaining({
+        source: "mapped",
+        evidenceId: "mapped-barrier",
+      }),
+    );
+    expect(snapshot.findings).toContainEqual(
+      expect.objectContaining({ source: "user", evidenceId: "retaining_wall" }),
+    );
+    expect(snapshot.overallStatus).toBe("needs_checking");
+  });
+
+  it("keeps a declared concern visible while critical uncertainty makes the overall result not fully assessed", () => {
+    const snapshot = buildConstructabilitySnapshot({
+      answers: {
+        ...answers,
+        accessConditions: ["rocky_ground"],
+        nearbyFeatures: ["not_sure"],
+      },
+    });
+    expect(snapshot.overallStatus).toBe("not_fully_assessed");
+    expect(snapshot.findings).toContainEqual(
+      expect.objectContaining({
+        source: "user",
+        evidenceId: "rocky_ground",
+        status: "needs_checking",
+      }),
+    );
+    expect(snapshot.findings).toContainEqual(
+      expect.objectContaining({
+        source: "user",
+        evidenceId: "nearby_not_sure",
+        status: "not_assessed",
       }),
     );
   });
@@ -190,5 +310,65 @@ describe("constructability evidence", () => {
         label: "Not assessed — data unavailable",
       }),
     );
+  });
+
+  it("reproduces saved excavation geometry from its versioned inputs and rejects altered totals", () => {
+    const snapshot = buildConstructabilitySnapshot({
+      answers,
+      excavation: {
+        dimensions: { lengthMetres: 6, widthMetres: 3 },
+        terrainAdjustment: "unavailable",
+      },
+    });
+    const saved = constructabilitySnapshotSchema.parse(
+      JSON.parse(JSON.stringify(snapshot)),
+    );
+    expect(saved.excavationGeometry).toMatchObject({
+      assumptionId: "firth-masonry-side-300mm-v1",
+      poolOutlineCubicMetres: 27,
+      sideAllowanceCubicMetres: 35.64,
+    });
+    expect(() =>
+      constructabilitySnapshotSchema.parse({
+        ...saved,
+        excavationGeometry: {
+          ...saved.excavationGeometry!,
+          sideAllowanceCubicMetres: 35.65,
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      constructabilitySnapshotSchema.parse({
+        ...saved,
+        excavationGeometry: calculateExcavationGeometryScenarios({
+          lengthMetres: 6,
+          widthMetres: 3,
+          estimatedDepthMetres: 1.6,
+          terrainAdjustment: "unavailable",
+        }),
+      }),
+    ).toThrow();
+  });
+
+  it("rejects saved excavation inputs that contradict the saved pool layout", () => {
+    const submission = buildTestPersistedAssessmentSubmission(
+      "rg-342-layout-integrity",
+    );
+    submission.homeowner.name = "Jane Homeowner";
+    submission.report.reportData.constructability =
+      buildConstructabilitySnapshot({
+        answers,
+        excavation: {
+          dimensions: { lengthMetres: 6.5, widthMetres: 3 },
+          terrainAdjustment: "unavailable",
+        },
+      });
+    expect(() => parsePersistedAssessmentSubmission(submission)).not.toThrow();
+    expect(() =>
+      parsePersistedAssessmentSubmission({
+        ...submission,
+        poolLayout: { ...submission.poolLayout, lengthMetres: 7 },
+      }),
+    ).toThrow();
   });
 });

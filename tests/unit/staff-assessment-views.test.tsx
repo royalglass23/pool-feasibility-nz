@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it } from "vitest";
 import { HomeownerFeasibilityReportView } from "@/components/homeowner-feasibility-report-view";
@@ -9,6 +9,7 @@ import {
   SAVED_MAP_IMAGE_DATA_URL,
   savedPreliminaryReport,
   staffAssessmentDetail,
+  staffAssessmentWithConstructabilityEvidence,
 } from "../fixtures/staff-assessment";
 
 afterEach(cleanup);
@@ -237,6 +238,44 @@ describe("staff assessment detail", () => {
       screen.queryByRole("button", { name: /move|rotate|save|edit/i }),
     ).not.toBeInTheDocument();
     expect(screen.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("region", { name: "Saved constructability evidence" }),
+    ).toHaveTextContent("Site constructability evidence was not captured");
+  });
+
+  it("shows complete saved constructability evidence as read-only staff facts", () => {
+    render(
+      <StaffAssessmentDetail
+        assessment={staffAssessmentWithConstructabilityEvidence}
+        onBack={() => undefined}
+      />,
+    );
+
+    const evidence = within(
+      screen.getByRole("region", { name: "Saved constructability evidence" }),
+    );
+    expect(evidence.getByText("1.70 m")).toBeVisible();
+    expect(evidence.getByText("Gate or narrow passage")).toBeVisible();
+    expect(evidence.getByText("I’m not sure")).toBeVisible();
+    expect(evidence.getByText("Confirmed suggested route")).toBeVisible();
+    expect(evidence.getByText("Saved route geometry")).toBeVisible();
+    expect(evidence.getByText(/174\.759800, -36\.850200/)).toBeVisible();
+    expect(evidence.getByText("18.4 m")).toBeVisible();
+    expect(evidence.getByText("43.45 m³")).toBeVisible();
+    expect(
+      evidence.getAllByText(/Potential site consideration/).length,
+    ).toBeGreaterThan(0);
+    expect(evidence.getAllByText(/Not assessed —/).length).toBeGreaterThan(0);
+    expect(evidence.getByText("Mapped evidence")).toBeVisible();
+    expect(evidence.getByText("User-supplied evidence")).toBeVisible();
+    expect(evidence.getByText("Provider availability")).toBeVisible();
+    expect(
+      evidence.queryByRole("button", {
+        name: /edit|correct|override|approve|verify/i,
+      }),
+    ).not.toBeInTheDocument();
+    expect(evidence.queryByRole("textbox")).not.toBeInTheDocument();
+    expect(evidence.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
   it("shows the saved Fast Property View capture and records its visible layers", () => {

@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
-  savedPreliminaryReport,
+  savedConstructabilityReport,
   staffAssessmentDetail,
   staffAssessmentSummaries,
 } from "../fixtures/staff-assessment";
@@ -69,8 +69,15 @@ describe("staff assessment reads", () => {
 
   it("returns the staff record with the persisted shared homeowner report to an authenticated Admin", async () => {
     staffSessionDeniedResponse.mockResolvedValue(null);
-    getHomeownerAssessmentById.mockResolvedValue(staffAssessmentDetail);
-    getSavedPreliminaryReportById.mockResolvedValue(savedPreliminaryReport);
+    const record = Object.fromEntries(
+      Object.entries(staffAssessmentDetail).filter(
+        ([key]) => key !== "report" && key !== "constructabilityEvidence",
+      ),
+    );
+    getHomeownerAssessmentById.mockResolvedValue(record);
+    getSavedPreliminaryReportById.mockResolvedValue(
+      savedConstructabilityReport,
+    );
 
     const response = await GET_DETAIL(
       new Request(
@@ -86,10 +93,38 @@ describe("staff assessment reads", () => {
           id: "assessment-new",
           report: {
             reference: "GF-2026-000042",
-            mapImageDataUrl: savedPreliminaryReport.mapImageDataUrl,
+            mapImageDataUrl: savedConstructabilityReport.mapImageDataUrl,
+          },
+          constructabilityEvidence: {
+            status: "captured",
+            estimatedDepth: "1.70 m",
+            overallStatus: {
+              value: "not_fully_assessed",
+              label: "Not fully assessed",
+            },
           },
         },
       },
     });
+  });
+
+  it("does not expose constructability evidence before staff authorization", async () => {
+    staffSessionDeniedResponse.mockResolvedValue(
+      new Response(JSON.stringify({ error: { code: "STAFF_AUTH_REQUIRED" } }), {
+        status: 401,
+      }),
+    );
+
+    const response = await GET_DETAIL(
+      new Request(
+        "https://pool.example/api/internal/assessments/assessment-new",
+      ),
+      { params: Promise.resolve({ id: "assessment-new" }) },
+    );
+
+    expect(response.status).toBe(401);
+    expect(getDb).not.toHaveBeenCalled();
+    expect(getHomeownerAssessmentById).not.toHaveBeenCalled();
+    expect(getSavedPreliminaryReportById).not.toHaveBeenCalled();
   });
 });

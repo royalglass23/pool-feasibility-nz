@@ -912,7 +912,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
-  it("retries when the property resolves but LINZ imagery fails", async () => {
+  it("loads detailed checks when the property resolves but LINZ imagery fails", async () => {
     const user = userEvent.setup();
     const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
@@ -920,30 +920,55 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       ...splitDataAccessGateway(gateway),
       basemapApiKey: "test-key",
     });
-    const fetchMock = vi.fn(async (input: RequestInfo | URL) => {
-      if (String(input).includes("/api/public/property-check/stages")) {
-        return Response.json({
-          data: {
-            boundary: fastResult.boundary,
-            aerial: { state: "error" },
-            progress: {
-              address: "found",
-              boundary: "found",
-              aerial: "error",
-              detailedChecks: "not_loaded",
+    const fetchMock = vi.fn(
+      async (input: RequestInfo | URL, init?: RequestInit) => {
+        if (String(input).includes("/api/public/property-check/stages")) {
+          const requestBody = JSON.parse(String(init?.body ?? "{}")) as {
+            mode?: string;
+          };
+          if (requestBody.mode === "detailed") {
+            return Response.json({
+              data: {
+                status: "partial",
+                constraints: {
+                  status: "retryable",
+                  retryableLayerKeys: [],
+                  unavailableLayerKeys: [],
+                },
+                layers: [],
+                retrievedAt: "2026-07-30T00:00:00.000Z",
+                durationMs: 0,
+                region: "Auckland",
+                limitations: [
+                  "Detailed map layers are unavailable in this test.",
+                ],
+              },
+              assessmentSnapshot: "server-issued-detailed-snapshot",
+            });
+          }
+          return Response.json({
+            data: {
+              boundary: fastResult.boundary,
+              aerial: { state: "error" },
+              progress: {
+                address: "found",
+                boundary: "found",
+                aerial: "error",
+                detailedChecks: "not_loaded",
+              },
             },
+            assessmentSnapshot: "server-issued-stage-snapshot",
+          });
+        }
+        return Response.json(
+          {
+            data: fastResult,
+            assessmentSnapshot: "server-issued-initial-snapshot",
           },
-          assessmentSnapshot: "server-issued-stage-snapshot",
-        });
-      }
-      return Response.json(
-        {
-          data: fastResult,
-          assessmentSnapshot: "server-issued-initial-snapshot",
-        },
-        { status: 200 },
-      );
-    });
+          { status: 200 },
+        );
+      },
+    );
     vi.stubGlobal("fetch", fetchMock);
 
     render(<PropertyCheckJourney />);
@@ -967,6 +992,16 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
         ),
       ).toHaveLength(stageRequestCountBeforeRetry + 1),
     );
+    const detailedRequest = fetchMock.mock.calls
+      .filter(([input]) =>
+        String(input).includes("/api/public/property-check/stages"),
+      )
+      .map(([, init]) => JSON.parse(String(init?.body ?? "{}")))
+      .find((body) => body.mode === "detailed");
+    expect(detailedRequest).toMatchObject({
+      mode: "detailed",
+      estimatedDepthMetres: 1.5,
+    });
   });
 
   it("requests parcel-wide detailed checks without sending the pool envelope", async () => {

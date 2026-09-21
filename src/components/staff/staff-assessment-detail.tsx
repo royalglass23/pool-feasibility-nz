@@ -1,6 +1,7 @@
 "use client";
 
 import { HomeownerFeasibilityReportView } from "@/components/homeowner-feasibility-report-view";
+import { StaffConstructabilityEvidence } from "@/components/staff/staff-constructability-evidence";
 import { getProjectTimingLabel } from "@/modules/assessment/visitor-context";
 import { getVisitorTypeLabel } from "@/modules/assessment/visitor-type";
 import type { StaffAssessmentDetail as StaffAssessmentDetailModel } from "@/modules/staff/staff-assessment-read-model";
@@ -87,6 +88,10 @@ export function StaffAssessmentDetail({
           </div>
         )}
       </section>
+
+      <StaffConstructabilityEvidence
+        evidence={assessment.constructabilityEvidence}
+      />
 
       <HomeownerFeasibilityReportView
         report={assessment.report}
