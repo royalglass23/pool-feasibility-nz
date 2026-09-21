@@ -31,4 +31,4 @@ External GIS and delivery providers sit behind server adapters. RG-345 browser t
 | Insecure test target | Release evidence | Reuse port 3000 and test a different product or write to production | Dedicated port 3100 and explicit `DATABASE_URL_DEV` mapping in Playwright config | Low |
 | Test residue | Staff session and PII | Failed test leaves a valid session or record | Unique identifiers and exact `finally` cleanup | Low; abrupt process termination can still require development-DB housekeeping |
 
-No unmitigated High or Critical threat was found. The remaining release-evidence risk is that the candidate is uncommitted, so its E2E evidence cannot yet be bound to an immutable Git commit.
+No unmitigated High or Critical threat was found. Strict browser evidence is bound to immutable implementation commit `32491d48c4808325745b9465e879e4b41d9e7c6a`; the remaining transport and secret-store controls belong to the production release boundary.

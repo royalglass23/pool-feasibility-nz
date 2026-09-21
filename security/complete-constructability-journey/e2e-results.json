@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "feature": "complete-constructability-journey",
-  "commit": "c9e3e78d1277b27758cc98b96970b762f93a2dfb",
+  "commit": "32491d48c4808325745b9465e879e4b41d9e7c6a",
   "command": "npm run test:e2e",
   "retries": 0,
   "environment": {
@@ -29,5 +29,5 @@
     "report": "playwright-report/index.html",
     "traces": []
   },
-  "verdict": "BLOCKED"
+  "verdict": "PASS"
 }

@@ -4,7 +4,7 @@
 
 RG-345 is a retrofit release-evidence ticket. It adds no runtime endpoint, permission, schema, or collected field. It strengthens public and authenticated browser evidence and isolates browser execution from another local product and from the production database.
 
-The application and test checks are green, but the formal verdict is **BLOCKED** until the uncommitted candidate is bound to an immutable commit and the strict E2E evidence is rerun and validated for that exact commit.
+The application and test checks are green. The formal verdict is **PASS** after the zero-retry strict E2E lane was rerun and validated against immutable commit `32491d48c4808325745b9465e879e4b41d9e7c6a`.
 
 ## Evidence
 
@@ -46,6 +46,6 @@ V1, V3, V4, V5, V7, V8, V11, V13, and V14 pass for this bounded ticket. V2 relie
 
 | ID | Severity | Status | Evidence | Next action | Release impact |
 |---|---|---|---|---|---|
-| SEC-001 | Important | Open | Tested changes are outside commit `c9e3e78`; machine evidence cannot truthfully identify an immutable candidate | Obtain explicit commit approval, commit the scoped candidate, rerun strict E2E and validator, then update sign-off | Blocks formal Secure SDLC PASS |
+| SEC-001 | Important | Resolved | Strict E2E reran 21/21 against commit `32491d48`; machine evidence records that immutable candidate | Commit the pending evidence-only files without changing code, tests, configuration, fixtures, environment, or matrix | None |
 
 No open High or Critical security finding exists.
