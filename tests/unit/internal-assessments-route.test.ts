@@ -550,7 +550,8 @@ describe("POST /api/internal/assessments", () => {
       version: 1,
       estimatedDepthMetres: 1.9,
       excavationGeometry: {
-        assumptionId: "firth-masonry-side-300mm-v1",
+        version: 2,
+        assumptionId: "user-selected-side-clearance-v1",
         inputs: {
           lengthMetres: 6,
           widthMetres: 3,
@@ -558,6 +559,8 @@ describe("POST /api/internal/assessments", () => {
         },
         poolOutlineCubicMetres: 34.2,
         sideAllowanceCubicMetres: 45.14,
+        sideAllowanceMetres: 0.3,
+        selectionSource: "default_300mm",
         specialistDepthWarning: true,
         terrainAdjustment: "unavailable",
       },

@@ -94,6 +94,7 @@ export function SiteQuestions({
     [],
   );
   const [nearbyFeatures, setNearbyFeatures] = useState<NearbyFeature[]>([]);
+  const [sideClearanceMillimetres, setSideClearanceMillimetres] = useState(300);
   const [routeResponse, setRouteResponse] = useState<
     "confirm" | "adjust" | "not_sure" | null
   >(routeSuggestion?.confidence === "credible" ? null : "not_sure");
@@ -154,6 +155,7 @@ export function SiteQuestions({
               : {}),
             accessConditions,
             nearbyFeatures,
+            sideClearanceMillimetres,
           }),
         },
       );
@@ -187,262 +189,319 @@ export function SiteQuestions({
   }
 
   return (
-    <section
-      aria-labelledby="site-questions-heading"
-      className="border-pool-200 space-y-6 rounded-2xl border bg-white p-5 sm:p-7"
-    >
-      <div>
+    <div className="space-y-6">
+      <section
+        aria-labelledby="site-questions-heading"
+        className="border-pool-200 space-y-6 rounded-2xl border bg-white p-5 sm:p-7"
+      >
+        <div>
+          <h3
+            id="site-questions-heading"
+            className="text-pool-950 text-xl font-semibold"
+          >
+            Site questions
+          </h3>
+          <p className="text-pool-700 mt-2 text-sm">
+            Select what you can see or know. A pool professional can check these
+            conditions onsite.
+          </p>
+        </div>
+        <fieldset
+          ref={routeRef}
+          tabIndex={-1}
+          className="space-y-3 focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          <legend className="text-pool-950 font-semibold">
+            Suggested access route
+          </legend>
+          {routeSuggestion?.confidence === "credible" ? (
+            <p className="text-pool-700 text-sm">
+              A preliminary straight route is shown on the map. Please confirm
+              whether it looks plausible. A pool professional must check access
+              onsite.
+            </p>
+          ) : (
+            <p className="text-pool-700 text-sm">
+              We couldn’t identify an obvious access route from the mapped
+              evidence. You can still complete your property check.
+            </p>
+          )}
+          {routeSuggestion?.confidence === "credible" && (
+            <>
+              <label className="flex min-h-11 items-center gap-3 text-sm">
+                <input
+                  type="radio"
+                  name="route-response"
+                  checked={routeResponse === "confirm"}
+                  onChange={() => {
+                    requestGenerationRef.current += 1;
+                    setSaving(false);
+                    setRouteResponse("confirm");
+                    setSavedFacts(null);
+                    onRouteReset?.();
+                    onSigned(null);
+                  }}
+                />
+                Confirm route
+              </label>
+              <div className="space-y-2">
+                <button
+                  type="button"
+                  disabled={(adjustedRoute?.coordinates.length ?? 2) >= 4}
+                  onClick={() => {
+                    const source = adjustedRoute ?? routeSuggestion.geometry;
+                    const coordinates = [...source.coordinates];
+                    const before = coordinates[coordinates.length - 2]!;
+                    const after = coordinates[coordinates.length - 1]!;
+                    coordinates.splice(coordinates.length - 1, 0, [
+                      (before[0] + after[0]) / 2,
+                      (before[1] + after[1]) / 2,
+                    ]);
+                    requestGenerationRef.current += 1;
+                    setRouteResponse("adjust");
+                    onRouteEdit?.({ type: "LineString", coordinates }, true);
+                    onSigned(null);
+                  }}
+                  className="min-h-11 rounded-lg border px-3 text-sm disabled:opacity-50"
+                >
+                  Add turning point
+                </button>
+                {adjustedRoute && adjustedRoute.coordinates.length > 2 && (
+                  <>
+                    <p className="text-sm font-semibold">
+                      Route supplied by user — confirm onsite
+                    </p>
+                    <p className="text-sm">
+                      Drag a turning point on the map, or focus it and use arrow
+                      keys. Start and pool-area endpoints stay fixed.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const coordinates = [...adjustedRoute.coordinates];
+                        coordinates.splice(coordinates.length - 2, 1);
+                        const next = {
+                          type: "LineString" as const,
+                          coordinates,
+                        };
+                        setRouteResponse(
+                          coordinates.length > 2 ? "adjust" : null,
+                        );
+                        onRouteEdit?.(next, true);
+                        onSigned(null);
+                      }}
+                      className="min-h-11 rounded-lg border px-3 text-sm"
+                    >
+                      Remove last turning point
+                    </button>
+                  </>
+                )}
+                {(routeFacts ?? (adjustedRoute ? null : savedFacts)) && (
+                  <dl
+                    className="grid gap-1 text-sm"
+                    aria-label="Preliminary access route facts"
+                  >
+                    {(
+                      [
+                        [
+                          "Approximate length",
+                          (routeFacts ?? savedFacts)!.length,
+                          "m",
+                        ],
+                        [
+                          "Elevation change",
+                          (routeFacts ?? savedFacts)!.elevationChange,
+                          "m",
+                        ],
+                        [
+                          "Steepest mapped gradient",
+                          (routeFacts ?? savedFacts)!.steepestGradient,
+                          "°",
+                        ],
+                        [
+                          "Parcel departure",
+                          (routeFacts ?? savedFacts)!.parcelDeparture,
+                          "",
+                        ],
+                        [
+                          "Mapped-building intersection",
+                          (routeFacts ?? savedFacts)!.buildings,
+                          "",
+                        ],
+                        [
+                          "Mapped-service intersection or close approach",
+                          (routeFacts ?? savedFacts)!.services,
+                          "",
+                        ],
+                      ] as const
+                    ).map(([label, fact, suffix]) => (
+                      <div key={label} className="flex justify-between gap-4">
+                        <dt>{label}</dt>
+                        <dd>{formatRouteFact(fact, suffix)}</dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+              </div>
+            </>
+          )}
+          <label className="flex min-h-11 items-center gap-3 text-sm">
+            <input
+              type="radio"
+              name="route-response"
+              checked={routeResponse === "not_sure"}
+              onChange={() => {
+                requestGenerationRef.current += 1;
+                setSaving(false);
+                setRouteResponse("not_sure");
+                setSavedFacts(null);
+                onRouteReset?.();
+                onSigned(null);
+              }}
+            />
+            I’m not sure
+          </label>
+        </fieldset>
+        <fieldset
+          ref={accessRef}
+          tabIndex={-1}
+          aria-describedby={errors.access ? "site-access-error" : undefined}
+          className="space-y-3 focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          <legend className="text-pool-950 font-semibold">
+            Are there any visible conditions that could affect construction
+            access or excavation?
+          </legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {accessChoices.map((choice) => (
+              <label
+                key={choice.id}
+                className="border-pool-200 hover:bg-pool-50 flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  checked={accessConditions.includes(choice.id)}
+                  onChange={() => {
+                    requestGenerationRef.current += 1;
+                    setSaving(false);
+                    setAccessConditions((current) =>
+                      toggleExclusive(current, choice.id),
+                    );
+                    setErrors((current) => ({ ...current, access: false }));
+                    onSigned(null);
+                  }}
+                  className="size-4 accent-blue-800"
+                />
+                {choice.label}
+              </label>
+            ))}
+          </div>
+          {errors.access && (
+            <p
+              id="site-access-error"
+              role="alert"
+              className="text-sm text-red-800"
+            >
+              Choose at least one answer for construction access or excavation.
+            </p>
+          )}
+        </fieldset>
+        <fieldset
+          ref={nearbyRef}
+          tabIndex={-1}
+          aria-describedby={errors.nearby ? "site-nearby-error" : undefined}
+          className="space-y-3 focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          <legend className="text-pool-950 font-semibold">
+            Which existing features are close to the proposed pool area?
+          </legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {nearbyChoices.map((choice) => (
+              <label
+                key={choice.id}
+                className="border-pool-200 hover:bg-pool-50 flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-sm"
+              >
+                <input
+                  type="checkbox"
+                  checked={nearbyFeatures.includes(choice.id)}
+                  onChange={() => {
+                    requestGenerationRef.current += 1;
+                    setSaving(false);
+                    setNearbyFeatures((current) =>
+                      toggleExclusive(current, choice.id),
+                    );
+                    setErrors((current) => ({ ...current, nearby: false }));
+                    onSigned(null);
+                  }}
+                  className="size-4 accent-blue-800"
+                />
+                {choice.label}
+              </label>
+            ))}
+          </div>
+          {errors.nearby && (
+            <p
+              id="site-nearby-error"
+              role="alert"
+              className="text-sm text-red-800"
+            >
+              Choose at least one answer for nearby features.
+            </p>
+          )}
+        </fieldset>
+      </section>
+      <section
+        aria-labelledby="excavation-planning-heading"
+        aria-describedby="excavation-side-clearance-help"
+        className="border-pool-200 space-y-3 rounded-2xl border bg-white p-5 sm:p-7"
+      >
         <h3
-          id="site-questions-heading"
+          id="excavation-planning-heading"
           className="text-pool-950 text-xl font-semibold"
         >
-          Site questions
+          Excavation planning
         </h3>
-        <p className="text-pool-700 mt-2 text-sm">
-          Select what you can see or know. A pool professional can check these
-          conditions onsite.
+        <p
+          id="excavation-side-clearance-help"
+          className="text-pool-700 text-sm"
+        >
+          Choose a planning allowance from 200–600 mm. This is added on each
+          side of the selected pool outline; it is not an installation
+          requirement.
         </p>
-      </div>
-      <fieldset
-        ref={routeRef}
-        tabIndex={-1}
-        className="space-y-3 focus-visible:outline-2 focus-visible:outline-offset-2"
-      >
-        <legend className="text-pool-950 font-semibold">
-          Suggested access route
-        </legend>
-        {routeSuggestion?.confidence === "credible" ? (
-          <p className="text-pool-700 text-sm">
-            A preliminary straight route is shown on the map. Please confirm
-            whether it looks plausible. A pool professional must check access
-            onsite.
-          </p>
-        ) : (
-          <p className="text-pool-700 text-sm">
-            We couldn’t identify an obvious access route from the mapped
-            evidence. You can still complete your property check.
-          </p>
-        )}
-        {routeSuggestion?.confidence === "credible" && (
-          <>
-            <label className="flex min-h-11 items-center gap-3 text-sm">
-              <input
-                type="radio"
-                name="route-response"
-                checked={routeResponse === "confirm"}
-                onChange={() => {
-                  requestGenerationRef.current += 1;
-                  setSaving(false);
-                  setRouteResponse("confirm");
-                  setSavedFacts(null);
-                  onRouteReset?.();
-                  onSigned(null);
-                }}
-              />
-              Confirm route
-            </label>
-            <div className="space-y-2">
-              <button
-                type="button"
-                disabled={(adjustedRoute?.coordinates.length ?? 2) >= 4}
-                onClick={() => {
-                  const source = adjustedRoute ?? routeSuggestion.geometry;
-                  const coordinates = [...source.coordinates];
-                  const before = coordinates[coordinates.length - 2]!;
-                  const after = coordinates[coordinates.length - 1]!;
-                  coordinates.splice(coordinates.length - 1, 0, [
-                    (before[0] + after[0]) / 2,
-                    (before[1] + after[1]) / 2,
-                  ]);
-                  requestGenerationRef.current += 1;
-                  setRouteResponse("adjust");
-                  onRouteEdit?.({ type: "LineString", coordinates }, true);
-                  onSigned(null);
-                }}
-                className="min-h-11 rounded-lg border px-3 text-sm disabled:opacity-50"
-              >
-                Add turning point
-              </button>
-              {adjustedRoute && adjustedRoute.coordinates.length > 2 && (
-                <>
-                  <p className="text-sm font-semibold">
-                    Route supplied by user — confirm onsite
-                  </p>
-                  <p className="text-sm">
-                    Drag a turning point on the map, or focus it and use arrow
-                    keys. Start and pool-area endpoints stay fixed.
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      const coordinates = [...adjustedRoute.coordinates];
-                      coordinates.splice(coordinates.length - 2, 1);
-                      const next = { type: "LineString" as const, coordinates };
-                      setRouteResponse(
-                        coordinates.length > 2 ? "adjust" : null,
-                      );
-                      onRouteEdit?.(next, true);
-                      onSigned(null);
-                    }}
-                    className="min-h-11 rounded-lg border px-3 text-sm"
-                  >
-                    Remove last turning point
-                  </button>
-                </>
-              )}
-              {(routeFacts ?? (adjustedRoute ? null : savedFacts)) && (
-                <dl
-                  className="grid gap-1 text-sm"
-                  aria-label="Preliminary access route facts"
-                >
-                  {(
-                    [
-                      [
-                        "Approximate length",
-                        (routeFacts ?? savedFacts)!.length,
-                        "m",
-                      ],
-                      [
-                        "Elevation change",
-                        (routeFacts ?? savedFacts)!.elevationChange,
-                        "m",
-                      ],
-                      [
-                        "Steepest mapped gradient",
-                        (routeFacts ?? savedFacts)!.steepestGradient,
-                        "°",
-                      ],
-                      [
-                        "Parcel departure",
-                        (routeFacts ?? savedFacts)!.parcelDeparture,
-                        "",
-                      ],
-                      [
-                        "Mapped-building intersection",
-                        (routeFacts ?? savedFacts)!.buildings,
-                        "",
-                      ],
-                      [
-                        "Mapped-service intersection or close approach",
-                        (routeFacts ?? savedFacts)!.services,
-                        "",
-                      ],
-                    ] as const
-                  ).map(([label, fact, suffix]) => (
-                    <div key={label} className="flex justify-between gap-4">
-                      <dt>{label}</dt>
-                      <dd>{formatRouteFact(fact, suffix)}</dd>
-                    </div>
-                  ))}
-                </dl>
-              )}
-            </div>
-          </>
-        )}
-        <label className="flex min-h-11 items-center gap-3 text-sm">
+        <div className="flex items-center gap-4">
           <input
-            type="radio"
-            name="route-response"
-            checked={routeResponse === "not_sure"}
-            onChange={() => {
+            type="range"
+            aria-label="Indicative excavation side clearance"
+            aria-valuetext={`${sideClearanceMillimetres} mm each side`}
+            min="200"
+            max="600"
+            step="50"
+            value={sideClearanceMillimetres}
+            onChange={(event) => {
               requestGenerationRef.current += 1;
               setSaving(false);
-              setRouteResponse("not_sure");
-              setSavedFacts(null);
-              onRouteReset?.();
+              setSideClearanceMillimetres(Number(event.target.value));
               onSigned(null);
             }}
+            className="accent-pool-blue-800 min-h-11 w-full max-w-sm"
           />
-          I’m not sure
-        </label>
-      </fieldset>
-      <fieldset
-        ref={accessRef}
-        tabIndex={-1}
-        aria-describedby={errors.access ? "site-access-error" : undefined}
-        className="space-y-3 focus-visible:outline-2 focus-visible:outline-offset-2"
-      >
-        <legend className="text-pool-950 font-semibold">
-          Are there any visible conditions that could affect construction access
-          or excavation?
-        </legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {accessChoices.map((choice) => (
-            <label
-              key={choice.id}
-              className="border-pool-200 hover:bg-pool-50 flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-sm"
-            >
-              <input
-                type="checkbox"
-                checked={accessConditions.includes(choice.id)}
-                onChange={() => {
-                  requestGenerationRef.current += 1;
-                  setSaving(false);
-                  setAccessConditions((current) =>
-                    toggleExclusive(current, choice.id),
-                  );
-                  setErrors((current) => ({ ...current, access: false }));
-                  onSigned(null);
-                }}
-                className="size-4 accent-blue-800"
-              />
-              {choice.label}
-            </label>
-          ))}
+          <output className="text-pool-950 min-w-28 text-sm font-semibold">
+            {sideClearanceMillimetres} mm each side
+          </output>
         </div>
-        {errors.access && (
-          <p
-            id="site-access-error"
-            role="alert"
-            className="text-sm text-red-800"
-          >
-            Choose at least one answer for construction access or excavation.
+        {sideClearanceMillimetres < 300 && (
+          <p role="status" className="text-sm font-semibold text-amber-800">
+            Needs checking — this is below the provisional 300 mm starting
+            point. Confirm it against the selected pool installation
+            instructions.
           </p>
         )}
-      </fieldset>
-      <fieldset
-        ref={nearbyRef}
-        tabIndex={-1}
-        aria-describedby={errors.nearby ? "site-nearby-error" : undefined}
-        className="space-y-3 focus-visible:outline-2 focus-visible:outline-offset-2"
-      >
-        <legend className="text-pool-950 font-semibold">
-          Which existing features are close to the proposed pool area?
-        </legend>
-        <div className="grid gap-2 sm:grid-cols-2">
-          {nearbyChoices.map((choice) => (
-            <label
-              key={choice.id}
-              className="border-pool-200 hover:bg-pool-50 flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-sm"
-            >
-              <input
-                type="checkbox"
-                checked={nearbyFeatures.includes(choice.id)}
-                onChange={() => {
-                  requestGenerationRef.current += 1;
-                  setSaving(false);
-                  setNearbyFeatures((current) =>
-                    toggleExclusive(current, choice.id),
-                  );
-                  setErrors((current) => ({ ...current, nearby: false }));
-                  onSigned(null);
-                }}
-                className="size-4 accent-blue-800"
-              />
-              {choice.label}
-            </label>
-          ))}
-        </div>
-        {errors.nearby && (
-          <p
-            id="site-nearby-error"
-            role="alert"
-            className="text-sm text-red-800"
-          >
-            Choose at least one answer for nearby features.
-          </p>
-        )}
-      </fieldset>
+        <p className="text-pool-600 text-xs leading-5">
+          Base depth, drainage, ground slope, retaining and installation method
+          are not included and still need professional confirmation.
+        </p>
+      </section>
       {requestError && (
         <p role="alert" className="text-sm text-red-800">
           {requestError}
@@ -456,7 +515,7 @@ export function SiteQuestions({
       >
         {saving ? "Saving Site answers…" : "Continue to your details"}
       </button>
-    </section>
+    </div>
   );
 }
 

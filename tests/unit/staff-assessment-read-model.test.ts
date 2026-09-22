@@ -99,7 +99,10 @@ describe("staff assessment read model", () => {
         status: "captured",
         scenarios: [
           { label: "Selected pool outline", value: "33.15 m³" },
-          { label: "300 mm side-allowance scenario", value: "43.45 m³" },
+          {
+            label: "300 mm selected side-clearance scenario",
+            value: "43.45 m³",
+          },
         ],
         terrain: "Base geometry estimate only — terrain adjustment unavailable",
       },

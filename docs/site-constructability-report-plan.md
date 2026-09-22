@@ -89,7 +89,7 @@ PoolReady may calculate preliminary **geometry scenarios** from the selected poo
 - The pool-outline scenario is selected length × width × Estimated pool depth.
 - The 300 mm side-allowance scenario is `(length + 0.6 m) × (width + 0.6 m) × depth`. It uses the Firth masonry specification's side allowance as a proxy around PoolReady's generic selected outline; Firth's actual reference is the outside masonry wall.
 - Report text must state that base depth, wall/footing dimensions, floor profile, drainage, terrain cut and excavation method are not included. It must not call the larger scenario an upper bound.
-- A later builder-specific setting and full working/base/terrain model remain [RG-346](https://linear.app/royalglass/issue/RG-346) work. The existing map construction envelope is not treated as a full-depth excavation footprint.
+- [RG-346](https://linear.app/royalglass/issue/RG-346) adds a versioned user-selected 200–600 mm side-clearance planning scenario, starting at 300 mm. A verified construction preset and the full working/base/terrain model remain future work. The existing map construction envelope is not treated as a full-depth excavation footprint.
 
 Spare-material expansion, loose spoil quantity, onsite reuse, truckloads, offsite disposal and dollar-cost estimation are outside this feature. They remain discussion topics between the homeowner and pool professional after they review the preliminary excavation volume and site considerations.
 
@@ -110,6 +110,6 @@ Use `potential consideration` or `condition that could affect` in homeowner-faci
 
 ## Open decisions
 
-- **Later full-model gate:** obtain pool-builder confirmation of construction-specific working-clearance and base-allowance values under RG-346. The provisional 300 mm side-only geometry scenario is separately authorized under RG-337 and must be disclosed as a proxy.
+- **Later full-model gate:** obtain a verified construction-system, manufacturer/model, or project-specific rule for working clearance and base allowance. RG-346's adjustable side-only scenario remains a disclosed planning proxy and does not satisfy that gate.
 - The deterministic confidence rules that decide whether PoolReady may display a Suggested access route.
 - Detailed report layout and copy, which are intentionally deferred while separate report work is in progress.

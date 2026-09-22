@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   act,
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -16,6 +17,63 @@ afterEach(() => {
 });
 
 describe("Site questions", () => {
+  it("defaults to 300 mm, allows 200-600 mm, and warns below 300 mm", async () => {
+    const user = userEvent.setup();
+    const fetchMock = vi.fn(async (...args: [string, RequestInit?]) => {
+      void args;
+      return Response.json({
+        assessmentSnapshot: "signed-clearance",
+        answers: { version: 1 },
+      });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(
+      <SiteQuestions
+        assessmentSnapshot="original-token"
+        placementKey="pool-a"
+        onSigned={vi.fn()}
+      />,
+    );
+
+    const clearance = screen.getByRole("slider", {
+      name: "Indicative excavation side clearance",
+    });
+    const siteQuestions = screen.getByRole("region", {
+      name: "Site questions",
+    });
+    const excavationPlanning = screen.getByRole("region", {
+      name: "Excavation planning",
+    });
+    expect(within(siteQuestions).getAllByRole("group")).toHaveLength(3);
+    expect(within(siteQuestions).queryByRole("slider")).not.toBeInTheDocument();
+    expect(within(excavationPlanning).getByRole("slider")).toBe(clearance);
+    expect(clearance).toHaveValue("300");
+    expect(screen.getByText("300 mm each side")).toBeVisible();
+    expect(
+      screen.queryByText(/below the provisional 300 mm starting point/i),
+    ).not.toBeInTheDocument();
+
+    fireEvent.change(clearance, { target: { value: "200" } });
+    expect(clearance).toHaveValue("200");
+    expect(
+      screen.getByText(/below the provisional 300 mm starting point/i),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "None of these" })[0]!,
+    );
+    await user.click(
+      screen.getAllByRole("checkbox", { name: "None of these" })[1]!,
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Continue to your details" }),
+    );
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+    expect(
+      JSON.parse(fetchMock.mock.calls[0]![1]!.body as string),
+    ).toMatchObject({ sideClearanceMillimetres: 200 });
+  });
+
   it("shows uncertainty without a confirm action when mapped route evidence is insufficient", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn(async (...args: [string, RequestInit?]) => {

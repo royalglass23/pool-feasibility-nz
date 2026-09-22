@@ -46,15 +46,20 @@ describe("public Site answers boundary", () => {
       request({
         assessmentSnapshot: locked,
         ...answers,
+        sideClearanceMillimetres: 200,
       }),
     );
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.answers.estimatedDepthMetres).toBe(1.9);
+    expect(body.answers.excavationSideAllowanceMetres).toBe(0.2);
     expect(
       verifyAssessmentSnapshot(body.assessmentSnapshot).constructability
-        ?.answers.estimatedDepthMetres,
-    ).toBe(1.9);
+        ?.answers,
+    ).toMatchObject({
+      estimatedDepthMetres: 1.9,
+      excavationSideAllowanceMetres: 0.2,
+    });
   });
 
   it("rejects a pool position that the final assessment cannot save", async () => {

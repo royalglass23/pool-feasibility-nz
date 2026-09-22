@@ -170,6 +170,9 @@ export function projectStaffConstructabilityEvidence(
   }
 
   const excavation = snapshot.excavationGeometry;
+  const sideAllowanceMillimetres = excavation
+    ? Math.round(excavation.sideAllowanceMetres * 1_000)
+    : null;
   return {
     status: "captured",
     estimatedDepth: `${snapshot.estimatedDepthMetres.toFixed(2)} m`,
@@ -198,7 +201,10 @@ export function projectStaffConstructabilityEvidence(
               value: `${excavation.poolOutlineCubicMetres.toFixed(excavation.rounding.decimalPlaces)} m³`,
             },
             {
-              label: "300 mm side-allowance scenario",
+              label:
+                excavation.version === 1
+                  ? "300 mm side-allowance scenario"
+                  : `${sideAllowanceMillimetres} mm selected side-clearance scenario`,
               value: `${excavation.sideAllowanceCubicMetres.toFixed(excavation.rounding.decimalPlaces)} m³`,
             },
           ],

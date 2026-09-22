@@ -2,7 +2,9 @@ import { z } from "zod";
 import { estimatedPoolDepthSchema } from "./estimated-pool-depth";
 import {
   calculateExcavationGeometryScenarios,
+  EXCAVATION_SIDE_ALLOWANCE_METRES,
   excavationGeometryScenariosSchema,
+  excavationSideAllowanceSchema,
 } from "./excavation-geometry";
 import type { AccessRouteFacts } from "@/modules/spatial/analyse-access-route";
 
@@ -75,6 +77,9 @@ export const constructabilityAnswersSchema = z
   .object({
     version: z.literal(1),
     estimatedDepthMetres: estimatedPoolDepthSchema,
+    excavationSideAllowanceMetres: excavationSideAllowanceSchema.default(
+      EXCAVATION_SIDE_ALLOWANCE_METRES,
+    ),
     route: z
       .object({
         provenance: z.enum([
@@ -152,6 +157,8 @@ export const constructabilitySnapshotSchema = z
     routeFacts: routeFactsSchema.optional(),
     estimatedDepthMetres:
       constructabilityAnswersSchema.shape.estimatedDepthMetres,
+    excavationSideAllowanceMetres:
+      constructabilityAnswersSchema.shape.excavationSideAllowanceMetres,
     excavationGeometry: excavationGeometryScenariosSchema.optional(),
     route: constructabilityAnswersSchema.shape.route,
     accessConditions: constructabilityAnswersSchema.shape.accessConditions,
@@ -216,13 +223,16 @@ export const constructabilitySnapshotSchema = z
     }
     if (
       snapshot.excavationGeometry &&
-      snapshot.excavationGeometry.inputs.estimatedDepthMetres !==
-        snapshot.estimatedDepthMetres
+      (snapshot.excavationGeometry.inputs.estimatedDepthMetres !==
+        snapshot.estimatedDepthMetres ||
+        snapshot.excavationGeometry.sideAllowanceMetres !==
+          snapshot.excavationSideAllowanceMetres)
     ) {
       context.addIssue({
         code: "custom",
-        path: ["excavationGeometry", "inputs", "estimatedDepthMetres"],
-        message: "Excavation geometry must use the locked estimated depth.",
+        path: ["excavationGeometry"],
+        message:
+          "Excavation geometry must use the locked depth and selected side clearance.",
       });
     }
   });
@@ -300,6 +310,7 @@ export function buildConstructabilitySnapshot(input: {
           excavationGeometry: calculateExcavationGeometryScenarios({
             ...input.excavation.dimensions,
             estimatedDepthMetres: answers.estimatedDepthMetres,
+            sideAllowanceMetres: answers.excavationSideAllowanceMetres,
             terrainAdjustment: input.excavation.terrainAdjustment,
           }),
         }
@@ -318,7 +329,10 @@ export function buildConstructabilitySnapshot(input: {
 function deriveConstructability(
   input: Pick<
     z.infer<typeof constructabilityAnswersSchema>,
-    "route" | "accessConditions" | "nearbyFeatures"
+    | "route"
+    | "accessConditions"
+    | "nearbyFeatures"
+    | "excavationSideAllowanceMetres"
   > & {
     routeFacts?: AccessRouteFacts;
     mappedEvidence: z.infer<typeof mappedConstructabilityEvidenceSchema>[];
@@ -343,6 +357,17 @@ function deriveConstructability(
       .map((condition) => ({ category: "barrier" as const, condition })),
   ];
   const findings = [
+    ...(input.excavationSideAllowanceMetres < EXCAVATION_SIDE_ALLOWANCE_METRES
+      ? [
+          {
+            source: "user" as const,
+            evidenceId: "side_clearance_below_default",
+            category: "access_excavation" as const,
+            status: "needs_checking" as const,
+            label: "Needs checking — side clearance below 300 mm",
+          },
+        ]
+      : []),
     ...(input.routeFacts && !input.routeFacts.valid
       ? [
           {

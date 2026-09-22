@@ -8,6 +8,7 @@ import {
   type ReportDataSource,
 } from "@/modules/reporting/pool-feasibility-report";
 import {
+  formatReportGeneratedAt,
   reportConstructabilitySections,
   reportMapLegend,
   reportPoolShellClearances,
@@ -24,12 +25,12 @@ export function renderCanonicalPreliminaryReportHtml(
   report: SavedPreliminaryReport,
 ): string {
   const esc = (value: unknown) => escapeHtml(String(value ?? ""));
-  const generatedDate = formatDate(report.generatedAt);
+  const generatedDate = formatReportGeneratedAt(report.generatedAt);
   const poolDimensions = `${formatReportNumber(report.pool.lengthMetres)} x ${formatReportNumber(report.pool.widthMetres)} m`;
   const header = () => `
     <header class="report-header">
       <div class="report-brand"><strong>PoolReady</strong><span>Powered by Blue Haven</span></div>
-      <div class="report-heading"><strong>Preliminary Pool Feasibility Report</strong><h3>${esc(report.property.address)}</h3><div class="page-meta">${esc(generatedDate)}</div></div>
+      <div class="report-heading"><strong>Preliminary Feasibility Report</strong><h3>${esc(report.property.address)}</h3><div class="page-meta">${esc(generatedDate)}</div></div>
     </header>`;
   const continuationHeader = () => `
     <header class="continuation-header"><span>${esc(generatedDate)}</span><span>Preliminary Feasibility Report</span></header>`;
@@ -53,19 +54,13 @@ export function renderCanonicalPreliminaryReportHtml(
     .join("");
   const needsChecking = assessments
     .filter((item) => item.status === "unknown")
-    .map(
-      (item) =>
-        `<li><strong>${esc(item.title)}</strong><span>${esc(item.summary)}</span></li>`,
-    )
+    .map((item) => `<li><strong>${esc(item.title)}</strong></li>`)
     .join("");
   const constructabilitySections = reportConstructabilitySections(report)
     .map((section) => renderConstructabilitySection(section, esc))
     .join("");
   const keyFindings = report.keyFindings
-    .map(
-      (finding) =>
-        `<li><strong>${esc(finding.title)}</strong><br>${esc(finding.clientSummary)}</li>`,
-    )
+    .map((finding) => `<li><strong>${esc(finding.title)}</strong></li>`)
     .join("");
   const clearances = reportPoolShellClearances(report);
   const { entries: mapLegendEntries } = reportMapLegend(report);
@@ -112,118 +107,122 @@ export function renderCanonicalPreliminaryReportHtml(
     *{box-sizing:border-box}
     html,body{margin:0;background:var(--report-soft);color:var(--report-ink);font-family:Arial,Helvetica,sans-serif;-webkit-print-color-adjust:exact;print-color-adjust:exact}
     @page{size:A4;margin:0}
-    .page{width:210mm;height:297mm;padding:10mm 12mm 9mm;background:#fff;position:relative;break-after:page;break-inside:avoid;page-break-after:always;page-break-inside:avoid;overflow:hidden}
+    .page{width:210mm;height:297mm;padding:9mm 10mm 8mm;background:#fff;position:relative;break-after:page;break-inside:avoid;page-break-after:always;page-break-inside:avoid;overflow:hidden}
     .page+.page{break-before:page;page-break-before:always}
     .page:last-child{page-break-after:auto}
     .report-header{min-height:19mm;padding-bottom:3mm;border-bottom:.25mm solid var(--report-border);display:flex;gap:8mm;align-items:flex-start;justify-content:space-between;color:var(--report-muted);font-size:8pt}
     .report-brand{display:flex;flex-direction:column;gap:.8mm;flex-shrink:0;color:var(--report-ink)}
     .report-brand strong{font-size:18pt;line-height:1;font-weight:800;letter-spacing:-.035em}
-    .report-brand span{color:var(--report-muted);font-size:6.4pt;font-weight:600}
+    .report-brand span{color:var(--report-muted);font-size:8pt;font-weight:600}
     .report-heading{text-align:right;min-width:0;overflow-wrap:anywhere}
-    .report-heading>strong{display:block;color:var(--report-muted);font-size:8pt;font-weight:400;line-height:1.45}
-    .report-header h3{margin-top:1.2mm;color:var(--report-ink);font-size:11pt}
+    .report-heading>strong{display:block;color:var(--report-muted);font-size:8pt;font-weight:400;line-height:1.3}
+    .report-header h3{margin-top:1.2mm;color:var(--report-ink);font-size:12pt}
     .page-meta{margin-top:1mm;text-align:right;font-variant-numeric:tabular-nums;line-height:1.45}
-    .continuation-header{display:flex;align-items:center;justify-content:space-between;gap:8mm;padding-bottom:3mm;margin-bottom:4mm;border-bottom:.25mm solid var(--report-border);color:var(--report-muted);font-size:8pt;line-height:1.45}
+    .continuation-header{display:flex;align-items:center;justify-content:space-between;gap:8mm;padding-bottom:3mm;margin-bottom:4mm;border-bottom:.25mm solid var(--report-border);color:var(--report-muted);font-size:8pt;line-height:1.3}
     .continuation-header span:last-child{text-align:right}
-    .page-section-title{font-size:11pt}
+    .page-section-title{font-size:12pt}
     .page-section-title+.assessment-intro{margin-top:1.5mm}
-    footer{position:absolute;left:12mm;right:12mm;bottom:5mm;padding-top:2mm;border-top:.25mm solid var(--report-border);display:flex;justify-content:space-between;color:var(--report-muted);font-size:6.8pt}
+    footer{position:absolute;left:10mm;right:10mm;bottom:4mm;padding-top:2mm;border-top:.25mm solid var(--report-border);display:flex;justify-content:space-between;color:var(--report-muted);font-size:8pt}
     h1,h2,h3,p{margin:0}
     h1{font-size:21pt;line-height:1.1;letter-spacing:-.02em}
-    h2{font-size:13pt;line-height:1.2}
-    h3{font-size:8.4pt;line-height:1.25}
-    .primary-section-title{font-size:11pt;line-height:1.25;letter-spacing:0}
-    p,li{font-size:7.7pt;line-height:1.38}
+    h2{font-size:12pt;line-height:1.2}
+    h3{font-size:10pt;line-height:1.25}
+    .primary-section-title{font-size:12pt;line-height:1.25;letter-spacing:0}
+    p,li{font-size:8pt;line-height:1.3}
     .property-line{margin-top:4.5mm}
-    .property-line p{margin-top:1.5mm;color:var(--report-muted);font-size:8.4pt}
+    .property-line p{margin-top:1.5mm;color:var(--report-muted);font-size:8pt}
     .overall{margin-top:4mm;padding:2.6mm 0;border-top:.25mm solid var(--report-border);border-bottom:.25mm solid var(--report-border)}
     .overall.green,.status-text.green,.status-pill.green,.finding-dot.green{--state-border:oklch(89.3% 0.061 235);--state-soft:oklch(97.8% 0.014 235);--state-ink:oklch(40.1% 0.108 235)}
     .overall.amber,.status-text.amber,.status-pill.amber,.finding-dot.amber{--state-border:#fde68a;--state-soft:#fffbeb;--state-ink:#92400e}
     .overall.red,.status-text.red,.status-pill.red,.finding-dot.red{--state-border:#fecaca;--state-soft:#fef2f2;--state-ink:#991b1b}
     .overall.unknown,.status-text.unknown,.status-pill.unknown,.finding-dot.unknown{--state-border:var(--report-border);--state-soft:var(--report-soft);--state-ink:var(--report-muted)}
-    .overall .status-label{font-size:7.7pt;font-weight:700;color:var(--state-ink)}
-    .overall p{margin-top:1.2mm;width:100%;font-size:8.7pt;line-height:1.35}
-    .scope-note{margin-top:2.4mm;color:var(--report-muted);font-size:6.8pt;line-height:1.35}
-    .summary-map{height:145mm;margin:3mm 0 0;border:.25mm solid var(--report-border);border-radius:var(--radius);overflow:hidden;background:#edf2f4}
-    .summary-map .map-layout{height:137mm}
-    .summary-map .map-visual{height:106mm}
+    .overall .status-label{font-size:8pt;font-weight:700;color:var(--state-ink)}
+    .overall p{margin-top:1.2mm;width:100%;font-size:8pt;line-height:1.3}
+    .scope-note{margin-top:2mm;color:var(--report-muted);font-size:8pt;line-height:1.3}
+    .summary-map{height:124mm;margin:3mm 0 0;border:.25mm solid var(--report-border);border-radius:var(--radius);overflow:hidden;background:#edf2f4}
+    .summary-map .map-layout{height:116mm}
+    .summary-map .map-visual{height:80mm}
     .summary-map .map{height:100%}
     .section-heading{margin:4mm 0 2mm;display:flex;align-items:baseline;justify-content:space-between}
-    .section-heading span{font-size:7pt;color:var(--report-muted)}
+    .section-heading span{font-size:8pt;color:var(--report-muted)}
     .glance-grid{display:grid;grid-template-columns:1fr 1fr;border:.25mm solid var(--report-border);border-radius:var(--radius);overflow:hidden}
-    .glance-row{min-height:9mm;padding:2.1mm 3mm;display:flex;align-items:center;justify-content:space-between;gap:3mm;border-bottom:.25mm solid var(--report-border)}
+    .glance-row{min-height:10mm;padding:2mm 3mm;display:flex;align-items:center;justify-content:space-between;gap:3mm;border-bottom:.25mm solid var(--report-border)}
     .glance-row:nth-child(odd){border-right:.25mm solid var(--report-border)}
     .glance-row:nth-last-child(-n+2){border-bottom:0}
-    .glance-row>span{font-size:7.5pt;font-weight:700}
-    .status-text{font-size:6.8pt;color:var(--state-ink);text-align:right}
-    .map-layout{display:block;height:137mm;background:#dce5e9}
-    .map-visual{display:flex;min-width:0;height:106mm;min-height:0;background:#dce5e9}
+    .glance-row>span{font-size:8pt;font-weight:700}
+    .status-text{font-size:8pt;color:var(--state-ink);text-align:right}
+    .map-layout{display:block;height:116mm;background:#dce5e9}
+    .map-visual{display:flex;min-width:0;height:80mm;min-height:0;background:#dce5e9}
     .map{display:block;width:100%;height:100%;min-height:0;flex:1 1 auto;object-fit:cover;background:#dce5e9}
-    .map-caption{padding:1.8mm 2.8mm;background:var(--report-soft);border-top:.25mm solid var(--report-border);color:var(--report-muted);font-size:6.2pt;line-height:1.35}
-    .map-legend{height:31mm;padding:2mm 2.8mm;background:#fff;border-top:.25mm solid var(--report-border);color:var(--report-ink);overflow:hidden;display:grid;grid-template-columns:38mm 48mm minmax(0,1fr);gap:3mm}
-    .map-legend h3,.map-clearances h3{font-size:7.2pt;line-height:1.2}
-    .map-legend-intro{margin-top:.8mm;color:var(--report-muted);font-size:5.4pt;line-height:1.3}
+    .map-caption{padding:1.4mm 2.8mm;background:var(--report-soft);border-top:.25mm solid var(--report-border);color:var(--report-muted);font-size:8pt;line-height:1.25}
+    .map-legend{height:36mm;padding:2mm 2.8mm;background:#fff;border-top:.25mm solid var(--report-border);color:var(--report-ink);overflow:hidden;display:grid;grid-template-columns:36mm 45mm minmax(0,1fr);gap:3mm}
+    .map-legend h3,.map-clearances h3{font-size:8pt;line-height:1.2}
+    .map-legend-intro{margin-top:.8mm;color:var(--report-muted);font-size:8pt;line-height:1.25}
     .map-legend-list{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:2.5mm;align-content:start}
     .map-legend-item{display:flex;gap:1.2mm;padding:.7mm 0;border-top:.2mm solid var(--report-border);min-width:0}
     .map-legend-item:nth-child(-n+3){border-top:0;padding-top:0}
     .map-legend-swatch{width:5mm;flex:0 0 5mm;margin-top:1.2mm;border-top:.6mm solid var(--report-ink)}
     .map-legend-swatch.area{height:2.6mm;margin-top:.65mm;border:.4mm solid var(--report-ink);background:#fff}
-    .map-legend-copy{min-width:0;font-size:5.5pt;line-height:1.2}
-    .map-legend-copy strong{display:block;font-size:6pt}
+    .map-legend-copy{min-width:0;font-size:8pt;line-height:1.15}
+    .map-legend-copy strong{display:block;font-size:8pt}
     .map-legend-copy span{display:block;margin-top:.2mm;color:var(--report-muted)}
     .map-clearances{margin:0;padding:0;color:var(--report-muted)}
-    .map-clearances ul{display:grid;grid-template-columns:1fr 1fr;gap:.6mm 1mm;margin:1mm 0 0;padding:0;list-style:none;font-size:5.5pt;font-weight:700;line-height:1.2}
-    .map-clearances p{margin-top:.8mm;color:var(--report-muted);font-size:5pt;line-height:1.25}
+    .map-clearances ul{display:grid;grid-template-columns:1fr 1fr;gap:.6mm 1mm;margin:1mm 0 0;padding:0;list-style:none;font-size:8pt;font-weight:700;line-height:1.2}
+    .map-clearances p{margin-top:.8mm;color:var(--report-muted);font-size:8pt;line-height:1.2}
     .assessment-intro{margin-top:4.5mm;max-width:150mm;color:var(--report-muted)}
-    .assessment-grid{margin-top:3mm;display:grid;grid-template-columns:1fr 1fr;gap:2mm;align-items:start}
-    .assessment-card{break-inside:avoid;padding:2.2mm 2.5mm;border:.25mm solid var(--report-border);border-radius:var(--radius)}
+    .assessment-grid{margin-top:2mm;display:grid;grid-template-columns:1fr 1fr;gap:1.5mm;align-items:start}
+    .assessment-card{break-inside:avoid;padding:1.8mm 2mm;border:.25mm solid var(--report-border);border-radius:var(--radius)}
     .assessment-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:3mm}
-    .assessment-card h2,.later h2,.plain-section h2,.disclaimer h2{font-size:11pt;line-height:1.25}
-    .status-pill{max-width:43mm;color:var(--state-ink);font-size:6.2pt;font-weight:700;text-align:right}
+    .assessment-card h2{font-size:12pt;line-height:1.25}
+    .later h2,.plain-section h2,.disclaimer h2{font-size:12pt;line-height:1.25}
+    .status-pill{max-width:50mm;color:var(--state-ink);font-size:8pt;font-weight:700;text-align:right}
     .assessment-card>p{margin-top:1.5mm;color:var(--report-muted)}
     .detail-list{margin:1.5mm 0 0;padding:0;list-style:none}
-    .detail-list li{display:flex;justify-content:space-between;gap:3mm;padding-top:1mm;border-top:.2mm solid var(--report-border);font-size:6.8pt}
+    .detail-list li{display:flex;justify-content:space-between;gap:3mm;padding-top:1mm;border-top:.2mm solid var(--report-border);font-size:8pt}
     .detail-list strong{text-align:right}
-    .constructability{margin-top:2.5mm}
-    .constructability>h2{font-size:10pt}
-    .constructability-grid{margin-top:1.5mm;display:grid;grid-template-columns:1fr 1fr 1fr;gap:1.6mm;align-items:start}
-    .constructability-card{break-inside:avoid;padding:2mm;border:.25mm solid var(--report-border);border-radius:var(--radius)}
+    .constructability{margin-top:1.8mm}
+    .constructability>h2{font-size:12pt}
+    .constructability-grid{margin-top:1.2mm;display:grid;grid-template-columns:1fr 1fr;gap:1.2mm;align-items:start}
+    .constructability-card{--card-heading-size:12pt;--card-body-size:8pt;break-inside:avoid;padding:1.6mm;border:.25mm solid var(--report-border);border-radius:var(--radius)}
+    .constructability-card.access_excavation{grid-column:1/-1}
     .constructability-card.needs_checking{--state-ink:#92400e}
     .constructability-card.not_fully_assessed{--state-ink:var(--report-muted)}
     .constructability-card.no_obvious_concern{--state-ink:oklch(40.1% 0.108 235)}
-    .constructability-card h3{font-size:8pt}
-    .constructability-status{margin-top:.8mm;color:var(--state-ink);font-size:6.3pt;font-weight:700}
-    .constructability-summary,.constructability-boundary,.constructability-note{margin-top:.8mm;color:var(--report-muted);font-size:5.8pt;line-height:1.25}
-    .constructability-details,.constructability-evidence,.excavation-scenarios{margin:1mm 0 0;padding:0;list-style:none}
-    .constructability-details li,.constructability-evidence li,.excavation-scenarios li{margin-top:.55mm;font-size:5.7pt;line-height:1.25}
+    .constructability-card h3,.constructability-card h4{font-size:var(--card-heading-size);line-height:1.2}
+    .constructability-status{margin-top:.5mm;color:var(--state-ink);font-size:var(--card-body-size);font-weight:700;line-height:1.15}
+    .constructability-summary,.constructability-boundary,.constructability-note{margin-top:.5mm;color:var(--report-muted);font-size:var(--card-body-size);line-height:1.15}
+    .constructability-details,.constructability-evidence,.excavation-scenarios{margin:.6mm 0 0;padding:0;list-style:none}
+    .constructability-details li,.constructability-evidence li,.excavation-scenarios li{margin-top:.35mm;font-size:var(--card-body-size);line-height:1.15;break-inside:avoid}
     .constructability-evidence strong{color:var(--report-ink)}
-    .constructability-note{padding:.8mm;background:var(--report-soft)}
-    .excavation{margin-top:1.2mm;padding-top:1mm;border-top:.2mm solid var(--report-border)}
-    .excavation h4{font-size:6.6pt}
-    .excavation p{margin-top:.6mm;color:var(--report-muted);font-size:5.5pt;line-height:1.22}
+    .constructability-note{padding:.6mm;background:var(--report-soft)}
+    .access-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:2.5mm;align-items:start}
+    .access-layout>div{columns:2;column-gap:2.5mm;column-fill:balance}
+    .excavation{margin-top:.6mm;padding-top:.6mm;border-top:.2mm solid var(--report-border)}
+    .excavation p{margin-top:.4mm;color:var(--report-muted);font-size:var(--card-body-size);line-height:1.15}
     .excavation a{color:var(--report-blue)}
-    .needs-checking{margin-top:2.5mm;padding:2.5mm 3mm;background:var(--report-soft);border-radius:var(--radius)}
-    .needs-checking h2{font-size:10pt}
-    .needs-checking ul{margin:1.5mm 0 0;padding:0;list-style:none;display:grid;grid-template-columns:1fr 1fr;gap:1mm 5mm}
-    .needs-checking li{display:flex;gap:1.5mm;font-size:6.5pt;line-height:1.3}
+    .needs-checking{margin-top:1mm;padding:1mm 1.5mm;background:var(--report-soft);border-radius:var(--radius)}
+    .needs-checking h2{font-size:12pt}
+    .needs-checking ul{margin:.5mm 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.4mm 3mm}
+    .needs-checking li{display:block;font-size:8pt;line-height:1.15}
     .needs-checking li strong{flex:0 0 auto}
     .needs-checking li span{color:var(--report-muted)}
-    .later{margin-top:2mm;padding:2.5mm 3mm;background:var(--report-soft);border-radius:var(--radius)}
+    .later{margin-top:1mm;padding:1mm 1.5mm;background:var(--report-soft);border-radius:var(--radius)}
     .later ul{columns:2;column-gap:8mm;margin:1.5mm 0 0;padding-left:4mm}
-    .later li{break-inside:avoid;margin-bottom:.7mm;font-size:6.8pt}
+    .later li{break-inside:avoid;margin-bottom:.4mm;font-size:8pt;line-height:1.15}
+    .page-two-bottom{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:1.5mm;align-items:start}
     .recommended-stage{margin-top:3mm;padding:4mm 5mm;background:var(--report-ink);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:5mm}
-    .recommended-stage h2{font-size:8pt;font-weight:400}
+    .recommended-stage h2{font-size:12pt}
     .recommended-stage strong{font-size:12pt;text-align:right}
     .page-three-grid{margin-top:5mm;display:grid;grid-template-columns:100mm minmax(0,1fr);gap:5mm;align-items:start}
     .plain-section{border-top:.4mm solid var(--report-ink);padding-top:2.5mm}
     .plain-section ul{margin:2mm 0 0;padding-left:4mm}
-    .plain-section li{margin-bottom:1mm;font-size:7pt}
+    .plain-section li{margin-bottom:1mm;font-size:8pt}
     .mapping-summary{margin-top:2mm;color:var(--report-muted)}
     .source-list{margin:1.5mm 0 0;padding-left:4mm}
-    .source-item{margin-bottom:.8mm;font-size:7pt;line-height:1.3;overflow-wrap:anywhere}
+    .source-item{margin-bottom:.8mm;font-size:8pt;line-height:1.3;overflow-wrap:anywhere}
     .source-item a{color:var(--report-blue)}
     .disclaimer{margin-top:4mm;padding:3.5mm;background:var(--report-soft);border-radius:var(--radius);color:var(--report-muted)}
-    .disclaimer p{margin-top:1.5mm;font-size:7pt}
+    .disclaimer p{margin-top:1.5mm;font-size:8pt}
   </style>
 </head>
 <body>
@@ -257,8 +256,7 @@ export function renderCanonicalPreliminaryReportHtml(
     <p class="assessment-intro">These findings use the mapped information saved with this report. Distances and boundaries are indicative, not surveyed.</p>
     ${assessmentCards ? `<div class="assessment-grid">${assessmentCards}</div>` : ""}
     <section class="constructability"><h2>Site constructability</h2><div class="constructability-grid">${constructabilitySections}</div></section>
-    ${needsChecking ? `<section class="needs-checking"><h2>Still needs checking</h2><ul>${needsChecking}</ul></section>` : ""}
-    ${keyFindings ? `<section class="later"><h2>Key findings</h2><ul>${keyFindings}</ul></section>` : ""}
+    ${needsChecking || keyFindings ? `<div class="page-two-bottom">${needsChecking ? `<section class="needs-checking"><h2>Still needs checking</h2><ul>${needsChecking}</ul></section>` : ""}${keyFindings ? `<section class="later"><h2>Key findings</h2><ul>${keyFindings}</ul></section>` : ""}</div>` : ""}
     ${footer(2)}
   </section>
 
@@ -322,6 +320,10 @@ function renderConstructabilitySection(
   section: ReportConstructabilitySection,
   esc: (value: unknown) => string,
 ): string {
+  if (section.id === "access_excavation") {
+    return renderAccessAndExcavationSection(section, esc);
+  }
+
   const details = section.details
     .map(
       (detail) =>
@@ -337,7 +339,45 @@ function renderConstructabilitySection(
   const excavation = section.excavation
     ? `<section class="excavation"><h4>${esc(section.excavation.heading)}</h4><ul class="excavation-scenarios">${section.excavation.scenarios.map((scenario) => `<li><strong>${esc(scenario.label)}:</strong> ${esc(scenario.formattedValue)}</li>`).join("")}</ul><p>${esc(section.excavation.rangeDisclosure)}</p><p>${esc(section.excavation.exclusions)}</p><p>${esc(section.excavation.terrainLabel)}</p>${section.excavation.specialistDepthWarning ? `<p><strong>${esc(section.excavation.specialistDepthWarning)}</strong></p>` : ""}<p>Assumption ${esc(section.excavation.assumptionId)}. <a href="${esc(section.excavation.sourceUrl)}">Firth masonry guidance</a>. ${esc(section.excavation.assumptionDisclosure)}</p></section>`
     : "";
-  return `<article class="constructability-card ${esc(section.status)}"><h3>${esc(section.title)}</h3><p class="constructability-status">${esc(section.statusLabel)}</p><p class="constructability-summary">${esc(section.summary)}</p>${details ? `<ul class="constructability-details">${details}</ul>` : ""}${evidence ? `<ul class="constructability-evidence">${evidence}</ul>` : ""}${section.provenanceNote ? `<p class="constructability-note">${esc(section.provenanceNote)}</p>` : ""}${excavation}<p class="constructability-boundary">${esc(section.boundary)}</p></article>`;
+  return `<article class="constructability-card ${esc(section.id)} ${esc(section.status)}"><h3>${esc(section.title)}</h3><p class="constructability-status">${esc(section.statusLabel)}</p><p class="constructability-summary">${esc(section.summary)}</p>${details ? `<ul class="constructability-details">${details}</ul>` : ""}${evidence ? `<ul class="constructability-evidence">${evidence}</ul>` : ""}${section.provenanceNote ? `<p class="constructability-note">${esc(section.provenanceNote)}</p>` : ""}${excavation}<p class="constructability-boundary">${esc(section.boundary)}</p></article>`;
+}
+
+function renderAccessAndExcavationSection(
+  section: ReportConstructabilitySection,
+  esc: (value: unknown) => string,
+): string {
+  const details = section.details
+    .filter((detail) =>
+      [
+        "Estimated pool depth",
+        "Saved route",
+        "Route length",
+        "Steepest route gradient",
+      ].includes(detail.label),
+    )
+    .map(
+      (detail) =>
+        `<li><strong>${esc(detail.label)}:</strong> ${esc(detail.value)}</li>`,
+    )
+    .join("");
+  const evidenceByProvenance = new Map<string, string[]>();
+  for (const item of section.evidence) {
+    if (item.provenance === "Saved assumption") continue;
+    const descriptions = evidenceByProvenance.get(item.provenance) ?? [];
+    descriptions.push(item.description);
+    evidenceByProvenance.set(item.provenance, descriptions);
+  }
+  const evidence = Array.from(evidenceByProvenance)
+    .map(
+      ([provenance, descriptions]) =>
+        `<li><strong>${esc(provenance)}:</strong> ${esc(descriptions.join("; "))}</li>`,
+    )
+    .join("");
+  const excavation = section.excavation
+    ? `<section class="excavation" data-assumption-id="${esc(section.excavation.assumptionId)}" data-source-url="${esc(section.excavation.sourceUrl)}"><h4>Indicative excavation</h4><ul class="excavation-scenarios">${section.excavation.scenarios.map((scenario) => `<li><strong>${esc(scenario.label)}:</strong> ${esc(scenario.formattedValue)}</li>`).join("")}</ul><p>${esc(section.excavation.clearanceDisclosure)}</p><p>${esc(section.excavation.terrainLabel)}.</p><p>This planning estimate does not include extra depth, footings, drainage, slopes or site support.</p></section>`
+    : "";
+
+  return `<article class="constructability-card access_excavation ${esc(section.status)}"><h3>${esc(section.title)}</h3><p class="constructability-status">${esc(section.statusLabel)}</p><p class="constructability-summary">${esc(section.summary)}</p><div class="access-layout"><div>${details ? `<ul class="constructability-details">${details}</ul>` : ""}${evidence ? `<ul class="constructability-evidence">${evidence}</ul>` : ""}${section.provenanceNote ? `<p class="constructability-note">${esc(section.provenanceNote)}</p>` : ""}</div>${excavation}</div><p class="constructability-boundary">Confirm access, excavation and ground conditions onsite before construction.</p></article>`;
 }
 
 function reportMappingSources(

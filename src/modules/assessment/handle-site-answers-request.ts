@@ -25,6 +25,7 @@ const requestSchema = z
     assessmentSnapshot: z.string().min(32).max(5_500_000),
     accessConditions: constructabilityAnswersSchema.shape.accessConditions,
     nearbyFeatures: constructabilityAnswersSchema.shape.nearbyFeatures,
+    sideClearanceMillimetres: z.number().int().min(200).max(600).default(300),
     routeResponse: z.enum(["confirm", "adjust", "not_sure"]).optional(),
     adjustedRoute:
       constructabilityAnswersSchema.shape.route.shape.geometry.optional(),
@@ -87,6 +88,7 @@ export async function handleSiteAnswersRequest(
         snapshot.lockedEstimatedDepthMetres ??
         previous?.answers.estimatedDepthMetres ??
         DEFAULT_ESTIMATED_POOL_DEPTH_METRES,
+      excavationSideAllowanceMetres: parsed.sideClearanceMillimetres / 1_000,
       route,
       accessConditions: parsed.accessConditions,
       nearbyFeatures: parsed.nearbyFeatures,

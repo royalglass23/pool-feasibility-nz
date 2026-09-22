@@ -17,6 +17,24 @@ const answers = {
 } satisfies import("@/modules/assessment/constructability-evidence").ConstructabilityAnswers;
 
 describe("constructability evidence", () => {
+  it("marks a side clearance below the 300 mm starting point as Needs checking", () => {
+    const snapshot = buildConstructabilitySnapshot({
+      answers: {
+        ...answers,
+        excavationSideAllowanceMetres: 0.2,
+      },
+    });
+
+    expect(snapshot.overallStatus).toBe("needs_checking");
+    expect(snapshot.findings).toContainEqual({
+      source: "user",
+      evidenceId: "side_clearance_below_default",
+      category: "access_excavation",
+      status: "needs_checking",
+      label: "Needs checking — side clearance below 300 mm",
+    });
+  });
+
   it("round-trips a user supplied line and its route facts in the saved report payload", () => {
     const suggestedRoute = {
       type: "LineString" as const,
@@ -324,7 +342,7 @@ describe("constructability evidence", () => {
       JSON.parse(JSON.stringify(snapshot)),
     );
     expect(saved.excavationGeometry).toMatchObject({
-      assumptionId: "firth-masonry-side-300mm-v1",
+      assumptionId: "user-selected-side-clearance-v1",
       poolOutlineCubicMetres: 27,
       sideAllowanceCubicMetres: 35.64,
     });

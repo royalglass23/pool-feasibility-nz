@@ -176,6 +176,7 @@ test("saves and reproduces the complete public constructability journey through 
     await startJourney(page, 1.5);
     await answerSiteQuestions(page, {
       accessCondition: "Gate or narrow passage",
+      sideClearanceMillimetres: 200,
     });
     const secondForm = page.locator(
       'form[aria-labelledby="homeowner-details-heading"]',
@@ -193,6 +194,13 @@ test("saves and reproduces the complete public constructability journey through 
     expect(secondPersisted!.constructability).toMatchObject({
       version: 1,
       estimatedDepthMetres: 1.5,
+      excavationSideAllowanceMetres: 0.2,
+      excavationGeometry: {
+        version: 2,
+        assumptionId: "user-selected-side-clearance-v1",
+        sideAllowanceMetres: 0.2,
+        selectionSource: "user_adjusted",
+      },
       overallStatus: "needs_checking",
       userEvidence: expect.arrayContaining([
         { category: "access_excavation", condition: "gate_or_narrow_passage" },

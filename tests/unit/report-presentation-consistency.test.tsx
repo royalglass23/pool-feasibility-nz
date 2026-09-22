@@ -321,7 +321,7 @@ describe("web, PDF and email report consistency", () => {
     expect(pdfHtml).toContain("Your Site answer");
     expect(pdfHtml).toContain("27.00 m³");
     expect(pdfHtml).toContain("35.64 m³");
-    expect(pdfHtml).toContain("firth-masonry-side-300mm-v1");
+    expect(pdfHtml).toContain("user-selected-side-clearance-v1");
     expect(pdfHtml).toContain("FIR0744-Masonry-Swimming-Pools.pdf");
     expect(pdfHtml).toContain(
       "Base geometry estimate only — terrain adjustment unavailable",

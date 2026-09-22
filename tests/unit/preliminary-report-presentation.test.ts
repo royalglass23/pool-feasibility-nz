@@ -112,6 +112,7 @@ describe("reportExcavationGeometry", () => {
         answers: {
           version: 1,
           estimatedDepthMetres: 1.5,
+          excavationSideAllowanceMetres: 0.2,
           route: { provenance: "uncertain", geometry: null },
           accessConditions: ["none_of_these"],
           nearbyFeatures: ["none_of_these"],
@@ -133,17 +134,19 @@ describe("reportExcavationGeometry", () => {
           formattedValue: "27.00 m³",
         },
         {
-          id: "300mm-side-allowance",
-          label: "300 mm side-allowance scenario",
-          valueCubicMetres: 35.64,
-          formattedValue: "35.64 m³",
+          id: "selected-side-clearance",
+          label: "200 mm selected side-clearance scenario",
+          valueCubicMetres: 32.64,
+          formattedValue: "32.64 m³",
         },
       ],
-      assumptionId: "firth-masonry-side-300mm-v1",
+      assumptionId: "user-selected-side-clearance-v1",
       sourceUrl:
         "https://www.firth.co.nz/assets/Uploads/Resources/Documents/FIR0744-Masonry-Swimming-Pools.pdf",
+      clearanceDisclosure:
+        "200 mm was selected for planning. It is not approved for the selected pool; PoolReady’s provisional 300 mm starting point is Firth-derived.",
       assumptionDisclosure: expect.stringMatching(
-        /300 mm added on each side.*outside masonry wall.*temporary PoolReady proxy/i,
+        /200 mm added on each side.*selected by the user.*not sourced from Firth.*300 mm starting point/i,
       ),
       rangeDisclosure: expect.stringMatching(
         /geometry scenarios.*not an upper bound.*actual excavation/i,
@@ -311,7 +314,7 @@ describe("reportConstructabilitySections", () => {
         { label: "Route length", value: "18.4 m" },
       ]),
       excavation: expect.objectContaining({
-        assumptionId: "firth-masonry-side-300mm-v1",
+        assumptionId: "user-selected-side-clearance-v1",
         specialistDepthWarning:
           "Specialist depth — professional confirmation required",
         terrainLabel:

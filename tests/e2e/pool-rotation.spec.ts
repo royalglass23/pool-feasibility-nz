@@ -154,7 +154,7 @@ test("report image excludes the rotate button while the live map keeps it visibl
   const liveButton = await control.screenshot();
   expect(await whiteFraction(liveButton)).toBeGreaterThan(0.4);
 
-  await answerSiteQuestions(page);
+  await answerSiteQuestions(page, { sideClearanceMillimetres: 200 });
 
   const form = page.getByRole("form", {
     name: "Your details for the preliminary report",
