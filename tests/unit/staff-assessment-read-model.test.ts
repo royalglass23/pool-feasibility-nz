@@ -299,7 +299,27 @@ describe("staff assessment read model", () => {
     ).resolves.toMatchObject({
       visitorType: null,
       visitorTypeOtherDetail: null,
+      reportAudience: "homeowner",
       desiredTimingOtherDetail: null,
+    });
+  });
+
+  it("exposes the persisted report audience independently of legacy visitor display state", async () => {
+    const row = assessmentRow({ visitorType: "homeowner" });
+    row.reportData = {
+      ...(row.reportData as Record<string, unknown>),
+      reportAudience: "pool_builder",
+    };
+    const findFirst = vi.fn().mockResolvedValue(row);
+    const db = {
+      query: { homeownerAssessments: { findFirst } },
+    } as unknown as Parameters<typeof getHomeownerAssessmentById>[0];
+
+    await expect(
+      getHomeownerAssessmentById(db, "assessment-1"),
+    ).resolves.toMatchObject({
+      visitorType: "homeowner",
+      reportAudience: "pool_builder",
     });
   });
 });

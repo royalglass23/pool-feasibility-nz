@@ -24,6 +24,7 @@ import {
   type StaffAssessmentRecord,
   type StaffAssessmentSummary,
 } from "@/modules/staff/staff-assessment-read-model";
+import { resolveLegacyReportAudience } from "@/modules/assessment/report-audience";
 
 type Database = NeonHttpDatabase<typeof schema>;
 const DELIVERY_CLAIM_STALE_MS = 5 * 60 * 1_000;
@@ -98,6 +99,7 @@ export async function getHomeownerAssessmentById(
       homeownerAddress: true,
       visitorType: true,
       visitorTypeOtherDetail: true,
+      reportData: true,
       desiredTiming: true,
       desiredTimingOtherDetail: true,
       additionalInfo: true,
@@ -131,6 +133,13 @@ export async function getHomeownerAssessmentById(
             assessment.visitorType,
           ),
     visitorTypeOtherDetail: assessment.visitorTypeOtherDetail,
+    reportAudience:
+      persistedAssessmentSubmissionSchema.shape.report.shape.reportData.parse(
+        assessment.reportData,
+      ).reportAudience ??
+      resolveLegacyReportAudience(
+        assessment.visitorType as "homeowner" | "pool_builder" | "other" | null,
+      ),
     desiredTiming:
       persistedAssessmentSubmissionSchema.shape.homeowner.shape.desiredTiming.parse(
         assessment.desiredTiming,
@@ -169,6 +178,8 @@ export async function getSavedPreliminaryReportById(db: Database, id: string) {
     reference: assessment.reference,
     createdAt: assessment.createdAt.toISOString(),
     submission: submissionFromRow(assessment, assessment.reportMapImageDataUrl),
+    legacyVisitorType: assessment.visitorType as
+      "homeowner" | "pool_builder" | "other" | null,
   });
 }
 
@@ -457,6 +468,13 @@ async function claimAssessmentDelivery(
     );
     return null;
   }
+  const report = buildSavedPreliminaryReport({
+    reference: assessment.reference,
+    createdAt: assessment.createdAt.toISOString(),
+    submission: submissionFromRow(assessment, assessment.reportMapImageDataUrl),
+    legacyVisitorType: assessment.visitorType as
+      "homeowner" | "pool_builder" | "other" | null,
+  });
 
   return {
     channel,
@@ -477,14 +495,7 @@ async function claimAssessmentDelivery(
       ),
     desiredTimingOtherDetail: assessment.desiredTimingOtherDetail,
     additionalInfo: assessment.additionalInfo,
-    report: buildSavedPreliminaryReport({
-      reference: assessment.reference,
-      createdAt: assessment.createdAt.toISOString(),
-      submission: submissionFromRow(
-        assessment,
-        assessment.reportMapImageDataUrl,
-      ),
-    }),
+    report,
   };
 }
 

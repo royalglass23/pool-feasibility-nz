@@ -139,6 +139,8 @@ test("saves and reproduces the complete public constructability journey through 
 
     const firstPersisted = await getSavedPreliminaryReportById(db, first.id);
     expect(firstPersisted).not.toBeNull();
+    expect(firstPersisted!.reportAudience).toBe("homeowner");
+    expect(first.response.report.reportAudience).toBe("homeowner");
     expect(firstPersisted!.constructability).toEqual(
       first.response.report.constructability,
     );
@@ -188,6 +190,8 @@ test("saves and reproduces the complete public constructability journey through 
 
     const secondPersisted = await getSavedPreliminaryReportById(db, second.id);
     expect(secondPersisted).not.toBeNull();
+    expect(secondPersisted!.reportAudience).toBe("pool_builder");
+    expect(second.response.report.reportAudience).toBe("pool_builder");
     expect(secondPersisted!.constructability).toEqual(
       second.response.report.constructability,
     );

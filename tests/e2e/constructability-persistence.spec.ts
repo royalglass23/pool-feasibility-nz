@@ -30,6 +30,8 @@ test("persists mapped, user, conflicting, and audience-equivalent constructabili
   try {
     const mapped = await saveScenario(request, {
       visitorType: "homeowner",
+      verifyAudienceSecurity: true,
+      verifyRetry: true,
       answers: answers(["none_of_these"]),
       evidence: evidence([
         {
@@ -59,6 +61,7 @@ test("persists mapped, user, conflicting, and audience-equivalent constructabili
         }),
       ]),
     });
+    expect(mappedReport?.reportAudience).toBe("homeowner");
 
     const conflict = await saveScenario(request, {
       visitorType: "homeowner",
@@ -115,6 +118,8 @@ test("persists mapped, user, conflicting, and audience-equivalent constructabili
     expect(homeownerReport?.constructability).toEqual(
       builderReport?.constructability,
     );
+    expect(homeownerReport?.reportAudience).toBe("homeowner");
+    expect(builderReport?.reportAudience).toBe("pool_builder");
     expect(homeownerReport?.constructability).toMatchObject({
       version: 1,
       overallStatus: "needs_checking",
@@ -177,6 +182,8 @@ async function saveScenario(
   request: APIRequestContext,
   input: {
     visitorType: "homeowner" | "pool_builder";
+    verifyAudienceSecurity?: boolean;
+    verifyRetry?: boolean;
     answers: ConstructabilityAnswers;
     evidence: TrustedConstructabilityEvidence;
   },
@@ -196,34 +203,85 @@ async function saveScenario(
   expect(siteAnswersResponse.status(), JSON.stringify(siteAnswersBody)).toBe(
     200,
   );
-  const response = await request.post("/api/public/assessments", {
-    data: {
-      assessmentSnapshot: siteAnswersBody.assessmentSnapshot,
-      constructability: siteAnswersBody.answers,
-      mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
-      mapVisibleLayerKeys: [],
-      poolLayout: {
-        lengthMetres: 6.5,
-        widthMetres: 3,
-        rotationDegrees: 0,
-        position: [174.6082, -36.8603],
-        clearancesVisible: true,
-      },
-      homeowner: {
-        name: "Synthetic Release Evidence",
-        phone: "021 555 0345",
-        email: "rg345-evidence@example.test",
-        visitorType: input.visitorType,
-        desiredTiming: "asap",
-        consentGiven: true,
+  const audienceResponse = await request.post(
+    "/api/public/assessment-snapshot/audience",
+    {
+      data: {
+        assessmentSnapshot: siteAnswersBody.assessmentSnapshot,
+        reportAudience: input.visitorType,
       },
     },
+  );
+  const audienceBody = await audienceResponse.json();
+  expect(audienceResponse.status(), JSON.stringify(audienceBody)).toBe(200);
+
+  if (input.verifyAudienceSecurity) {
+    const conflictingAudienceResponse = await request.post(
+      "/api/public/assessment-snapshot/audience",
+      {
+        data: {
+          assessmentSnapshot: audienceBody.assessmentSnapshot,
+          reportAudience: "pool_builder",
+        },
+      },
+    );
+    expect(conflictingAudienceResponse.status()).toBe(400);
+  }
+
+  const submissionData = {
+    assessmentSnapshot: audienceBody.assessmentSnapshot,
+    constructability: siteAnswersBody.answers,
+    mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
+    mapVisibleLayerKeys: [],
+    poolLayout: {
+      lengthMetres: 6.5,
+      widthMetres: 3,
+      rotationDegrees: 0,
+      position: [174.6082, -36.8603],
+      clearancesVisible: true,
+    },
+    homeowner: {
+      name: "Synthetic Release Evidence",
+      phone: "021 555 0345",
+      email: "rg345-evidence@example.test",
+      visitorType: input.visitorType,
+      desiredTiming: "asap",
+      consentGiven: true,
+    },
+  };
+
+  if (input.verifyAudienceSecurity) {
+    const tamperedResponse = await request.post("/api/public/assessments", {
+      data: {
+        ...submissionData,
+        homeowner: {
+          ...submissionData.homeowner,
+          visitorType: "pool_builder",
+        },
+      },
+    });
+    expect(tamperedResponse.status()).toBe(400);
+  }
+
+  const response = await request.post("/api/public/assessments", {
+    data: submissionData,
   });
   const body = await response.json();
   expect(response.status(), JSON.stringify(body)).toBe(201);
   expect(body.assessment.report.constructability).toMatchObject({
     estimatedDepthMetres: input.answers.estimatedDepthMetres,
   });
+  expect(body.assessment.report.reportAudience).toBe(input.visitorType);
+
+  if (input.verifyRetry) {
+    const retryResponse = await request.post("/api/public/assessments", {
+      data: submissionData,
+    });
+    const retryBody = await retryResponse.json();
+    expect(retryResponse.status(), JSON.stringify(retryBody)).toBe(200);
+    expect(retryBody.assessment.id).toBe(body.assessment.id);
+    expect(retryBody.assessment.report.reportAudience).toBe(input.visitorType);
+  }
   return { id: body.assessment.id as string };
 }
 

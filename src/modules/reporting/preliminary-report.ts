@@ -7,8 +7,14 @@ import {
   type ReportDataSource,
 } from "@/modules/reporting/pool-feasibility-report";
 import { renderCanonicalPreliminaryReportHtml } from "@/modules/reporting/preliminary-report-html";
+import {
+  resolveLegacyReportAudience,
+  type ReportAudience,
+} from "@/modules/assessment/report-audience";
+import type { VisitorType } from "@/modules/assessment/visitor-type";
 
 export type SavedPreliminaryReport = {
+  reportAudience: ReportAudience;
   reference: string;
   generatedAt: string;
   title: string;
@@ -130,10 +136,12 @@ export function buildSavedPreliminaryReport({
   submission,
   reference,
   createdAt,
+  legacyVisitorType,
 }: {
   submission: SavedPreliminaryReportSource;
   reference: string;
   createdAt: string;
+  legacyVisitorType?: VisitorType | null;
 }): SavedPreliminaryReport {
   const reportData = submission.report.reportData;
   const snapshot = reportData.assessmentSnapshot ?? null;
@@ -168,6 +176,9 @@ export function buildSavedPreliminaryReport({
   );
   return {
     ...canonical,
+    reportAudience:
+      reportData.reportAudience ??
+      resolveLegacyReportAudience(legacyVisitorType),
     overall:
       canonical.overall.status === "red"
         ? canonical.overall

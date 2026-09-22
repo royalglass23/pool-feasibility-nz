@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { PersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
+import type { ReportAudience } from "@/modules/assessment/report-audience";
 
 export type StaffFeasibilityState =
   PersistedAssessmentSubmission["report"]["feasibilityState"];
@@ -53,6 +54,7 @@ export type StaffAssessmentRecord = {
   homeownerAddress: string;
   visitorType: PersistedAssessmentSubmission["homeowner"]["visitorType"] | null;
   visitorTypeOtherDetail: string | null;
+  reportAudience: ReportAudience;
   desiredTiming: PersistedAssessmentSubmission["homeowner"]["desiredTiming"];
   desiredTimingOtherDetail: string | null;
   additionalInfo: string | null;

@@ -10,6 +10,7 @@ import {
   type TrustedConstructabilitySubmission,
 } from "./constructability-evidence";
 import { estimatedPoolDepthSchema } from "./estimated-pool-depth";
+import { reportAudienceSchema, type ReportAudience } from "./report-audience";
 
 const ASSESSMENT_SNAPSHOT_TTL_MS = 15 * 60 * 1_000;
 const snapshotGlobal = globalThis as typeof globalThis & {
@@ -24,6 +25,7 @@ export type TrustedAssessmentSnapshot = {
   expiresAt: number;
   constructability?: TrustedConstructabilitySubmission;
   lockedEstimatedDepthMetres?: number;
+  reportAudience?: ReportAudience;
 };
 
 export function issueAssessmentSnapshot(
@@ -47,6 +49,16 @@ export function attachConstructabilityAnswers(
   return configuredSnapshotService().attachConstructability(
     snapshot,
     constructability,
+  );
+}
+
+export function attachReportAudience(
+  snapshot: TrustedAssessmentSnapshot,
+  reportAudience: ReportAudience,
+): string {
+  return configuredSnapshotService().attachReportAudience(
+    snapshot,
+    reportAudience,
   );
 }
 
@@ -136,6 +148,26 @@ export function createAssessmentSnapshotService(
         signingKey,
       );
     },
+    attachReportAudience(
+      snapshot: TrustedAssessmentSnapshot,
+      reportAudience: ReportAudience,
+    ): string {
+      if (snapshot.expiresAt <= now())
+        throw new AssessmentSnapshotValidationError();
+      if (
+        snapshot.reportAudience !== undefined &&
+        snapshot.reportAudience !== reportAudience
+      ) {
+        throw new AssessmentSnapshotValidationError();
+      }
+      return encodeAndSign(
+        {
+          ...snapshot,
+          reportAudience: reportAudienceSchema.parse(reportAudience),
+        },
+        signingKey,
+      );
+    },
     verify(token: string): TrustedAssessmentSnapshot {
       const [payload, signature, extra] = token.split(".");
       const expectedSignature = payload ? sign(payload, signingKey) : "";
@@ -175,6 +207,12 @@ export function createAssessmentSnapshotService(
         snapshot.lockedEstimatedDepthMetres !== undefined &&
         !estimatedPoolDepthSchema.safeParse(snapshot.lockedEstimatedDepthMetres)
           .success
+      ) {
+        throw new AssessmentSnapshotValidationError();
+      }
+      if (
+        snapshot.reportAudience !== undefined &&
+        !reportAudienceSchema.safeParse(snapshot.reportAudience).success
       ) {
         throw new AssessmentSnapshotValidationError();
       }

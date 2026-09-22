@@ -16,6 +16,7 @@ export function buildTestPreliminaryReport(
   overrides: ReportOverrides = {},
 ): SavedPreliminaryReport {
   const base: SavedPreliminaryReport = {
+    reportAudience: "homeowner",
     reference: "GF-2026-000123",
     generatedAt: "2026-07-29T02:03:04.000Z",
     title: "Preliminary pool feasibility assessment",

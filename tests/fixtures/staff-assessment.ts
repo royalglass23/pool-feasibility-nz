@@ -95,6 +95,7 @@ export const staffAssessmentDetail = {
   homeownerAddress: "1 Test Street, Auckland",
   visitorType: "homeowner",
   visitorTypeOtherDetail: null,
+  reportAudience: "homeowner",
   desiredTiming: "3_months",
   desiredTimingOtherDetail: null,
   additionalInfo: "A narrow access path.",

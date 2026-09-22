@@ -239,25 +239,32 @@ describe("homeowner report submission", () => {
   it("submits the saved map and hands the complete report to the browser immediately", async () => {
     const user = userEvent.setup();
     const onSaved = vi.fn();
-    const request = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          assessment: {
-            id: "assessment-1",
-            reference: report.reference,
-            status: "new_enquiry",
-            created: true,
-            report,
-            reportAccessToken: "saved-report-access-token",
-            delivery: {
-              homeowner: "pending",
-              internal_test_report: "pending",
-            },
-          },
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          assessmentSnapshot: "audience-signed-assessment-snapshot",
         }),
-        { status: 201, headers: { "Content-Type": "application/json" } },
-      ),
-    );
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            assessment: {
+              id: "assessment-1",
+              reference: report.reference,
+              status: "new_enquiry",
+              created: true,
+              report,
+              reportAccessToken: "saved-report-access-token",
+              delivery: {
+                homeowner: "pending",
+                internal_test_report: "pending",
+              },
+            },
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        ),
+      );
     vi.stubGlobal("fetch", request);
 
     render(
@@ -367,9 +374,16 @@ describe("homeowner report submission", () => {
     expect(trackAnonymousFunnelEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({ name: "report_delivery_outcome" }),
     );
-    const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
-    expect(body).toMatchObject({
+    expect(request.mock.calls[0]?.[0]).toBe(
+      "/api/public/assessment-snapshot/audience",
+    );
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
       assessmentSnapshot: "server-issued-assessment-snapshot",
+      reportAudience: "homeowner",
+    });
+    const body = JSON.parse(String(request.mock.calls[1]?.[1]?.body));
+    expect(body).toMatchObject({
+      assessmentSnapshot: "audience-signed-assessment-snapshot",
       mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
       mapVisibleLayerKeys: ["wastewater_assets"],
       poolLayout: {
@@ -431,25 +445,32 @@ describe("homeowner report submission", () => {
 
   it("collects visitor context and explains Other selections before requesting the report", async () => {
     const user = userEvent.setup();
-    const request = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          assessment: {
-            id: "assessment-2",
-            reference: report.reference,
-            status: "new_enquiry",
-            created: true,
-            report,
-            reportAccessToken: "saved-report-access-token",
-            delivery: {
-              homeowner: "pending",
-              internal_test_report: "pending",
-            },
-          },
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          assessmentSnapshot: "audience-signed-assessment-snapshot",
         }),
-        { status: 201, headers: { "Content-Type": "application/json" } },
-      ),
-    );
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            assessment: {
+              id: "assessment-2",
+              reference: report.reference,
+              status: "new_enquiry",
+              created: true,
+              report,
+              reportAccessToken: "saved-report-access-token",
+              delivery: {
+                homeowner: "pending",
+                internal_test_report: "pending",
+              },
+            },
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        ),
+      );
     vi.stubGlobal("fetch", request);
 
     render(
@@ -504,8 +525,12 @@ describe("homeowner report submission", () => {
       form.getByRole("button", { name: "Save and show my report" }),
     );
 
-    await waitFor(() => expect(request).toHaveBeenCalledOnce());
-    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toMatchObject({
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
+      assessmentSnapshot: "server-issued-assessment-snapshot",
+      reportAudience: "homeowner",
+    });
+    expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toMatchObject({
       homeowner: {
         visitorType: "other",
         visitorTypeOtherDetail: "Landscape architect",

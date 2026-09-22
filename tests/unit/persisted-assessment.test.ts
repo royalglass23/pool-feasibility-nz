@@ -96,6 +96,37 @@ describe("persisted homeowner assessment contract", () => {
     expect(parsed.homeowner.consentGiven).toBe(true);
   });
 
+  it("serializes only a canonical report audience while accepting legacy records without one", () => {
+    expect(
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        report: {
+          ...validSubmission.report,
+          reportData: {
+            ...validSubmission.report.reportData,
+            reportAudience: "pool_builder",
+          },
+        },
+      }).report.reportData.reportAudience,
+    ).toBe("pool_builder");
+    expect(
+      parsePersistedAssessmentSubmission(validSubmission).report.reportData
+        .reportAudience,
+    ).toBeUndefined();
+    expect(() =>
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        report: {
+          ...validSubmission.report,
+          reportData: {
+            ...validSubmission.report.reportData,
+            reportAudience: "other",
+          },
+        },
+      }),
+    ).toThrow();
+  });
+
   it("persists the selected pool-shell clearance visibility and defaults older saved layouts to visible", () => {
     expect(
       parsePersistedAssessmentSubmission({

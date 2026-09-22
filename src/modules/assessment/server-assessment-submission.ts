@@ -33,6 +33,8 @@ import {
   parsePersistedAssessmentSubmission,
   type PersistedAssessmentSubmission,
 } from "./persisted-assessment";
+import { resolveLegacyReportAudience } from "./report-audience";
+import { AssessmentSnapshotValidationError } from "./assessment-snapshot";
 
 const browserSubmissionSchema = z
   .object({
@@ -83,6 +85,21 @@ export function assertConstructabilityMatchesSnapshot(
   }
 }
 
+export function assertReportAudienceMatchesSnapshot(
+  request: BrowserAssessmentSaveRequest,
+  snapshot: TrustedAssessmentSnapshot,
+): asserts snapshot is TrustedAssessmentSnapshot & {
+  reportAudience: NonNullable<TrustedAssessmentSnapshot["reportAudience"]>;
+} {
+  if (
+    snapshot.reportAudience === undefined ||
+    snapshot.reportAudience !==
+      resolveLegacyReportAudience(request.homeowner.visitorType)
+  ) {
+    throw new AssessmentSnapshotValidationError();
+  }
+}
+
 export async function buildServerAssessmentSubmission(input: {
   request: BrowserAssessmentSaveRequest;
   snapshot: TrustedAssessmentSnapshot;
@@ -90,6 +107,8 @@ export async function buildServerAssessmentSubmission(input: {
   now?: () => Date;
 }): Promise<PersistedAssessmentSubmission> {
   const { request, snapshot } = input;
+  assertReportAudienceMatchesSnapshot(request, snapshot);
+  const reportAudience = snapshot.reportAudience;
   const dimensions = validateFastCustomDimensions(
     request.poolLayout.lengthMetres,
     request.poolLayout.widthMetres,
@@ -254,6 +273,7 @@ export async function buildServerAssessmentSubmission(input: {
       feasibilityState: warning.status,
       mapImageDataUrl: request.mapImageDataUrl,
       reportData: {
+        reportAudience,
         mapImageSource: "fast_property_view_capture",
         mapVisibleLayerKeys: request.mapVisibleLayerKeys,
         recommendation:

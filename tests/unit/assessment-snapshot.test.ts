@@ -58,6 +58,50 @@ function fastResult() {
 }
 
 describe("assessment snapshots", () => {
+  it("signs and verifies the selected report audience", () => {
+    const service = createAssessmentSnapshotService(signingKey);
+    const initial = service.verify(service.issue(fastResult()));
+    const token = service.attachReportAudience(initial, "pool_builder");
+
+    expect(service.verify(token).reportAudience).toBe("pool_builder");
+    expect(service.verify(token).submissionId).toBe(initial.submissionId);
+    expect(service.attachReportAudience(initial, "pool_builder")).toBe(token);
+  });
+
+  it("rejects a report audience changed after signing", () => {
+    const service = createAssessmentSnapshotService(signingKey);
+    const initial = service.verify(service.issue(fastResult()));
+    const [payload, signature] = service
+      .attachReportAudience(initial, "homeowner")
+      .split(".");
+    const parsed = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    );
+    parsed.reportAudience = "pool_builder";
+    const modifiedPayload = Buffer.from(
+      JSON.stringify(parsed),
+      "utf8",
+    ).toString("base64url");
+
+    expect(() => service.verify(`${modifiedPayload}.${signature}`)).toThrow(
+      AssessmentSnapshotValidationError,
+    );
+  });
+
+  it("allows an idempotent audience reissue but rejects a conflicting rebind", () => {
+    const service = createAssessmentSnapshotService(signingKey);
+    const initial = service.verify(service.issue(fastResult()));
+    const homeownerToken = service.attachReportAudience(initial, "homeowner");
+    const bound = service.verify(homeownerToken);
+
+    expect(service.attachReportAudience(bound, "homeowner")).toBe(
+      homeownerToken,
+    );
+    expect(() => service.attachReportAudience(bound, "pool_builder")).toThrow(
+      AssessmentSnapshotValidationError,
+    );
+  });
+
   it("rejects a modified snapshot payload", () => {
     const service = createAssessmentSnapshotService(signingKey);
     const [payload, signature] = service.issue(fastResult()).split(".");

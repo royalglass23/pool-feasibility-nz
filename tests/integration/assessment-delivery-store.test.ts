@@ -38,6 +38,7 @@ describe.skipIf(!databaseUrl)(
           homeownerEmail: submission.homeowner.email,
           report: {
             reference: saved.assessment.reference,
+            reportAudience: "homeowner",
             mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
           },
         });
@@ -82,6 +83,7 @@ describe.skipIf(!databaseUrl)(
           additionalInfo: submission.homeowner.additionalInfo ?? null,
           report: {
             reference: saved.assessment.reference,
+            reportAudience: "homeowner",
             mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
           },
         });

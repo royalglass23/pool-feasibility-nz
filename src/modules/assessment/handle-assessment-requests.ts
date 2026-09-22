@@ -9,6 +9,7 @@ import {
 } from "@/db/repositories/homeowner-assessment-repository";
 import {
   assertConstructabilityMatchesSnapshot,
+  assertReportAudienceMatchesSnapshot,
   buildServerAssessmentSubmission,
   parseBrowserAssessmentSaveRequest,
   ServerAssessmentSubmissionError,
@@ -96,6 +97,7 @@ export async function POST(request: Request) {
     const snapshot = verifyAssessmentSnapshot(
       browserRequest.assessmentSnapshot,
     );
+    assertReportAudienceMatchesSnapshot(browserRequest, snapshot);
     assertConstructabilityMatchesSnapshot(browserRequest, snapshot);
     validated = { browserRequest, snapshot };
   } catch (error) {

@@ -4,6 +4,7 @@ import { requireOtherDetails } from "@/modules/assessment/visitor-context";
 import { isValidPngMapImageDataUrl } from "@/modules/reporting/map-image";
 import { reportAssessmentSnapshotSchema } from "@/modules/reporting/report-assessment-snapshot";
 import { constructabilitySnapshotSchema } from "./constructability-evidence";
+import { reportAudienceSchema } from "./report-audience";
 
 const isoDateTime = z.string().datetime({ offset: true });
 
@@ -232,6 +233,7 @@ const reportTerrain = z.discriminatedUnion("status", [
 ]);
 
 const reportData = z.object({
+  reportAudience: reportAudienceSchema.optional(),
   mapImageSource: z
     .enum(["trusted_report_render", "fast_property_view_capture"])
     .optional(),

@@ -19,6 +19,7 @@ import { ActionProgressDialog } from "@/components/action-progress-dialog";
 import { FieldValidationMessage } from "@/components/field-validation-message";
 import { isValidNzPhone, NZ_PHONE_ERROR } from "@/modules/assessment/nz-phone";
 import { readClientApiError } from "@/shared/http/client-api-error";
+import { resolveLegacyReportAudience } from "@/modules/assessment/report-audience";
 
 export type AssessmentSubmissionContext = Omit<
   PersistedAssessmentSubmission,
@@ -104,11 +105,40 @@ export function HomeownerSubmissionForm({
     setError(null);
 
     try {
+      const audienceResponse = await fetch(
+        "/api/public/assessment-snapshot/audience",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assessmentSnapshot,
+            reportAudience: resolveLegacyReportAudience(
+              contact.data.visitorType,
+            ),
+          }),
+        },
+      );
+      const audienceBody = (await audienceResponse
+        .json()
+        .catch(() => null)) as {
+        assessmentSnapshot?: string;
+        error?: { code?: string; message?: string; correlationId?: string };
+      } | null;
+      if (!audienceResponse.ok || !audienceBody?.assessmentSnapshot) {
+        setError(
+          friendlyRequestError(
+            audienceResponse.status,
+            "save your report",
+            readClientApiError(audienceBody),
+          ),
+        );
+        return;
+      }
       const response = await fetch("/api/public/assessments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          assessmentSnapshot,
+          assessmentSnapshot: audienceBody.assessmentSnapshot,
           ...(constructability ? { constructability } : {}),
           mapImageDataUrl,
           mapVisibleLayerKeys,
