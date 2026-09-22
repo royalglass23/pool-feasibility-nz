@@ -18,9 +18,15 @@ import {
   type LinzAddressRefreshStore,
 } from "./linz-address-refresh";
 import { createLinzAddressRefreshHandler } from "./handle-linz-address-refresh-request";
+import {
+  runConfiguredLinzAddressHealthCheck,
+  sendConfiguredLinzAddressHealthAlert,
+} from "./run-configured-linz-address-health";
 
 export const handleLinzAddressRefreshRequest = createLinzAddressRefreshHandler({
   cronSecret: env.CRON_SECRET,
+  checkHealth: runConfiguredLinzAddressHealthCheck,
+  sendHealthAlert: sendConfiguredLinzAddressHealthAlert,
   runRefresh: async () => {
     if (!env.LINZ_DATA_SERVICE_API_KEY) {
       throw new Error("LINZ_ADDRESS_REFRESH_NOT_CONFIGURED");
