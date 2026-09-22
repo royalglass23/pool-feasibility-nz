@@ -28,6 +28,11 @@ repository. Confirm:
 - `SERVICEM8_FORWARD_EMAIL` remains unset until its privacy-retention gate
   passes;
 - `CRON_SECRET` is present before enabling the retention schedule;
+- `DATABASE_STORAGE_LIMIT_MIB` matches the approved database plan allowance so
+  the LINZ monitor can alert at 80% usage;
+- `RESEND_API_KEY`, `REPORT_FROM_EMAIL`, and the receiving
+  `support@bluehaven.nz` mailbox are working before relying on LINZ health
+  email alerts;
 - analytics identifiers match the approved tools and remain consent-gated; and
 - indexing remains disabled for test hostnames and is enabled only for the
   approved public hostname.
@@ -74,6 +79,9 @@ Use synthetic, non-customer details approved for the target and verify:
    contain no address, contact, map, report, or staff data.
 8. The retention endpoint rejects an invalid secret. Run a mutating retention
    job only with separate approval and records designed for that test.
+9. An authorised LINZ refresh reports `monitoring: healthy`. Test alert delivery
+   only with an approved non-production database threshold; never deliberately
+   make the production address index stale or fail a production refresh.
 
 Record request IDs and provider message IDs where useful, but do not retain
 personal data, report contents, secrets, or raw provider payloads in release
