@@ -108,32 +108,36 @@ export function createRefreshStore(db: AddressDb): LinzAddressRefreshStore {
         lastObjectId: run.nextOffset,
       });
     },
-    async applyPage({
-      runId,
-      changes,
-      currentAddresses,
-      syncedAt,
-      nextOffset,
-    }) {
+    async applyPage({ runId, changes, currentAddresses, nextOffset }) {
       if (currentAddresses.length > 0) {
         await db
           .insert(schema.linzAddressIndex)
-          .values(currentAddresses.map((address) => ({ ...address, syncedAt })))
+          .values(
+            currentAddresses.map((address) => ({
+              addressId: address.addressId,
+              fullAddress: address.fullAddress,
+              fullAddressNumber: address.fullAddressNumber,
+              unit: address.unit,
+              territorialAuthority: address.territorialAuthority,
+              searchText: address.searchText,
+              longitude: address.longitude,
+              latitude: address.latitude,
+              isCurrent: address.isCurrent,
+              lastSeenRunId: runId,
+            })),
+          )
           .onConflictDoUpdate({
             target: schema.linzAddressIndex.addressId,
             set: {
-              sourceObjectId: sql`excluded.source_object_id`,
               fullAddress: sql`excluded.full_address`,
               fullAddressNumber: sql`excluded.full_address_number`,
               unit: sql`excluded.unit`,
               territorialAuthority: sql`excluded.territorial_authority`,
-              suburbLocality: sql`excluded.suburb_locality`,
-              townCity: sql`excluded.town_city`,
               searchText: sql`excluded.search_text`,
               longitude: sql`excluded.longitude`,
               latitude: sql`excluded.latitude`,
               isCurrent: sql`excluded.is_current`,
-              syncedAt: sql`excluded.synced_at`,
+              lastSeenRunId: sql`excluded.last_seen_run_id`,
             },
           });
       }
@@ -147,7 +151,7 @@ export function createRefreshStore(db: AddressDb): LinzAddressRefreshStore {
       if (inactiveIds.length > 0) {
         await db
           .update(schema.linzAddressIndex)
-          .set({ isCurrent: false, syncedAt })
+          .set({ isCurrent: false, lastSeenRunId: runId })
           .where(inArray(schema.linzAddressIndex.addressId, inactiveIds));
       }
 

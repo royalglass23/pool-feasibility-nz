@@ -23,7 +23,6 @@ export type LinzAddressRefreshStore = {
     runId: string;
     changes: LinzAddressChange[];
     currentAddresses: IndexedLinzAddress[];
-    syncedAt: Date;
     nextOffset: number;
   }): Promise<void>;
   completeRefresh(input: { runId: string; cursor: Date }): Promise<void>;
@@ -94,7 +93,6 @@ export async function refreshLinzAddresses(input: {
         runId: run.runId,
         changes,
         currentAddresses,
-        syncedAt: run.to,
         nextOffset: changedCount,
       });
       if (changes.length < LINZ_CHANGESET_PAGE_SIZE) {
