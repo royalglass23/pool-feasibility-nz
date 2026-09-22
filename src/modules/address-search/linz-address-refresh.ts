@@ -1,4 +1,7 @@
-import type { IndexedLinzAddress } from "./linz-address-import";
+import {
+  LINZ_CURRENT_ADDRESS_BATCH_SIZE,
+  type IndexedLinzAddress,
+} from "./linz-address-import";
 import {
   LINZ_CHANGESET_PAGE_SIZE,
   type LinzAddressChange,
@@ -127,10 +130,14 @@ async function fetchCurrentAddressesInBatches(
   source: LinzAddressRefreshSource,
 ): Promise<IndexedLinzAddress[]> {
   const addresses: IndexedLinzAddress[] = [];
-  for (let index = 0; index < addressIds.length; index += 250) {
+  for (
+    let index = 0;
+    index < addressIds.length;
+    index += LINZ_CURRENT_ADDRESS_BATCH_SIZE
+  ) {
     addresses.push(
       ...(await source.fetchCurrentAddresses(
-        addressIds.slice(index, index + 250),
+        addressIds.slice(index, index + LINZ_CURRENT_ADDRESS_BATCH_SIZE),
       )),
     );
   }

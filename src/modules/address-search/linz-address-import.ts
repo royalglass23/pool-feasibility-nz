@@ -8,6 +8,7 @@ import {
 
 export const linzAddressQueryUrl =
   "https://services.arcgis.com/xdsHIIxuCWByZiCB/arcgis/rest/services/LINZ_NZ_Addresses/FeatureServer/0/query";
+export const LINZ_CURRENT_ADDRESS_BATCH_SIZE = 100;
 const MAX_LINZ_ADDRESS_PAGE_BYTES = 8_000_000;
 
 const pageSchema = z.object({
@@ -107,7 +108,7 @@ export async function fetchCurrentAucklandAddressesByIds(input: {
 }): Promise<IndexedLinzAddress[]> {
   if (input.addressIds.length === 0) return [];
   if (
-    input.addressIds.length > 250 ||
+    input.addressIds.length > LINZ_CURRENT_ADDRESS_BATCH_SIZE ||
     input.addressIds.some((addressId) => !/^\d+$/.test(addressId))
   ) {
     throw new Error("LINZ_ADDRESS_REFRESH_INVALID_IDS");
