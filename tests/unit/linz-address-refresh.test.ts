@@ -120,15 +120,17 @@ describe("LINZ address refresh", () => {
       .fn()
       .mockResolvedValueOnce(changes)
       .mockRejectedValueOnce(new Error("UNBOUNDED_REFRESH"));
+    const requestedAddressBatches: number[] = [];
 
     await expect(
       refreshLinzAddresses({
         store: refreshStore,
         source: {
           fetchChangesPage,
-          fetchCurrentAddresses: vi.fn(async (addressIds) =>
-            addressIds.map(address),
-          ),
+          fetchCurrentAddresses: vi.fn(async (addressIds) => {
+            requestedAddressBatches.push(addressIds.length);
+            return addressIds.map(address);
+          }),
         },
         createRunId: () => "bounded-run",
         now: () => now,
@@ -141,6 +143,7 @@ describe("LINZ address refresh", () => {
     });
 
     expect(fetchChangesPage).toHaveBeenCalledOnce();
+    expect(requestedAddressBatches).toEqual(Array(10).fill(100));
     expect(refreshStore.applyPage).toHaveBeenCalledWith(
       expect.objectContaining({ nextOffset: 1_000 }),
     );
