@@ -181,7 +181,6 @@ describe("LINZ address refresh", () => {
       runId: "run-1",
       changes,
       currentAddresses: [current],
-      syncedAt: now,
       nextOffset: 2,
     });
     expect(refreshStore.completeRefresh).toHaveBeenCalledWith({

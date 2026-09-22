@@ -84,7 +84,6 @@ describe("LINZ address refresh store", () => {
         }),
       }),
     };
-    const syncedAt = new Date("2026-09-11T00:00:00.000Z");
     const inserted = indexedAddress("1", "1 New Road, Auckland");
     const changed = indexedAddress("2", "2 Renamed Road, Auckland");
 
@@ -96,7 +95,6 @@ describe("LINZ address refresh store", () => {
         { action: "DELETE", addressId: "3" },
       ],
       currentAddresses: [inserted, changed],
-      syncedAt,
       nextOffset: 3,
     });
 
@@ -104,8 +102,16 @@ describe("LINZ address refresh store", () => {
     expect(inserts[0]).toMatchObject({
       table: schema.linzAddressIndex,
       values: [
-        { addressId: "1", fullAddress: inserted.fullAddress, syncedAt },
-        { addressId: "2", fullAddress: changed.fullAddress, syncedAt },
+        {
+          addressId: "1",
+          fullAddress: inserted.fullAddress,
+          lastSeenRunId: "refresh-run",
+        },
+        {
+          addressId: "2",
+          fullAddress: changed.fullAddress,
+          lastSeenRunId: "refresh-run",
+        },
       ],
       conflict: {
         target: schema.linzAddressIndex.addressId,
@@ -113,7 +119,7 @@ describe("LINZ address refresh store", () => {
           fullAddress: expect.anything(),
           searchText: expect.anything(),
           isCurrent: expect.anything(),
-          syncedAt: expect.anything(),
+          lastSeenRunId: expect.anything(),
         }),
       },
     });
@@ -121,7 +127,10 @@ describe("LINZ address refresh store", () => {
     const retirement = updates.find(
       (update) => update.table === schema.linzAddressIndex,
     );
-    expect(retirement?.values).toEqual({ isCurrent: false, syncedAt });
+    expect(retirement?.values).toEqual({
+      isCurrent: false,
+      lastSeenRunId: "refresh-run",
+    });
     const compiledRetirement = new PgDialect().sqlToQuery(
       retirement!.where as Parameters<PgDialect["sqlToQuery"]>[0],
     );
