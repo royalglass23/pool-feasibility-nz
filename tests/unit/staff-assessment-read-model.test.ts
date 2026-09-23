@@ -18,6 +18,7 @@ function assessmentRow(
     homeownerPhone: "021 555 1234",
     homeownerEmail: "jane@example.com",
     homeownerAddress: "1 Test Street, Auckland",
+    builderCompanyName: "North Shore Pools Ltd",
     visitorType: "pool_builder",
     visitorTypeOtherDetail: null,
     desiredTiming: "3_months",
@@ -268,6 +269,7 @@ describe("staff assessment read model", () => {
       id: "assessment-1",
       homeownerName: "Jane Homeowner",
       homeownerEmail: "jane@example.com",
+      builderCompanyName: "North Shore Pools Ltd",
       visitorType: "pool_builder",
       feasibilityState: "needs_checking",
       emailDeliveryState: "sent",
@@ -287,6 +289,7 @@ describe("staff assessment read model", () => {
       assessmentRow({
         visitorType: null,
         visitorTypeOtherDetail: null,
+        builderCompanyName: null,
         desiredTimingOtherDetail: null,
       }),
     );
@@ -299,6 +302,7 @@ describe("staff assessment read model", () => {
     ).resolves.toMatchObject({
       visitorType: null,
       visitorTypeOtherDetail: null,
+      builderCompanyName: null,
       reportAudience: "homeowner",
       desiredTimingOtherDetail: null,
     });

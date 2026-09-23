@@ -52,6 +52,7 @@ export type StaffAssessmentRecord = {
   homeownerPhone: string;
   homeownerEmail: string;
   homeownerAddress: string;
+  builderCompanyName: string | null;
   visitorType: PersistedAssessmentSubmission["homeowner"]["visitorType"] | null;
   visitorTypeOtherDetail: string | null;
   reportAudience: ReportAudience;

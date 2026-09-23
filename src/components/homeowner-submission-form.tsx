@@ -79,6 +79,10 @@ export function HomeownerSubmissionForm({
       name: form.get("name"),
       phone: form.get("phone"),
       email: form.get("email"),
+      builderCompanyName:
+        reportAudience === "pool_builder"
+          ? form.get("builderCompanyName")
+          : undefined,
       visitorType: reportAudience,
       desiredTiming: form.get("desiredTiming"),
       desiredTimingOtherDetail:
@@ -206,6 +210,13 @@ export function HomeownerSubmissionForm({
       </p>
       <div className="mt-5 grid gap-4 sm:grid-cols-2">
         <Field label="Name" name="name" required error={fieldErrors.name} />
+        {reportAudience === "pool_builder" && (
+          <Field
+            label="Company / trading name (optional)"
+            name="builderCompanyName"
+            error={fieldErrors.builderCompanyName}
+          />
+        )}
         <div className="text-pool-800 text-sm font-medium">
           <label htmlFor="homeowner-phone">Phone</label>
           <input

@@ -224,7 +224,13 @@ test("saves and reproduces the complete public constructability journey through 
     const secondForm = page.locator(
       'form[aria-labelledby="homeowner-details-heading"]',
     );
+    await expect(
+      secondForm.getByLabel("Company / trading name (optional)"),
+    ).toBeVisible();
     await fillValidDetails(secondForm);
+    await secondForm
+      .getByLabel("Company / trading name (optional)")
+      .fill("North Shore Pools Ltd");
     const second = await submitAndReadRealResponse(page);
     assessmentIds.push(second.id);
     submittedAudiences.push(second.request.homeowner.visitorType);
@@ -233,6 +239,15 @@ test("saves and reproduces the complete public constructability journey through 
     expect(secondPersisted).not.toBeNull();
     expect(secondPersisted!.reportAudience).toBe("pool_builder");
     expect(second.response.report.reportAudience).toBe("pool_builder");
+    expect(second.request.homeowner.builderCompanyName).toBe(
+      "North Shore Pools Ltd",
+    );
+    await expect(
+      db.query.homeownerAssessments.findFirst({
+        columns: { builderCompanyName: true },
+        where: eq(schema.homeownerAssessments.id, second.id),
+      }),
+    ).resolves.toEqual({ builderCompanyName: "North Shore Pools Ltd" });
     expect(secondPersisted!.constructability).toEqual(
       second.response.report.constructability,
     );
@@ -321,6 +336,9 @@ async function startJourney(
       page.locator('form[aria-labelledby="homeowner-details-heading"]'),
     ).toBeVisible();
     await expect(
+      page.getByLabel("Company / trading name (optional)"),
+    ).toHaveCount(0);
+    await expect(
       page.getByRole("heading", {
         name: "Your details for the preliminary report",
       }),
@@ -360,7 +378,9 @@ async function assertConsentAndValidation(page: Page) {
 }
 
 async function fillValidDetails(form: Locator) {
-  await form.getByLabel("Name").fill("Synthetic Release Homeowner");
+  await form
+    .getByRole("textbox", { name: "Name", exact: true })
+    .fill("Synthetic Release Homeowner");
   await form.getByLabel("Phone").fill("021 555 0345");
   await form.getByLabel("Email").fill("rg345-public-e2e@example.test");
   await form.getByRole("checkbox", { name: /I consent to PoolReady/i }).check();

@@ -24,6 +24,8 @@ describe.skipIf(!databaseUrl)(
       const submission = buildTestPersistedAssessmentSubmission(
         `mt-249-integration-${randomUUID()}`,
       );
+      submission.homeowner.visitorType = "pool_builder";
+      submission.homeowner.builderCompanyName = "North Shore Pools Ltd";
       const saved = await saveHomeownerAssessment(db, submission);
       let now = new Date("2026-07-29T03:00:00.000Z");
       const store = createAssessmentDeliveryStore(db, () => now);
@@ -36,9 +38,10 @@ describe.skipIf(!databaseUrl)(
         expect(homeownerClaim).toMatchObject({
           channel: "homeowner",
           homeownerEmail: submission.homeowner.email,
+          builderCompanyName: "North Shore Pools Ltd",
           report: {
             reference: saved.assessment.reference,
-            reportAudience: "homeowner",
+            reportAudience: "pool_builder",
             mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
           },
         });
@@ -58,7 +61,7 @@ describe.skipIf(!databaseUrl)(
           "homeowner",
         );
         expect(retryClaim?.claimToken).not.toBe(homeownerClaim?.claimToken);
-        expect(retryClaim?.report.reportAudience).toBe("homeowner");
+        expect(retryClaim?.report.reportAudience).toBe("pool_builder");
         expect(retryClaim?.report).toEqual(homeownerClaim?.report);
         await store.markSent(
           saved.assessment.reference,
@@ -85,7 +88,7 @@ describe.skipIf(!databaseUrl)(
           additionalInfo: submission.homeowner.additionalInfo ?? null,
           report: {
             reference: saved.assessment.reference,
-            reportAudience: "homeowner",
+            reportAudience: "pool_builder",
             mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
           },
         });
@@ -126,6 +129,7 @@ describe.skipIf(!databaseUrl)(
           forwardingState: "sent",
           forwardingAttemptCount: 2,
           forwardingProviderMessageId: "email-internal-249",
+          builderCompanyName: "North Shore Pools Ltd",
         });
         await expect(
           store.claim(saved.assessment.reference, "homeowner"),

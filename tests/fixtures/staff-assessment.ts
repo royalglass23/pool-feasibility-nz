@@ -93,6 +93,7 @@ export const staffAssessmentDetail = {
   homeownerPhone: "021 555 1234",
   homeownerEmail: "jane@example.com",
   homeownerAddress: "1 Test Street, Auckland",
+  builderCompanyName: null,
   visitorType: "homeowner",
   visitorTypeOtherDetail: null,
   reportAudience: "homeowner",

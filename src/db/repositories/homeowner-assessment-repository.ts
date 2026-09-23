@@ -97,6 +97,7 @@ export async function getHomeownerAssessmentById(
       homeownerPhone: true,
       homeownerEmail: true,
       homeownerAddress: true,
+      builderCompanyName: true,
       visitorType: true,
       visitorTypeOtherDetail: true,
       reportData: true,
@@ -126,6 +127,7 @@ export async function getHomeownerAssessmentById(
     homeownerPhone: assessment.homeownerPhone,
     homeownerEmail: assessment.homeownerEmail,
     homeownerAddress: assessment.homeownerAddress,
+    builderCompanyName: assessment.builderCompanyName,
     visitorType:
       assessment.visitorType === null
         ? null
@@ -208,8 +210,9 @@ export async function getAssessmentDeliveryStateById(db: Database, id: string) {
 
 export async function saveHomeownerAssessment(
   db: Database,
-  submission: PersistedAssessmentSubmission,
+  input: PersistedAssessmentSubmission,
 ) {
+  const submission = persistedAssessmentSubmissionSchema.parse(input);
   const existing = await getHomeownerAssessmentByIdempotencyKey(
     db,
     submission.idempotencyKey,
@@ -236,6 +239,7 @@ export async function saveHomeownerAssessment(
       homeownerPhone: submission.homeowner.phone,
       homeownerEmail: submission.homeowner.email,
       homeownerAddress: submission.homeowner.address,
+      builderCompanyName: submission.homeowner.builderCompanyName,
       visitorType: submission.homeowner.visitorType,
       visitorTypeOtherDetail: submission.homeowner.visitorTypeOtherDetail,
       desiredTiming: submission.homeowner.desiredTiming,
@@ -482,6 +486,7 @@ async function claimAssessmentDelivery(
     homeownerName: assessment.homeownerName,
     homeownerPhone: assessment.homeownerPhone,
     homeownerEmail: assessment.homeownerEmail,
+    builderCompanyName: assessment.builderCompanyName,
     visitorType:
       assessment.visitorType === null
         ? null

@@ -297,6 +297,9 @@ describe("homeowner report submission", () => {
     expect(trackAnonymousFunnelEvent).toHaveBeenCalledWith({
       name: "report_form_viewed",
     });
+    expect(
+      screen.queryByLabelText("Company / trading name (optional)"),
+    ).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Name"), "Jane Homeowner");
     await user.type(screen.getByLabelText("Phone"), "abcdefg");
@@ -445,7 +448,7 @@ describe("homeowner report submission", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
-  it("uses the pathway as the only visitor type while collecting project timing", async () => {
+  it("collects the optional builder company without restoring the visitor-type question", async () => {
     const user = userEvent.setup();
     const request = vi
       .fn()
@@ -503,6 +506,10 @@ describe("homeowner report submission", () => {
     const form = within(screen.getAllByRole("form").at(-1)!);
     expect(form.queryByLabelText("I am a")).not.toBeInTheDocument();
     await user.type(form.getByLabelText("Name"), "Roxy Builder");
+    await user.type(
+      form.getByLabelText("Company / trading name (optional)"),
+      "  North Shore Pools Ltd  ",
+    );
     await user.type(form.getByLabelText("Phone"), "021 555 4567");
     await user.type(form.getByLabelText("Email"), "roxy@example.com");
     await user.selectOptions(
@@ -526,6 +533,7 @@ describe("homeowner report submission", () => {
     expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toMatchObject({
       homeowner: {
         visitorType: "pool_builder",
+        builderCompanyName: "North Shore Pools Ltd",
         desiredTiming: "other",
         desiredTimingOtherDetail: "Next summer",
       },

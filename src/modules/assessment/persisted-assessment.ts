@@ -1,6 +1,8 @@
 import { z } from "zod";
-import { homeownerContactFields } from "./homeowner-contact";
-import { requireOtherDetails } from "@/modules/assessment/visitor-context";
+import {
+  homeownerContactFields,
+  refineHomeownerContactContext,
+} from "./homeowner-contact";
 import { isValidPngMapImageDataUrl } from "@/modules/reporting/map-image";
 import { reportAssessmentSnapshotSchema } from "@/modules/reporting/report-assessment-snapshot";
 import { constructabilitySnapshotSchema } from "./constructability-evidence";
@@ -269,7 +271,7 @@ export const persistedAssessmentSubmissionSchema = z
         consentVersion: z.string().trim().min(1).max(80),
         consentedAt: isoDateTime,
       })
-      .superRefine(requireOtherDetails),
+      .superRefine(refineHomeownerContactContext),
     addressEvidence: z.object({
       selectedAddressId: z.string().trim().min(1).max(200),
       formattedAddress: z.string().trim().min(1).max(500),

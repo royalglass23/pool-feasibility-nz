@@ -57,6 +57,9 @@ describe("report-request privacy notice", () => {
       notice.getByText(/name, phone number, and email address/i),
     ).toBeVisible();
     expect(
+      notice.getByText(/optional company or trading name for Pool Builders/i),
+    ).toBeVisible();
+    expect(
       notice.getByText(/prepare, display, and email your preliminary report/i),
     ).toBeVisible();
     expect(notice.getByText(/12 months/i)).toBeVisible();

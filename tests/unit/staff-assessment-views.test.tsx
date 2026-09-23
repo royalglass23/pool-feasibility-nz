@@ -182,6 +182,23 @@ describe("staff assessment detail", () => {
     expect(screen.getByText("Pool Builder")).toBeVisible();
   });
 
+  it("shows a saved builder company without adding customer-owner details", () => {
+    render(
+      <StaffAssessmentDetail
+        assessment={{
+          ...staffAssessmentDetail,
+          visitorType: "pool_builder",
+          builderCompanyName: "North Shore Pools Ltd",
+        }}
+        onBack={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Company / trading name")).toBeVisible();
+    expect(screen.getByText("North Shore Pools Ltd")).toBeVisible();
+    expect(screen.queryByText(/customer owner/i)).not.toBeInTheDocument();
+  });
+
   it("renders the complete shared saved report without assessment edit controls", () => {
     const homeownerView = render(
       <HomeownerFeasibilityReportView

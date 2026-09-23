@@ -262,10 +262,11 @@ export function buildTestPersistedAssessmentSubmission(
   return {
     idempotencyKey,
     homeowner: {
-      name: "MT-249 Integration Homeowner",
+      name: "Integration Homeowner",
       phone: "021 555 0249",
       email: "mt-249-integration@example.test",
       address: "1 MT-249 Test Street, Auckland",
+      builderCompanyName: null,
       visitorType: "homeowner",
       desiredTiming: "3_months",
       consentGiven: true,

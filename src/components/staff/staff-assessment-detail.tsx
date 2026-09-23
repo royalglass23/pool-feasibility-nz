@@ -48,6 +48,12 @@ export function StaffAssessmentDetail({
         <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <Fact label="Phone" value={assessment.homeownerPhone} />
           <Fact label="Email" value={assessment.homeownerEmail} />
+          {assessment.builderCompanyName && (
+            <Fact
+              label="Company / trading name"
+              value={assessment.builderCompanyName}
+            />
+          )}
           <Fact
             label="I am a"
             value={

@@ -31,6 +31,7 @@ export type AssessmentDeliveryClaim = {
   homeownerName: string;
   homeownerPhone: string;
   homeownerEmail: string;
+  builderCompanyName: string | null;
   visitorType: VisitorType | null;
   visitorTypeOtherDetail: string | null;
   desiredTiming: ProjectTiming;
@@ -255,6 +256,14 @@ function supportFormAnswers(
     ["Name", claim.homeownerName],
     ["Phone", claim.homeownerPhone],
     ["Email", claim.homeownerEmail],
+    ...(claim.visitorType === "pool_builder"
+      ? [
+          [
+            "Company / trading name",
+            claim.builderCompanyName || "Not provided",
+          ] as [string, string],
+        ]
+      : []),
     ["Property address", claim.report.property.address],
     ["I am a", visitorTypeAnswer(claim)],
     ["When do you need it?", desiredTimingAnswer(claim)],

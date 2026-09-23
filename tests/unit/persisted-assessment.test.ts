@@ -96,6 +96,47 @@ describe("persisted homeowner assessment contract", () => {
     expect(parsed.homeowner.consentGiven).toBe(true);
   });
 
+  it("normalizes an optional builder company while keeping omitted and blank legacy values valid", () => {
+    const populated = parsePersistedAssessmentSubmission({
+      ...validSubmission,
+      homeowner: {
+        ...validSubmission.homeowner,
+        visitorType: "pool_builder",
+        builderCompanyName: "  North Shore Pools Ltd  ",
+      },
+    });
+    const blank = parsePersistedAssessmentSubmission({
+      ...validSubmission,
+      homeowner: {
+        ...validSubmission.homeowner,
+        visitorType: "pool_builder",
+        builderCompanyName: "   ",
+      },
+    });
+    const omitted = parsePersistedAssessmentSubmission({
+      ...validSubmission,
+      homeowner: {
+        ...validSubmission.homeowner,
+        visitorType: "pool_builder",
+      },
+    });
+
+    expect(populated.homeowner.builderCompanyName).toBe(
+      "North Shore Pools Ltd",
+    );
+    expect(blank.homeowner.builderCompanyName).toBeNull();
+    expect(omitted.homeowner.builderCompanyName).toBeNull();
+    expect(() =>
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        homeowner: {
+          ...validSubmission.homeowner,
+          builderCompanyName: "Not a homeowner field",
+        },
+      }),
+    ).toThrow(/company name is only accepted/i);
+  });
+
   it("serializes only a canonical report audience while accepting legacy records without one", () => {
     expect(
       parsePersistedAssessmentSubmission({
@@ -270,15 +311,18 @@ describe("persisted homeowner assessment contract", () => {
       },
     } as unknown as Parameters<typeof saveHomeownerAssessment>[0];
 
-    const first = await saveHomeownerAssessment(
-      fakeDb,
-      parsePersistedAssessmentSubmission(validSubmission),
-    );
-    const second = await saveHomeownerAssessment(
-      fakeDb,
-      parsePersistedAssessmentSubmission(validSubmission),
-    );
+    const rawBuilderSubmission = {
+      ...validSubmission,
+      homeowner: {
+        ...validSubmission.homeowner,
+        visitorType: "pool_builder",
+        builderCompanyName: "  North Shore Pools Ltd  ",
+      },
+    } as unknown as Parameters<typeof saveHomeownerAssessment>[1];
+    const first = await saveHomeownerAssessment(fakeDb, rawBuilderSubmission);
+    const second = await saveHomeownerAssessment(fakeDb, rawBuilderSubmission);
     expect(first.created).toBe(true);
+    expect(first.assessment.builderCompanyName).toBe("North Shore Pools Ltd");
     expect(second.created).toBe(false);
     expect(second.assessment.reference).toBe(first.assessment.reference);
   });
