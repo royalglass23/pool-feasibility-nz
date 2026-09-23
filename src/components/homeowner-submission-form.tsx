@@ -32,6 +32,7 @@ export type SavedAssessmentResponse = {
   reference: string;
   status: string;
   created: boolean;
+  builderCompanyName?: string | null;
   report: SavedPreliminaryReport;
   reportAccessToken: string;
   delivery: {

@@ -408,7 +408,11 @@ export function reportConstructabilitySections(
     {
       id: "access_excavation",
       title: "Excavation and construction access",
-      ...constructabilitySectionResult(snapshot, "access_excavation"),
+      ...constructabilitySectionResult(
+        snapshot,
+        "access_excavation",
+        snapshot.accessConditions.includes("not_sure"),
+      ),
       details: [
         {
           label: "Estimated pool depth",
@@ -661,6 +665,8 @@ export function reportExcavationGeometry(report: SavedPreliminaryReport) {
         : `${sideAllowanceMillimetres} mm added on each side of the selected pool outline. This value was selected by the user for planning. It is not sourced from Firth or approved for the chosen pool; PoolReady's 300 mm starting point is adapted from Firth's masonry-pool guidance and must also be confirmed against the selected pool installation instructions.`,
     rangeDisclosure:
       "These are illustrative geometry scenarios, not minimum and maximum excavation quantities. The larger figure is not an upper bound, and the actual excavation may fall outside these two numbers.",
+    publicDisclosure:
+      "Indicative planning volumes only — not a quote, specification or upper bound. These figures use your selected side clearance but exclude base preparation, drainage, terrain, services and installation method. Confirm final excavation requirements onsite.",
     exclusions:
       "Extra base depth, masonry wall and footing dimensions, floor falls, drainage, terrain cut, battering or support, services, and installation method are not modelled.",
     terrainStatus: terrainUnavailable

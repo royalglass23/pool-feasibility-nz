@@ -23,12 +23,14 @@ import { reportWebAudiencePresentation } from "@/modules/reporting/report-audien
 
 export function HomeownerFeasibilityReportView({
   report,
+  builderCompanyName,
   delivery,
   onBack,
   showBackAction = true,
   onStartAgain,
 }: {
   report: SavedPreliminaryReport;
+  builderCompanyName?: string | null;
   delivery: {
     homeowner: ReportDeliveryState;
     internal_test_report: ReportDeliveryState;
@@ -67,6 +69,11 @@ export function HomeownerFeasibilityReportView({
             <p className="text-pool-800 mt-2 text-base font-medium">
               {report.property.address}
             </p>
+            {report.reportAudience === "pool_builder" && builderCompanyName && (
+              <p className="text-pool-700 mt-1 text-sm">
+                Company / trading name: {builderCompanyName}
+              </p>
+            )}
             <p className="text-pool-600 mt-1 text-sm">
               Proposed pool: {formatReportNumber(report.pool.lengthMetres)} x{" "}
               {formatReportNumber(report.pool.widthMetres)} m · Generated{" "}
@@ -493,26 +500,13 @@ function ConstructabilitySection({
             ))}
           </dl>
           <div className="text-pool-700 mt-3 space-y-2 text-sm leading-6">
-            <p>{section.excavation.rangeDisclosure}</p>
-            <p>{section.excavation.exclusions}</p>
+            <p>{section.excavation.publicDisclosure}</p>
             <p>{section.excavation.terrainLabel}</p>
             {section.excavation.specialistDepthWarning && (
               <p className="font-semibold">
                 {section.excavation.specialistDepthWarning}
               </p>
             )}
-            <p>
-              Assumption {section.excavation.assumptionId}.{" "}
-              <a
-                href={section.excavation.sourceUrl}
-                target="_blank"
-                rel="noreferrer"
-                className="text-pool-blue-800 font-semibold underline underline-offset-2"
-              >
-                Firth masonry guidance
-              </a>
-              . {section.excavation.assumptionDisclosure}
-            </p>
           </div>
         </div>
       )}

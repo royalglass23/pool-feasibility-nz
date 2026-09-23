@@ -151,6 +151,8 @@ describe("reportExcavationGeometry", () => {
       rangeDisclosure: expect.stringMatching(
         /geometry scenarios.*not an upper bound.*actual excavation/i,
       ),
+      publicDisclosure:
+        "Indicative planning volumes only — not a quote, specification or upper bound. These figures use your selected side clearance but exclude base preparation, drainage, terrain, services and installation method. Confirm final excavation requirements onsite.",
       exclusions: expect.stringMatching(
         /extra base depth.*masonry wall and footing dimensions.*floor falls.*drainage.*terrain cut.*battering or support.*services.*installation method.*not modelled/i,
       ),
@@ -191,6 +193,41 @@ describe("reportExcavationGeometry", () => {
 });
 
 describe("reportConstructabilitySections", () => {
+  it("keeps unanswered Builder access uncertain and needing checking", () => {
+    const report = buildTestPreliminaryReport({
+      reportAudience: "pool_builder",
+      constructability: buildConstructabilitySnapshot({
+        answers: {
+          version: 1,
+          estimatedDepthMetres: 1.5,
+          route: { provenance: "uncertain", geometry: null },
+          accessConditions: ["not_sure"],
+          nearbyFeatures: ["none_of_these"],
+        },
+        suggestedRoute: null,
+        routePolicyVersion: 1,
+        mappedEvidence: [],
+        providerAvailability: [],
+        assumptions: [],
+      }),
+    });
+
+    const access = reportConstructabilitySections(report).find(
+      (section) => section.id === "access_excavation",
+    );
+
+    expect(access).toMatchObject({
+      status: "needs_checking",
+      statusLabel: "Needs checking",
+      details: expect.arrayContaining([
+        { label: "Saved route", value: "I’m not sure — no confirmed route" },
+      ]),
+      evidence: expect.arrayContaining([
+        { provenance: "Your Site answer", description: "I’m not sure" },
+      ]),
+    });
+  });
+
   it("builds the three conservative sections from the saved submission evidence", () => {
     const route = {
       type: "LineString" as const,

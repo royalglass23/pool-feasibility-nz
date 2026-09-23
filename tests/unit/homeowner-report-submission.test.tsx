@@ -109,6 +109,30 @@ afterEach(() => {
 });
 
 describe("homeowner report submission", () => {
+  it("shows the saved Pool Builder company name in the web report", () => {
+    render(
+      <SavedAssessmentReportPanel
+        assessment={{
+          id: "assessment-builder",
+          reference: report.reference,
+          status: "new_enquiry",
+          created: true,
+          builderCompanyName: "North Shore Pools Ltd",
+          report: { ...report, reportAudience: "pool_builder" },
+          reportAccessToken: "saved-report-access-token",
+          delivery: { homeowner: "pending", internal_test_report: "pending" },
+        }}
+        showReport
+        onOpen={() => undefined}
+        onBack={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByText("Company / trading name: North Shore Pools Ltd"),
+    ).toBeVisible();
+  });
+
   it.each([
     ["sent", "sent", "delivered"],
     ["sent", "failed", "partial"],

@@ -33,7 +33,8 @@ export async function mockSiteAnswerSigning(page: Page) {
 export async function answerSiteQuestions(
   page: Page,
   options: {
-    accessCondition?: "None of these" | "Gate or narrow passage";
+    accessCondition?:
+      "None of these" | "Gate or narrow passage" | "I’m not sure";
     sideClearanceMillimetres?: number;
   } = {},
 ) {
@@ -65,7 +66,7 @@ export async function answerSiteQuestions(
       name: options.accessCondition ?? "None of these",
     })
     .check();
-  if (options.accessCondition === "Gate or narrow passage") {
+  if (options.accessCondition && options.accessCondition !== "None of these") {
     await expect(
       access.getByRole("checkbox", { name: "None of these" }),
     ).not.toBeChecked();

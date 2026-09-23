@@ -99,6 +99,7 @@ export function SavedAssessmentReportPanel({
     return (
       <HomeownerFeasibilityReportView
         report={assessment.report}
+        builderCompanyName={assessment.builderCompanyName}
         delivery={assessment.delivery}
         onBack={onBack}
         showBackAction={false}

@@ -248,6 +248,7 @@ async function savedAssessmentResponse({
         reference: result.assessment.reference,
         status: result.assessment.status,
         created: result.created,
+        builderCompanyName: result.assessment.builderCompanyName,
         report,
         reportAccessToken,
         delivery: {

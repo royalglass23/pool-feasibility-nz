@@ -242,6 +242,7 @@ test("saves and reproduces the complete public constructability journey through 
     expect(second.request.homeowner.builderCompanyName).toBe(
       "North Shore Pools Ltd",
     );
+    expect(second.response.builderCompanyName).toBe("North Shore Pools Ltd");
     await expect(
       db.query.homeownerAssessments.findFirst({
         columns: { builderCompanyName: true },
@@ -275,13 +276,42 @@ test("saves and reproduces the complete public constructability journey through 
       "Your Site answer: Gate or narrow passage",
     );
     await expect(
+      page.getByText("Company / trading name: North Shore Pools Ltd"),
+    ).toBeVisible();
+    await expect(secondConstructability).toContainText(
+      "Indicative planning volumes only — not a quote, specification or upper bound.",
+    );
+    await expect(page.getByText(/Firth masonry guidance/i)).toHaveCount(0);
+    await expect(
+      page.getByText(/user-selected-side-clearance-v1/i),
+    ).toHaveCount(0);
+    await expect(
       page
         .getByRole("region", { name: "Saved assessment map" })
         .getByRole("region", { name: "Saved pool-shell clearances" }),
     ).toHaveCount(0);
+
+    await startJourney(page, 1.5, false, "pool_builder");
+    await answerSiteQuestions(page, { accessCondition: "I’m not sure" });
+    const unknownAccessForm = page.locator(
+      'form[aria-labelledby="homeowner-details-heading"]',
+    );
+    await fillValidDetails(unknownAccessForm);
+    const unknownAccess = await submitAndReadRealResponse(page);
+    assessmentIds.push(unknownAccess.id);
+    submittedAudiences.push(unknownAccess.request.homeowner.visitorType);
+    const unknownConstructability = page.getByRole("region", {
+      name: "Site constructability",
+    });
+    await expect(unknownConstructability).toContainText(
+      "I’m not sure — no confirmed route",
+    );
+    await expect(unknownConstructability).toContainText("Needs checking");
+
     expect(submittedAudiences).toEqual([
       "homeowner",
       "homeowner",
+      "pool_builder",
       "pool_builder",
     ]);
     expect(publicPdfRequests).toBe(0);

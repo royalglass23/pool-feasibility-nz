@@ -264,6 +264,7 @@ describe("web, PDF and email report consistency", () => {
     render(
       <HomeownerFeasibilityReportView
         report={report}
+        builderCompanyName="North Shore Pools Ltd"
         delivery={{ homeowner: "sent", internal_test_report: "sent" }}
         onBack={() => undefined}
       />,
@@ -317,6 +318,20 @@ describe("web, PDF and email report consistency", () => {
       expect(email.text).toContain(heading);
     }
     expect(screen.getAllByText("Needs checking")).not.toHaveLength(0);
+    expect(
+      screen.getByText("Company / trading name: North Shore Pools Ltd"),
+    ).toBeVisible();
+    expect(
+      screen.getByText(
+        "Indicative planning volumes only — not a quote, specification or upper bound. These figures use your selected side clearance but exclude base preparation, drainage, terrain, services and installation method. Confirm final excavation requirements onsite.",
+      ),
+    ).toBeVisible();
+    expect(
+      screen.queryByText("user-selected-side-clearance-v1"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Firth masonry guidance"),
+    ).not.toBeInTheDocument();
     expect(screen.getAllByText("Apparently rocky ground")).not.toHaveLength(0);
     expect(screen.getByText("27.00 m³")).toBeVisible();
     expect(screen.getByText("35.64 m³")).toBeVisible();

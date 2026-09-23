@@ -101,6 +101,7 @@ export function StaffAssessmentDetail({
 
       <HomeownerFeasibilityReportView
         report={assessment.report}
+        builderCompanyName={assessment.builderCompanyName}
         delivery={{
           homeowner: assessment.emailDeliveryState,
           internal_test_report: assessment.forwardingState,
