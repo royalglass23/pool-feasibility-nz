@@ -34,6 +34,12 @@ export function SiteFooter() {
             <Link href="/partners" className="site-menu-link">
               Partnership Program
             </Link>
+            <Link
+              href="/can-my-auckland-property-suit-a-pool"
+              className="site-menu-link"
+            >
+              Can my property suit a pool?
+            </Link>
             <Link href="/privacy" className="site-menu-link">
               Privacy notice
             </Link>
