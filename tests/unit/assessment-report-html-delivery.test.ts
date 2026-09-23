@@ -5,6 +5,7 @@ import {
   type AssessmentDeliveryClaim,
   type AssessmentDeliveryStore,
 } from "@/modules/reporting/assessment-report-delivery";
+import { buildConstructabilitySnapshot } from "@/modules/assessment/constructability-evidence";
 
 const controlledTestDeliveryEnvironment = {
   mode: "synthetic_test",
@@ -124,11 +125,11 @@ describe("assessment report delivery", () => {
       "Have questions? Let’s talk it through.",
     );
     expect(homeownerEmail?.html).toContain("Reply and talk with us");
-    expect(homeownerEmail?.html).not.toContain("Recommended next step");
+    expect(homeownerEmail?.html).toContain("Recommended next step");
     expect(homeownerEmail?.text).toContain(
       "Have questions? Let’s talk it through.",
     );
-    expect(homeownerEmail?.text).not.toContain("Recommended next step");
+    expect(homeownerEmail?.text).toContain("Recommended next step");
     expect(supportEmail).toMatchObject({
       replyTo: "jane@example.com",
       subject: "[PoolReady] Property check report requested - 1 Test Street",
@@ -159,6 +160,101 @@ describe("assessment report delivery", () => {
         ],
       ]),
     );
+  });
+
+  it("uses the persisted Homeowner audience for email content even when legacy visitor data disagrees", async () => {
+    const report = buildTestPreliminaryReport({
+      reportAudience: "homeowner",
+      constructability: buildConstructabilitySnapshot({
+        answers: {
+          version: 1,
+          estimatedDepthMetres: 1.5,
+          excavationSideAllowanceMetres: 0.3,
+          route: {
+            provenance: "suggested",
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [174.7598, -36.8502],
+                [174.76, -36.85],
+              ],
+            },
+          },
+          accessConditions: ["gate_or_narrow_passage"],
+          nearbyFeatures: ["fences"],
+        },
+        suggestedRoute: {
+          type: "LineString",
+          coordinates: [
+            [174.7598, -36.8502],
+            [174.76, -36.85],
+          ],
+        },
+        routePolicyVersion: 1,
+        excavation: {
+          dimensions: { lengthMetres: 6.5, widthMetres: 3 },
+          terrainAdjustment: "unavailable",
+        },
+      }),
+    });
+    const store: AssessmentDeliveryStore = {
+      claim: vi.fn((_: string, channel) =>
+        Promise.resolve<AssessmentDeliveryClaim>({
+          channel,
+          claimToken: `${channel}-claim`,
+          homeownerName: "Jane Homeowner",
+          homeownerPhone: "021 123 4567",
+          homeownerEmail: "jane@example.com",
+          visitorType: "pool_builder",
+          visitorTypeOtherDetail: null,
+          desiredTiming: "3_months",
+          desiredTimingOtherDetail: null,
+          additionalInfo: null,
+          report,
+        }),
+      ),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined),
+    };
+    const send = vi.fn().mockResolvedValue({ id: "email-homeowner" });
+
+    await deliverAssessmentReport(report.reference, {
+      store,
+      send,
+      from: "PoolReady <reports@example.com>",
+      renderPdf: vi.fn().mockResolvedValue(Buffer.from("%PDF-homeowner")),
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
+    });
+
+    const homeownerEmail = send.mock.calls.find(
+      ([email]) => email.to === "jane@example.com",
+    )?.[0];
+    expect(homeownerEmail?.html).toContain(
+      "What your pool builder will confirm",
+    );
+    expect(homeownerEmail?.html).toContain(
+      "Arrange an onsite visit with a pool builder",
+    );
+    expect(homeownerEmail?.text).toContain(
+      "What your pool builder will confirm",
+    );
+    expect(homeownerEmail?.text).toContain(
+      "Arrange an onsite visit with a pool builder",
+    );
+    expect(homeownerEmail?.html).not.toContain("Site constructability");
+    expect(homeownerEmail?.text).not.toContain("Site constructability");
+    for (const excluded of [
+      "Estimated pool depth",
+      "Saved route",
+      "m³",
+      "300 mm",
+      "Firth",
+      "user-selected-side-clearance-v1",
+      "Provider availability",
+    ]) {
+      expect(homeownerEmail?.html).not.toContain(excluded);
+      expect(homeownerEmail?.text).not.toContain(excluded);
+    }
   });
 
   it("still notifies support when the homeowner email fails", async () => {

@@ -2,7 +2,6 @@ import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-rep
 import {
   assessmentStatusLabel,
   formatReportNumber,
-  REPORT_ASSESSMENT_ORDER,
   reportShortStatus,
   type ReportAssessment,
   type ReportDataSource,
@@ -20,12 +19,16 @@ import {
   PRELIMINARY_FEASIBILITY_REPORT_FOOTER,
 } from "@/modules/reporting/preliminary-feasibility-copy";
 import { escapeHtml } from "@/shared/html/escape-html";
+import { reportAudiencePresentation } from "@/modules/reporting/report-audience-presentation";
 
 export function renderCanonicalPreliminaryReportHtml(
   report: SavedPreliminaryReport,
 ): string {
   const esc = (value: unknown) => escapeHtml(String(value ?? ""));
   const generatedDate = formatReportGeneratedAt(report.generatedAt);
+  const audiencePresentation = reportAudiencePresentation(
+    report.reportAudience,
+  );
   const poolDimensions = `${formatReportNumber(report.pool.lengthMetres)} x ${formatReportNumber(report.pool.widthMetres)} m`;
   const header = () => `
     <header class="report-header">
@@ -36,7 +39,7 @@ export function renderCanonicalPreliminaryReportHtml(
     <header class="continuation-header"><span>${esc(generatedDate)}</span><span>Preliminary Feasibility Report</span></header>`;
   const footer = (page: number) => `
     <footer><span>${esc(PRELIMINARY_FEASIBILITY_REPORT_FOOTER)}</span><span>${esc(report.reference)} - ${page}/3</span></footer>`;
-  const assessments = REPORT_ASSESSMENT_ORDER.map(
+  const assessments = audiencePresentation.assessmentIds.map(
     (id) => report.assessments[id],
   );
   const glance = assessments
@@ -56,20 +59,30 @@ export function renderCanonicalPreliminaryReportHtml(
     .filter((item) => item.status === "unknown")
     .map((item) => `<li><strong>${esc(item.title)}</strong></li>`)
     .join("");
-  const constructabilitySections = reportConstructabilitySections(report)
-    .map((section) => renderConstructabilitySection(section, esc))
-    .join("");
+  const constructabilitySections =
+    audiencePresentation.showTechnicalConstructability
+      ? reportConstructabilitySections(report)
+          .map((section) => renderConstructabilitySection(section, esc))
+          .join("")
+      : "";
   const keyFindings = report.keyFindings
     .map((finding) => `<li><strong>${esc(finding.title)}</strong></li>`)
     .join("");
-  const clearances = reportPoolShellClearances(report);
-  const { entries: mapLegendEntries } = reportMapLegend(report);
+  const clearances = audiencePresentation.showTechnicalConstructability
+    ? reportPoolShellClearances(report)
+    : [];
+  const { entries: allMapLegendEntries } = reportMapLegend(report);
+  const mapLegendEntries = audiencePresentation.showTechnicalConstructability
+    ? allMapLegendEntries
+    : allMapLegendEntries.filter(
+        (entry) => entry.id !== "suggested-access-route",
+      );
   const clearanceCaption =
     clearances.length === 4
       ? `<section class="map-clearances"><h3>Pool-shell clearances</h3><ul>${clearances.map((clearance, index) => `<li>Side ${index + 1}: ${esc(clearance.label)}</li>`).join("")}</ul><p>${esc(POOL_SHELL_CLEARANCE_LIMITATION)}</p></section>`
       : "";
   const mapLegend = `<aside class="map-legend" aria-label="Captured map layers">
-    <div class="map-legend-heading"><h3>Captured map layers</h3><p class="map-legend-intro">The saved image shows these mapped layers and clearances.</p></div>
+    <div class="map-legend-heading"><h3>Captured map layers</h3><p class="map-legend-intro">The saved image shows these mapped layers${audiencePresentation.showTechnicalConstructability ? " and clearances" : ""}.</p></div>
     ${clearanceCaption}
     <ul class="map-legend-list">${mapLegendEntries.map((entry) => renderMapLegendEntry(entry, esc)).join("")}</ul>
   </aside>`;
@@ -96,6 +109,15 @@ export function renderCanonicalPreliminaryReportHtml(
     ? renderMappingCredits(mappingSources, esc)
     : `<li>Detailed mapping information was not available in the saved report.</li>`;
   const dataAccessed = latestSourceDate(report) ?? generatedDate;
+  const builderConfirmationItems = audiencePresentation.builderConfirmationItems
+    .map((item) => `<li>${esc(item)}</li>`)
+    .join("");
+  const homeownerGuidance = audiencePresentation.onsiteNextStep
+    ? `<div class="homeowner-guidance">
+      <section class="plain-section builder-confirmation"><h2>${esc(audiencePresentation.builderConfirmationHeading)}</h2><ul>${builderConfirmationItems}</ul></section>
+      <section class="plain-section onsite-next-step"><h2>${esc(audiencePresentation.nextStepHeading)}</h2><h3>${esc(audiencePresentation.onsiteNextStep.action)}</h3><p>${esc(audiencePresentation.onsiteNextStep.explanation)}</p></section>
+    </div>`
+    : "";
 
   return `<!doctype html>
 <html lang="en-NZ">
@@ -223,6 +245,9 @@ export function renderCanonicalPreliminaryReportHtml(
     .source-item a{color:var(--report-blue)}
     .disclaimer{margin-top:4mm;padding:3.5mm;background:var(--report-soft);border-radius:var(--radius);color:var(--report-muted)}
     .disclaimer p{margin-top:1.5mm;font-size:8pt}
+    .homeowner-guidance{margin-top:5mm;display:grid;grid-template-columns:1fr 1fr;gap:5mm;align-items:start}
+    .homeowner-guidance h3{margin-top:2mm;font-size:10pt}
+    .homeowner-guidance p{margin-top:1.5mm;color:var(--report-muted)}
   </style>
 </head>
 <body>
@@ -255,7 +280,7 @@ export function renderCanonicalPreliminaryReportHtml(
     <h2 class="page-section-title">What we checked</h2>
     <p class="assessment-intro">These findings use the mapped information saved with this report. Distances and boundaries are indicative, not surveyed.</p>
     ${assessmentCards ? `<div class="assessment-grid">${assessmentCards}</div>` : ""}
-    <section class="constructability"><h2>Site constructability</h2><div class="constructability-grid">${constructabilitySections}</div></section>
+    ${constructabilitySections ? `<section class="constructability"><h2>Site constructability</h2><div class="constructability-grid">${constructabilitySections}</div></section>` : ""}
     ${needsChecking || keyFindings ? `<div class="page-two-bottom">${needsChecking ? `<section class="needs-checking"><h2>Still needs checking</h2><ul>${needsChecking}</ul></section>` : ""}${keyFindings ? `<section class="later"><h2>Key findings</h2><ul>${keyFindings}</ul></section>` : ""}</div>` : ""}
     ${footer(2)}
   </section>
@@ -263,7 +288,9 @@ export function renderCanonicalPreliminaryReportHtml(
   <section class="page">
     ${continuationHeader()}
     <section class="recommended-stage"><h2>Recommended next stage</h2><strong>${esc(report.overall.recommendedStage)}</strong></section>
-    <div class="page-three-grid">
+    ${
+      audiencePresentation.showDetailedSources
+        ? `<div class="page-three-grid">
       <section class="plain-section">
         <h2>Mapping information &amp; licences</h2>
         <p class="mapping-summary">${sourceSummary}</p>
@@ -272,7 +299,9 @@ export function renderCanonicalPreliminaryReportHtml(
         <p class="mapping-summary">Mapped information is indicative and may differ from current site conditions.</p>
       </section>
       <section class="plain-section"><h2>Assumptions and limitations</h2><ul>${assumptionsAndLimitations}</ul></section>
-    </div>
+    </div>`
+        : homeownerGuidance
+    }
     <section class="disclaimer">
       <h2>Preliminary assessment</h2>
       <p>This report uses publicly available mapped information for preliminary planning purposes. Property boundaries, infrastructure locations, terrain and other mapped information are indicative and may differ from actual site conditions.</p>

@@ -315,10 +315,11 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).toContain("Key findings");
     expect(html).toContain("Still needs checking");
     expect(html).toContain("Recommended next stage");
-    expect(html).toContain("Assumptions and limitations");
+    expect(html).toContain("What your pool builder will confirm");
+    expect(html).toContain("Arrange an onsite visit with a pool builder");
     expect(html).toContain(report.overall.summary);
     expect(html).toContain(report.overall.recommendedStage);
-    expect(html).toContain("Mapping information &amp; licences");
+    expect(html).not.toContain("Mapping information &amp; licences");
     expect(html).toContain("PoolReady");
     expect(html).toContain("Powered by Blue Haven");
     expect(html).not.toContain('alt="Blue Haven"');
@@ -354,6 +355,7 @@ describe("canonical homeowner feasibility report", () => {
       ] as [number, number][],
     };
     const report = buildReport();
+    report.reportAudience = "pool_builder";
     report.constructability = buildConstructabilitySnapshot({
       answers: {
         version: 1,
@@ -475,6 +477,7 @@ describe("canonical homeowner feasibility report", () => {
 
   it("identifies a user-adjusted clearance and keeps the provisional source note", () => {
     const report = buildReport();
+    report.reportAudience = "pool_builder";
     report.constructability = buildConstructabilitySnapshot({
       answers: {
         version: 1,
@@ -559,8 +562,8 @@ describe("canonical homeowner feasibility report", () => {
       ),
     ).toEqual([
       "Recommended next stage",
-      "Mapping information & licences",
-      "Assumptions and limitations",
+      "What your pool builder will confirm",
+      "Recommended next step",
       "Preliminary assessment",
     ]);
     expect(pageThree?.textContent).not.toContain(
@@ -569,18 +572,20 @@ describe("canonical homeowner feasibility report", () => {
   });
 
   it("shows the saved layer legend and pool-shell clearances below the PDF map", () => {
-    const shown = renderCanonicalPreliminaryReportHtml(buildReport());
+    const shownReport = buildReport();
+    shownReport.reportAudience = "pool_builder";
+    const shown = renderCanonicalPreliminaryReportHtml(shownReport);
     expect(shown).toContain("Captured map layers");
     expect(shown).toContain('class="map-legend"');
     expect(shown).toContain("Indicative mapped pool-shell clearances");
     expect(shown).toMatch(/Side 1: [\d.]+ m/);
     expect(shown).toMatch(/Side 4: [\d.]+ m/);
 
-    const hidden = renderCanonicalPreliminaryReportHtml(
-      buildReport((submission) => {
-        submission.poolLayout.clearancesVisible = false;
-      }),
-    );
+    const hiddenReport = buildReport((submission) => {
+      submission.poolLayout.clearancesVisible = false;
+    });
+    hiddenReport.reportAudience = "pool_builder";
+    const hidden = renderCanonicalPreliminaryReportHtml(hiddenReport);
     expect(hidden).not.toContain("Indicative mapped pool-shell clearances");
   });
 

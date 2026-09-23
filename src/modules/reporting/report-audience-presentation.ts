@@ -23,13 +23,15 @@ const HOMEOWNER_BUILDER_CONFIRMATION_ITEMS = [
   "Pool-barrier design, nearby features and approval requirements",
 ] as const;
 
-export function reportWebAudiencePresentation(audience: ReportAudience) {
+export function reportAudiencePresentation(audience: ReportAudience) {
   if (audience === "pool_builder") {
     return {
       assessmentIds: REPORT_ASSESSMENT_ORDER,
       showTechnicalConstructability: true,
       showDetailedSources: true,
+      builderConfirmationHeading: null,
       builderConfirmationItems: [],
+      nextStepHeading: null,
       onsiteNextStep: null,
     } as const;
   }
@@ -38,7 +40,9 @@ export function reportWebAudiencePresentation(audience: ReportAudience) {
     assessmentIds: HOMEOWNER_REPORT_ASSESSMENT_IDS,
     showTechnicalConstructability: false,
     showDetailedSources: false,
+    builderConfirmationHeading: "What your pool builder will confirm",
     builderConfirmationItems: HOMEOWNER_BUILDER_CONFIRMATION_ITEMS,
+    nextStepHeading: "Recommended next step",
     onsiteNextStep: {
       action: "Arrange an onsite visit with a pool builder.",
       explanation:
@@ -46,3 +50,5 @@ export function reportWebAudiencePresentation(audience: ReportAudience) {
     },
   } as const;
 }
+
+export const reportWebAudiencePresentation = reportAudiencePresentation;

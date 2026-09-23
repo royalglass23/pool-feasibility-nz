@@ -58,6 +58,8 @@ describe.skipIf(!databaseUrl)(
           "homeowner",
         );
         expect(retryClaim?.claimToken).not.toBe(homeownerClaim?.claimToken);
+        expect(retryClaim?.report.reportAudience).toBe("homeowner");
+        expect(retryClaim?.report).toEqual(homeownerClaim?.report);
         await store.markSent(
           saved.assessment.reference,
           "homeowner",

@@ -248,7 +248,7 @@ export function HomeownerFeasibilityReportView({
               id="builder-confirmation-heading"
               className="text-pool-950 text-xl font-semibold tracking-[-0.02em]"
             >
-              What your pool builder will confirm
+              {audiencePresentation.builderConfirmationHeading}
             </h3>
             <ul className="text-pool-700 mt-4 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
               {audiencePresentation.builderConfirmationItems.map((item) => (
@@ -272,7 +272,7 @@ export function HomeownerFeasibilityReportView({
               id="homeowner-next-step-heading"
               className="text-pool-950 text-lg font-semibold"
             >
-              Recommended next step
+              {audiencePresentation.nextStepHeading}
             </h3>
             <p className="text-pool-950 mt-3 font-semibold">
               {audiencePresentation.onsiteNextStep.action}
