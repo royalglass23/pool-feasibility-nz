@@ -117,6 +117,24 @@ describe("persisted preliminary report renderer", () => {
     expect(html).not.toContain("Suggested access route");
   });
 
+  it("shows the optional company only in the trusted Pool Builder projection", () => {
+    const builderHtml = renderCanonicalPreliminaryReportHtml(report, {
+      builderCompanyName: "North Shore Pools Ltd",
+    });
+    const homeownerHtml = renderCanonicalPreliminaryReportHtml(
+      buildTestPreliminaryReport({ reportAudience: "homeowner" }),
+      { builderCompanyName: "North Shore Pools Ltd" },
+    );
+
+    expect(builderHtml).toContain(
+      "Company / trading name:</strong> North Shore Pools Ltd",
+    );
+    expect(builderHtml).not.toContain("Customer name");
+    expect(builderHtml).not.toContain("Customer phone");
+    expect(builderHtml).not.toContain("Customer email");
+    expect(homeownerHtml).not.toContain("North Shore Pools Ltd");
+  });
+
   it("keeps the Homeowner projection inside three A4 pages without orphaned guidance headings", async () => {
     const homeownerReport = buildTestPreliminaryReport({
       reportAudience: "homeowner",
@@ -293,7 +311,7 @@ describe("persisted preliminary report renderer", () => {
     expect(html).not.toContain("Second dataset");
   });
 
-  it("refuses a three-page PDF when complete source attribution cannot fit", async () => {
+  it("expands a Pool Builder PDF when complete source attribution needs more pages", async () => {
     const crowdedReport = buildTestPreliminaryReport({
       reportAudience: "pool_builder",
       sources: Array.from({ length: 50 }, (_, index) => ({
@@ -304,12 +322,15 @@ describe("persisted preliminary report renderer", () => {
       })),
     });
 
-    await expect(generatePreliminaryReportPdf(crowdedReport)).rejects.toThrow(
-      "REPORT_GENERATION_FAILED: attribution exceeds the three-page layout",
-    );
+    const pdf = await generatePreliminaryReportPdf(crowdedReport);
+
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(
+      pdf.toString("latin1").match(/\/Type\s*\/Page\b/g)?.length ?? 0,
+    ).toBeGreaterThan(3);
   }, 30_000);
 
-  it("refuses a three-page PDF when valid limitations would be clipped", async () => {
+  it("expands a Pool Builder PDF when valid limitations need more than three pages", async () => {
     const crowdedReport = buildTestPreliminaryReport({
       reportAudience: "pool_builder",
       limitations: Array.from(
@@ -319,8 +340,26 @@ describe("persisted preliminary report renderer", () => {
       ),
     });
 
-    await expect(generatePreliminaryReportPdf(crowdedReport)).rejects.toThrow(
-      "REPORT_GENERATION_FAILED: content exceeds the three-page layout",
+    const pdf = await generatePreliminaryReportPdf(crowdedReport);
+
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(
+      pdf.toString("latin1").match(/\/Type\s*\/Page\b/g)?.length ?? 0,
+    ).toBeGreaterThan(3);
+  }, 30_000);
+
+  it("rejects a Pool Builder PDF when one unbreakable evidence item cannot fit a page", async () => {
+    const unreadableReport = buildTestPreliminaryReport({
+      reportAudience: "pool_builder",
+      limitations: [
+        `Unbreakable evidence item: ${"This evidence must remain readable as one item. ".repeat(500)}`,
+      ],
+    });
+
+    await expect(
+      generatePreliminaryReportPdf(unreadableReport),
+    ).rejects.toThrow(
+      "REPORT_GENERATION_FAILED: builder content cannot paginate cleanly",
     );
   }, 30_000);
 

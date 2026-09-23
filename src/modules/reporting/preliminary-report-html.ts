@@ -21,8 +21,13 @@ import {
 import { escapeHtml } from "@/shared/html/escape-html";
 import { reportAudiencePresentation } from "@/modules/reporting/report-audience-presentation";
 
+export type PreliminaryReportRenderContext = {
+  builderCompanyName?: string | null;
+};
+
 export function renderCanonicalPreliminaryReportHtml(
   report: SavedPreliminaryReport,
+  context: PreliminaryReportRenderContext = {},
 ): string {
   const esc = (value: unknown) => escapeHtml(String(value ?? ""));
   const generatedDate = formatReportGeneratedAt(report.generatedAt);
@@ -38,7 +43,7 @@ export function renderCanonicalPreliminaryReportHtml(
   const continuationHeader = () => `
     <header class="continuation-header"><span>${esc(generatedDate)}</span><span>Preliminary Feasibility Report</span></header>`;
   const footer = (page: number) => `
-    <footer><span>${esc(PRELIMINARY_FEASIBILITY_REPORT_FOOTER)}</span><span>${esc(report.reference)} - ${page}/3</span></footer>`;
+    <footer><span>${esc(PRELIMINARY_FEASIBILITY_REPORT_FOOTER)}</span><span>${esc(report.reference)}${report.reportAudience === "homeowner" ? ` - ${page}/3` : ""}</span></footer>`;
   const assessments = audiencePresentation.assessmentIds.map(
     (id) => report.assessments[id],
   );
@@ -118,6 +123,10 @@ export function renderCanonicalPreliminaryReportHtml(
       <section class="plain-section onsite-next-step"><h2>${esc(audiencePresentation.nextStepHeading)}</h2><h3>${esc(audiencePresentation.onsiteNextStep.action)}</h3><p>${esc(audiencePresentation.onsiteNextStep.explanation)}</p></section>
     </div>`
     : "";
+  const builderCompany =
+    report.reportAudience === "pool_builder" && context.builderCompanyName
+      ? `<p class="builder-company"><strong>Company / trading name:</strong> ${esc(context.builderCompanyName)}</p>`
+      : "";
 
   return `<!doctype html>
 <html lang="en-NZ">
@@ -248,13 +257,21 @@ export function renderCanonicalPreliminaryReportHtml(
     .homeowner-guidance{margin-top:5mm;display:grid;grid-template-columns:1fr 1fr;gap:5mm;align-items:start}
     .homeowner-guidance h3{margin-top:2mm;font-size:10pt}
     .homeowner-guidance p{margin-top:1.5mm;color:var(--report-muted)}
+    .builder-report .page{height:auto;min-height:297mm;padding-bottom:16mm;overflow:visible;break-inside:auto;page-break-inside:auto}
+    .builder-report .constructability-grid{display:block}
+    .builder-report .constructability-card{margin-top:2mm;break-inside:avoid;page-break-inside:avoid}
+    .builder-report .page-three-grid{display:block}
+    .builder-report .page-three-grid .plain-section + .plain-section{margin-top:5mm}
+    .builder-report .source-item,.builder-report .plain-section li,.builder-report .disclaimer{break-inside:avoid;page-break-inside:avoid}
+    .builder-report h1,.builder-report h2,.builder-report h3,.builder-report h4{break-after:avoid;page-break-after:avoid}
   </style>
 </head>
-<body>
+<body class="${report.reportAudience === "pool_builder" ? "builder-report" : "homeowner-report"}">
   <section class="page">
     ${header()}
     <div class="property-line">
       <p>Proposed pool: ${esc(poolDimensions)}</p>
+      ${builderCompany}
     </div>
     <section class="overall ${esc(report.overall.status)}" aria-label="Overall assessment">
       <div class="status-label">${esc(assessmentStatusLabel(report.overall.status))}</div>
@@ -376,14 +393,6 @@ function renderAccessAndExcavationSection(
   esc: (value: unknown) => string,
 ): string {
   const details = section.details
-    .filter((detail) =>
-      [
-        "Estimated pool depth",
-        "Saved route",
-        "Route length",
-        "Steepest route gradient",
-      ].includes(detail.label),
-    )
     .map(
       (detail) =>
         `<li><strong>${esc(detail.label)}:</strong> ${esc(detail.value)}</li>`,
@@ -403,7 +412,7 @@ function renderAccessAndExcavationSection(
     )
     .join("");
   const excavation = section.excavation
-    ? `<section class="excavation" data-assumption-id="${esc(section.excavation.assumptionId)}" data-source-url="${esc(section.excavation.sourceUrl)}"><h4>Indicative excavation</h4><ul class="excavation-scenarios">${section.excavation.scenarios.map((scenario) => `<li><strong>${esc(scenario.label)}:</strong> ${esc(scenario.formattedValue)}</li>`).join("")}</ul><p>${esc(section.excavation.clearanceDisclosure)}</p><p>${esc(section.excavation.terrainLabel)}.</p><p>This planning estimate does not include extra depth, footings, drainage, slopes or site support.</p></section>`
+    ? `<section class="excavation" data-assumption-id="${esc(section.excavation.assumptionId)}" data-source-url="${esc(section.excavation.sourceUrl)}"><h4>Indicative excavation</h4><ul class="excavation-scenarios">${section.excavation.scenarios.map((scenario) => `<li><strong>${esc(scenario.label)}:</strong> ${esc(scenario.formattedValue)}</li>`).join("")}</ul><p>${esc(section.excavation.publicDisclosure)}</p><p>${esc(section.excavation.terrainLabel)}.</p></section>`
     : "";
 
   return `<article class="constructability-card access_excavation ${esc(section.status)}"><h3>${esc(section.title)}</h3><p class="constructability-status">${esc(section.statusLabel)}</p><p class="constructability-summary">${esc(section.summary)}</p><div class="access-layout"><div>${details ? `<ul class="constructability-details">${details}</ul>` : ""}${evidence ? `<ul class="constructability-evidence">${evidence}</ul>` : ""}${section.provenanceNote ? `<p class="constructability-note">${esc(section.provenanceNote)}</p>` : ""}</div>${excavation}</div><p class="constructability-boundary">Confirm access, excavation and ground conditions onsite before construction.</p></article>`;

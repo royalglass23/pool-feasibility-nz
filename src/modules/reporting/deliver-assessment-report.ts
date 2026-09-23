@@ -11,7 +11,7 @@ import {
   ReportEmailDeliveryError,
   sendResendEmail,
 } from "@/modules/reporting/resend-email-gateway";
-import { generatePreliminaryReportPdf } from "@/modules/reporting/report-renderer";
+import { generateSavedPreliminaryReportPdf } from "@/modules/reporting/report-renderer";
 
 export async function deliverAssessmentReportByReference(
   reference: string,
@@ -28,7 +28,8 @@ export async function deliverAssessmentReportByReference(
       "/brand/pool-ready-logo.png",
       env.APP_BASE_URL,
     ).toString(),
-    renderPdf: generatePreliminaryReportPdf,
+    renderPdf: (report, context = {}) =>
+      generateSavedPreliminaryReportPdf({ report, context }),
     deliveryEnvironment: {
       mode: process.env.REPORT_DELIVERY_MODE,
       vercelEnvironment: process.env.VERCEL_ENV,

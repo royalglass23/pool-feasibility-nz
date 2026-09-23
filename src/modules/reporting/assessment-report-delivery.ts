@@ -21,6 +21,7 @@ import {
   type ReportDeliveryEnvironment,
 } from "@/modules/reporting/report-delivery-policy";
 import { reportAudiencePresentation } from "@/modules/reporting/report-audience-presentation";
+import type { PreliminaryReportRenderContext } from "@/modules/reporting/preliminary-report-html";
 
 export type AssessmentDeliveryChannel = "homeowner" | "internal_test_report";
 export type AssessmentDeliveryOutcome = "sent" | "failed" | "unchanged";
@@ -64,7 +65,10 @@ export type AssessmentReportDeliveryDependencies = {
   send: (input: ReportEmailInput) => Promise<ReportEmailResult>;
   from: string;
   brandLogoUrl?: string;
-  renderPdf: (report: SavedPreliminaryReport) => Promise<Buffer>;
+  renderPdf: (
+    report: SavedPreliminaryReport,
+    context?: PreliminaryReportRenderContext,
+  ) => Promise<Buffer>;
   deliveryEnvironment: ReportDeliveryEnvironment;
 };
 
@@ -89,8 +93,35 @@ export async function deliverAssessmentReport(
   ).filter((claim): claim is AssessmentDeliveryClaim => claim !== null);
   if (claims.length === 0) return outcomes;
 
+  const primaryClaim = claims[0]!;
+  const primaryReportProjection = JSON.stringify(primaryClaim.report);
+  const projectionMismatch = claims.some(
+    (claim) =>
+      JSON.stringify(claim.report) !== primaryReportProjection ||
+      claim.builderCompanyName !== primaryClaim.builderCompanyName,
+  );
+  if (projectionMismatch) {
+    await Promise.all(
+      claims.map(async (claim) => {
+        await dependencies.store.markFailed(
+          reference,
+          claim.channel,
+          claim.claimToken,
+          "REPORT_PROJECTION_MISMATCH",
+        );
+        outcomes[claim.channel] = "failed";
+      }),
+    );
+    return outcomes;
+  }
+
   try {
-    const pdf = await dependencies.renderPdf(claims[0]!.report);
+    const pdf =
+      primaryClaim.report.reportAudience === "pool_builder"
+        ? await dependencies.renderPdf(primaryClaim.report, {
+            builderCompanyName: primaryClaim.builderCompanyName,
+          })
+        : await dependencies.renderPdf(primaryClaim.report);
     await Promise.all(
       claims.map(async (claim) => {
         try {
@@ -162,13 +193,10 @@ function emailForHomeowner(
       ? reportConstructabilitySections(claim.report)
       : [];
   const constructabilityText = constructabilitySections
-    .map((section) => `${section.title}: ${section.statusLabel}`)
+    .map((section) => renderConstructabilityEmailText(section))
     .join("\n");
   const constructabilityHtml = constructabilitySections
-    .map(
-      (section) =>
-        `<li><strong>${escapeHtml(section.title)}:</strong> ${escapeHtml(section.statusLabel)}</li>`,
-    )
+    .map((section) => renderConstructabilityEmailHtml(section))
     .join("");
   const brandLogoUrl = escapeHtml(
     dependencies.brandLogoUrl ?? "/brand/pool-ready-logo.png",
@@ -177,10 +205,10 @@ function emailForHomeowner(
     "Whether it’s about your report, your site or what to do next, simply reply to this email. We’ll help you make sense of it and work out the best next step.";
   const audienceText = audiencePresentation.onsiteNextStep
     ? `\n\n${audiencePresentation.builderConfirmationHeading}:\n${audiencePresentation.builderConfirmationItems.map((item) => `- ${item}`).join("\n")}\n\n${audiencePresentation.nextStepHeading}:\n${audiencePresentation.onsiteNextStep.action}\n${audiencePresentation.onsiteNextStep.explanation}`
-    : `\n\nSite constructability:\n${constructabilityText}`;
+    : `\n\n${claim.builderCompanyName ? `Company / trading name: ${claim.builderCompanyName}\n\n` : ""}Site constructability:\n${constructabilityText}`;
   const audienceHtml = audiencePresentation.onsiteNextStep
     ? `<h2 style="margin:24px 0 8px;color:#173755;font-size:19px;line-height:1.3">${escapeHtml(audiencePresentation.builderConfirmationHeading)}</h2><ul>${audiencePresentation.builderConfirmationItems.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}</ul><h2 style="margin:24px 0 8px;color:#173755;font-size:19px;line-height:1.3">${escapeHtml(audiencePresentation.nextStepHeading)}</h2><p><strong>${escapeHtml(audiencePresentation.onsiteNextStep.action)}</strong></p><p>${escapeHtml(audiencePresentation.onsiteNextStep.explanation)}</p>`
-    : `<p><strong>Site constructability:</strong></p><ul>${constructabilityHtml}</ul>`;
+    : `${claim.builderCompanyName ? `<p><strong>Company / trading name:</strong> ${escapeHtml(claim.builderCompanyName)}</p>` : ""}<h2 style="margin:24px 0 8px;color:#173755;font-size:19px;line-height:1.3">Site constructability</h2>${constructabilityHtml}`;
   const text = `${greeting}\n\nPoolReady preliminary pool feasibility report\n${claim.report.property.address}\n\nOverall result:\n${overallStatus}\n\n${claim.report.overall.summary}\n\nMain finding:\n${mainFindingText}${audienceText}\n\nHave questions? Let’s talk it through.\n${replyInvitation}\n\nReference: ${claim.report.reference}\n\nThis is a preliminary desktop assessment, not surveying, engineering advice, consent or approval to undertake construction.`;
   const html = `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:Arial,sans-serif;color:#1f2937;background:#f1f5f9;padding:24px"><tr><td align="center"><table role="presentation" width="600" cellpadding="0" cellspacing="0" border="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:12px;overflow:hidden"><tr><td style="background:#173755;color:#ffffff;padding:28px 32px"><a href="https://www.poolready.co.nz/" target="_blank" rel="noopener noreferrer" style="display:inline-block;background:#ffffff;border-radius:6px;padding:8px 12px"><img src="${brandLogoUrl}" alt="PoolReady" width="176" style="display:block;width:176px;max-width:100%;height:auto;border:0;outline:none;text-decoration:none"></a><h1 style="margin:20px 0 0;font-size:25px;line-height:1.3">Your preliminary pool feasibility report</h1></td></tr><tr><td style="padding:28px 32px"><p>${escapeHtml(greeting)}</p><p><strong>${escapeHtml(claim.report.property.address)}</strong></p><p style="padding:16px;background:#eff6ff;border-radius:8px"><strong>Overall result:</strong><br>${escapeHtml(overallStatus)}</p><p>${escapeHtml(claim.report.overall.summary)}</p><p><strong>Main finding:</strong><br>${escapeHtml(mainFindingText)}</p>${audienceHtml}<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="margin:24px 0 12px;border:1px solid #b9dddb;border-radius:12px;background:#effaf8"><tr><td style="padding:22px 24px"><table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td valign="top" style="width:42px;padding:2px 14px 0 0"><div style="width:38px;height:38px;border-radius:19px;background:#0f766e;color:#ffffff;font-size:23px;font-weight:bold;line-height:38px;text-align:center">↩</div></td><td><h2 style="margin:0 0 7px;color:#173755;font-size:19px;line-height:1.3">Have questions? Let’s talk it through.</h2><p style="margin:0 0 15px;color:#334155;font-size:15px;line-height:1.55">${escapeHtml(replyInvitation)}</p><span style="display:inline-block;border-radius:6px;background:#0f766e;padding:11px 16px;color:#ffffff;font-size:14px;font-weight:bold">Reply and talk with us</span></td></tr></table></td></tr></table><p style="font-size:12px;color:#4b5563">Reference: ${escapeHtml(claim.report.reference)}. This is a preliminary desktop assessment, not surveying, engineering advice, consent or approval to undertake construction.</p></td></tr></table></td></tr></table>`;
 
@@ -195,6 +223,55 @@ function emailForHomeowner(
     filename: preliminaryReportFilename(claim.report),
     idempotencyKey: `assessment-report/${claim.report.reference}/homeowner`,
   };
+}
+
+function renderConstructabilityEmailText(
+  section: ReturnType<typeof reportConstructabilitySections>[number],
+): string {
+  const lines = [
+    section.title,
+    section.statusLabel,
+    section.summary,
+    ...section.details.map((detail) => `${detail.label}: ${detail.value}`),
+    ...section.evidence.map(
+      (item) => `${item.provenance}: ${item.description}`,
+    ),
+    ...(section.provenanceNote ? [section.provenanceNote] : []),
+  ];
+  if (section.excavation) {
+    lines.push(
+      section.excavation.heading,
+      ...section.excavation.scenarios.map(
+        (scenario) => `${scenario.label}: ${scenario.formattedValue}`,
+      ),
+      section.excavation.publicDisclosure,
+      section.excavation.terrainLabel,
+      ...(section.excavation.specialistDepthWarning
+        ? [section.excavation.specialistDepthWarning]
+        : []),
+    );
+  }
+  lines.push(section.boundary);
+  return lines.join("\n");
+}
+
+function renderConstructabilityEmailHtml(
+  section: ReturnType<typeof reportConstructabilitySections>[number],
+): string {
+  const details = [
+    ...section.details.map(
+      (detail) =>
+        `<li><strong>${escapeHtml(detail.label)}:</strong> ${escapeHtml(detail.value)}</li>`,
+    ),
+    ...section.evidence.map(
+      (item) =>
+        `<li><strong>${escapeHtml(item.provenance)}:</strong> ${escapeHtml(item.description)}</li>`,
+    ),
+  ].join("");
+  const excavation = section.excavation
+    ? `<h4>${escapeHtml(section.excavation.heading)}</h4><ul>${section.excavation.scenarios.map((scenario) => `<li><strong>${escapeHtml(scenario.label)}:</strong> ${escapeHtml(scenario.formattedValue)}</li>`).join("")}</ul><p>${escapeHtml(section.excavation.publicDisclosure)}</p><p>${escapeHtml(section.excavation.terrainLabel)}</p>${section.excavation.specialistDepthWarning ? `<p><strong>${escapeHtml(section.excavation.specialistDepthWarning)}</strong></p>` : ""}`
+    : "";
+  return `<section><h3>${escapeHtml(section.title)}</h3><p><strong>${escapeHtml(section.statusLabel)}</strong></p><p>${escapeHtml(section.summary)}</p>${details ? `<ul>${details}</ul>` : ""}${section.provenanceNote ? `<p>${escapeHtml(section.provenanceNote)}</p>` : ""}${excavation}<p>${escapeHtml(section.boundary)}</p></section>`;
 }
 
 function emailForInternalTestReport(

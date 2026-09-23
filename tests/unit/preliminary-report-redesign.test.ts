@@ -420,6 +420,9 @@ describe("canonical homeowner feasibility report", () => {
       "300 mm selected side-clearance scenario",
     );
     expect(pageTwo?.textContent).toContain("Route length");
+    expect(pageTwo?.textContent).toContain("Route elevation change");
+    expect(pageTwo?.textContent).toContain("1.2 m");
+    expect(pageTwo?.textContent).toContain("Steepest route gradient");
     expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
       ".constructability-card{--card-heading-size:12pt;--card-body-size:8pt",
     );
@@ -449,10 +452,11 @@ describe("canonical homeowner feasibility report", () => {
       "Mapped evidence and your Site answer are both retained",
     );
     expect(pageTwo?.textContent).toContain(
-      "300 mm is PoolReady’s provisional Firth-derived starting point",
+      "Indicative planning volumes only — not a quote, specification or upper bound. These figures use your selected side clearance but exclude base preparation, drainage, terrain, services and installation method. Confirm final excavation requirements onsite.",
     );
-    expect(pageTwo?.textContent).toContain(
-      "not approved for the selected pool",
+    expect(pageTwo?.textContent).not.toContain("Firth");
+    expect(pageTwo?.textContent).not.toContain(
+      "user-selected-side-clearance-v1",
     );
     expect(
       pageTwo?.querySelector(".constructability-card.access_excavation")
@@ -475,7 +479,7 @@ describe("canonical homeowner feasibility report", () => {
     ]);
   });
 
-  it("identifies a user-adjusted clearance and keeps the provisional source note", () => {
+  it("identifies a user-adjusted clearance without exposing internal source notes", () => {
     const report = buildReport();
     report.reportAudience = "pool_builder";
     report.constructability = buildConstructabilitySnapshot({
@@ -501,13 +505,14 @@ describe("canonical homeowner feasibility report", () => {
       .querySelector(".constructability-card.access_excavation");
 
     expect(accessCard?.textContent).toContain(
-      "200 mm was selected for planning",
+      "200 mm selected side-clearance scenario",
     );
     expect(accessCard?.textContent).toContain(
-      "PoolReady’s provisional 300 mm starting point is Firth-derived",
+      "Indicative planning volumes only — not a quote, specification or upper bound. These figures use your selected side clearance but exclude base preparation, drainage, terrain, services and installation method. Confirm final excavation requirements onsite.",
     );
-    expect(accessCard?.textContent).toContain(
-      "not approved for the selected pool",
+    expect(accessCard?.textContent).not.toContain("Firth-derived");
+    expect(accessCard?.textContent).not.toContain(
+      "user-selected-side-clearance-v1",
     );
   });
 

@@ -260,6 +260,176 @@ describe("assessment report delivery", () => {
     }
   });
 
+  it("projects the persisted Pool Builder audience and company into the PDF and email without customer details", async () => {
+    const report = buildTestPreliminaryReport({
+      reportAudience: "pool_builder",
+      constructability: buildConstructabilitySnapshot({
+        answers: {
+          version: 1,
+          estimatedDepthMetres: 1.5,
+          excavationSideAllowanceMetres: 0.3,
+          route: {
+            provenance: "suggested",
+            geometry: {
+              type: "LineString",
+              coordinates: [
+                [174.7598, -36.8502],
+                [174.76, -36.85],
+              ],
+            },
+          },
+          accessConditions: ["gate_or_narrow_passage"],
+          nearbyFeatures: ["fences"],
+        },
+        mappedEvidence: [
+          {
+            id: "saved-ground-check",
+            category: "terrain_ground",
+            status: "no_concern",
+            provider: "Auckland DEM",
+            dataset: "Indicative terrain",
+          },
+        ],
+        providerAvailability: [
+          {
+            category: "access_excavation",
+            provider: "Vector",
+            dataset: "Mapped services",
+            status: "error",
+          },
+        ],
+        suggestedRoute: {
+          type: "LineString",
+          coordinates: [
+            [174.7598, -36.8502],
+            [174.76, -36.85],
+          ],
+        },
+        routePolicyVersion: 1,
+        excavation: {
+          dimensions: { lengthMetres: 6.5, widthMetres: 3 },
+          terrainAdjustment: "unavailable",
+        },
+      }),
+    });
+    const store: AssessmentDeliveryStore = {
+      claim: vi.fn((_: string, channel) =>
+        Promise.resolve<AssessmentDeliveryClaim>({
+          channel,
+          claimToken: `${channel}-claim`,
+          homeownerName: "Pat Builder",
+          homeownerPhone: "021 123 4567",
+          homeownerEmail: "pat@example.com",
+          builderCompanyName: "North Shore Pools Ltd",
+          visitorType: "pool_builder",
+          visitorTypeOtherDetail: null,
+          desiredTiming: "3_months",
+          desiredTimingOtherDetail: null,
+          additionalInfo: null,
+          report,
+        }),
+      ),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined),
+    };
+    const send = vi.fn().mockResolvedValue({ id: "email-builder" });
+    const renderPdf = vi.fn().mockResolvedValue(Buffer.from("%PDF-builder"));
+
+    await deliverAssessmentReport(report.reference, {
+      store,
+      send,
+      from: "PoolReady <reports@example.com>",
+      renderPdf,
+      deliveryEnvironment: controlledTestDeliveryEnvironment,
+    });
+
+    expect(renderPdf).toHaveBeenCalledWith(report, {
+      builderCompanyName: "North Shore Pools Ltd",
+    });
+    const builderEmail = send.mock.calls.find(
+      ([email]) => email.to === "pat@example.com",
+    )?.[0];
+    for (const expected of [
+      "North Shore Pools Ltd",
+      "Estimated pool depth",
+      "1.50 m",
+      "Gate or narrow passage",
+      "Provider availability",
+      "Indicative planning volumes only",
+      "Confirm final excavation requirements onsite",
+    ]) {
+      expect(builderEmail?.html).toContain(expected);
+      expect(builderEmail?.text).toContain(expected);
+    }
+    for (const excluded of [
+      "Customer name",
+      "Customer phone",
+      "Customer email",
+      "Firth masonry guidance",
+      "user-selected-side-clearance-v1",
+    ]) {
+      expect(builderEmail?.html).not.toContain(excluded);
+      expect(builderEmail?.text).not.toContain(excluded);
+    }
+  });
+
+  it("fails closed instead of mixing audience projections across delivery claims", async () => {
+    const builderReport = buildTestPreliminaryReport({
+      reportAudience: "pool_builder",
+    });
+    const homeownerReport = buildTestPreliminaryReport({
+      reportAudience: "homeowner",
+    });
+    const store: AssessmentDeliveryStore = {
+      claim: vi.fn((_: string, channel) =>
+        Promise.resolve<AssessmentDeliveryClaim>({
+          channel,
+          claimToken: `${channel}-claim`,
+          homeownerName: "Pat Builder",
+          homeownerPhone: "021 123 4567",
+          homeownerEmail: "pat@example.com",
+          builderCompanyName:
+            channel === "homeowner" ? "North Shore Pools Ltd" : null,
+          visitorType: "pool_builder",
+          visitorTypeOtherDetail: null,
+          desiredTiming: "3_months",
+          desiredTimingOtherDetail: null,
+          additionalInfo: null,
+          report: channel === "homeowner" ? builderReport : homeownerReport,
+        }),
+      ),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined),
+    };
+    const send = vi.fn().mockResolvedValue({ id: "must-not-send" });
+    const renderPdf = vi.fn().mockResolvedValue(Buffer.from("%PDF-wrong"));
+
+    await expect(
+      deliverAssessmentReport(builderReport.reference, {
+        store,
+        send,
+        from: "PoolReady <reports@example.com>",
+        renderPdf,
+        deliveryEnvironment: controlledTestDeliveryEnvironment,
+      }),
+    ).resolves.toEqual({ homeowner: "failed", internal_test_report: "failed" });
+    expect(renderPdf).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(store.markFailed).toHaveBeenCalledTimes(2);
+    expect(store.markFailed).toHaveBeenCalledWith(
+      builderReport.reference,
+      "homeowner",
+      "homeowner-claim",
+      "REPORT_PROJECTION_MISMATCH",
+    );
+    expect(store.markFailed).toHaveBeenCalledWith(
+      builderReport.reference,
+      "internal_test_report",
+      "internal_test_report-claim",
+      "REPORT_PROJECTION_MISMATCH",
+    );
+  });
+
   it("still notifies support when the homeowner email fails", async () => {
     const report = buildTestPreliminaryReport();
     const store: AssessmentDeliveryStore = {

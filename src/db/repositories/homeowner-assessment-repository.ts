@@ -163,6 +163,13 @@ export async function getHomeownerAssessmentById(
 }
 
 export async function getSavedPreliminaryReportById(db: Database, id: string) {
+  return (await getSavedPreliminaryReportRenderById(db, id))?.report ?? null;
+}
+
+export async function getSavedPreliminaryReportRenderById(
+  db: Database,
+  id: string,
+) {
   const assessment = await db.query.homeownerAssessments.findFirst({
     where: and(
       eq(schema.homeownerAssessments.id, id),
@@ -176,13 +183,22 @@ export async function getSavedPreliminaryReportById(db: Database, id: string) {
   ) {
     return null;
   }
-  return buildSavedPreliminaryReport({
+  const report = buildSavedPreliminaryReport({
     reference: assessment.reference,
     createdAt: assessment.createdAt.toISOString(),
     submission: submissionFromRow(assessment, assessment.reportMapImageDataUrl),
     legacyVisitorType: assessment.visitorType as
       "homeowner" | "pool_builder" | "other" | null,
   });
+  return {
+    report,
+    context: {
+      builderCompanyName:
+        report.reportAudience === "pool_builder"
+          ? assessment.builderCompanyName
+          : null,
+    },
+  };
 }
 
 export async function getAssessmentDeliveryStateById(db: Database, id: string) {
