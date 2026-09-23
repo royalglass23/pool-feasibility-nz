@@ -65,17 +65,14 @@ test("saves and reproduces the complete public constructability journey through 
   const db = drizzle(neon(databaseUrl!), { schema });
   const assessmentIds: string[] = [];
   const submittedAudiences: string[] = [];
+  let detailedJourneyCount = 0;
 
   await page.route("**/api/public/property-check", (route) =>
     route.fulfill({
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        assessmentSnapshot: signedSnapshot(
-          baseResult,
-          1.5,
-          availableEvidence(),
-        ),
+        assessmentSnapshot: signedSnapshot(baseResult),
         data: baseResult,
       }),
     }),
@@ -86,7 +83,8 @@ test("saves and reproduces the complete public constructability journey through 
       estimatedDepthMetres?: number;
     };
     const depth = request.estimatedDepthMetres ?? 1.5;
-    const firstJourney = submittedAudiences.length === 0;
+    if (request.mode === "detailed") detailedJourneyCount += 1;
+    const homeownerJourney = detailedJourneyCount <= 2;
     const detailedChecks = {
       status: "complete",
       layers: syntheticLayers("2026-07-28T00:00:01.000Z"),
@@ -103,11 +101,12 @@ test("saves and reproduces the complete public constructability journey through 
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        assessmentSnapshot: signedSnapshot(
-          result,
-          depth,
-          firstJourney ? providerFailureEvidence() : availableEvidence(),
-        ),
+        assessmentSnapshot:
+          request.mode !== "detailed"
+            ? signedSnapshot(result)
+            : homeownerJourney
+              ? signedSnapshot(result, depth)
+              : signedSnapshot(result, depth, availableEvidence()),
         data:
           request.mode === "detailed"
             ? detailedChecks
@@ -141,7 +140,6 @@ test("saves and reproduces the complete public constructability journey through 
 
     await page.setViewportSize({ width: 390, height: 844 });
     await startJourney(page, 1.7, true);
-    await answerSiteQuestions(page);
     await assertConsentAndValidation(page);
     const first = await submitAndReadRealResponse(page);
     assessmentIds.push(first.id);
@@ -151,26 +149,41 @@ test("saves and reproduces the complete public constructability journey through 
     expect(firstPersisted).not.toBeNull();
     expect(firstPersisted!.reportAudience).toBe("homeowner");
     expect(first.response.report.reportAudience).toBe("homeowner");
-    expect(firstPersisted!.constructability).toEqual(
-      first.response.report.constructability,
-    );
     expect(firstPersisted!.constructability).toMatchObject({
-      version: 1,
-      estimatedDepthMetres: 1.7,
-      overallStatus: "not_fully_assessed",
-      providerAvailability: expect.arrayContaining([
-        expect.objectContaining({
-          category: "terrain_ground",
-          status: "error",
-        }),
-      ]),
+      version: 0,
+      status: "not_assessed",
     });
-    const constructability = page.getByRole("region", {
-      name: "Site constructability",
-    });
-    await expect(constructability).toContainText("1.70 m");
-    await expect(constructability).toContainText("Not fully assessed");
-    await expect(constructability).toContainText("provider error");
+    await expect(
+      page.getByRole("region", { name: "Site constructability" }),
+    ).toHaveCount(0);
+    await expect(
+      page.getByRole("heading", {
+        name: "What your pool builder will confirm",
+      }),
+    ).toBeVisible();
+    await expect(
+      page.getByText("Arrange an onsite visit with a pool builder."),
+    ).toBeVisible();
+    await expect(page.getByText("Estimated pool depth")).toHaveCount(0);
+    await expect(page.getByText(/Firth masonry guidance/i)).toHaveCount(0);
+    await expect(
+      page.getByText(/user-selected-side-clearance-v1/i),
+    ).toHaveCount(0);
+    for (const sectionName of ["At a glance", "Site assessment"]) {
+      const section = page.getByRole("region", { name: sectionName });
+      await expect(
+        section.getByText("Pool safety barrier", { exact: true }),
+      ).toHaveCount(0);
+      await expect(
+        section.getByText("Construction access", { exact: true }),
+      ).toHaveCount(0);
+    }
+    await expect(
+      page
+        .getByRole("region", { name: "At a glance" })
+        .getByText("Not assessed")
+        .first(),
+    ).toBeVisible();
     await expect(page.getByText(first.response.reference)).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Resend report" }),
@@ -185,6 +198,24 @@ test("saves and reproduces the complete public constructability journey through 
     ).toBeVisible();
 
     await page.setViewportSize({ width: 1280, height: 720 });
+    await startJourney(page, 1.5, false, "homeowner");
+    const desktopHomeownerForm = page.locator(
+      'form[aria-labelledby="homeowner-details-heading"]',
+    );
+    await fillValidDetails(desktopHomeownerForm);
+    const desktopHomeowner = await submitAndReadRealResponse(page);
+    assessmentIds.push(desktopHomeowner.id);
+    submittedAudiences.push(desktopHomeowner.request.homeowner.visitorType);
+    expect(
+      (await getSavedPreliminaryReportById(db, desktopHomeowner.id))
+        ?.reportAudience,
+    ).toBe("homeowner");
+    await expect(
+      page.getByRole("heading", {
+        name: "What your pool builder will confirm",
+      }),
+    ).toBeVisible();
+
     await startJourney(page, 1.5, false, "pool_builder");
     await answerSiteQuestions(page, {
       accessCondition: "Gate or narrow passage",
@@ -233,7 +264,11 @@ test("saves and reproduces the complete public constructability journey through 
         .getByRole("region", { name: "Saved assessment map" })
         .getByRole("region", { name: "Saved pool-shell clearances" }),
     ).toHaveCount(0);
-    expect(submittedAudiences).toEqual(["homeowner", "pool_builder"]);
+    expect(submittedAudiences).toEqual([
+      "homeowner",
+      "homeowner",
+      "pool_builder",
+    ]);
     expect(publicPdfRequests).toBe(0);
   } finally {
     for (const id of assessmentIds) {
@@ -276,6 +311,22 @@ async function startJourney(
   const depthInput = page.getByRole("spinbutton", {
     name: "Estimated pool depth (m)",
   });
+  if (visitorType === "homeowner") {
+    await expect(depthInput).toHaveCount(0);
+    await page.getByRole("button", { name: "Check for constraints" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Site questions" }),
+    ).toHaveCount(0);
+    await expect(
+      page.locator('form[aria-labelledby="homeowner-details-heading"]'),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("heading", {
+        name: "Your details for the preliminary report",
+      }),
+    ).toBeFocused();
+    return;
+  }
   await expect(depthInput).toHaveValue("1.5");
   if (depth !== 1.5) await depthInput.fill(String(depth));
   await page.getByRole("button", { name: "Check for constraints" }).click();
@@ -369,38 +420,30 @@ function availableEvidence(): TrustedConstructabilityEvidence {
   };
 }
 
-function providerFailureEvidence(): TrustedConstructabilityEvidence {
-  const evidence = availableEvidence();
-  return {
-    ...evidence,
-    providerAvailability: evidence.providerAvailability.map((provider) =>
-      provider.category === "terrain_ground"
-        ? { ...provider, status: "error" as const }
-        : provider,
-    ),
-  };
-}
-
 function signedSnapshot(
   fastResult: unknown,
-  depth: number,
-  evidence: TrustedConstructabilityEvidence,
+  depth?: number,
+  evidence?: TrustedConstructabilityEvidence,
 ) {
   const snapshot = {
     submissionId: randomUUID(),
     fastResult,
     expiresAt: Date.now() + 15 * 60_000,
-    lockedEstimatedDepthMetres: depth,
-    constructability: {
-      answers: {
-        version: 1,
-        estimatedDepthMetres: depth,
-        route: { provenance: "uncertain", geometry: null },
-        accessConditions: ["none_of_these"],
-        nearbyFeatures: ["none_of_these"],
-      },
-      evidence,
-    },
+    ...(depth !== undefined ? { lockedEstimatedDepthMetres: depth } : {}),
+    ...(depth !== undefined && evidence
+      ? {
+          constructability: {
+            answers: {
+              version: 1,
+              estimatedDepthMetres: depth,
+              route: { provenance: "uncertain", geometry: null },
+              accessConditions: ["none_of_these"],
+              nearbyFeatures: ["none_of_these"],
+            },
+            evidence,
+          },
+        }
+      : {}),
   };
   const payload = Buffer.from(JSON.stringify(snapshot), "utf8").toString(
     "base64url",

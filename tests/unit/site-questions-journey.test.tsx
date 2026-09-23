@@ -28,7 +28,7 @@ vi.mock("@/components/fast-property-view", () => ({
       visibleLayerKeys: string[];
     }) => void;
     onLoadDetailed: () => void;
-    estimatedDepth: string;
+    estimatedDepth?: string;
     depthLocked: boolean;
     onEstimatedDepthChange: (value: string) => void;
     onEditEstimatedDepth: () => void;
@@ -54,7 +54,7 @@ vi.mock("@/components/fast-property-view", () => ({
         <button onClick={() => update(174.76, false)}>Hide clearances</button>
         <button onClick={() => update(174.77, false)}>Move pool</button>
         {planningStep}
-        {planningEnabled && (
+        {planningEnabled && estimatedDepth !== undefined && (
           <input
             aria-label="Estimated pool depth (m)"
             value={estimatedDepth}
@@ -105,9 +105,10 @@ afterEach(() => {
 });
 
 describe("Site answers in the property journey", () => {
-  it("gates depth behind an explicit generic pathway choice and allows switching", async () => {
+  it("takes homeowners from mapped checks to details without technical inputs", async () => {
     const user = userEvent.setup();
-    vi.stubGlobal("fetch", createJourneyFetch());
+    const fetchMock = createJourneyFetch();
+    vi.stubGlobal("fetch", fetchMock);
 
     render(<PropertyCheckJourney />);
     await openValidPlacement(user);
@@ -126,11 +127,28 @@ describe("Site answers in the property journey", () => {
     await user.keyboard(" ");
     expect(homeowner).toBeChecked();
     expect(
-      screen.getByRole("textbox", { name: "Estimated pool depth (m)" }),
-    ).toBeVisible();
+      screen.queryByRole("textbox", { name: "Estimated pool depth (m)" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Site questions")).not.toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole("button", { name: "Check for constraints" }),
+    );
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.filter(([url]) => url.endsWith("/stages")),
+      ).toHaveLength(2),
+    );
+    await user.click(screen.getByRole("button", { name: "Hide clearances" }));
+    expect(await screen.findByTestId("details-form")).toHaveTextContent(
+      "stage-token as homeowner",
+    );
 
     await user.click(builder);
     expect(builder).toBeChecked();
+    expect(
+      screen.getByRole("textbox", { name: "Estimated pool depth (m)" }),
+    ).toBeVisible();
   });
 
   it("visibly preselects the switchable builder pathway for builder entry", async () => {
@@ -191,7 +209,9 @@ describe("Site answers in the property journey", () => {
     await user.click(
       await screen.findByRole("button", { name: "Set pool layout" }),
     );
-    await user.click(screen.getByRole("radio", { name: "My property" }));
+    await user.click(
+      screen.getByRole("radio", { name: "A customer property" }),
+    );
     const depth = await screen.findByRole("textbox", {
       name: "Estimated pool depth (m)",
     });
@@ -279,18 +299,23 @@ describe("Site answers in the property journey", () => {
     await user.click(
       await screen.findByRole("button", { name: "Set pool layout" }),
     );
-    await user.click(screen.getByRole("radio", { name: "My property" }));
+    await user.click(
+      screen.getByRole("radio", { name: "A customer property" }),
+    );
     await chooseNone(user);
     expect(await screen.findByTestId("details-form")).toHaveTextContent(
       "signed-stage-token",
     );
 
+    await user.click(screen.getByRole("radio", { name: "My property" }));
+    expect(screen.getByTestId("details-form")).toHaveTextContent(
+      "stage-token as homeowner",
+    );
     await user.click(
       screen.getByRole("radio", { name: "A customer property" }),
     );
-    expect(screen.getByTestId("details-form")).toHaveTextContent(
-      "pool_builder",
-    );
+    expect(screen.queryByTestId("details-form")).not.toBeInTheDocument();
+    await chooseNone(user);
 
     await user.click(screen.getByRole("button", { name: "Hide clearances" }));
     expect(screen.getByTestId("details-form")).toBeVisible();
@@ -334,7 +359,10 @@ function createJourneyFetch() {
         },
       });
     if (url.endsWith("/stages"))
-      return Response.json({ data: {}, assessmentSnapshot: "stage-token" });
+      return Response.json({
+        data: { status: "complete", layers: [], limitations: [] },
+        assessmentSnapshot: "stage-token",
+      });
     return Response.json({ suggestions: [] });
   });
 }

@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HomeownerFeasibilityReportView } from "@/components/homeowner-feasibility-report-view";
 import {
@@ -204,6 +204,7 @@ describe("web, PDF and email report consistency", () => {
       ] as [number, number][],
     };
     const report = buildTestPreliminaryReport({
+      reportAudience: "pool_builder",
       reference: "GF-2026-000343",
       constructability: buildConstructabilitySnapshot({
         answers: {
@@ -329,5 +330,76 @@ describe("web, PDF and email report consistency", () => {
     expect(pdfHtml).not.toMatch(
       /spoil (?:volume|quantity)|price estimate: \$/i,
     );
+  });
+
+  it("projects a plain-language saved web report for homeowners", () => {
+    const report = buildTestPreliminaryReport({
+      reportAudience: "homeowner",
+      constructability: buildConstructabilitySnapshot({
+        answers: {
+          version: 1,
+          estimatedDepthMetres: 1.7,
+          route: { provenance: "uncertain", geometry: null },
+          accessConditions: ["not_sure"],
+          nearbyFeatures: ["not_sure"],
+        },
+        suggestedRoute: null,
+        routePolicyVersion: 1,
+        mappedEvidence: [],
+        providerAvailability: [
+          {
+            category: "access_excavation",
+            provider: "Synthetic services",
+            dataset: "Mapped services",
+            status: "unavailable",
+          },
+        ],
+        assumptions: ["Internal technical assumption"],
+        excavation: {
+          dimensions: { lengthMetres: 6, widthMetres: 3 },
+          terrainAdjustment: "unavailable",
+        },
+      }),
+    });
+
+    render(
+      <HomeownerFeasibilityReportView
+        report={report}
+        delivery={{ homeowner: "sent", internal_test_report: "sent" }}
+        onBack={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByRole("heading", { name: "Assessment map" }),
+    ).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Key findings" })).toBeVisible();
+    expect(screen.getAllByText("Not assessed").length).toBeGreaterThan(0);
+    expect(
+      screen.getByRole("heading", {
+        name: "What your pool builder will confirm",
+      }),
+    ).toBeVisible();
+    expect(
+      screen.getByText("Arrange an onsite visit with a pool builder."),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("region", { name: "Site constructability" }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByText("Estimated pool depth")).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("user-selected-side-clearance-v1"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText("Firth masonry guidance"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("heading", { name: "Mapping & data information" }),
+    ).not.toBeInTheDocument();
+    for (const sectionName of ["At a glance", "Site assessment"]) {
+      const section = screen.getByRole("region", { name: sectionName });
+      expect(within(section).queryByText("Pool safety barrier")).toBeNull();
+      expect(within(section).queryByText("Construction access")).toBeNull();
+    }
   });
 });

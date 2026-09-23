@@ -642,6 +642,26 @@ describe("POST /api/internal/assessments", () => {
     ).rejects.toThrow("INVALID_CONSTRUCTABILITY_ROUTE");
   });
 
+  it("accepts a Homeowner submission with a locked detailed-check depth and no Site answers", async () => {
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const assessmentSnapshot = snapshotService.refresh(
+      { ...original, lockedEstimatedDepthMetres: 1.5 },
+      { detailedChecks: completeDetailedChecks() },
+    );
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+    });
+
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot: snapshotService.verify(request.assessmentSnapshot),
+    });
+
+    expect("constructability" in submission).toBe(false);
+    expect(submission.report.reportData.reportAudience).toBe("homeowner");
+  });
+
   it("rejects malformed Site evidence before any assessment is saved", async () => {
     const response = await POST_PUBLIC(
       new Request("https://pool.example/api/public/assessments", {

@@ -6,7 +6,6 @@ import { type SavedPreliminaryReport } from "@/modules/reporting/preliminary-rep
 import {
   assessmentStatusLabel,
   formatReportNumber,
-  REPORT_ASSESSMENT_ORDER,
   reportShortStatus,
   type AssessmentStatus,
   type ReportAssessment,
@@ -20,6 +19,7 @@ import {
   PRELIMINARY_FEASIBILITY_READING_GUIDE,
   PRELIMINARY_FEASIBILITY_SCOPE,
 } from "@/modules/reporting/preliminary-feasibility-copy";
+import { reportWebAudiencePresentation } from "@/modules/reporting/report-audience-presentation";
 
 export function HomeownerFeasibilityReportView({
   report,
@@ -38,7 +38,13 @@ export function HomeownerFeasibilityReportView({
   onStartAgain?: () => void;
 }) {
   void delivery;
-  const constructabilitySections = reportConstructabilitySections(report);
+  const audiencePresentation = reportWebAudiencePresentation(
+    report.reportAudience,
+  );
+  const constructabilitySections =
+    audiencePresentation.showTechnicalConstructability
+      ? reportConstructabilitySections(report)
+      : [];
 
   return (
     <article
@@ -123,7 +129,7 @@ export function HomeownerFeasibilityReportView({
             </p>
           </div>
           <dl className="border-pool-200 mt-4 overflow-hidden rounded-xl border sm:grid sm:grid-cols-2">
-            {REPORT_ASSESSMENT_ORDER.map((id) => {
+            {audiencePresentation.assessmentIds.map((id) => {
               const item = report.assessments[id];
               return (
                 <div
@@ -206,30 +212,76 @@ export function HomeownerFeasibilityReportView({
             technical details only when you need the saved source context.
           </p>
           <div className="divide-pool-200 border-pool-200 mt-5 divide-y border-y">
-            {REPORT_ASSESSMENT_ORDER.map((id) => (
+            {audiencePresentation.assessmentIds.map((id) => (
               <AssessmentSection key={id} assessment={report.assessments[id]} />
             ))}
           </div>
         </section>
 
-        <section aria-labelledby="constructability-heading">
-          <h3
-            id="constructability-heading"
-            className="text-pool-950 text-xl font-semibold tracking-[-0.02em]"
+        {audiencePresentation.showTechnicalConstructability && (
+          <section aria-labelledby="constructability-heading">
+            <h3
+              id="constructability-heading"
+              className="text-pool-950 text-xl font-semibold tracking-[-0.02em]"
+            >
+              Site constructability
+            </h3>
+            <p className="text-pool-600 mt-2 max-w-3xl text-sm leading-6">
+              These sections reproduce the saved Site answers, mapped evidence,
+              route analysis, provider availability and assumptions from this
+              assessment. They do not use current provider data.
+            </p>
+            <div className="mt-5 space-y-4">
+              {constructabilitySections.map((section) => (
+                <ConstructabilitySection key={section.id} section={section} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {audiencePresentation.builderConfirmationItems.length > 0 && (
+          <section
+            aria-labelledby="builder-confirmation-heading"
+            className="bg-pool-50 rounded-xl p-5 sm:p-6"
           >
-            Site constructability
-          </h3>
-          <p className="text-pool-600 mt-2 max-w-3xl text-sm leading-6">
-            These sections reproduce the saved Site answers, mapped evidence,
-            route analysis, provider availability and assumptions from this
-            assessment. They do not use current provider data.
-          </p>
-          <div className="mt-5 space-y-4">
-            {constructabilitySections.map((section) => (
-              <ConstructabilitySection key={section.id} section={section} />
-            ))}
-          </div>
-        </section>
+            <h3
+              id="builder-confirmation-heading"
+              className="text-pool-950 text-xl font-semibold tracking-[-0.02em]"
+            >
+              What your pool builder will confirm
+            </h3>
+            <ul className="text-pool-700 mt-4 grid gap-x-8 gap-y-2 text-sm sm:grid-cols-2">
+              {audiencePresentation.builderConfirmationItems.map((item) => (
+                <li key={item} className="flex gap-2">
+                  <span aria-hidden="true" className="text-pool-400">
+                    •
+                  </span>
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
+
+        {audiencePresentation.onsiteNextStep && (
+          <section
+            aria-labelledby="homeowner-next-step-heading"
+            className="border-pool-blue-200 bg-pool-blue-50 rounded-xl border p-5 sm:p-6"
+          >
+            <h3
+              id="homeowner-next-step-heading"
+              className="text-pool-950 text-lg font-semibold"
+            >
+              Recommended next step
+            </h3>
+            <p className="text-pool-950 mt-3 font-semibold">
+              {audiencePresentation.onsiteNextStep.action}
+            </p>
+            <p className="text-pool-700 mt-2 max-w-3xl text-sm leading-6">
+              {audiencePresentation.onsiteNextStep.explanation}
+            </p>
+          </section>
+        )}
 
         <section
           aria-labelledby="later-verification-heading"
@@ -286,56 +338,58 @@ export function HomeownerFeasibilityReportView({
           </ol>
         </section>
 
-        <section aria-labelledby="mapping-information-heading">
-          <h3
-            id="mapping-information-heading"
-            className="text-pool-950 text-lg font-semibold"
-          >
-            Mapping & data information
-          </h3>
-          <p className="text-pool-700 mt-2 max-w-3xl text-sm leading-6">
-            This saved assessment uses mapped information from{" "}
-            {providerSummary(report)}. Mapped information is indicative and may
-            differ from site conditions.
-          </p>
-          <details className="border-pool-200 open:bg-pool-50 mt-4 rounded-xl border bg-white">
-            <summary className="text-pool-900 focus-visible:outline-pool-blue-700 min-h-11 cursor-pointer px-4 py-3 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2">
-              View detailed sources
-            </summary>
-            <div className="border-pool-200 border-t px-4 py-4">
-              <ul className="text-pool-700 space-y-4 text-sm">
-                {report.sources.map((source) => (
-                  <li key={`${source.provider}-${source.dataset}`}>
-                    <p className="text-pool-950 font-semibold">
-                      {source.dataset}
-                    </p>
-                    <p>
-                      {source.provider} ·{" "}
-                      {(source.queryStatus ?? "unavailable").replaceAll(
-                        "_",
-                        " ",
+        {audiencePresentation.showDetailedSources && (
+          <section aria-labelledby="mapping-information-heading">
+            <h3
+              id="mapping-information-heading"
+              className="text-pool-950 text-lg font-semibold"
+            >
+              Mapping & data information
+            </h3>
+            <p className="text-pool-700 mt-2 max-w-3xl text-sm leading-6">
+              This saved assessment uses mapped information from{" "}
+              {providerSummary(report)}. Mapped information is indicative and
+              may differ from site conditions.
+            </p>
+            <details className="border-pool-200 open:bg-pool-50 mt-4 rounded-xl border bg-white">
+              <summary className="text-pool-900 focus-visible:outline-pool-blue-700 min-h-11 cursor-pointer px-4 py-3 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2">
+                View detailed sources
+              </summary>
+              <div className="border-pool-200 border-t px-4 py-4">
+                <ul className="text-pool-700 space-y-4 text-sm">
+                  {report.sources.map((source) => (
+                    <li key={`${source.provider}-${source.dataset}`}>
+                      <p className="text-pool-950 font-semibold">
+                        {source.dataset}
+                      </p>
+                      <p>
+                        {source.provider} ·{" "}
+                        {(source.queryStatus ?? "unavailable").replaceAll(
+                          "_",
+                          " ",
+                        )}
+                        {source.retrievedAt
+                          ? ` · Retrieved ${formatSourceDate(source.retrievedAt)}`
+                          : ""}
+                      </p>
+                      {source.attribution && <p>{source.attribution}</p>}
+                      {source.sourceUrl && (
+                        <a
+                          href={source.sourceUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-pool-blue-800 font-medium break-all underline underline-offset-2"
+                        >
+                          Source information
+                        </a>
                       )}
-                      {source.retrievedAt
-                        ? ` · Retrieved ${formatSourceDate(source.retrievedAt)}`
-                        : ""}
-                    </p>
-                    {source.attribution && <p>{source.attribution}</p>}
-                    {source.sourceUrl && (
-                      <a
-                        href={source.sourceUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-pool-blue-800 font-medium break-all underline underline-offset-2"
-                      >
-                        Source information
-                      </a>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </details>
-        </section>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </details>
+          </section>
+        )}
 
         <section
           aria-labelledby="preliminary-assessment-heading"

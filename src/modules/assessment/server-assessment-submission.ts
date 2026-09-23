@@ -72,8 +72,9 @@ export function assertConstructabilityMatchesSnapshot(
 ): void {
   if (
     Boolean(request.constructability) !== Boolean(snapshot.constructability) ||
-    (snapshot.lockedEstimatedDepthMetres !== undefined &&
-      snapshot.constructability?.answers.estimatedDepthMetres !==
+    (snapshot.constructability &&
+      snapshot.lockedEstimatedDepthMetres !== undefined &&
+      snapshot.constructability.answers.estimatedDepthMetres !==
         snapshot.lockedEstimatedDepthMetres) ||
     (request.constructability &&
       !isDeepStrictEqual(

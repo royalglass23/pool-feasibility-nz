@@ -242,17 +242,23 @@ export function PropertyCheckJourney({
   }, [detailedRetryAfterSeconds]);
 
   useEffect(() => {
-    if (!signedSiteAnswers) {
+    const focusKey =
+      reportAudience === "homeowner" &&
+      fastAssessmentSnapshot &&
+      placementKey &&
+      fastMapSnapshot &&
+      fastResult?.detailedChecks
+        ? `homeowner:${fastAssessmentSnapshot}:${placementKey}`
+        : signedSiteAnswers?.sourceSnapshot === fastAssessmentSnapshot &&
+            signedSiteAnswers.placementKey === placementKey &&
+            fastMapSnapshot
+          ? `builder:${signedSiteAnswers.snapshot}:${signedSiteAnswers.placementKey}`
+          : null;
+    if (!focusKey) {
       focusedDetailsForRef.current = null;
       return;
     }
-    const focusKey = `${signedSiteAnswers.snapshot}:${signedSiteAnswers.placementKey}`;
-    if (
-      signedSiteAnswers.sourceSnapshot === fastAssessmentSnapshot &&
-      signedSiteAnswers.placementKey === placementKey &&
-      fastMapSnapshot &&
-      focusedDetailsForRef.current !== focusKey
-    ) {
+    if (focusedDetailsForRef.current !== focusKey) {
       const heading = document.getElementById("homeowner-details-heading");
       if (heading) {
         heading.focus();
@@ -264,6 +270,8 @@ export function PropertyCheckJourney({
     fastAssessmentSnapshot,
     placementKey,
     fastMapSnapshot,
+    fastResult?.detailedChecks,
+    reportAudience,
   ]);
 
   useEffect(() => {
@@ -840,11 +848,14 @@ export function PropertyCheckJourney({
           <FastPropertyView
             result={fastResult}
             suggestedRoute={
-              routeDraft?.placementKey === placementKey
-                ? routeDraft.geometry
-                : (routeSuggestion?.geometry ?? null)
+              reportAudience === "pool_builder"
+                ? routeDraft?.placementKey === placementKey
+                  ? routeDraft.geometry
+                  : (routeSuggestion?.geometry ?? null)
+                : null
             }
             editableRoute={
+              reportAudience === "pool_builder" &&
               routeSuggestion?.confidence === "credible" &&
               placementKey &&
               fastResult.detailedChecks
@@ -860,7 +871,9 @@ export function PropertyCheckJourney({
             isLoadingDetailed={isLoadingDetailed}
             onPlacementChange={handleFastPlacementChange}
             onSnapshotReady={setFastMapSnapshot}
-            estimatedDepth={estimatedDepth}
+            estimatedDepth={
+              reportAudience === "pool_builder" ? estimatedDepth : undefined
+            }
             depthLocked={lockedDepth !== null}
             onEstimatedDepthChange={setEstimatedDepth}
             onEditEstimatedDepth={() => {
@@ -880,6 +893,9 @@ export function PropertyCheckJourney({
               <ReportAudiencePathway
                 value={reportAudience}
                 onChange={(nextAudience) => {
+                  if (nextAudience !== reportAudience) {
+                    setSignedSiteAnswers(null);
+                  }
                   setReportAudience(nextAudience);
                 }}
               />
@@ -892,43 +908,59 @@ export function PropertyCheckJourney({
           fastResult.detailedChecks &&
           placementKey ? (
             <>
-              <SiteQuestions
-                key={`${fastAssessmentSnapshot}:${placementKey}`}
-                assessmentSnapshot={fastAssessmentSnapshot}
-                placementKey={placementKey}
-                poolLayout={routePoolLayout ?? undefined}
-                routeSuggestion={routeSuggestion ?? undefined}
-                adjustedRoute={
-                  routeDraft?.placementKey === placementKey
-                    ? routeDraft.geometry
-                    : null
-                }
-                routeFacts={
-                  routeFacts?.placementKey === placementKey
-                    ? routeFacts.facts
-                    : null
-                }
-                onRouteEdit={handleRouteEdit}
-                onRouteReset={() => {
-                  setRouteDraft(null);
-                  setRouteFacts(null);
-                  setFastMapSnapshot(null);
-                }}
-                onSigned={setSignedSiteAnswers}
-              />
-              {signedSiteAnswers?.sourceSnapshot === fastAssessmentSnapshot &&
-                signedSiteAnswers.placementKey === placementKey &&
+              {reportAudience === "homeowner" ? (
                 fastMapSnapshot && (
                   <HomeownerSubmissionForm
                     reportAudience={reportAudience}
-                    assessmentSnapshot={signedSiteAnswers.snapshot}
-                    constructability={signedSiteAnswers.answers}
+                    assessmentSnapshot={fastAssessmentSnapshot}
                     mapImageDataUrl={fastMapSnapshot.imageDataUrl}
                     mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
                     placement={fastPlacementSnapshot}
                     onSaved={fastSavedReport.saveAssessment}
                   />
-                )}
+                )
+              ) : (
+                <>
+                  <SiteQuestions
+                    key={`${fastAssessmentSnapshot}:${placementKey}`}
+                    assessmentSnapshot={fastAssessmentSnapshot}
+                    placementKey={placementKey}
+                    poolLayout={routePoolLayout ?? undefined}
+                    routeSuggestion={routeSuggestion ?? undefined}
+                    adjustedRoute={
+                      routeDraft?.placementKey === placementKey
+                        ? routeDraft.geometry
+                        : null
+                    }
+                    routeFacts={
+                      routeFacts?.placementKey === placementKey
+                        ? routeFacts.facts
+                        : null
+                    }
+                    onRouteEdit={handleRouteEdit}
+                    onRouteReset={() => {
+                      setRouteDraft(null);
+                      setRouteFacts(null);
+                      setFastMapSnapshot(null);
+                    }}
+                    onSigned={setSignedSiteAnswers}
+                  />
+                  {signedSiteAnswers?.sourceSnapshot ===
+                    fastAssessmentSnapshot &&
+                    signedSiteAnswers.placementKey === placementKey &&
+                    fastMapSnapshot && (
+                      <HomeownerSubmissionForm
+                        reportAudience={reportAudience}
+                        assessmentSnapshot={signedSiteAnswers.snapshot}
+                        constructability={signedSiteAnswers.answers}
+                        mapImageDataUrl={fastMapSnapshot.imageDataUrl}
+                        mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
+                        placement={fastPlacementSnapshot}
+                        onSaved={fastSavedReport.saveAssessment}
+                      />
+                    )}
+                </>
+              )}
             </>
           ) : null}
         </>
