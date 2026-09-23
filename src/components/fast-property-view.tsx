@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type {
   Feature,
   FeatureCollection,
@@ -184,6 +184,8 @@ export function FastPropertyView({
   onEstimatedDepthChange,
   onEditEstimatedDepth,
   isDetailedRateLimited = false,
+  planningStep,
+  planningEnabled = true,
 }: {
   result: FastPropertyViewResult;
   suggestedRoute?: LineString | null;
@@ -200,6 +202,8 @@ export function FastPropertyView({
   onEstimatedDepthChange?: (value: string) => void;
   onEditEstimatedDepth?: () => void;
   isDetailedRateLimited?: boolean;
+  planningStep?: ReactNode;
+  planningEnabled?: boolean;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const rotationControlVisibleRef = useRef(false);
@@ -1402,20 +1406,27 @@ export function FastPropertyView({
                   increments.
                 </FieldValidationMessage>
               )}
-              {estimatedDepth !== undefined && onEstimatedDepthChange && (
-                <EstimatedPoolDepth
-                  value={estimatedDepth}
-                  locked={depthLocked}
-                  onChange={onEstimatedDepthChange}
-                  onEdit={onEditEstimatedDepth}
-                />
-              )}
+              {dimensions && constructionEnvelopeWithinMappedArea
+                ? planningStep
+                : null}
+              {planningEnabled &&
+                estimatedDepth !== undefined &&
+                onEstimatedDepthChange && (
+                  <EstimatedPoolDepth
+                    value={estimatedDepth}
+                    locked={depthLocked}
+                    onChange={onEstimatedDepthChange}
+                    onEdit={onEditEstimatedDepth}
+                  />
+                )}
               <div className="border-pool-200 mt-auto space-y-3 border-t pt-4">
                 <p
                   className="text-pool-700 text-sm leading-6"
                   aria-live="polite"
                 >
-                  {detailedConstraintStatus === "complete" ? (
+                  {!planningEnabled ? (
+                    "Choose who you are checking this property for to continue."
+                  ) : detailedConstraintStatus === "complete" ? (
                     "All available constraints are loaded. You can still adjust your pool before creating your report."
                   ) : detailedConstraintStatus === "retryable" ? (
                     "Some constraints were temporarily unavailable. Retry to check those layers again."
@@ -1430,7 +1441,7 @@ export function FastPropertyView({
                   )}
                 </p>
                 <div className="grid gap-2">
-                  {onLoadDetailed && (
+                  {onLoadDetailed && planningEnabled && (
                     <button
                       type="button"
                       onClick={onLoadDetailed}

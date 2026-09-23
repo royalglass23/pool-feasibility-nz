@@ -40,7 +40,7 @@ export default function BuilderGuidancePage() {
           </Section>
         </div>
         <Link
-          href="/#property-search"
+          href="/?audience=pool_builder#property-search"
           className="focus-visible:outline-pool-blue-700 mt-10 inline-flex min-h-12 items-center gap-2 rounded-xl bg-[#062f5d] px-5 font-semibold text-white transition hover:bg-[#0077bd] focus-visible:outline-2 focus-visible:outline-offset-4"
         >
           Check a property with PoolReady{" "}

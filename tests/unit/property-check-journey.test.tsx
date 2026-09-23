@@ -366,6 +366,9 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       );
       await new Promise((resolve) => setTimeout(resolve, 300));
       await user.keyboard("{Enter}");
+      await user.click(
+        await screen.findByRole("radio", { name: "My property" }),
+      );
 
       expect(
         await screen.findByRole("button", { name: "Check for constraints" }),
@@ -1048,6 +1051,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       requestedAddress,
     );
     await user.keyboard("{Enter}");
+    await user.click(await screen.findByRole("radio", { name: "My property" }));
     await user.click(
       await screen.findByRole("button", { name: "Check for constraints" }),
     );
@@ -1109,6 +1113,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       requestedAddress,
     );
     await user.keyboard("{Enter}");
+    await user.click(await screen.findByRole("radio", { name: "My property" }));
     await user.click(
       await screen.findByRole("button", { name: "Check for constraints" }),
     );
@@ -1203,6 +1208,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       requestedAddress,
     );
     await user.keyboard("{Enter}");
+    await user.click(await screen.findByRole("radio", { name: "My property" }));
     await user.click(
       await screen.findByRole("button", { name: "Check for constraints" }),
     );
@@ -1292,6 +1298,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       requestedAddress,
     );
     await user.keyboard("{Enter}");
+    await user.click(await screen.findByRole("radio", { name: "My property" }));
     await user.click(
       await screen.findByRole("button", { name: "Check for constraints" }),
     );

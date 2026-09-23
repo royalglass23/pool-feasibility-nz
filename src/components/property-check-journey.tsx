@@ -47,6 +47,9 @@ import {
   readClientApiError,
   type ClientApiError,
 } from "@/shared/http/client-api-error";
+import { ReportAudiencePathway } from "@/components/report-audience-pathway";
+import type { ReportAudience } from "@/modules/assessment/report-audience";
+import { useSearchParams } from "next/navigation";
 
 type DataAccessApiResult = DataAccessSpikeResult & {
   assessmentExplanation?: AssessmentExplanation;
@@ -90,7 +93,24 @@ function placementIdentity(placement: FastPoolPlacementSnapshot): string {
   ]);
 }
 
-export function PropertyCheckJourney() {
+export function PropertyCheckJourneyEntry() {
+  const searchParams = useSearchParams();
+  const initialReportAudience =
+    searchParams.get("audience") === "pool_builder" ? "pool_builder" : null;
+
+  return (
+    <PropertyCheckJourney
+      key={initialReportAudience ?? "generic"}
+      initialReportAudience={initialReportAudience}
+    />
+  );
+}
+
+export function PropertyCheckJourney({
+  initialReportAudience = null,
+}: {
+  initialReportAudience?: ReportAudience | null;
+}) {
   const [address, setAddress] = useState("");
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     null,
@@ -129,6 +149,9 @@ export function PropertyCheckJourney() {
     useState<FastPoolPlacementSnapshot | null>(null);
   const [fastMapSnapshot, setFastMapSnapshot] =
     useState<FastPropertyViewMapSnapshot | null>(null);
+  const [reportAudience, setReportAudience] = useState<ReportAudience | null>(
+    initialReportAudience,
+  );
   const fastSavedReport = useSavedAssessmentReport();
   const [error, setError] = useState<PropertyCheckIssue | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
@@ -374,6 +397,7 @@ export function PropertyCheckJourney() {
     setRouteFacts(null);
     setFastPlacementSnapshot(null);
     setFastMapSnapshot(null);
+    setReportAudience(initialReportAudience);
     setDetailedRetryAfterSeconds(null);
     fastSavedReport.resetReport();
     setAddressOptions([]);
@@ -851,10 +875,20 @@ export function PropertyCheckJourney() {
               setLockedDepth(null);
             }}
             isDetailedRateLimited={detailedRetryAfterSeconds !== null}
+            planningEnabled={reportAudience !== null}
+            planningStep={
+              <ReportAudiencePathway
+                value={reportAudience}
+                onChange={(nextAudience) => {
+                  setReportAudience(nextAudience);
+                }}
+              />
+            }
           />
           {fastPlacementSnapshot?.dimensions &&
           fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
           fastAssessmentSnapshot &&
+          reportAudience &&
           fastResult.detailedChecks &&
           placementKey ? (
             <>
@@ -886,6 +920,7 @@ export function PropertyCheckJourney() {
                 signedSiteAnswers.placementKey === placementKey &&
                 fastMapSnapshot && (
                   <HomeownerSubmissionForm
+                    reportAudience={reportAudience}
                     assessmentSnapshot={signedSiteAnswers.snapshot}
                     constructability={signedSiteAnswers.answers}
                     mapImageDataUrl={fastMapSnapshot.imageDataUrl}

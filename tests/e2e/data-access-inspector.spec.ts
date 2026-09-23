@@ -217,6 +217,7 @@ test("one signed session separates automatic stages and constraints, then respec
   await page.goto("/");
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("option", { name: address }).click();
+  await page.getByRole("radio", { name: "My property" }).check();
   await page.getByRole("button", { name: "Check for constraints" }).click();
   await expect(
     page.getByRole("button", { name: "Retry unavailable constraints" }),

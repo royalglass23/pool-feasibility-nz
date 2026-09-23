@@ -28,6 +28,7 @@ describe("report-request privacy notice", () => {
     render(
       <HomeownerSubmissionForm
         assessmentSnapshot="server-issued-assessment-snapshot"
+        reportAudience="homeowner"
         mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         placement={placement}
         onSaved={vi.fn()}

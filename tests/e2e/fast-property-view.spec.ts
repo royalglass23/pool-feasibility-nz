@@ -1,9 +1,25 @@
 import { expect, test } from "@playwright/test";
 
+test("keeps the builder entry URL through browser back and forward navigation", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await page.goto("/auckland-pool-planning-for-builders");
+  await page
+    .getByRole("link", { name: "Check a property with PoolReady" })
+    .click();
+  await expect(page).toHaveURL(/audience=pool_builder/);
+  await page.goBack();
+  await expect(page).toHaveURL(/auckland-pool-planning-for-builders/);
+  await page.goForward();
+  await expect(page).toHaveURL(/audience=pool_builder/);
+});
+
 for (const initialOutcome of ["complete", "retryable", "error"] as const) {
   test(`loads detailed mapping evidence after ${initialOutcome} response`, async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     await page.route("**/api/public/property-check", async (route) => {
       await route.fulfill({
         status: 200,
@@ -136,7 +152,8 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     await page.addInitScript(() => {
       HTMLCanvasElement.prototype.toDataURL = () => "";
     });
-    await page.goto("/");
+    const builderEntry = initialOutcome === "retryable";
+    await page.goto(builderEntry ? "/?audience=pool_builder" : "/");
     await page.getByRole("button", { name: "Not now" }).click();
     await page
       .getByLabel("Auckland property address")
@@ -173,6 +190,24 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     ).toHaveCount(0);
     await mapLayersToggle.click();
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "true");
+    const homeownerPath = page.getByRole("radio", { name: "My property" });
+    const builderPath = page.getByRole("radio", {
+      name: "A customer property",
+    });
+    if (builderEntry) {
+      await expect(builderPath).toBeChecked();
+      await homeownerPath.click();
+      await expect(homeownerPath).toBeChecked();
+      await builderPath.click();
+    } else {
+      await expect(homeownerPath).not.toBeChecked();
+      await expect(builderPath).not.toBeChecked();
+      await homeownerPath.focus();
+      await page.keyboard.press("Space");
+      await expect(homeownerPath).toBeChecked();
+      await builderPath.click();
+      await homeownerPath.click();
+    }
     await expect(
       page.getByRole("button", { name: "Check for constraints" }),
     ).toBeVisible();

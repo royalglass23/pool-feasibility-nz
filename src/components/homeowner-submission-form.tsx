@@ -8,7 +8,6 @@ import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-pr
 import type { PersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import type { ReportDeliveryState } from "@/modules/reporting/report-delivery-policy";
-import { visitorTypeOptions } from "@/modules/assessment/visitor-type";
 import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
 import { homeownerContactSchema } from "@/modules/assessment/homeowner-contact";
 import {
@@ -19,7 +18,7 @@ import { ActionProgressDialog } from "@/components/action-progress-dialog";
 import { FieldValidationMessage } from "@/components/field-validation-message";
 import { isValidNzPhone, NZ_PHONE_ERROR } from "@/modules/assessment/nz-phone";
 import { readClientApiError } from "@/shared/http/client-api-error";
-import { resolveLegacyReportAudience } from "@/modules/assessment/report-audience";
+import type { ReportAudience } from "@/modules/assessment/report-audience";
 
 export type AssessmentSubmissionContext = Omit<
   PersistedAssessmentSubmission,
@@ -43,6 +42,7 @@ export type SavedAssessmentResponse = {
 
 export function HomeownerSubmissionForm({
   assessmentSnapshot,
+  reportAudience,
   constructability,
   mapImageDataUrl,
   mapVisibleLayerKeys = [],
@@ -50,6 +50,7 @@ export function HomeownerSubmissionForm({
   onSaved,
 }: {
   assessmentSnapshot: string;
+  reportAudience: ReportAudience;
   constructability?: ConstructabilityAnswers;
   mapImageDataUrl: string;
   mapVisibleLayerKeys?: string[];
@@ -59,7 +60,6 @@ export function HomeownerSubmissionForm({
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
-  const [visitorType, setVisitorType] = useState("homeowner");
   const [desiredTiming, setDesiredTiming] = useState("asap");
   useEffect(() => {
     trackAnonymousFunnelEvent({ name: "report_form_viewed" });
@@ -79,8 +79,7 @@ export function HomeownerSubmissionForm({
       name: form.get("name"),
       phone: form.get("phone"),
       email: form.get("email"),
-      visitorType: form.get("visitorType"),
-      visitorTypeOtherDetail: form.get("visitorTypeOtherDetail") || undefined,
+      visitorType: reportAudience,
       desiredTiming: form.get("desiredTiming"),
       desiredTimingOtherDetail:
         form.get("desiredTimingOtherDetail") || undefined,
@@ -112,9 +111,7 @@ export function HomeownerSubmissionForm({
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             assessmentSnapshot,
-            reportAudience: resolveLegacyReportAudience(
-              contact.data.visitorType,
-            ),
+            reportAudience,
           }),
         },
       );
@@ -248,22 +245,6 @@ export function HomeownerSubmissionForm({
           error={fieldErrors.email}
         />
         <label className="text-pool-800 text-sm font-medium">
-          I am a
-          <select
-            name="visitorType"
-            required
-            value={visitorType}
-            onChange={(event) => setVisitorType(event.target.value)}
-            className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3"
-          >
-            {visitorTypeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label className="text-pool-800 text-sm font-medium">
           When do you need it?
           <select
             name="desiredTiming"
@@ -279,14 +260,6 @@ export function HomeownerSubmissionForm({
             <option value="other">Other</option>
           </select>
         </label>
-        {visitorType === "other" && (
-          <Field
-            label="Tell us who you are"
-            name="visitorTypeOtherDetail"
-            required
-            error={fieldErrors.visitorTypeOtherDetail}
-          />
-        )}
         {desiredTiming === "other" && (
           <Field
             label="Tell us when you need it"

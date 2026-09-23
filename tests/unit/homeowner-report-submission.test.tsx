@@ -270,6 +270,7 @@ describe("homeowner report submission", () => {
     render(
       <HomeownerSubmissionForm
         assessmentSnapshot="server-issued-assessment-snapshot"
+        reportAudience="homeowner"
         mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         mapVisibleLayerKeys={["wastewater_assets"]}
         placement={{
@@ -407,6 +408,7 @@ describe("homeowner report submission", () => {
     render(
       <HomeownerSubmissionForm
         assessmentSnapshot="server-issued-assessment-snapshot"
+        reportAudience="homeowner"
         mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         placement={{
           position: [174.76, -36.85],
@@ -443,7 +445,7 @@ describe("homeowner report submission", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
-  it("collects visitor context and explains Other selections before requesting the report", async () => {
+  it("uses the pathway as the only visitor type while collecting project timing", async () => {
     const user = userEvent.setup();
     const request = vi
       .fn()
@@ -476,6 +478,7 @@ describe("homeowner report submission", () => {
     render(
       <HomeownerSubmissionForm
         assessmentSnapshot="server-issued-assessment-snapshot"
+        reportAudience="pool_builder"
         mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         placement={{
           position: [174.76, -36.85],
@@ -498,20 +501,10 @@ describe("homeowner report submission", () => {
     );
 
     const form = within(screen.getAllByRole("form").at(-1)!);
-    expect(form.getByRole("option", { name: "Homeowner" })).toHaveValue(
-      "homeowner",
-    );
-    expect(form.getByRole("option", { name: "Pool Builder" })).toHaveValue(
-      "pool_builder",
-    );
+    expect(form.queryByLabelText("I am a")).not.toBeInTheDocument();
     await user.type(form.getByLabelText("Name"), "Roxy Builder");
     await user.type(form.getByLabelText("Phone"), "021 555 4567");
     await user.type(form.getByLabelText("Email"), "roxy@example.com");
-    await user.selectOptions(form.getByLabelText("I am a"), "other");
-    await user.type(
-      form.getByLabelText("Tell us who you are"),
-      "Landscape architect",
-    );
     await user.selectOptions(
       form.getByLabelText("When do you need it?"),
       "other",
@@ -528,12 +521,11 @@ describe("homeowner report submission", () => {
     await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
     expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
       assessmentSnapshot: "server-issued-assessment-snapshot",
-      reportAudience: "homeowner",
+      reportAudience: "pool_builder",
     });
     expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toMatchObject({
       homeowner: {
-        visitorType: "other",
-        visitorTypeOtherDetail: "Landscape architect",
+        visitorType: "pool_builder",
         desiredTiming: "other",
         desiredTimingOtherDetail: "Next summer",
       },

@@ -19,6 +19,8 @@ vi.mock("@/components/fast-property-view", () => ({
     depthLocked,
     onEstimatedDepthChange,
     onEditEstimatedDepth,
+    planningStep,
+    planningEnabled,
   }: {
     onPlacementChange: (placement: FastPoolPlacementSnapshot) => void;
     onSnapshotReady: (snapshot: {
@@ -30,6 +32,8 @@ vi.mock("@/components/fast-property-view", () => ({
     depthLocked: boolean;
     onEstimatedDepthChange: (value: string) => void;
     onEditEstimatedDepth: () => void;
+    planningStep?: React.ReactNode;
+    planningEnabled?: boolean;
   }) => {
     function update(longitude: number, clearancesVisible: boolean) {
       onPlacementChange({
@@ -49,13 +53,18 @@ vi.mock("@/components/fast-property-view", () => ({
         <button onClick={() => update(174.76, true)}>Set pool layout</button>
         <button onClick={() => update(174.76, false)}>Hide clearances</button>
         <button onClick={() => update(174.77, false)}>Move pool</button>
-        <input
-          aria-label="Estimated pool depth (m)"
-          value={estimatedDepth}
-          disabled={depthLocked}
-          onChange={(event) => onEstimatedDepthChange(event.target.value)}
-        />
-        <button onClick={onLoadDetailed}>Check for constraints</button>
+        {planningStep}
+        {planningEnabled && (
+          <input
+            aria-label="Estimated pool depth (m)"
+            value={estimatedDepth}
+            disabled={depthLocked}
+            onChange={(event) => onEstimatedDepthChange(event.target.value)}
+          />
+        )}
+        {planningEnabled && (
+          <button onClick={onLoadDetailed}>Check for constraints</button>
+        )}
         <button onClick={onEditEstimatedDepth}>Edit estimated depth</button>
       </div>
     );
@@ -65,9 +74,15 @@ vi.mock("@/components/fast-property-view", () => ({
 vi.mock("@/components/homeowner-submission-form", () => ({
   HomeownerSubmissionForm: ({
     assessmentSnapshot,
+    reportAudience,
   }: {
     assessmentSnapshot: string;
-  }) => <div data-testid="details-form">Details for {assessmentSnapshot}</div>,
+    reportAudience: string;
+  }) => (
+    <div data-testid="details-form">
+      Details for {assessmentSnapshot} as {reportAudience}
+    </div>
+  ),
 }));
 
 vi.mock("@/components/saved-assessment-report-panel", () => ({
@@ -90,6 +105,49 @@ afterEach(() => {
 });
 
 describe("Site answers in the property journey", () => {
+  it("gates depth behind an explicit generic pathway choice and allows switching", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", createJourneyFetch());
+
+    render(<PropertyCheckJourney />);
+    await openValidPlacement(user);
+
+    const homeowner = screen.getByRole("radio", { name: "My property" });
+    const builder = screen.getByRole("radio", {
+      name: "A customer property",
+    });
+    expect(homeowner).not.toBeChecked();
+    expect(builder).not.toBeChecked();
+    expect(
+      screen.queryByRole("textbox", { name: "Estimated pool depth (m)" }),
+    ).not.toBeInTheDocument();
+
+    homeowner.focus();
+    await user.keyboard(" ");
+    expect(homeowner).toBeChecked();
+    expect(
+      screen.getByRole("textbox", { name: "Estimated pool depth (m)" }),
+    ).toBeVisible();
+
+    await user.click(builder);
+    expect(builder).toBeChecked();
+  });
+
+  it("visibly preselects the switchable builder pathway for builder entry", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", createJourneyFetch());
+
+    render(<PropertyCheckJourney initialReportAudience="pool_builder" />);
+    await openValidPlacement(user);
+
+    const builder = screen.getByRole("radio", {
+      name: "A customer property",
+    });
+    expect(builder).toBeChecked();
+    await user.click(screen.getByRole("radio", { name: "My property" }));
+    expect(builder).not.toBeChecked();
+  });
+
   it("locks the chosen depth for checks and requires a new check after editing", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
@@ -109,7 +167,7 @@ describe("Site answers in the property journey", () => {
       if (url.endsWith("/stages")) {
         const body = JSON.parse(String(init?.body));
         return Response.json({
-          data: {},
+          data: { status: "complete", layers: [], limitations: [] },
           assessmentSnapshot:
             body.mode === "detailed"
               ? `depth-${body.estimatedDepthMetres}`
@@ -130,6 +188,10 @@ describe("Site answers in the property journey", () => {
         fetchMock.mock.calls.some(([url]) => url.endsWith("/stages")),
       ).toBe(true),
     );
+    await user.click(
+      await screen.findByRole("button", { name: "Set pool layout" }),
+    );
+    await user.click(screen.getByRole("radio", { name: "My property" }));
     const depth = await screen.findByRole("textbox", {
       name: "Estimated pool depth (m)",
     });
@@ -183,7 +245,10 @@ describe("Site answers in the property journey", () => {
           },
         });
       if (url.endsWith("/stages"))
-        return Response.json({ data: {}, assessmentSnapshot: "stage-token" });
+        return Response.json({
+          data: { status: "complete", layers: [], limitations: [] },
+          assessmentSnapshot: "stage-token",
+        });
       if (url.endsWith("/site-answers")) {
         const request = JSON.parse(String(init?.body));
         return Response.json({
@@ -214,9 +279,17 @@ describe("Site answers in the property journey", () => {
     await user.click(
       await screen.findByRole("button", { name: "Set pool layout" }),
     );
+    await user.click(screen.getByRole("radio", { name: "My property" }));
     await chooseNone(user);
     expect(await screen.findByTestId("details-form")).toHaveTextContent(
       "signed-stage-token",
+    );
+
+    await user.click(
+      screen.getByRole("radio", { name: "A customer property" }),
+    );
+    expect(screen.getByTestId("details-form")).toHaveTextContent(
+      "pool_builder",
     );
 
     await user.click(screen.getByRole("button", { name: "Hide clearances" }));
@@ -243,5 +316,36 @@ async function chooseNone(user: ReturnType<typeof userEvent.setup>) {
   );
   await user.click(
     screen.getByRole("button", { name: "Continue to your details" }),
+  );
+}
+
+function createJourneyFetch() {
+  return vi.fn(async (url: string) => {
+    if (url.endsWith("/property-check"))
+      return Response.json({
+        assessmentSnapshot: "initial-token",
+        data: {
+          resolvedAddress: {
+            addressId: "address-1",
+            fullAddress: "1 Test Street, Auckland",
+            coordinates: [174.76, -36.85],
+          },
+          boundary: { state: "confirmed" },
+        },
+      });
+    if (url.endsWith("/stages"))
+      return Response.json({ data: {}, assessmentSnapshot: "stage-token" });
+    return Response.json({ suggestions: [] });
+  });
+}
+
+async function openValidPlacement(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(
+    screen.getByLabelText("Auckland property address"),
+    "1 Test Street, Auckland",
+  );
+  await user.keyboard("{Enter}");
+  await user.click(
+    await screen.findByRole("button", { name: "Set pool layout" }),
   );
 }

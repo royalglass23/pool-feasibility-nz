@@ -1,10 +1,11 @@
 import { AucklandPropertyJourney } from "@/components/auckland-property-journey";
 import { AnalyticsConsent } from "@/components/analytics-consent";
 import { PoolFeasibilityExplainer } from "@/components/pool-feasibility-explainer";
-import { PropertyCheckJourney } from "@/components/property-check-journey";
+import { PropertyCheckJourneyEntry } from "@/components/property-check-journey";
 import { env } from "@/env";
 import { ArrowDownRight } from "lucide-react";
 import Link from "next/link";
+import { Suspense } from "react";
 
 export default function Home() {
   return (
@@ -64,7 +65,9 @@ export default function Home() {
             </p>
           </div>
           <div data-hj-suppress>
-            <PropertyCheckJourney />
+            <Suspense fallback={null}>
+              <PropertyCheckJourneyEntry />
+            </Suspense>
           </div>
         </section>
 

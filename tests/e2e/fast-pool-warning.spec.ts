@@ -152,6 +152,7 @@ test("shows Needs Checking before detailed evidence, then No Warning after a cle
       }),
     });
   });
+  await page.getByRole("radio", { name: "My property" }).check();
   await page.getByRole("button", { name: "Check for constraints" }).click();
   await expect(page.getByRole("heading", { name: "No Warning" })).toBeVisible();
   const mapTopAfterCheck = await documentTop(aerialMap);
@@ -181,6 +182,7 @@ test("keeps the mobile workspace anchored when the live result changes", async (
       }),
     });
   });
+  await page.getByRole("radio", { name: "My property" }).check();
   await page.getByRole("button", { name: "Check for constraints" }).click();
   await expect(page.getByRole("heading", { name: "No Warning" })).toBeVisible();
 
@@ -203,6 +205,7 @@ test("shows friendly position-review guidance while leaving the pool controls av
       }),
     });
   });
+  await page.getByRole("radio", { name: "My property" }).check();
   await page.getByRole("button", { name: "Check for constraints" }).click();
   await expect(
     page.getByRole("heading", { name: "This pool position needs review" }),

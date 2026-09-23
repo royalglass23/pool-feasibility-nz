@@ -129,6 +129,16 @@ test("saves and reproduces the complete public constructability journey through 
   });
 
   try {
+    await page.goto("/auckland-pool-planning-for-builders");
+    await page
+      .getByRole("link", { name: "Check a property with PoolReady" })
+      .click();
+    await expect(page).toHaveURL(/audience=pool_builder/);
+    await page.goBack();
+    await expect(page).toHaveURL(/auckland-pool-planning-for-builders/);
+    await page.goForward();
+    await expect(page).toHaveURL(/audience=pool_builder/);
+
     await page.setViewportSize({ width: 390, height: 844 });
     await startJourney(page, 1.7, true);
     await answerSiteQuestions(page);
@@ -175,7 +185,7 @@ test("saves and reproduces the complete public constructability journey through 
     ).toBeVisible();
 
     await page.setViewportSize({ width: 1280, height: 720 });
-    await startJourney(page, 1.5);
+    await startJourney(page, 1.5, false, "pool_builder");
     await answerSiteQuestions(page, {
       accessCondition: "Gate or narrow passage",
       sideClearanceMillimetres: 200,
@@ -183,7 +193,7 @@ test("saves and reproduces the complete public constructability journey through 
     const secondForm = page.locator(
       'form[aria-labelledby="homeowner-details-heading"]',
     );
-    await fillValidDetails(secondForm, "pool_builder");
+    await fillValidDetails(secondForm);
     const second = await submitAndReadRealResponse(page);
     assessmentIds.push(second.id);
     submittedAudiences.push(second.request.homeowner.visitorType);
@@ -238,8 +248,11 @@ async function startJourney(
   page: Page,
   depth: 1.5 | 1.7,
   rejectAnalytics = false,
+  visitorType: "homeowner" | "pool_builder" = "homeowner",
 ) {
-  await page.goto("/");
+  await page.goto(
+    visitorType === "pool_builder" ? "/?audience=pool_builder" : "/",
+  );
   if (rejectAnalytics) {
     await page.getByRole("button", { name: "Reject analytics" }).click();
   }
@@ -247,6 +260,19 @@ async function startJourney(
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
   await page.keyboard.press("Enter");
+  const pathway = page.getByRole("radiogroup", {
+    name: "Who are you checking this property for?",
+  });
+  const chosenPath = pathway.getByRole("radio", {
+    name:
+      visitorType === "pool_builder" ? "A customer property" : "My property",
+  });
+  if (visitorType === "homeowner") {
+    await chosenPath.focus();
+    await page.keyboard.press("Space");
+  } else {
+    await expect(chosenPath).toBeChecked();
+  }
   const depthInput = page.getByRole("spinbutton", {
     name: "Estimated pool depth (m)",
   });
@@ -270,7 +296,8 @@ async function assertConsentAndValidation(page: Page) {
   await expect(
     form.getByRole("link", { name: "privacy notice", exact: true }),
   ).toHaveAttribute("href", "/privacy");
-  await fillValidDetails(form, "homeowner");
+  await fillValidDetails(form);
+  await expect(form.getByLabel("I am a")).toHaveCount(0);
   const additionalInfo = form.getByLabel("Additional Info (optional)");
   await additionalInfo.fill("[sql] [sql]");
   await form.getByRole("button", { name: "Save and show my report" }).click();
@@ -281,11 +308,7 @@ async function assertConsentAndValidation(page: Page) {
   await additionalInfo.fill("Please call before visiting.");
 }
 
-async function fillValidDetails(
-  form: Locator,
-  visitorType: "homeowner" | "pool_builder",
-) {
-  await form.getByLabel("I am a").selectOption(visitorType);
+async function fillValidDetails(form: Locator) {
   await form.getByLabel("Name").fill("Synthetic Release Homeowner");
   await form.getByLabel("Phone").fill("021 555 0345");
   await form.getByLabel("Email").fill("rg345-public-e2e@example.test");

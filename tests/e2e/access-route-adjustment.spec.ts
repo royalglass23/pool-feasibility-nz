@@ -164,6 +164,7 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
     .getByLabel("Auckland property address")
     .fill("1 Test Street, Auckland");
   await page.keyboard.press("Enter");
+  await page.getByRole("radio", { name: "My property" }).check();
   await page.getByRole("button", { name: "Check for constraints" }).click();
   const routeQuestion = page.getByRole("group", {
     name: "Suggested access route",
