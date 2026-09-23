@@ -119,6 +119,11 @@ test("report image excludes the rotate button while the live map keeps it visibl
   page,
 }) => {
   await mockSiteAnswerSigning(page);
+  await page.route("**/api/public/assessment-snapshot/audience", (route) =>
+    route.fulfill({
+      json: { assessmentSnapshot: "test-audience-snapshot" },
+    }),
+  );
   await page.route("**/api/public/property-check", (route) =>
     route.fulfill({
       json: { data: fastResult, assessmentSnapshot: "test-snapshot" },
@@ -141,6 +146,7 @@ test("report image excludes the rotate button while the live map keeps it visibl
     .getByLabel("Auckland property address")
     .fill(fastResult.requestedAddress);
   await page.keyboard.press("Enter");
+  await page.getByRole("radio", { name: "A customer property" }).check();
   const control = page.getByTestId("pool-rotate-control");
   await expect(control).toBeVisible();
   await page.getByRole("button", { name: /Map layers/ }).click();

@@ -164,7 +164,7 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
     .getByLabel("Auckland property address")
     .fill("1 Test Street, Auckland");
   await page.keyboard.press("Enter");
-  await page.getByRole("radio", { name: "My property" }).check();
+  await page.getByRole("radio", { name: "A customer property" }).check();
   await page.getByRole("button", { name: "Check for constraints" }).click();
   const routeQuestion = page.getByRole("group", {
     name: "Suggested access route",
@@ -226,7 +226,9 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
   const form = page.locator(
     'form[aria-labelledby="homeowner-details-heading"]',
   );
-  await form.getByLabel("Name").fill("Synthetic Route Evidence");
+  await form
+    .getByLabel("Name", { exact: true })
+    .fill("Synthetic Route Evidence");
   await form.getByLabel("Phone").fill("021 555 0345");
   await form.getByLabel("Email").fill("rg345-route@example.test");
   await form.getByRole("checkbox", { name: /I consent to PoolReady/i }).check();

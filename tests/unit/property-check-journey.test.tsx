@@ -1402,6 +1402,43 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     expect(screen.queryByText("Fast property view")).not.toBeInTheDocument();
   });
 
+  it("keeps a fast property view usable when a successful response omits its snapshot", async () => {
+    const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      ...splitDataAccessGateway(gateway),
+      basemapApiKey: "test-key",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input).includes("/api/public/property-check/stages")
+          ? Response.json(
+              {
+                error: { code: "INVALID_REQUEST", message: "Invalid snapshot" },
+              },
+              { status: 400 },
+            )
+          : Response.json({ data: fastResult }, { status: 200 }),
+      ),
+    );
+
+    render(<PropertyCheckJourney />);
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.keyboard("{Enter}");
+
+    expect(
+      await screen.findByRole("group", { name: "Pool catalogue" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: requestedAddress }),
+    ).toBeVisible();
+  });
+
   it("explains a stage validation error on the open property view", async () => {
     const user = userEvent.setup();
     const gateway = createDataAccessGateway();

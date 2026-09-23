@@ -249,7 +249,8 @@ export function PropertyCheckJourney({
       fastMapSnapshot &&
       fastResult?.detailedChecks
         ? `homeowner:${fastAssessmentSnapshot}:${placementKey}`
-        : signedSiteAnswers?.sourceSnapshot === fastAssessmentSnapshot &&
+        : signedSiteAnswers &&
+            signedSiteAnswers.sourceSnapshot === fastAssessmentSnapshot &&
             signedSiteAnswers.placementKey === placementKey &&
             fastMapSnapshot
           ? `builder:${signedSiteAnswers.snapshot}:${signedSiteAnswers.placementKey}`

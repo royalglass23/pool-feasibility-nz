@@ -1,4 +1,29 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
+
+type BoundingBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+async function expectRelativeLayout(
+  first: Locator,
+  second: Locator,
+  matches: (first: BoundingBox, second: BoundingBox) => boolean,
+) {
+  await expect
+    .poll(async () => {
+      const [firstBounds, secondBounds] = await Promise.all([
+        first.boundingBox(),
+        second.boundingBox(),
+      ]);
+      return Boolean(
+        firstBounds && secondBounds && matches(firstBounds, secondBounds),
+      );
+    })
+    .toBe(true);
+}
 
 test("keeps the builder entry URL through browser back and forward navigation", async ({
   page,
@@ -440,6 +465,7 @@ test("supports the pool catalogue and bounded custom input", async ({
           firstUsableViewStartedAt: "2026-07-28T00:00:00.000Z",
           fastPathDurationMs: 120,
         },
+        assessmentSnapshot: "server-issued-initial-snapshot",
       }),
     });
   });
@@ -458,21 +484,22 @@ test("supports the pool catalogue and bounded custom input", async ({
   const aerialMap = page.getByLabel(
     "Fast aerial map for 42A Bahari Drive, Ranui, Auckland",
   );
-  const desktopControls = await placementControls.boundingBox();
-  const desktopMap = await aerialMap.boundingBox();
-  expect(desktopControls!.x).toBeGreaterThanOrEqual(
-    desktopMap!.x + desktopMap!.width,
+  await expectRelativeLayout(
+    placementControls,
+    aerialMap,
+    (controls, map) =>
+      controls.x >= map.x + map.width && Math.abs(controls.y - map.y) <= 1,
   );
-  expect(Math.abs(desktopControls!.y - desktopMap!.y)).toBeLessThanOrEqual(1);
   await page.setViewportSize({ width: 390, height: 844 });
-  const mobileControls = await placementControls.boundingBox();
-  const mobileMap = await aerialMap.boundingBox();
-  const mobileLayers = await page.getByLabel("Map layers").boundingBox();
-  expect(mobileMap!.y + mobileMap!.height).toBeLessThanOrEqual(
-    mobileControls!.y,
+  await expectRelativeLayout(
+    placementControls,
+    aerialMap,
+    (controls, map) => map.y + map.height <= controls.y,
   );
-  expect(mobileControls!.y + mobileControls!.height).toBeLessThanOrEqual(
-    mobileLayers!.y,
+  await expectRelativeLayout(
+    placementControls,
+    page.getByLabel("Map layers"),
+    (controls, layers) => controls.y + controls.height <= layers.y,
   );
 
   await expect(
