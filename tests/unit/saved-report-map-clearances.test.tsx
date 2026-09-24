@@ -25,6 +25,14 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
       .closest("figure")?.parentElement,
   ).toHaveClass("items-start");
   expect(
+    screen.getByAltText(
+      "Saved aerial assessment map showing the mapped property and proposed pool",
+    ),
+  ).toHaveClass("h-auto", "w-full", "object-contain");
+  expect(
+    screen.getByRole("list", { name: "Captured map layer legend" }),
+  ).toHaveClass("sm:grid-cols-2");
+  expect(
     screen
       .getByRole("region", { name: "Saved pool-shell clearances" })
       .compareDocumentPosition(

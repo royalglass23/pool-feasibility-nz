@@ -208,7 +208,7 @@ describe("reportConstructabilitySections", () => {
         routePolicyVersion: 1,
         mappedEvidence: [],
         providerAvailability: [],
-        assumptions: [],
+        assumptions: ["Access route policy v1: terrain_unavailable_or_steep"],
       }),
     });
 
@@ -220,10 +220,15 @@ describe("reportConstructabilitySections", () => {
       status: "needs_checking",
       statusLabel: "Needs checking",
       details: expect.arrayContaining([
-        { label: "Saved route", value: "I’m not sure — no confirmed route" },
+        { label: "Saved route", value: "Not confirmed route" },
       ]),
       evidence: expect.arrayContaining([
         { provenance: "Your Site answer", description: "I’m not sure" },
+        {
+          provenance: "Saved assumption",
+          description:
+            "A suggested access route could not be mapped because terrain information was unavailable or the ground may be too steep.",
+        },
       ]),
     });
   });

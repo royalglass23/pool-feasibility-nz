@@ -27,18 +27,16 @@ export function SavedReportInteractiveMap({
       role="region"
       aria-label="Saved assessment map"
     >
-      <div className="grid items-start lg:grid-cols-[minmax(0,1fr)_18rem]">
+      <div className="grid items-start">
         <figure className="bg-pool-900 min-w-0">
-          <div className="aspect-[3/2]">
-            <Image
-              src={report.mapImageDataUrl}
-              alt="Saved aerial assessment map showing the mapped property and proposed pool"
-              width={900}
-              height={600}
-              unoptimized
-              className="h-full w-full object-cover"
-            />
-          </div>
+          <Image
+            src={report.mapImageDataUrl}
+            alt="Saved aerial assessment map showing the mapped property and proposed pool"
+            width={900}
+            height={600}
+            unoptimized
+            className="h-auto w-full object-contain"
+          />
           <figcaption className="bg-pool-950 text-pool-200 border-t border-white/15 px-4 py-3 text-xs leading-5">
             {isFastPropertyViewCapture
               ? "Saved Fast Property View capture. This is the aerial map and layer selection used when this report was generated."
@@ -47,7 +45,7 @@ export function SavedReportInteractiveMap({
         </figure>
         <aside
           aria-label="Saved map layers"
-          className="border-pool-200 border-t bg-white p-4 lg:border-t-0 lg:border-l"
+          className="border-pool-200 border-t bg-white p-4 sm:p-5"
         >
           <h4 className="text-pool-950 font-semibold">Captured map layers</h4>
           <p className="text-pool-600 mt-1 text-xs leading-5">
@@ -75,7 +73,10 @@ export function SavedReportInteractiveMap({
               </p>
             </section>
           )}
-          <ul className="divide-pool-100 mt-4 divide-y">
+          <ul
+            aria-label="Captured map layer legend"
+            className="mt-4 grid gap-x-8 sm:grid-cols-2"
+          >
             {entries.map((entry) => (
               <SavedLayerLegend key={entry.id} entry={entry} />
             ))}
@@ -92,7 +93,7 @@ export function SavedReportInteractiveMap({
 function SavedLayerLegend({ entry }: { entry: ReportMapLegendEntry }) {
   const status = entry.statusLabel ?? "Included in saved capture";
   return (
-    <li className="flex gap-3 py-3 first:pt-0 last:pb-0">
+    <li className="border-pool-100 flex gap-3 border-t py-3">
       <span
         aria-hidden="true"
         className={

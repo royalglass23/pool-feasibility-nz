@@ -330,7 +330,7 @@ export function reportConstructabilitySections(
       }));
   const assumptions = snapshot.assumptions.map((description) => ({
     provenance: "Saved assumption" as const,
-    description,
+    description: savedAssumptionLabel(description),
   }));
   const groundAnswers = snapshot.accessConditions.filter((condition) =>
     GROUND_CONDITIONS.has(condition),
@@ -545,7 +545,17 @@ function routeProvenanceLabel(
   if (provenance === "user-supplied")
     return "Route supplied by user — confirm onsite";
   if (provenance === "suggested") return "Suggested route — not yet confirmed";
-  return "I’m not sure — no confirmed route";
+  return "Not confirmed route";
+}
+
+function savedAssumptionLabel(description: string): string {
+  if (!description.startsWith("Access route policy v1:")) return description;
+
+  const reason = description.slice("Access route policy v1:".length).trim();
+  if (reason === "terrain_unavailable_or_steep") {
+    return "A suggested access route could not be mapped because terrain information was unavailable or the ground may be too steep.";
+  }
+  return "A suggested access route could not be confirmed from the saved mapped evidence.";
 }
 
 function routeFactDetails(
