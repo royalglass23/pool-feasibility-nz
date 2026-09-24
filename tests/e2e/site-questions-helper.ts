@@ -34,7 +34,7 @@ export async function answerSiteQuestions(
   page: Page,
   options: {
     accessCondition?:
-      "None of these" | "Gate or narrow passage" | "I’m not sure";
+      "None of these" | "Restricted gate or narrow access" | "I’m not sure";
     sideClearanceMillimetres?: number;
   } = {},
 ) {
@@ -54,7 +54,7 @@ export async function answerSiteQuestions(
     ).toBeVisible();
   }
   const access = page.getByRole("group", {
-    name: "Are there any visible conditions that could affect construction access or excavation?",
+    name: "Which visible site conditions could affect plant access or excavation?",
   });
   const nearby = page.getByRole("group", {
     name: "Which existing features are close to the proposed pool area?",

@@ -167,13 +167,13 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
   await page.getByRole("radio", { name: "A customer property" }).check();
   await page.getByRole("button", { name: "Check for constraints" }).click();
   const routeQuestion = page.getByRole("group", {
-    name: "Suggested access route",
+    name: "Proposed construction access route",
   });
   await expect(
-    routeQuestion.getByRole("radio", { name: "Confirm route" }),
+    routeQuestion.getByRole("radio", { name: "Use proposed route" }),
   ).toBeVisible();
   await routeQuestion
-    .getByRole("button", { name: "Add turning point" })
+    .getByRole("button", { name: "Add route turning point" })
     .click();
   const marker = page.getByRole("button", {
     name: /Access route turning point 1/,
@@ -196,14 +196,14 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
   await page.mouse.up();
   await expect(routeQuestion.getByText("Approximate length")).toBeVisible();
   await routeQuestion
-    .getByRole("button", { name: "Add turning point" })
+    .getByRole("button", { name: "Add route turning point" })
     .click();
   await expect(
-    routeQuestion.getByRole("button", { name: "Add turning point" }),
+    routeQuestion.getByRole("button", { name: "Add route turning point" }),
   ).toBeDisabled();
   await page
     .getByRole("group", {
-      name: "Are there any visible conditions that could affect construction access or excavation?",
+      name: "Which visible site conditions could affect plant access or excavation?",
     })
     .getByRole("checkbox", { name: "None of these" })
     .check();

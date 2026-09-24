@@ -328,7 +328,7 @@ describe("Site answers in the property journey", () => {
 
 async function chooseNone(user: ReturnType<typeof userEvent.setup>) {
   const access = screen.getByRole("group", {
-    name: "Are there any visible conditions that could affect construction access or excavation?",
+    name: "Which visible site conditions could affect plant access or excavation?",
   });
   const nearby = screen.getByRole("group", {
     name: "Which existing features are close to the proposed pool area?",

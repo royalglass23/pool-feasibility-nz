@@ -1890,18 +1890,6 @@ function TerrainSlopeResult({
           </p>
         )}
       </div>
-      {terrain.source.attribution ? (
-        <p className="text-pool-600 border-pool-blue-200 mt-4 border-t pt-3 text-xs leading-5">
-          <a
-            className="underline underline-offset-2"
-            href={terrain.source.attribution.url}
-            rel="noreferrer"
-            target="_blank"
-          >
-            {terrain.source.attribution.text}
-          </a>
-        </p>
-      ) : null}
     </section>
   );
 }

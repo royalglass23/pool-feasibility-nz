@@ -17,23 +17,26 @@ type NearbyFeature = ConstructabilityAnswers["nearbyFeatures"][number];
 type Choice<T extends string> = { id: T; label: string };
 
 const accessChoices: Choice<AccessCondition>[] = [
-  { id: "gate_or_narrow_passage", label: "Gate or narrow passage" },
-  { id: "steps_or_steep_level_change", label: "Steps or a steep level change" },
+  { id: "gate_or_narrow_passage", label: "Restricted gate or narrow access" },
+  {
+    id: "steps_or_steep_level_change",
+    label: "Steps or steep level change",
+  },
   {
     id: "overhead_obstacle",
-    label: "Overhead wires, branches, roof or carport",
+    label: "Overhead wires, branches, eaves or carport",
   },
   {
     id: "removable_feature",
-    label: "Fence, landscaping or structure that may need removal",
+    label: "Fence, landscaping or structure may require removal",
   },
   {
     id: "other_property_access",
-    label: "Possible access through another property",
+    label: "Access may require neighbouring property",
   },
-  { id: "retaining_wall", label: "Retaining wall near the pool" },
-  { id: "rocky_ground", label: "Apparently rocky ground" },
-  { id: "wet_or_soft_ground", label: "Apparently wet or soft ground" },
+  { id: "retaining_wall", label: "Retaining wall near proposed pool area" },
+  { id: "rocky_ground", label: "Rocky ground evident" },
+  { id: "wet_or_soft_ground", label: "Wet or soft ground evident" },
   { id: "none_of_these", label: "None of these" },
   { id: "not_sure", label: "I’m not sure" },
 ];
@@ -44,7 +47,7 @@ const nearbyChoices: Choice<NearbyFeature>[] = [
   { id: "gates", label: "Gates" },
   { id: "doors_or_windows", label: "Doors or windows" },
   { id: "decks", label: "Decks" },
-  { id: "raised_areas", label: "Raised areas" },
+  { id: "raised_areas", label: "Raised areas or level changes" },
   { id: "trees_or_structures", label: "Trees or structures" },
   { id: "none_of_these", label: "None of these" },
   { id: "not_sure", label: "I’m not sure" },
@@ -199,11 +202,12 @@ export function SiteQuestions({
             id="site-questions-heading"
             className="text-pool-950 text-xl font-semibold"
           >
-            Site questions
+            Pool builder site questions
           </h3>
-          <p className="text-pool-700 mt-2 text-sm">
-            Select what you can see or know. A pool professional can check these
-            conditions onsite.
+          <p className="text-pool-700 mt-2 max-w-4xl text-sm leading-6">
+            Record the known site conditions for this preliminary builder
+            assessment. Confirm all access, excavation and nearby features
+            onsite before design or pricing.
           </p>
         </div>
         <fieldset
@@ -212,23 +216,23 @@ export function SiteQuestions({
           className="space-y-3 focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           <legend className="text-pool-950 font-semibold">
-            Suggested access route
+            Proposed construction access route
           </legend>
           {routeSuggestion?.confidence === "credible" ? (
             <p className="text-pool-700 text-sm">
-              A preliminary straight route is shown on the map. Please confirm
-              whether it looks plausible. A pool professional must check access
-              onsite.
+              A preliminary route from the street to the selected pool area is
+              shown on the map. Confirm it or adjust it to reflect the likely
+              plant-access route. Verify all access onsite.
             </p>
           ) : (
             <p className="text-pool-700 text-sm">
-              We couldn’t identify an obvious access route from the mapped
-              evidence. You can still complete your property check.
+              The mapped evidence did not support a credible construction access
+              route. Record it as unconfirmed and verify access onsite.
             </p>
           )}
           {routeSuggestion?.confidence === "credible" && (
             <>
-              <label className="flex min-h-11 items-center gap-3 text-sm">
+              <label className="border-pool-200 has-checked:border-pool-blue-700 has-checked:bg-pool-blue-50 focus-within:outline-pool-blue-700 flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition focus-within:outline-2 focus-within:outline-offset-2">
                 <input
                   type="radio"
                   name="route-response"
@@ -242,7 +246,7 @@ export function SiteQuestions({
                     onSigned(null);
                   }}
                 />
-                Confirm route
+                Use proposed route
               </label>
               <div className="space-y-2">
                 <button
@@ -262,18 +266,18 @@ export function SiteQuestions({
                     onRouteEdit?.({ type: "LineString", coordinates }, true);
                     onSigned(null);
                   }}
-                  className="min-h-11 rounded-lg border px-3 text-sm disabled:opacity-50"
+                  className="border-pool-300 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-lg border px-3 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
-                  Add turning point
+                  Add route turning point
                 </button>
                 {adjustedRoute && adjustedRoute.coordinates.length > 2 && (
                   <>
                     <p className="text-sm font-semibold">
-                      Route supplied by user — confirm onsite
+                      User-adjusted route — confirm onsite
                     </p>
                     <p className="text-sm">
-                      Drag a turning point on the map, or focus it and use arrow
-                      keys. Start and pool-area endpoints stay fixed.
+                      Drag a turning point on the map, or focus it and use the
+                      arrow keys. The street and pool-area endpoints stay fixed.
                     </p>
                     <button
                       type="button"
@@ -290,7 +294,7 @@ export function SiteQuestions({
                         onRouteEdit?.(next, true);
                         onSigned(null);
                       }}
-                      className="min-h-11 rounded-lg border px-3 text-sm"
+                      className="border-pool-300 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-lg border px-3 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2"
                     >
                       Remove last turning point
                     </button>
@@ -345,7 +349,7 @@ export function SiteQuestions({
               </div>
             </>
           )}
-          <label className="flex min-h-11 items-center gap-3 text-sm">
+          <label className="border-pool-200 has-checked:border-pool-blue-700 has-checked:bg-pool-blue-50 focus-within:outline-pool-blue-700 flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition focus-within:outline-2 focus-within:outline-offset-2">
             <input
               type="radio"
               name="route-response"
@@ -359,24 +363,24 @@ export function SiteQuestions({
                 onSigned(null);
               }}
             />
-            I’m not sure
+            Access route not confirmed
           </label>
         </fieldset>
         <fieldset
           ref={accessRef}
           tabIndex={-1}
           aria-describedby={errors.access ? "site-access-error" : undefined}
-          className="space-y-3 focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="border-pool-200 space-y-3 border-t pt-6 focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           <legend className="text-pool-950 font-semibold">
-            Are there any visible conditions that could affect construction
-            access or excavation?
+            Which visible site conditions could affect plant access or
+            excavation?
           </legend>
           <div className="grid gap-2 sm:grid-cols-2">
             {accessChoices.map((choice) => (
               <label
                 key={choice.id}
-                className="border-pool-200 hover:bg-pool-50 flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-sm"
+                className="border-pool-200 hover:border-pool-300 hover:bg-pool-50 has-checked:border-pool-blue-700 has-checked:bg-pool-blue-50 focus-within:outline-pool-blue-700 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition focus-within:outline-2 focus-within:outline-offset-2"
               >
                 <input
                   type="checkbox"
@@ -402,7 +406,7 @@ export function SiteQuestions({
               role="alert"
               className="text-sm text-red-800"
             >
-              Choose at least one answer for construction access or excavation.
+              Record at least one access or excavation condition.
             </p>
           )}
         </fieldset>
@@ -410,7 +414,7 @@ export function SiteQuestions({
           ref={nearbyRef}
           tabIndex={-1}
           aria-describedby={errors.nearby ? "site-nearby-error" : undefined}
-          className="space-y-3 focus-visible:outline-2 focus-visible:outline-offset-2"
+          className="border-pool-200 space-y-3 border-t pt-6 focus-visible:outline-2 focus-visible:outline-offset-2"
         >
           <legend className="text-pool-950 font-semibold">
             Which existing features are close to the proposed pool area?
@@ -419,7 +423,7 @@ export function SiteQuestions({
             {nearbyChoices.map((choice) => (
               <label
                 key={choice.id}
-                className="border-pool-200 hover:bg-pool-50 flex min-h-11 items-center gap-3 rounded-xl border px-3 py-2 text-sm"
+                className="border-pool-200 hover:border-pool-300 hover:bg-pool-50 has-checked:border-pool-blue-700 has-checked:bg-pool-blue-50 focus-within:outline-pool-blue-700 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition focus-within:outline-2 focus-within:outline-offset-2"
               >
                 <input
                   type="checkbox"
@@ -445,7 +449,7 @@ export function SiteQuestions({
               role="alert"
               className="text-sm text-red-800"
             >
-              Choose at least one answer for nearby features.
+              Record at least one nearby feature response.
             </p>
           )}
         </fieldset>

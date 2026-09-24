@@ -218,7 +218,7 @@ test("saves and reproduces the complete public constructability journey through 
 
     await startJourney(page, 1.5, false, "pool_builder");
     await answerSiteQuestions(page, {
-      accessCondition: "Gate or narrow passage",
+      accessCondition: "Restricted gate or narrow access",
       sideClearanceMillimetres: 200,
     });
     const secondForm = page.locator(
@@ -360,7 +360,7 @@ async function startJourney(
     await expect(depthInput).toHaveCount(0);
     await page.getByRole("button", { name: "Check for constraints" }).click();
     await expect(
-      page.getByRole("heading", { name: "Site questions" }),
+      page.getByRole("heading", { name: "Pool builder site questions" }),
     ).toHaveCount(0);
     await expect(
       page.locator('form[aria-labelledby="homeowner-details-heading"]'),
@@ -381,10 +381,10 @@ async function startJourney(
   await expect(depthInput).toBeDisabled();
   await page.getByRole("button", { name: /Map layers/ }).click();
   const routeQuestion = page.getByRole("group", {
-    name: "Suggested access route",
+    name: "Proposed construction access route",
   });
   await expect(
-    routeQuestion.getByRole("radio", { name: "I’m not sure" }),
+    routeQuestion.getByRole("radio", { name: "Access route not confirmed" }),
   ).toBeChecked();
 }
 

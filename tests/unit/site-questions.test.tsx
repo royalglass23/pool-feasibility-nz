@@ -39,7 +39,7 @@ describe("Site questions", () => {
       name: "Indicative excavation side clearance",
     });
     const siteQuestions = screen.getByRole("region", {
-      name: "Site questions",
+      name: "Pool builder site questions",
     });
     const excavationPlanning = screen.getByRole("region", {
       name: "Excavation planning",
@@ -97,9 +97,11 @@ describe("Site questions", () => {
       />,
     );
     expect(
-      screen.queryByRole("radio", { name: "Confirm route" }),
+      screen.queryByRole("radio", { name: "Use proposed route" }),
     ).not.toBeInTheDocument();
-    expect(screen.getByRole("radio", { name: "I’m not sure" })).toBeChecked();
+    expect(
+      screen.getByRole("radio", { name: "Access route not confirmed" }),
+    ).toBeChecked();
     await user.click(
       screen.getAllByRole("checkbox", { name: "None of these" })[0]!,
     );
@@ -154,7 +156,7 @@ describe("Site questions", () => {
       screen.getByRole("button", { name: "Continue to your details" }),
     );
     expect(fetchMock).not.toHaveBeenCalled();
-    await user.click(screen.getByRole("radio", { name: "Confirm route" }));
+    await user.click(screen.getByRole("radio", { name: "Use proposed route" }));
     await user.click(
       screen.getByRole("button", { name: "Continue to your details" }),
     );
@@ -202,7 +204,9 @@ describe("Site questions", () => {
         onSigned={vi.fn()}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "Add turning point" }));
+    await user.click(
+      screen.getByRole("button", { name: "Add route turning point" }),
+    );
     const first = onRouteEdit.mock.lastCall![0];
     expect(first.coordinates).toHaveLength(3);
     view.rerender(
@@ -216,7 +220,9 @@ describe("Site questions", () => {
         onSigned={vi.fn()}
       />,
     );
-    await user.click(screen.getByRole("button", { name: "Add turning point" }));
+    await user.click(
+      screen.getByRole("button", { name: "Add route turning point" }),
+    );
     const second = onRouteEdit.mock.lastCall![0];
     expect(second.coordinates).toHaveLength(4);
     view.rerender(
@@ -231,7 +237,7 @@ describe("Site questions", () => {
       />,
     );
     expect(
-      screen.getByRole("button", { name: "Add turning point" }),
+      screen.getByRole("button", { name: "Add route turning point" }),
     ).toBeDisabled();
     await user.click(
       screen.getAllByRole("checkbox", { name: "None of these" })[0]!,
@@ -270,7 +276,7 @@ describe("Site questions", () => {
     );
 
     const access = screen.getByRole("group", {
-      name: "Are there any visible conditions that could affect construction access or excavation?",
+      name: "Which visible site conditions could affect plant access or excavation?",
     });
     const nearby = screen.getByRole("group", {
       name: "Which existing features are close to the proposed pool area?",
@@ -279,10 +285,12 @@ describe("Site questions", () => {
       within(access).getByRole("checkbox", { name: "None of these" }),
     );
     await user.click(
-      within(access).getByRole("checkbox", { name: "Gate or narrow passage" }),
+      within(access).getByRole("checkbox", {
+        name: "Restricted gate or narrow access",
+      }),
     );
     within(access)
-      .getByRole("checkbox", { name: "Apparently rocky ground" })
+      .getByRole("checkbox", { name: "Rocky ground evident" })
       .focus();
     await user.keyboard(" ");
     expect(
@@ -332,7 +340,7 @@ describe("Site questions", () => {
     );
     expect(
       screen.getByRole("group", {
-        name: "Are there any visible conditions that could affect construction access or excavation?",
+        name: "Which visible site conditions could affect plant access or excavation?",
       }),
     ).toHaveFocus();
     expect(fetchMock).not.toHaveBeenCalled();

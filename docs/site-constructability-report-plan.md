@@ -51,9 +51,9 @@ The existing report structure remains intact. The bounded remediation may change
 
 ## Draft Site questions
 
-1. Show the Suggested access route and ask the user to confirm it, adjust it or select “I’m not sure.”
-2. Ask: **“Are there any visible conditions that could affect construction access or excavation?”** Choices are gate or narrow passage; steps or a steep level change; overhead wires, branches, roof or carport; fence, landscaping or structure that may need removal; possible access through another property; retaining wall near the pool; apparently rocky ground; apparently wet or soft ground; `None of these`; and `I’m not sure`.
-3. Ask: **“Which existing features are close to the proposed pool area?”** Choices are fences; walls; gates; doors or windows; decks; raised areas; trees or structures; `None of these`; and `I’m not sure`.
+1. Show the **Proposed construction access route** when mapped evidence supports one. Ask the builder to use it, adjust it to reflect likely plant access, or record the route as unconfirmed pending an onsite check.
+2. Ask: **“Which visible site conditions could affect plant access or excavation?”** Choices use concise builder terminology: restricted gate or narrow access; steps or steep level change; overhead wires, branches, eaves or carport; fence, landscaping or structure that may require removal; access through neighbouring property; retaining wall near the proposed pool area; rocky ground; wet or soft ground; `None of these`; and `I’m not sure`.
+3. Ask: **“Which existing features are close to the proposed pool area?”** Choices are fences; walls; gates; doors or windows; decks; raised areas or level changes; trees or structures; `None of these`; and `I’m not sure`.
 
 Both questions permit multiple selections except that `None of these` and `I’m not sure` are exclusive. Selections do not trigger follow-up questions in version one.
 
@@ -65,7 +65,7 @@ Suggested access routing follows [ADR-0007](./adr/0007-deterministic-constructio
 
 The first version adds no road-edge or vehicle-crossing API. It proposes a route only when the existing parcel, address, aerial, building and terrain evidence supports an obvious corridor; otherwise it records “I’m not sure.” Additional access datasets are deferred until observed outcomes demonstrate that they are needed.
 
-When a user adjusts the Suggested access route, it becomes a **User-supplied access route** labelled **“Route supplied by user — confirm onsite.”** PoolReady may calculate terrain and mapped intersections along it, but must preserve its user-declared provenance.
+When a user adjusts the Suggested access route, it becomes a **User-supplied access route** labelled **“User-adjusted route — confirm onsite.”** PoolReady may calculate terrain and mapped intersections along it, but must preserve its user-declared provenance.
 
 Route adjustment uses the fixed start and pool-area endpoints plus at most two user-movable turning points. The visible line may update during interaction, but terrain and mapped-intersection analysis runs only after adjustment finishes or the user confirms the route.
 

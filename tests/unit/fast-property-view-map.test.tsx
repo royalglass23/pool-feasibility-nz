@@ -443,13 +443,10 @@ it("shows location-based slope shading and selected-pool terrain details", async
   expect(screen.getByText("0.36 m")).toBeVisible();
   expect(screen.getByText("SE")).toBeVisible();
   expect(
-    screen.getByRole("link", {
+    screen.queryByRole("link", {
       name: /Sourced from the LINZ Data Service and licensed by Regional Software Holdings Limited/i,
     }),
-  ).toHaveAttribute(
-    "href",
-    "https://www.linz.govt.nz/products-services/data/licensing-and-using-data/attributing-elevation-or-aerial-imagery-data",
-  );
+  ).not.toBeInTheDocument();
   openMapLayers();
   expect(screen.getByRole("checkbox", { name: "Slope shading" })).toBeChecked();
   expect(screen.getByText("Lower slope on this property")).toBeVisible();
