@@ -208,11 +208,6 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       name: /Map layers/,
     });
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "false");
-    await expect(
-      legend.getByText(
-        "Select “Check for constraints” to see terrain contours and mapped services.",
-      ),
-    ).toHaveCount(0);
     await mapLayersToggle.click();
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "true");
     const homeownerPath = page.getByRole("radio", { name: "My property" });
@@ -224,6 +219,8 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       await homeownerPath.click();
       await expect(homeownerPath).toBeChecked();
       await builderPath.click();
+      await expect(builderPath).toBeChecked();
+      await homeownerPath.click();
     } else {
       await expect(homeownerPath).not.toBeChecked();
       await expect(builderPath).not.toBeChecked();
@@ -234,23 +231,21 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       await homeownerPath.click();
     }
     await expect(
-      page.getByRole("button", { name: "Check for constraints" }),
+      page.getByRole("button", { name: "Use this pool position" }),
     ).toBeVisible();
     const detailedChecksPanel = page
       .locator("details")
       .filter({ hasText: "Detailed official checks" });
     await expect(detailedChecksPanel).toHaveCount(0);
-    await page.getByRole("button", { name: "Check for constraints" }).click();
+    await page.getByRole("button", { name: "Use this pool position" }).click();
+    await page.getByRole("button", { name: "Check this property" }).click();
     await expect(
-      page.getByRole("button", { name: "Checking constraints…" }),
+      page.getByRole("button", { name: "Checking this property…" }),
     ).toBeDisabled();
     await expect.poll(() => detailedStageRequests).toBe(1);
-    if (initialOutcome !== "complete") {
+    if (initialOutcome === "error") {
       const retry = page.getByRole("button", {
-        name:
-          initialOutcome === "retryable"
-            ? "Retry unavailable constraints"
-            : "Check for constraints",
+        name: "Check this property",
         exact: true,
       });
       await expect(retry).toBeEnabled();
@@ -258,11 +253,8 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       await expect.poll(() => detailedStageRequests).toBe(2);
     }
     await expect(
-      page.getByRole("button", {
-        name: "All available constraints loaded",
-        exact: true,
-      }),
-    ).toBeDisabled();
+      page.getByText(/No valid elevation data covers this property\./),
+    ).toBeVisible();
     if (initialOutcome === "complete") {
       const clearancesPanel = legend.getByTestId("map-layer-clearances");
       const slopePanel = legend.getByTestId("map-layer-slope");
@@ -386,19 +378,15 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       page.getByRole("button", { name: "Start again", exact: true }),
     ).toBeEnabled();
     const poolLayout = page.getByLabel("Pool catalogue and placement controls");
-    const detailedAction = poolLayout.getByRole("button", {
-      name: "All available constraints loaded",
-      exact: true,
+    const placementAction = page.getByRole("button", {
+      name: /Use this pool position|Position confirmed/,
     });
     await expect(
       page
         .getByLabel("Property check notices")
         .getByRole("heading", { name: /Needs Checking|No Warning/ }),
     ).toBeVisible();
-    await expect(detailedAction).toBeVisible();
-    await expect(
-      poolLayout.getByRole("button", { name: "Start again", exact: true }),
-    ).toBeEnabled();
+    await expect(placementAction).toBeVisible();
     const mapBounds = await page
       .getByLabel("Fast aerial map for 42A Bahari Drive, Ranui, Auckland")
       .boundingBox();
@@ -406,7 +394,7 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       .getByLabel("Property check notices")
       .boundingBox();
     const poolLayoutBounds = await poolLayout.boundingBox();
-    const actionBounds = await detailedAction.boundingBox();
+    const actionBounds = await placementAction.boundingBox();
     expect(noticeBounds!.y + noticeBounds!.height).toBeLessThanOrEqual(
       mapBounds!.y,
     );
@@ -414,13 +402,18 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     expect(noticeBounds!.x + noticeBounds!.width).toBeGreaterThanOrEqual(
       poolLayoutBounds!.x + poolLayoutBounds!.width,
     );
-    expect(actionBounds!.x).toBeGreaterThanOrEqual(
-      mapBounds!.x + mapBounds!.width,
+    expect(actionBounds!.y).toBeGreaterThanOrEqual(
+      mapBounds!.y + mapBounds!.height,
     );
-    expect(actionBounds!.y).toBeLessThan(mapBounds!.y + mapBounds!.height);
-    await expect(
-      legend.getByRole("checkbox", { name: "Wastewater" }),
-    ).toBeChecked();
+    const wastewaterLayer = legend.getByRole("checkbox", {
+      name: "Wastewater",
+    });
+    if (initialOutcome === "retryable") {
+      await expect(wastewaterLayer).not.toBeChecked();
+      await expect(wastewaterLayer).toBeDisabled();
+    } else {
+      await expect(wastewaterLayer).toBeChecked();
+    }
     await expect(detailedChecksPanel).toHaveCount(0);
   });
 }

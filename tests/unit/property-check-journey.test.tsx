@@ -371,7 +371,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       );
 
       expect(
-        await screen.findByRole("button", { name: "Check for constraints" }),
+        await screen.findByRole("button", { name: "Use this pool position" }),
       ).toBeEnabled();
       expect(
         screen.getByRole("heading", { name: requestedAddress }),
@@ -1053,7 +1053,10 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     await user.keyboard("{Enter}");
     await user.click(await screen.findByRole("radio", { name: "My property" }));
     await user.click(
-      await screen.findByRole("button", { name: "Check for constraints" }),
+      await screen.findByRole("button", { name: "Use this pool position" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Check this property" }),
     );
 
     await waitFor(() => {
@@ -1115,7 +1118,10 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     await user.keyboard("{Enter}");
     await user.click(await screen.findByRole("radio", { name: "My property" }));
     await user.click(
-      await screen.findByRole("button", { name: "Check for constraints" }),
+      await screen.findByRole("button", { name: "Use this pool position" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Check this property" }),
     );
 
     expect(
@@ -1128,7 +1134,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       screen.getByText("Please try again in 1 minute 15 seconds."),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Check for constraints" }),
+      screen.getByRole("button", { name: "Check this property" }),
     ).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Retry property check" }),
@@ -1210,16 +1216,17 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     await user.keyboard("{Enter}");
     await user.click(await screen.findByRole("radio", { name: "My property" }));
     await user.click(
-      await screen.findByRole("button", { name: "Check for constraints" }),
+      await screen.findByRole("button", { name: "Use this pool position" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Check this property" }),
     );
     expect(
       await screen.findByRole("heading", { name: "Indicative property slope" }),
     ).toBeVisible();
     expect(screen.getByText("2.4°")).toBeVisible();
     expect(
-      screen.getByRole("button", {
-        name: "All available constraints loaded",
-      }),
+      screen.getByRole("button", { name: "Position confirmed" }),
     ).toBeDisabled();
 
     await user.click(
@@ -1232,10 +1239,8 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     await waitFor(() => expect(detailedRequestCount).toBe(1));
     expect(screen.getByText("2.4°")).toBeVisible();
     expect(
-      screen.getByRole("button", {
-        name: "All available constraints loaded",
-      }),
-    ).toBeDisabled();
+      screen.getByRole("button", { name: "Use this pool position" }),
+    ).toBeEnabled();
     expect(
       screen.queryByText(/The pool position changed\./i),
     ).not.toBeInTheDocument();
@@ -1300,7 +1305,10 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     await user.keyboard("{Enter}");
     await user.click(await screen.findByRole("radio", { name: "My property" }));
     await user.click(
-      await screen.findByRole("button", { name: "Check for constraints" }),
+      await screen.findByRole("button", { name: "Use this pool position" }),
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Check this property" }),
     );
 
     expect(
@@ -1310,9 +1318,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       screen.getByText(/No valid elevation data covers this property\./),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", {
-        name: "All available constraints loaded",
-      }),
+      screen.getByRole("button", { name: "Position confirmed" }),
     ).toBeDisabled();
 
     await user.click(
@@ -1328,10 +1334,8 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
 
     await waitFor(() => expect(detailedRequestCount).toBe(1));
     expect(
-      screen.getByRole("button", {
-        name: "All available constraints loaded",
-      }),
-    ).toBeDisabled();
+      screen.getByRole("button", { name: "Use this pool position" }),
+    ).toBeEnabled();
   });
 
   it("hides the address search after a fast view opens and restores it from Start again", async () => {

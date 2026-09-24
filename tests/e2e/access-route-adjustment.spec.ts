@@ -165,15 +165,26 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
     .fill("1 Test Street, Auckland");
   await page.keyboard.press("Enter");
   await page.getByRole("radio", { name: "A customer property" }).check();
-  await page.getByRole("button", { name: "Check for constraints" }).click();
-  const routeQuestion = page.getByRole("group", {
-    name: "Proposed construction access route",
+  await page.getByRole("button", { name: "Use this pool position" }).click();
+  await page
+    .getByRole("group", {
+      name: "Which visible site conditions could affect plant access or excavation?",
+    })
+    .getByRole("checkbox", { name: "None of these" })
+    .check();
+  await page
+    .getByRole("group", {
+      name: "Which existing features are close to the proposed pool area?",
+    })
+    .getByRole("checkbox", { name: "None of these" })
+    .check();
+  await page.getByRole("button", { name: "Check this property" }).click();
+  const routeResult = page.getByRole("region", {
+    name: "Access route result",
   });
-  await expect(
-    routeQuestion.getByRole("radio", { name: "Use proposed route" }),
-  ).toBeVisible();
-  await routeQuestion
-    .getByRole("button", { name: "Add route turning point" })
+  await expect(routeResult).toBeVisible();
+  await routeResult
+    .getByRole("button", { name: "Adjust suggested route" })
     .click();
   const marker = page.getByRole("button", {
     name: /Access route turning point 1/,
@@ -194,27 +205,15 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
     { steps: 5 },
   );
   await page.mouse.up();
-  await expect(routeQuestion.getByText("Approximate length")).toBeVisible();
-  await routeQuestion
-    .getByRole("button", { name: "Add route turning point" })
+  await expect(routeResult.getByText("Approximate length")).toBeVisible();
+  await routeResult
+    .getByRole("button", { name: "Adjust suggested route" })
     .click();
   await expect(
-    routeQuestion.getByRole("button", { name: "Add route turning point" }),
+    routeResult.getByRole("button", { name: "Adjust suggested route" }),
   ).toBeDisabled();
-  await page
-    .getByRole("group", {
-      name: "Which visible site conditions could affect plant access or excavation?",
-    })
-    .getByRole("checkbox", { name: "None of these" })
-    .check();
-  await page
-    .getByRole("group", {
-      name: "Which existing features are close to the proposed pool area?",
-    })
-    .getByRole("checkbox", { name: "None of these" })
-    .check();
-  await page.getByRole("button", { name: "Continue to your details" }).click();
-  await expect.poll(() => posted).not.toBeNull();
+  await page.getByRole("button", { name: "Save route adjustment" }).click();
+  await expect.poll(() => posted?.routeResponse).toBe("adjust");
   expect(posted).toMatchObject({
     routeResponse: "adjust",
     adjustedRoute: { type: "LineString", coordinates: expect.any(Array) },

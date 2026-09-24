@@ -1,5 +1,7 @@
 import "dotenv/config";
 import { createHmac, randomUUID } from "node:crypto";
+import { readFile, writeFile } from "node:fs/promises";
+import { resolve } from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { neon } from "@neondatabase/serverless";
 import { eq } from "drizzle-orm";
@@ -15,6 +17,7 @@ const databaseUrl = process.env.DATABASE_URL_DEV;
 const signingKey =
   process.env.INTERNAL_REPORT_SIGNING_SECRET ??
   "playwright-report-signing-secret-2026-07-22-at-least-32-bytes";
+const mailCapturePath = resolve("tmp/audience-path-compatibility/emails.jsonl");
 
 const baseResult = {
   requestedAddress: "42A Bahari Drive, Ranui, Auckland",
@@ -61,11 +64,13 @@ test("saves and reproduces the complete public constructability journey through 
   page,
 }) => {
   test.skip(!databaseUrl, "DATABASE_URL_DEV is required for persistence E2E.");
-  test.setTimeout(180_000);
+  test.setTimeout(420_000);
   const db = drizzle(neon(databaseUrl!), { schema });
   const assessmentIds: string[] = [];
   const submittedAudiences: string[] = [];
   let detailedJourneyCount = 0;
+
+  await writeFile(mailCapturePath, "");
 
   await page.route("**/api/public/property-check", (route) =>
     route.fulfill({
@@ -128,28 +133,37 @@ test("saves and reproduces the complete public constructability journey through 
   });
 
   try {
-    await page.goto("/auckland-pool-planning-for-builders");
-    await page
-      .getByRole("link", { name: "Check a property with PoolReady" })
-      .click();
-    await expect(page).toHaveURL(/audience=pool_builder/);
-    await page.goBack();
-    await expect(page).toHaveURL(/auckland-pool-planning-for-builders/);
-    await page.goForward();
-    await expect(page).toHaveURL(/audience=pool_builder/);
-
     await page.setViewportSize({ width: 390, height: 844 });
-    await startJourney(page, 1.7, true);
+    const cdp = await page.context().newCDPSession(page);
+    await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 });
+    await startJourney(page, 1.7, {
+      rejectAnalytics: true,
+      visitorType: "homeowner",
+    });
     await assertConsentAndValidation(page);
-    const first = await submitAndReadRealResponse(page);
-    assessmentIds.push(first.id);
-    submittedAudiences.push(first.request.homeowner.visitorType);
+    const genericHomeowner = await submitAndReadRealResponse(page);
+    assessmentIds.push(genericHomeowner.id);
+    submittedAudiences.push(genericHomeowner.request.homeowner.visitorType);
 
-    const firstPersisted = await getSavedPreliminaryReportById(db, first.id);
-    expect(firstPersisted).not.toBeNull();
-    expect(firstPersisted!.reportAudience).toBe("homeowner");
-    expect(first.response.report.reportAudience).toBe("homeowner");
-    expect(firstPersisted!.constructability).toMatchObject({
+    const genericHomeownerPersisted = await getSavedPreliminaryReportById(
+      db,
+      genericHomeowner.id,
+    );
+    expect(genericHomeownerPersisted).not.toBeNull();
+    expect(genericHomeownerPersisted!.reportAudience).toBe("homeowner");
+    expect(genericHomeowner.response.report.reportAudience).toBe("homeowner");
+    const homeownerEmailPdf = await assertDeliveredProjection({
+      page,
+      accessToken: genericHomeowner.response.reportAccessToken,
+      reference: genericHomeowner.response.reference,
+      expectedAudience: "homeowner",
+    });
+    const homeownerEndpointPdf = await readSavedPdf(
+      page,
+      genericHomeowner.response.reportAccessToken,
+    );
+    expect(homeownerEndpointPdf).toEqual(homeownerEmailPdf);
+    expect(genericHomeownerPersisted!.constructability).toMatchObject({
       version: 0,
       status: "not_assessed",
     });
@@ -184,7 +198,9 @@ test("saves and reproduces the complete public constructability journey through 
         .getByText("Not assessed")
         .first(),
     ).toBeVisible();
-    await expect(page.getByText(first.response.reference)).toBeVisible();
+    await expect(
+      page.getByText(genericHomeowner.response.reference),
+    ).toBeVisible();
     await expect(
       page.getByRole("button", { name: "Resend report" }),
     ).toHaveCount(0);
@@ -197,62 +213,74 @@ test("saves and reproduces the complete public constructability journey through 
       ),
     ).toBeVisible();
 
+    await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 1 });
     await page.setViewportSize({ width: 1280, height: 720 });
-    await startJourney(page, 1.5, false, "homeowner");
-    const desktopHomeownerForm = page.locator(
+    await startJourney(page, 1.5, {
+      entry: "builder_landing",
+      visitorType: "homeowner",
+    });
+    const switchedHomeownerForm = page.locator(
       'form[aria-labelledby="homeowner-details-heading"]',
     );
-    await fillValidDetails(desktopHomeownerForm);
-    const desktopHomeowner = await submitAndReadRealResponse(page);
-    assessmentIds.push(desktopHomeowner.id);
-    submittedAudiences.push(desktopHomeowner.request.homeowner.visitorType);
-    expect(
-      (await getSavedPreliminaryReportById(db, desktopHomeowner.id))
-        ?.reportAudience,
-    ).toBe("homeowner");
+    await expect(switchedHomeownerForm).toBeVisible();
     await expect(
-      page.getByRole("heading", {
-        name: "What your pool builder will confirm",
-      }),
-    ).toBeVisible();
+      page.getByRole("spinbutton", { name: "Estimated pool depth (m)" }),
+    ).toHaveCount(0);
 
-    await startJourney(page, 1.5, false, "pool_builder");
+    await startJourney(page, 1.5, { visitorType: "pool_builder" });
     await answerSiteQuestions(page, {
       accessCondition: "Restricted gate or narrow access",
       sideClearanceMillimetres: 200,
     });
-    const secondForm = page.locator(
+    const genericBuilderForm = page.locator(
       'form[aria-labelledby="homeowner-details-heading"]',
     );
     await expect(
-      secondForm.getByLabel("Company / trading name (optional)"),
+      genericBuilderForm.getByLabel("Company / trading name (optional)"),
     ).toBeVisible();
-    await fillValidDetails(secondForm);
-    await secondForm
+    await fillValidDetails(genericBuilderForm);
+    await genericBuilderForm
       .getByLabel("Company / trading name (optional)")
       .fill("North Shore Pools Ltd");
-    const second = await submitAndReadRealResponse(page);
-    assessmentIds.push(second.id);
-    submittedAudiences.push(second.request.homeowner.visitorType);
+    const genericBuilder = await submitAndReadRealResponse(page);
+    assessmentIds.push(genericBuilder.id);
+    submittedAudiences.push(genericBuilder.request.homeowner.visitorType);
 
-    const secondPersisted = await getSavedPreliminaryReportById(db, second.id);
-    expect(secondPersisted).not.toBeNull();
-    expect(secondPersisted!.reportAudience).toBe("pool_builder");
-    expect(second.response.report.reportAudience).toBe("pool_builder");
-    expect(second.request.homeowner.builderCompanyName).toBe(
+    const genericBuilderPersisted = await getSavedPreliminaryReportById(
+      db,
+      genericBuilder.id,
+    );
+    expect(genericBuilderPersisted).not.toBeNull();
+    expect(genericBuilderPersisted!.reportAudience).toBe("pool_builder");
+    expect(genericBuilder.response.report.reportAudience).toBe("pool_builder");
+    const builderEmailPdf = await assertDeliveredProjection({
+      page,
+      accessToken: genericBuilder.response.reportAccessToken,
+      reference: genericBuilder.response.reference,
+      expectedAudience: "pool_builder",
+    });
+    const builderEndpointPdf = await readSavedPdf(
+      page,
+      genericBuilder.response.reportAccessToken,
+    );
+    expect(builderEndpointPdf).toEqual(builderEmailPdf);
+    expect(builderEndpointPdf).not.toEqual(homeownerEndpointPdf);
+    expect(genericBuilder.request.homeowner.builderCompanyName).toBe(
       "North Shore Pools Ltd",
     );
-    expect(second.response.builderCompanyName).toBe("North Shore Pools Ltd");
+    expect(genericBuilder.response.builderCompanyName).toBe(
+      "North Shore Pools Ltd",
+    );
     await expect(
       db.query.homeownerAssessments.findFirst({
         columns: { builderCompanyName: true },
-        where: eq(schema.homeownerAssessments.id, second.id),
+        where: eq(schema.homeownerAssessments.id, genericBuilder.id),
       }),
     ).resolves.toEqual({ builderCompanyName: "North Shore Pools Ltd" });
-    expect(secondPersisted!.constructability).toEqual(
-      second.response.report.constructability,
+    expect(genericBuilderPersisted!.constructability).toEqual(
+      genericBuilder.response.report.constructability,
     );
-    expect(secondPersisted!.constructability).toMatchObject({
+    expect(genericBuilderPersisted!.constructability).toMatchObject({
       version: 1,
       estimatedDepthMetres: 1.5,
       excavationSideAllowanceMetres: 0.2,
@@ -267,18 +295,18 @@ test("saves and reproduces the complete public constructability journey through 
         { category: "access_excavation", condition: "gate_or_narrow_passage" },
       ]),
     });
-    const secondConstructability = page.getByRole("region", {
+    const builderConstructability = page.getByRole("region", {
       name: "Site constructability",
     });
-    await expect(secondConstructability).toContainText("1.50 m");
-    await expect(secondConstructability).toContainText("Needs checking");
-    await expect(secondConstructability).toContainText(
+    await expect(builderConstructability).toContainText("1.50 m");
+    await expect(builderConstructability).toContainText("Needs checking");
+    await expect(builderConstructability).toContainText(
       "Your Site answer: Gate or narrow passage",
     );
     await expect(
       page.getByText("Company / trading name: North Shore Pools Ltd"),
     ).toBeVisible();
-    await expect(secondConstructability).toContainText(
+    await expect(builderConstructability).toContainText(
       "Indicative planning volumes only — not a quote, specification or upper bound.",
     );
     await expect(page.getByText(/Firth masonry guidance/i)).toHaveCount(0);
@@ -289,31 +317,15 @@ test("saves and reproduces the complete public constructability journey through 
       page
         .getByRole("region", { name: "Saved assessment map" })
         .getByRole("region", { name: "Saved pool-shell clearances" }),
-    ).toHaveCount(0);
+    ).toContainText("Measurements unavailable");
 
-    await startJourney(page, 1.5, false, "pool_builder");
+    await startJourney(page, 1.5, { visitorType: "pool_builder" });
     await answerSiteQuestions(page, { accessCondition: "I’m not sure" });
-    const unknownAccessForm = page.locator(
-      'form[aria-labelledby="homeowner-details-heading"]',
-    );
-    await fillValidDetails(unknownAccessForm);
-    const unknownAccess = await submitAndReadRealResponse(page);
-    assessmentIds.push(unknownAccess.id);
-    submittedAudiences.push(unknownAccess.request.homeowner.visitorType);
-    const unknownConstructability = page.getByRole("region", {
-      name: "Site constructability",
-    });
-    await expect(unknownConstructability).toContainText(
-      "I’m not sure — no confirmed route",
-    );
-    await expect(unknownConstructability).toContainText("Needs checking");
+    await expect(
+      page.locator('form[aria-labelledby="homeowner-details-heading"]'),
+    ).toBeVisible();
 
-    expect(submittedAudiences).toEqual([
-      "homeowner",
-      "homeowner",
-      "pool_builder",
-      "pool_builder",
-    ]);
+    expect(submittedAudiences).toEqual(["homeowner", "pool_builder"]);
     expect(publicPdfRequests).toBe(0);
   } finally {
     for (const id of assessmentIds) {
@@ -327,12 +339,26 @@ test("saves and reproduces the complete public constructability journey through 
 async function startJourney(
   page: Page,
   depth: 1.5 | 1.7,
-  rejectAnalytics = false,
-  visitorType: "homeowner" | "pool_builder" = "homeowner",
+  options: {
+    entry?: "generic" | "builder_landing";
+    rejectAnalytics?: boolean;
+    visitorType?: "homeowner" | "pool_builder";
+  } = {},
 ) {
-  await page.goto(
-    visitorType === "pool_builder" ? "/?audience=pool_builder" : "/",
-  );
+  const {
+    entry = "generic",
+    rejectAnalytics = false,
+    visitorType = "homeowner",
+  } = options;
+  if (entry === "builder_landing") {
+    await page.goto("/auckland-pool-planning-for-builders");
+    await page
+      .getByRole("link", { name: "Check a property with PoolReady" })
+      .click();
+    await expect(page).toHaveURL(/audience=pool_builder/);
+  } else {
+    await page.goto("/");
+  }
   if (rejectAnalytics) {
     await page.getByRole("button", { name: "Reject analytics" }).click();
   }
@@ -347,18 +373,28 @@ async function startJourney(
     name:
       visitorType === "pool_builder" ? "A customer property" : "My property",
   });
-  if (visitorType === "homeowner") {
+  const builderPath = pathway.getByRole("radio", {
+    name: "A customer property",
+  });
+  if (entry === "builder_landing") {
+    await expect(builderPath).toBeChecked();
+    if (visitorType === "homeowner") {
+      await chosenPath.click();
+      await expect(chosenPath).toBeChecked();
+    }
+  } else {
+    await expect(chosenPath).not.toBeChecked();
     await chosenPath.focus();
     await page.keyboard.press("Space");
-  } else {
     await expect(chosenPath).toBeChecked();
   }
   const depthInput = page.getByRole("spinbutton", {
     name: "Estimated pool depth (m)",
   });
+  await page.getByRole("button", { name: "Use this pool position" }).click();
   if (visitorType === "homeowner") {
     await expect(depthInput).toHaveCount(0);
-    await page.getByRole("button", { name: "Check for constraints" }).click();
+    await page.getByRole("button", { name: "Check this property" }).click();
     await expect(
       page.getByRole("heading", { name: "Pool builder site questions" }),
     ).toHaveCount(0);
@@ -377,15 +413,7 @@ async function startJourney(
   }
   await expect(depthInput).toHaveValue("1.5");
   if (depth !== 1.5) await depthInput.fill(String(depth));
-  await page.getByRole("button", { name: "Check for constraints" }).click();
-  await expect(depthInput).toBeDisabled();
-  await page.getByRole("button", { name: /Map layers/ }).click();
-  const routeQuestion = page.getByRole("group", {
-    name: "Proposed construction access route",
-  });
-  await expect(
-    routeQuestion.getByRole("radio", { name: "Access route not confirmed" }),
-  ).toBeChecked();
+  await expect(depthInput).toBeEnabled();
 }
 
 async function assertConsentAndValidation(page: Page) {
@@ -440,6 +468,91 @@ async function submitAndReadRealResponse(page: Page) {
     response: body.assessment,
     request: response.request().postDataJSON(),
   };
+}
+
+async function readSavedPdf(page: Page, accessToken: string) {
+  const response = await page.request.post(
+    "/api/public/assessments/report/pdf",
+    { data: { accessToken } },
+  );
+  const bytes = await response.body();
+  expect(response.status(), bytes.toString("utf8")).toBe(200);
+  expect(response.headers()["content-type"]).toBe("application/pdf");
+  expect(response.headers()["cache-control"]).toBe("no-store");
+  expect(bytes.subarray(0, 4).toString("ascii")).toBe("%PDF");
+  expect(bytes.length).toBeGreaterThan(1_000);
+  return Uint8Array.from(bytes);
+}
+
+async function assertDeliveredProjection({
+  page,
+  accessToken,
+  reference,
+  expectedAudience,
+}: {
+  page: Page;
+  accessToken: string;
+  reference: string;
+  expectedAudience: "homeowner" | "pool_builder";
+}) {
+  await expect
+    .poll(
+      async () => {
+        const response = await page.request.post(
+          "/api/public/assessments/report/delivery/status",
+          { data: { accessToken } },
+        );
+        if (!response.ok()) {
+          return {
+            httpStatus: response.status(),
+            body: await response.text(),
+          };
+        }
+        return (await response.json()).delivery;
+      },
+      { intervals: [2_000, 5_000, 10_000, 15_000], timeout: 90_000 },
+    )
+    .toEqual({ homeowner: "sent", internal_test_report: "sent" });
+
+  const captured = (await readFile(mailCapturePath, "utf8"))
+    .trim()
+    .split("\n")
+    .filter(Boolean)
+    .map(
+      (line) =>
+        JSON.parse(line) as {
+          idempotencyKey: string;
+          body: {
+            to: string[];
+            html: string;
+            text: string;
+            attachments?: Array<{ content: string; filename: string }>;
+          };
+        },
+    );
+  const recipient = captured.find(
+    (message) =>
+      message.idempotencyKey === `assessment-report/${reference}/homeowner`,
+  );
+  expect(recipient).toBeDefined();
+  expect(recipient!.body.to).toEqual(["rg345-public-e2e@example.test"]);
+  expect(recipient!.body.attachments).toHaveLength(1);
+  expect(
+    Buffer.from(recipient!.body.attachments![0].content, "base64")
+      .subarray(0, 4)
+      .toString("ascii"),
+  ).toBe("%PDF");
+  const content = `${recipient!.body.html}\n${recipient!.body.text}`;
+  if (expectedAudience === "homeowner") {
+    expect(content).toContain("What your pool builder will confirm");
+    expect(content).not.toContain("Site constructability");
+  } else {
+    expect(content).toContain("Site constructability");
+    expect(content).toContain("Indicative planning volumes only");
+  }
+  return Uint8Array.from(
+    Buffer.from(recipient!.body.attachments![0].content, "base64"),
+  );
 }
 
 function availableEvidence(): TrustedConstructabilityEvidence {

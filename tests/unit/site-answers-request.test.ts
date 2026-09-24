@@ -123,6 +123,23 @@ describe("public Site answers boundary", () => {
       widthMetres: 2.4,
       rotationDegrees: 0,
     };
+    const suggestedResponse = await handleSiteAnswersRequest(
+      request({
+        assessmentSnapshot: issueAssessmentSnapshot(property),
+        ...answers,
+        routeResponse: "suggested",
+        poolLayout,
+      }),
+    );
+    expect(suggestedResponse.status).toBe(200);
+    const suggested = verifyAssessmentSnapshot(
+      (await suggestedResponse.json()).assessmentSnapshot,
+    );
+    expect(suggested.constructability?.answers.route).toMatchObject({
+      provenance: "suggested",
+      geometry: { type: "LineString" },
+    });
+
     const response = await handleSiteAnswersRequest(
       request({
         assessmentSnapshot: issueAssessmentSnapshot(property),

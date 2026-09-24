@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { EstimatedPoolDepth } from "@/components/estimated-pool-depth";
 import type { ConstructabilityAnswers } from "@/modules/assessment/constructability-evidence";
 import type {
   AccessRouteFacts,
@@ -8,13 +9,18 @@ import type {
 } from "@/modules/spatial/analyse-access-route";
 import type {
   AccessRouteGeometry,
-  AccessRoutePlacement,
   AccessRouteResult,
 } from "@/modules/spatial/suggest-access-route";
 
 type AccessCondition = ConstructabilityAnswers["accessConditions"][number];
 type NearbyFeature = ConstructabilityAnswers["nearbyFeatures"][number];
 type Choice<T extends string> = { id: T; label: string };
+
+export type BuilderSiteQuestionDraft = {
+  accessConditions: AccessCondition[];
+  nearbyFeatures: NearbyFeature[];
+  sideClearanceMillimetres: number;
+};
 
 const accessChoices: Choice<AccessCondition>[] = [
   { id: "gate_or_narrow_passage", label: "Restricted gate or narrow access" },
@@ -66,47 +72,49 @@ function toggleExclusive<T extends string>(selected: T[], choice: T): T[] {
 }
 
 export function SiteQuestions({
-  assessmentSnapshot,
   placementKey,
-  poolLayout,
+  estimatedDepth,
+  depthLocked,
+  onEstimatedDepthChange,
+  onEditEstimatedDepth,
+  hasCompletedCheck,
+  hasSavedAnswers,
+  isChecking,
   routeSuggestion,
   adjustedRoute,
   routeFacts,
   onRouteEdit,
-  onRouteReset,
-  onSigned,
+  onDraftChange,
+  onCheckProperty,
+  onSaveRouteAdjustment,
 }: {
-  assessmentSnapshot: string;
   placementKey: string;
-  poolLayout?: AccessRoutePlacement;
+  estimatedDepth: string;
+  depthLocked: boolean;
+  onEstimatedDepthChange: (value: string) => void;
+  onEditEstimatedDepth: () => void;
+  hasCompletedCheck: boolean;
+  hasSavedAnswers: boolean;
+  isChecking: boolean;
   routeSuggestion?: AccessRouteResult;
   adjustedRoute?: AccessRouteGeometry | null;
   routeFacts?: AccessRouteFacts | null;
   onRouteEdit?: (route: AccessRouteGeometry, complete: boolean) => void;
-  onRouteReset?: () => void;
-  onSigned: (
-    signed: {
-      sourceSnapshot: string;
-      placementKey: string;
-      snapshot: string;
-      answers: ConstructabilityAnswers;
-    } | null,
-  ) => void;
+  onDraftChange: () => void;
+  onCheckProperty: (draft: BuilderSiteQuestionDraft) => Promise<boolean>;
+  onSaveRouteAdjustment: (
+    draft: BuilderSiteQuestionDraft & { adjustedRoute: AccessRouteGeometry },
+  ) => Promise<boolean>;
 }) {
   const [accessConditions, setAccessConditions] = useState<AccessCondition[]>(
     [],
   );
   const [nearbyFeatures, setNearbyFeatures] = useState<NearbyFeature[]>([]);
   const [sideClearanceMillimetres, setSideClearanceMillimetres] = useState(300);
-  const [routeResponse, setRouteResponse] = useState<
-    "confirm" | "adjust" | "not_sure" | null
-  >(routeSuggestion?.confidence === "credible" ? null : "not_sure");
   const [errors, setErrors] = useState({ access: false, nearby: false });
   const [requestError, setRequestError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const [savedFacts, setSavedFacts] = useState<AccessRouteFacts | null>(null);
   const accessRef = useRef<HTMLFieldSetElement>(null);
-  const routeRef = useRef<HTMLFieldSetElement>(null);
   const nearbyRef = useRef<HTMLFieldSetElement>(null);
   const requestGenerationRef = useRef(0);
 
@@ -114,77 +122,66 @@ export function SiteQuestions({
     () => () => {
       requestGenerationRef.current += 1;
     },
-    [assessmentSnapshot, placementKey],
+    [placementKey],
   );
-  const effectiveRouteResponse =
-    adjustedRoute && adjustedRoute.coordinates.length > 2
-      ? "adjust"
-      : routeResponse;
 
-  async function continueToDetails() {
+  function currentDraft(): BuilderSiteQuestionDraft {
+    return { accessConditions, nearbyFeatures, sideClearanceMillimetres };
+  }
+
+  async function checkProperty() {
     const nextErrors = {
       access: accessConditions.length === 0,
       nearby: nearbyFeatures.length === 0,
     };
-    if (routeSuggestion?.confidence === "credible" && !effectiveRouteResponse) {
-      routeRef.current?.focus();
-      return;
-    }
     setErrors(nextErrors);
     if (nextErrors.access || nextErrors.nearby) {
       (nextErrors.access ? accessRef : nearbyRef).current?.focus();
       return;
     }
-    if (saving) return;
+    if (saving || isChecking) return;
     const generation = ++requestGenerationRef.current;
     setSaving(true);
     setRequestError(null);
     try {
-      const response = await fetch(
-        "/api/public/assessment-snapshot/site-answers",
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            assessmentSnapshot,
-            ...(poolLayout
-              ? {
-                  poolLayout,
-                  routeResponse: effectiveRouteResponse ?? "not_sure",
-                }
-              : {}),
-            ...(effectiveRouteResponse === "adjust" && adjustedRoute
-              ? { adjustedRoute }
-              : {}),
-            accessConditions,
-            nearbyFeatures,
-            sideClearanceMillimetres,
-          }),
-        },
-      );
-      const body = await response.json().catch(() => null);
+      const succeeded = await onCheckProperty(currentDraft());
       if (generation !== requestGenerationRef.current) return;
-      if (
-        !response.ok ||
-        typeof body?.assessmentSnapshot !== "string" ||
-        !body.answers
-      ) {
+      if (!succeeded) {
         setRequestError(
-          "We couldn’t save your Site answers. Your selections are still here. Please try again.",
+          "We couldn’t complete the property check. Your selections are still here. Please try again.",
         );
-        return;
       }
-      onSigned({
-        sourceSnapshot: assessmentSnapshot,
-        placementKey,
-        snapshot: body.assessmentSnapshot,
-        answers: body.answers,
-      });
-      setSavedFacts(body.routeFacts ?? null);
     } catch {
       if (generation !== requestGenerationRef.current) return;
       setRequestError(
-        "We couldn’t save your Site answers. Your selections are still here. Please try again.",
+        "We couldn’t complete the property check. Your selections are still here. Please try again.",
+      );
+    } finally {
+      if (generation === requestGenerationRef.current) setSaving(false);
+    }
+  }
+
+  async function saveRouteAdjustment() {
+    if (!adjustedRoute || adjustedRoute.coordinates.length < 3 || saving)
+      return;
+    const generation = ++requestGenerationRef.current;
+    setSaving(true);
+    setRequestError(null);
+    try {
+      const succeeded = await onSaveRouteAdjustment({
+        ...currentDraft(),
+        adjustedRoute,
+      });
+      if (generation !== requestGenerationRef.current) return;
+      if (!succeeded) {
+        setRequestError(
+          "We couldn’t save the route adjustment. Your change is still here. Please try again.",
+        );
+      }
+    } catch {
+      if (generation !== requestGenerationRef.current) return;
+      setRequestError(
+        "We couldn’t save the route adjustment. Your change is still here. Please try again.",
       );
     } finally {
       if (generation === requestGenerationRef.current) setSaving(false);
@@ -200,7 +197,8 @@ export function SiteQuestions({
         <div>
           <h3
             id="site-questions-heading"
-            className="text-pool-950 text-xl font-semibold"
+            tabIndex={-1}
+            className="text-pool-950 text-xl font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
           >
             Pool builder site questions
           </h3>
@@ -210,162 +208,14 @@ export function SiteQuestions({
             onsite before design or pricing.
           </p>
         </div>
-        <fieldset
-          ref={routeRef}
-          tabIndex={-1}
-          className="space-y-3 focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          <legend className="text-pool-950 font-semibold">
-            Proposed construction access route
-          </legend>
-          {routeSuggestion?.confidence === "credible" ? (
-            <p className="text-pool-700 text-sm">
-              A preliminary route from the street to the selected pool area is
-              shown on the map. Confirm it or adjust it to reflect the likely
-              plant-access route. Verify all access onsite.
-            </p>
-          ) : (
-            <p className="text-pool-700 text-sm">
-              The mapped evidence did not support a credible construction access
-              route. Record it as unconfirmed and verify access onsite.
-            </p>
-          )}
-          {routeSuggestion?.confidence === "credible" && (
-            <>
-              <label className="border-pool-200 has-checked:border-pool-blue-700 has-checked:bg-pool-blue-50 focus-within:outline-pool-blue-700 flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition focus-within:outline-2 focus-within:outline-offset-2">
-                <input
-                  type="radio"
-                  name="route-response"
-                  checked={routeResponse === "confirm"}
-                  onChange={() => {
-                    requestGenerationRef.current += 1;
-                    setSaving(false);
-                    setRouteResponse("confirm");
-                    setSavedFacts(null);
-                    onRouteReset?.();
-                    onSigned(null);
-                  }}
-                />
-                Use proposed route
-              </label>
-              <div className="space-y-2">
-                <button
-                  type="button"
-                  disabled={(adjustedRoute?.coordinates.length ?? 2) >= 4}
-                  onClick={() => {
-                    const source = adjustedRoute ?? routeSuggestion.geometry;
-                    const coordinates = [...source.coordinates];
-                    const before = coordinates[coordinates.length - 2]!;
-                    const after = coordinates[coordinates.length - 1]!;
-                    coordinates.splice(coordinates.length - 1, 0, [
-                      (before[0] + after[0]) / 2,
-                      (before[1] + after[1]) / 2,
-                    ]);
-                    requestGenerationRef.current += 1;
-                    setRouteResponse("adjust");
-                    onRouteEdit?.({ type: "LineString", coordinates }, true);
-                    onSigned(null);
-                  }}
-                  className="border-pool-300 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-lg border px-3 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  Add route turning point
-                </button>
-                {adjustedRoute && adjustedRoute.coordinates.length > 2 && (
-                  <>
-                    <p className="text-sm font-semibold">
-                      User-adjusted route — confirm onsite
-                    </p>
-                    <p className="text-sm">
-                      Drag a turning point on the map, or focus it and use the
-                      arrow keys. The street and pool-area endpoints stay fixed.
-                    </p>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const coordinates = [...adjustedRoute.coordinates];
-                        coordinates.splice(coordinates.length - 2, 1);
-                        const next = {
-                          type: "LineString" as const,
-                          coordinates,
-                        };
-                        setRouteResponse(
-                          coordinates.length > 2 ? "adjust" : null,
-                        );
-                        onRouteEdit?.(next, true);
-                        onSigned(null);
-                      }}
-                      className="border-pool-300 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-lg border px-3 text-sm transition focus-visible:outline-2 focus-visible:outline-offset-2"
-                    >
-                      Remove last turning point
-                    </button>
-                  </>
-                )}
-                {(routeFacts ?? (adjustedRoute ? null : savedFacts)) && (
-                  <dl
-                    className="grid gap-1 text-sm"
-                    aria-label="Preliminary access route facts"
-                  >
-                    {(
-                      [
-                        [
-                          "Approximate length",
-                          (routeFacts ?? savedFacts)!.length,
-                          "m",
-                        ],
-                        [
-                          "Elevation change",
-                          (routeFacts ?? savedFacts)!.elevationChange,
-                          "m",
-                        ],
-                        [
-                          "Steepest mapped gradient",
-                          (routeFacts ?? savedFacts)!.steepestGradient,
-                          "°",
-                        ],
-                        [
-                          "Parcel departure",
-                          (routeFacts ?? savedFacts)!.parcelDeparture,
-                          "",
-                        ],
-                        [
-                          "Mapped-building intersection",
-                          (routeFacts ?? savedFacts)!.buildings,
-                          "",
-                        ],
-                        [
-                          "Mapped-service intersection or close approach",
-                          (routeFacts ?? savedFacts)!.services,
-                          "",
-                        ],
-                      ] as const
-                    ).map(([label, fact, suffix]) => (
-                      <div key={label} className="flex justify-between gap-4">
-                        <dt>{label}</dt>
-                        <dd>{formatRouteFact(fact, suffix)}</dd>
-                      </div>
-                    ))}
-                  </dl>
-                )}
-              </div>
-            </>
-          )}
-          <label className="border-pool-200 has-checked:border-pool-blue-700 has-checked:bg-pool-blue-50 focus-within:outline-pool-blue-700 flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border px-3 py-2 text-sm transition focus-within:outline-2 focus-within:outline-offset-2">
-            <input
-              type="radio"
-              name="route-response"
-              checked={routeResponse === "not_sure"}
-              onChange={() => {
-                requestGenerationRef.current += 1;
-                setSaving(false);
-                setRouteResponse("not_sure");
-                setSavedFacts(null);
-                onRouteReset?.();
-                onSigned(null);
-              }}
-            />
-            Access route not confirmed
-          </label>
-        </fieldset>
+        <div className="border-pool-200 border-t pt-6">
+          <EstimatedPoolDepth
+            value={estimatedDepth}
+            locked={depthLocked}
+            onChange={onEstimatedDepthChange}
+            onEdit={onEditEstimatedDepth}
+          />
+        </div>
         <fieldset
           ref={accessRef}
           tabIndex={-1}
@@ -388,11 +238,11 @@ export function SiteQuestions({
                   onChange={() => {
                     requestGenerationRef.current += 1;
                     setSaving(false);
+                    onDraftChange();
                     setAccessConditions((current) =>
                       toggleExclusive(current, choice.id),
                     );
                     setErrors((current) => ({ ...current, access: false }));
-                    onSigned(null);
                   }}
                   className="size-4 accent-blue-800"
                 />
@@ -431,11 +281,11 @@ export function SiteQuestions({
                   onChange={() => {
                     requestGenerationRef.current += 1;
                     setSaving(false);
+                    onDraftChange();
                     setNearbyFeatures((current) =>
                       toggleExclusive(current, choice.id),
                     );
                     setErrors((current) => ({ ...current, nearby: false }));
-                    onSigned(null);
                   }}
                   className="size-4 accent-blue-800"
                 />
@@ -485,8 +335,8 @@ export function SiteQuestions({
             onChange={(event) => {
               requestGenerationRef.current += 1;
               setSaving(false);
+              onDraftChange();
               setSideClearanceMillimetres(Number(event.target.value));
-              onSigned(null);
             }}
             className="accent-pool-blue-800 min-h-11 w-full max-w-sm"
           />
@@ -496,29 +346,151 @@ export function SiteQuestions({
         </div>
         {sideClearanceMillimetres < 300 && (
           <p role="status" className="text-sm font-semibold text-amber-800">
-            Needs checking — this is below the provisional 300 mm starting
-            point. Confirm it against the selected pool installation
-            instructions.
+            Confirm this allowance — it is below the provisional 300 mm starting
+            point. Check it against the selected pool installation instructions.
           </p>
         )}
         <p className="text-pool-600 text-xs leading-5">
-          Base depth, drainage, ground slope, retaining and installation method
-          are not included and still need professional confirmation.
+          Additional base preparation, drainage, ground slope, retaining and
+          installation method are not included and still need professional
+          confirmation.
         </p>
       </section>
+      {hasCompletedCheck && (
+        <section
+          aria-labelledby="access-route-result-heading"
+          className="border-pool-200 space-y-4 rounded-2xl border bg-white p-5 sm:p-7"
+        >
+          <div>
+            <h3
+              id="access-route-result-heading"
+              className="text-pool-950 text-xl font-semibold"
+            >
+              Access route result
+            </h3>
+            {routeSuggestion?.confidence === "credible" ? (
+              <p className="text-pool-700 mt-2 text-sm leading-6">
+                A suggested construction access route is shown on the map. It
+                has not been confirmed and must be checked onsite.
+              </p>
+            ) : (
+              <p className="text-pool-700 mt-2 text-sm leading-6">
+                Access route not confirmed. The mapped evidence did not support
+                a credible route, so investigate access onsite.
+              </p>
+            )}
+          </div>
+          {routeSuggestion?.confidence === "credible" && (
+            <div className="space-y-3">
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={(adjustedRoute?.coordinates.length ?? 2) >= 4}
+                  onClick={() => {
+                    const source = adjustedRoute ?? routeSuggestion.geometry;
+                    const coordinates = [...source.coordinates];
+                    const before = coordinates[coordinates.length - 2]!;
+                    const after = coordinates[coordinates.length - 1]!;
+                    coordinates.splice(coordinates.length - 1, 0, [
+                      (before[0] + after[0]) / 2,
+                      (before[1] + after[1]) / 2,
+                    ]);
+                    onRouteEdit?.({ type: "LineString", coordinates }, true);
+                  }}
+                  className="border-pool-300 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-lg border px-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  Adjust suggested route
+                </button>
+              </div>
+              {adjustedRoute && adjustedRoute.coordinates.length > 2 && (
+                <div className="space-y-2">
+                  <p className="text-pool-700 text-sm leading-6">
+                    Drag the turning point on the map, or focus it and use the
+                    arrow keys. Save the adjustment when the route reflects the
+                    likely plant access. Confirm it onsite.
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const coordinates = [...adjustedRoute.coordinates];
+                      coordinates.splice(coordinates.length - 2, 1);
+                      onRouteEdit?.({ type: "LineString", coordinates }, true);
+                    }}
+                    className="border-pool-300 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-lg border px-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2"
+                  >
+                    Remove last turning point
+                  </button>
+                </div>
+              )}
+              {routeFacts && (
+                <dl
+                  className="grid gap-2 text-sm sm:grid-cols-2"
+                  aria-label="Preliminary access route facts"
+                >
+                  {(
+                    [
+                      ["Approximate length", routeFacts.length, "m"],
+                      ["Elevation change", routeFacts.elevationChange, "m"],
+                      [
+                        "Steepest mapped gradient",
+                        routeFacts.steepestGradient,
+                        "°",
+                      ],
+                      ["Parcel departure", routeFacts.parcelDeparture, ""],
+                      [
+                        "Mapped-building intersection",
+                        routeFacts.buildings,
+                        "",
+                      ],
+                      [
+                        "Mapped-service intersection or close approach",
+                        routeFacts.services,
+                        "",
+                      ],
+                    ] as const
+                  ).map(([label, fact, suffix]) => (
+                    <div
+                      key={label}
+                      className="border-pool-100 flex justify-between gap-4 border-b py-2"
+                    >
+                      <dt>{label}</dt>
+                      <dd className="text-right font-semibold">
+                        {formatRouteFact(fact, suffix)}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
+            </div>
+          )}
+        </section>
+      )}
       {requestError && (
         <p role="alert" className="text-sm text-red-800">
           {requestError}
         </p>
       )}
-      <button
-        type="button"
-        disabled={saving}
-        onClick={() => void continueToDetails()}
-        className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl px-5 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
-      >
-        {saving ? "Saving Site answers…" : "Continue to your details"}
-      </button>
+      {(!hasSavedAnswers || (adjustedRoute?.coordinates.length ?? 0) > 2) && (
+        <button
+          type="button"
+          disabled={saving || isChecking}
+          onClick={() =>
+            void (hasCompletedCheck &&
+            (adjustedRoute?.coordinates.length ?? 0) >= 3
+              ? saveRouteAdjustment()
+              : checkProperty())
+          }
+          className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl px-5 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
+        >
+          {saving || isChecking
+            ? "Checking this property…"
+            : hasCompletedCheck && (adjustedRoute?.coordinates.length ?? 0) >= 3
+              ? "Save route adjustment"
+              : hasCompletedCheck
+                ? "Save builder answers"
+                : "Check this property"}
+        </button>
+      )}
     </div>
   );
 }

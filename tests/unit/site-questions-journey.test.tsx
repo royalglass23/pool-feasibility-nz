@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
+  fireEvent,
   render,
   screen,
   waitFor,
@@ -14,26 +16,18 @@ vi.mock("@/components/fast-property-view", () => ({
   FastPropertyView: ({
     onPlacementChange,
     onSnapshotReady,
-    onLoadDetailed,
-    estimatedDepth,
-    depthLocked,
-    onEstimatedDepthChange,
-    onEditEstimatedDepth,
+    onConfirmPlacement,
+    placementConfirmed,
     planningStep,
-    planningEnabled,
   }: {
     onPlacementChange: (placement: FastPoolPlacementSnapshot) => void;
     onSnapshotReady: (snapshot: {
       imageDataUrl: string;
       visibleLayerKeys: string[];
     }) => void;
-    onLoadDetailed: () => void;
-    estimatedDepth?: string;
-    depthLocked: boolean;
-    onEstimatedDepthChange: (value: string) => void;
-    onEditEstimatedDepth: () => void;
+    onConfirmPlacement: () => void;
+    placementConfirmed: boolean;
     planningStep?: React.ReactNode;
-    planningEnabled?: boolean;
   }) => {
     function update(longitude: number, clearancesVisible: boolean) {
       onPlacementChange({
@@ -54,18 +48,9 @@ vi.mock("@/components/fast-property-view", () => ({
         <button onClick={() => update(174.76, false)}>Hide clearances</button>
         <button onClick={() => update(174.77, false)}>Move pool</button>
         {planningStep}
-        {planningEnabled && estimatedDepth !== undefined && (
-          <input
-            aria-label="Estimated pool depth (m)"
-            value={estimatedDepth}
-            disabled={depthLocked}
-            onChange={(event) => onEstimatedDepthChange(event.target.value)}
-          />
-        )}
-        {planningEnabled && (
-          <button onClick={onLoadDetailed}>Check for constraints</button>
-        )}
-        <button onClick={onEditEstimatedDepth}>Edit estimated depth</button>
+        <button onClick={onConfirmPlacement} disabled={placementConfirmed}>
+          Use this pool position
+        </button>
       </div>
     );
   },
@@ -120,19 +105,22 @@ describe("Site answers in the property journey", () => {
     expect(homeowner).not.toBeChecked();
     expect(builder).not.toBeChecked();
     expect(
-      screen.queryByRole("textbox", { name: "Estimated pool depth (m)" }),
+      screen.queryByRole("spinbutton", { name: "Estimated pool depth (m)" }),
     ).not.toBeInTheDocument();
 
     homeowner.focus();
     await user.keyboard(" ");
     expect(homeowner).toBeChecked();
     expect(
-      screen.queryByRole("textbox", { name: "Estimated pool depth (m)" }),
+      screen.queryByRole("spinbutton", { name: "Estimated pool depth (m)" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Site questions")).not.toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: "Check for constraints" }),
+      screen.getByRole("button", { name: "Use this pool position" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Check this property" }),
     );
     await waitFor(() =>
       expect(
@@ -147,7 +135,7 @@ describe("Site answers in the property journey", () => {
     await user.click(builder);
     expect(builder).toBeChecked();
     expect(
-      screen.getByRole("textbox", { name: "Estimated pool depth (m)" }),
+      screen.getByRole("spinbutton", { name: "Estimated pool depth (m)" }),
     ).toBeVisible();
   });
 
@@ -179,7 +167,6 @@ describe("Site answers in the property journey", () => {
               coordinates: [174.76, -36.85],
             },
             boundary: { state: "confirmed" },
-            detailedChecks: { status: "complete", layers: [], limitations: [] },
           },
         });
       if (url.endsWith("/stages")) {
@@ -212,14 +199,15 @@ describe("Site answers in the property journey", () => {
     await user.click(
       screen.getByRole("radio", { name: "A customer property" }),
     );
-    const depth = await screen.findByRole("textbox", {
+    await user.click(
+      screen.getByRole("button", { name: "Use this pool position" }),
+    );
+    const depth = await screen.findByRole("spinbutton", {
       name: "Estimated pool depth (m)",
     });
     await user.clear(depth);
     await user.type(depth, "1.9");
-    await user.click(
-      screen.getByRole("button", { name: "Check for constraints" }),
-    );
+    await chooseNone(user);
     await waitFor(() => expect(depth).toBeDisabled());
     expect(
       fetchMock.mock.calls.some(
@@ -235,7 +223,7 @@ describe("Site answers in the property journey", () => {
     await user.clear(depth);
     await user.type(depth, "2");
     await user.click(
-      screen.getByRole("button", { name: "Check for constraints" }),
+      screen.getByRole("button", { name: "Check this property" }),
     );
     await waitFor(() =>
       expect(
@@ -261,7 +249,6 @@ describe("Site answers in the property journey", () => {
               coordinates: [174.76, -36.85],
             },
             boundary: { state: "confirmed" },
-            detailedChecks: { status: "complete", layers: [], limitations: [] },
           },
         });
       if (url.endsWith("/stages"))
@@ -302,10 +289,52 @@ describe("Site answers in the property journey", () => {
     await user.click(
       screen.getByRole("radio", { name: "A customer property" }),
     );
+    await user.click(
+      screen.getByRole("button", { name: "Use this pool position" }),
+    );
     await chooseNone(user);
+    await user.click(screen.getByRole("button", { name: "Hide clearances" }));
     expect(await screen.findByTestId("details-form")).toHaveTextContent(
       "signed-stage-token",
     );
+
+    await user.click(
+      within(
+        screen.getByRole("group", {
+          name: "Which visible site conditions could affect plant access or excavation?",
+        }),
+      ).getByRole("checkbox", { name: "Restricted gate or narrow access" }),
+    );
+    expect(screen.queryByTestId("details-form")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Save builder answers" }),
+    );
+    expect(await screen.findByTestId("details-form")).toBeVisible();
+
+    await user.click(
+      within(
+        screen.getByRole("group", {
+          name: "Which existing features are close to the proposed pool area?",
+        }),
+      ).getByRole("checkbox", { name: "Fences" }),
+    );
+    expect(screen.queryByTestId("details-form")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Save builder answers" }),
+    );
+    expect(await screen.findByTestId("details-form")).toBeVisible();
+
+    fireEvent.change(
+      screen.getByRole("slider", {
+        name: "Indicative excavation side clearance",
+      }),
+      { target: { value: "350" } },
+    );
+    expect(screen.queryByTestId("details-form")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Save builder answers" }),
+    );
+    expect(await screen.findByTestId("details-form")).toBeVisible();
 
     await user.click(screen.getByRole("radio", { name: "My property" }));
     expect(screen.getByTestId("details-form")).toHaveTextContent(
@@ -321,8 +350,173 @@ describe("Site answers in the property journey", () => {
     expect(screen.getByTestId("details-form")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Move pool" }));
     expect(screen.queryByTestId("details-form")).not.toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Use this pool position" }),
+    );
     await chooseNone(user);
     expect(await screen.findByTestId("details-form")).toBeVisible();
+  });
+
+  it("does not restore stale signed answers when the draft changes during saving", async () => {
+    const user = userEvent.setup();
+    let resolveSiteAnswers!: (response: Response) => void;
+    const siteAnswersResponse = new Promise<Response>((resolve) => {
+      resolveSiteAnswers = resolve;
+    });
+    const fetchMock = vi.fn(async (url: string) => {
+      if (url.endsWith("/property-check"))
+        return Response.json({
+          assessmentSnapshot: "initial-token",
+          data: {
+            resolvedAddress: {
+              addressId: "address-1",
+              fullAddress: "1 Test Street, Auckland",
+              coordinates: [174.76, -36.85],
+            },
+            boundary: { state: "confirmed" },
+          },
+        });
+      if (url.endsWith("/stages"))
+        return Response.json({
+          data: { status: "complete", layers: [], limitations: [] },
+          assessmentSnapshot: "stage-token",
+        });
+      if (url.endsWith("/site-answers")) return siteAnswersResponse;
+      return Response.json({ suggestions: [] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<PropertyCheckJourney />);
+    await openValidPlacement(user);
+    await user.click(
+      screen.getByRole("radio", { name: "A customer property" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Use this pool position" }),
+    );
+    await user.click(screen.getByRole("button", { name: "Hide clearances" }));
+
+    const access = screen.getByRole("group", {
+      name: "Which visible site conditions could affect plant access or excavation?",
+    });
+    const nearby = screen.getByRole("group", {
+      name: "Which existing features are close to the proposed pool area?",
+    });
+    await user.click(
+      within(access).getByRole("checkbox", { name: "None of these" }),
+    );
+    await user.click(
+      within(nearby).getByRole("checkbox", { name: "None of these" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Check this property" }),
+    );
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(([url]) => url.endsWith("/site-answers")),
+      ).toBe(true),
+    );
+
+    await user.click(
+      within(access).getByRole("checkbox", {
+        name: "Restricted gate or narrow access",
+      }),
+    );
+    await act(async () => {
+      resolveSiteAnswers(
+        Response.json({
+          assessmentSnapshot: "signed-stage-token",
+          answers: {
+            version: 1,
+            estimatedDepthMetres: 1.5,
+            route: { provenance: "uncertain", geometry: null },
+            accessConditions: ["none_of_these"],
+            nearbyFeatures: ["none_of_these"],
+          },
+        }),
+      );
+      await siteAnswersResponse;
+    });
+
+    expect(screen.queryByTestId("details-form")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Save builder answers" }),
+    ).toBeVisible();
+  });
+
+  it("retries a failed site-answer save without rerunning detailed checks", async () => {
+    const user = userEvent.setup();
+    let siteAnswerAttempts = 0;
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/property-check"))
+        return Response.json({
+          assessmentSnapshot: "initial-token",
+          data: {
+            resolvedAddress: {
+              addressId: "address-1",
+              fullAddress: "1 Test Street, Auckland",
+              coordinates: [174.76, -36.85],
+            },
+            boundary: { state: "confirmed" },
+          },
+        });
+      if (url.endsWith("/stages")) {
+        const request = JSON.parse(String(init?.body));
+        return Response.json({
+          data: { status: "complete", layers: [], limitations: [] },
+          assessmentSnapshot:
+            request.mode === "detailed" ? "detailed-token" : "stage-token",
+        });
+      }
+      if (url.endsWith("/site-answers")) {
+        siteAnswerAttempts += 1;
+        if (siteAnswerAttempts === 1)
+          return Response.json(
+            { error: { code: "TEMPORARY_FAILURE" } },
+            { status: 503 },
+          );
+        return Response.json({
+          assessmentSnapshot: "signed-detailed-token",
+          answers: {
+            version: 1,
+            estimatedDepthMetres: 1.5,
+            route: { provenance: "uncertain", geometry: null },
+            accessConditions: ["none_of_these"],
+            nearbyFeatures: ["none_of_these"],
+          },
+        });
+      }
+      return Response.json({ suggestions: [] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<PropertyCheckJourney />);
+    await openValidPlacement(user);
+    await user.click(
+      screen.getByRole("radio", { name: "A customer property" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Use this pool position" }),
+    );
+    await chooseNone(user);
+
+    expect(
+      await screen.findByText(/couldn’t complete the property check/i),
+    ).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Hide clearances" }));
+    await user.click(
+      screen.getByRole("button", { name: "Save builder answers" }),
+    );
+    expect(await screen.findByTestId("details-form")).toHaveTextContent(
+      "signed-detailed-token",
+    );
+
+    const detailedRequests = fetchMock.mock.calls.filter(([url, init]) => {
+      if (!url.endsWith("/stages")) return false;
+      return JSON.parse(String(init?.body)).mode === "detailed";
+    });
+    expect(detailedRequests).toHaveLength(1);
+    expect(siteAnswerAttempts).toBe(2);
   });
 });
 
@@ -340,7 +534,9 @@ async function chooseNone(user: ReturnType<typeof userEvent.setup>) {
     within(nearby).getByRole("checkbox", { name: "None of these" }),
   );
   await user.click(
-    screen.getByRole("button", { name: "Continue to your details" }),
+    screen.getByRole("button", {
+      name: /Check this property|Save builder answers/,
+    }),
   );
 }
 

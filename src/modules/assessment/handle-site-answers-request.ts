@@ -26,7 +26,9 @@ const requestSchema = z
     accessConditions: constructabilityAnswersSchema.shape.accessConditions,
     nearbyFeatures: constructabilityAnswersSchema.shape.nearbyFeatures,
     sideClearanceMillimetres: z.number().int().min(200).max(600).default(300),
-    routeResponse: z.enum(["confirm", "adjust", "not_sure"]).optional(),
+    routeResponse: z
+      .enum(["suggested", "confirm", "adjust", "not_sure"])
+      .optional(),
     adjustedRoute:
       constructabilityAnswersSchema.shape.route.shape.geometry.optional(),
     poolLayout: poolLayoutSchema.optional(),
@@ -50,7 +52,8 @@ export async function handleSiteAnswersRequest(
       ? suggestAccessRouteFromProperty(snapshot.fastResult, parsed.poolLayout)
       : null;
     if (
-      parsed.routeResponse === "confirm" &&
+      (parsed.routeResponse === "suggested" ||
+        parsed.routeResponse === "confirm") &&
       suggestion?.confidence !== "credible"
     )
       throw new AssessmentSnapshotValidationError();
@@ -76,12 +79,17 @@ export async function handleSiteAnswersRequest(
           }
         : parsed.routeResponse === "confirm" && suggestion?.geometry
           ? { provenance: "confirmed" as const, geometry: suggestion.geometry }
-          : parsed.routeResponse === "not_sure"
-            ? { provenance: "uncertain" as const, geometry: null }
-            : (previous?.answers.route ?? {
-                provenance: "uncertain" as const,
-                geometry: null,
-              });
+          : parsed.routeResponse === "suggested" && suggestion?.geometry
+            ? {
+                provenance: "suggested" as const,
+                geometry: suggestion.geometry,
+              }
+            : parsed.routeResponse === "not_sure"
+              ? { provenance: "uncertain" as const, geometry: null }
+              : (previous?.answers.route ?? {
+                  provenance: "uncertain" as const,
+                  geometry: null,
+                });
     const answers = constructabilityAnswersSchema.parse({
       version: 1,
       estimatedDepthMetres:

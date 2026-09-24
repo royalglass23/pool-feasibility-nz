@@ -42,8 +42,6 @@ import type { AccessRouteGeometry } from "@/modules/spatial/suggest-access-route
 import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
 import { aerialTileRateLimitMessage } from "@/components/map/aerial-tile-error";
 import { FieldValidationMessage } from "@/components/field-validation-message";
-import { EstimatedPoolDepth } from "@/components/estimated-pool-depth";
-import { parseEstimatedPoolDepth } from "@/modules/assessment/estimated-pool-depth";
 import {
   readClientApiErrorFromBlobError,
   type ClientApiError,
@@ -173,16 +171,13 @@ export function FastPropertyView({
   suggestedRoute,
   editableRoute,
   onRouteEdit,
-  onLoadDetailed,
+  onConfirmPlacement,
   onRetry,
   onStartAgain,
   isLoadingDetailed = false,
   onPlacementChange,
   onSnapshotReady,
-  estimatedDepth,
-  depthLocked = false,
-  onEstimatedDepthChange,
-  onEditEstimatedDepth,
+  placementConfirmed = false,
   isDetailedRateLimited = false,
   planningStep,
   planningEnabled = true,
@@ -191,16 +186,13 @@ export function FastPropertyView({
   suggestedRoute?: LineString | null;
   editableRoute?: AccessRouteGeometry | null;
   onRouteEdit?: (route: AccessRouteGeometry, complete: boolean) => void;
-  onLoadDetailed?: () => void;
+  onConfirmPlacement?: () => void;
   onRetry: () => void;
   onStartAgain?: () => void;
   isLoadingDetailed?: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
   onSnapshotReady?: (snapshot: FastPropertyViewMapSnapshot | null) => void;
-  estimatedDepth?: string;
-  depthLocked?: boolean;
-  onEstimatedDepthChange?: (value: string) => void;
-  onEditEstimatedDepth?: () => void;
+  placementConfirmed?: boolean;
   isDetailedRateLimited?: boolean;
   planningStep?: ReactNode;
   planningEnabled?: boolean;
@@ -398,9 +390,7 @@ export function FastPropertyView({
     isInitialAddressLoad ||
     isLoadingDetailed ||
     isDetailedRateLimited ||
-    detailedConstraintStatus === "complete" ||
-    (estimatedDepth !== undefined &&
-      parseEstimatedPoolDepth(estimatedDepth) === null);
+    detailedConstraintStatus === "complete";
   const mappedUtilityLayers = useMemo(
     () =>
       (detailedLayers ?? []).flatMap((layer) => {
@@ -1321,6 +1311,11 @@ export function FastPropertyView({
             )}
           </div>
         )}
+        {!isInitialAddressLoad && planningStep ? (
+          <div className="border-pool-200 bg-pool-50 border-b p-4 sm:p-5">
+            {planningStep}
+          </div>
+        ) : null}
         <div
           className={
             isInitialAddressLoad
@@ -1433,72 +1428,56 @@ export function FastPropertyView({
                   increments.
                 </FieldValidationMessage>
               )}
-              {dimensions && constructionEnvelopeWithinMappedArea
-                ? planningStep
-                : null}
-              {planningEnabled &&
-                estimatedDepth !== undefined &&
-                onEstimatedDepthChange && (
-                  <EstimatedPoolDepth
-                    value={estimatedDepth}
-                    locked={depthLocked}
-                    onChange={onEstimatedDepthChange}
-                    onEdit={onEditEstimatedDepth}
-                  />
-                )}
-              <div className="border-pool-200 mt-auto space-y-3 border-t pt-4">
-                <p
-                  className="text-pool-700 text-sm leading-6"
-                  aria-live="polite"
-                >
-                  {!planningEnabled ? (
-                    "Choose who you are checking this property for to continue."
-                  ) : detailedConstraintStatus === "complete" ? (
-                    "All available constraints are loaded. You can still adjust your pool before creating your report."
-                  ) : detailedConstraintStatus === "retryable" ? (
-                    "Some constraints were temporarily unavailable. Retry to check those layers again."
-                  ) : (
-                    <>
-                      <strong className="text-pool-950 block font-semibold">
-                        Happy with your pool position?
-                      </strong>
-                      Check for potential site constraints, or start again with
-                      another property.
-                    </>
-                  )}
-                </p>
-                <div className="grid gap-2">
-                  {onLoadDetailed && planningEnabled && (
-                    <button
-                      type="button"
-                      onClick={onLoadDetailed}
-                      disabled={detailedActionDisabled}
-                      className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
-                    >
-                      {isLoadingDetailed
-                        ? "Checking constraints…"
-                        : detailedConstraintStatus === "complete"
-                          ? "All available constraints loaded"
-                          : detailedConstraintStatus === "retryable"
-                            ? "Retry unavailable constraints"
-                            : "Check for constraints"}
-                    </button>
-                  )}
-                  {onStartAgain && (
-                    <button
-                      type="button"
-                      onClick={onStartAgain}
-                      disabled={isLoadingDetailed}
-                      className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Start again
-                    </button>
-                  )}
-                </div>
-              </div>
             </div>
           )}
         </div>
+        {dimensions && constructionEnvelopeWithinMappedArea && (
+          <div className="border-pool-200 grid gap-4 border-t bg-white p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5">
+            <p className="text-pool-700 text-sm leading-6" aria-live="polite">
+              {!planningEnabled ? (
+                "Choose who you are checking this property for to continue."
+              ) : placementConfirmed ? (
+                <>
+                  <strong className="text-pool-950 block font-semibold">
+                    Pool position confirmed
+                  </strong>
+                  Continue below to complete this property check.
+                </>
+              ) : (
+                <>
+                  <strong className="text-pool-950 block font-semibold">
+                    Happy with your pool position?
+                  </strong>
+                  Confirm the layout shown on the map before continuing.
+                </>
+              )}
+            </p>
+            <div className="grid gap-2 sm:min-w-56">
+              {onConfirmPlacement && planningEnabled && (
+                <button
+                  type="button"
+                  onClick={onConfirmPlacement}
+                  disabled={placementConfirmed}
+                  className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-default"
+                >
+                  {placementConfirmed
+                    ? "Position confirmed"
+                    : "Use this pool position"}
+                </button>
+              )}
+              {onStartAgain && (
+                <button
+                  type="button"
+                  onClick={onStartAgain}
+                  disabled={isLoadingDetailed}
+                  className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                >
+                  Start again
+                </button>
+              )}
+            </div>
+          </div>
+        )}
         <section
           aria-label="Map layers"
           className="border-pool-200 border-t bg-white"

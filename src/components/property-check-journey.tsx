@@ -21,7 +21,10 @@ import {
   type FastPropertyViewMapSnapshot,
 } from "@/components/fast-property-view";
 import { HomeownerSubmissionForm } from "@/components/homeowner-submission-form";
-import { SiteQuestions } from "@/components/site-questions";
+import {
+  SiteQuestions,
+  type BuilderSiteQuestionDraft,
+} from "@/components/site-questions";
 import type { ConstructabilityAnswers } from "@/modules/assessment/constructability-evidence";
 import {
   DEFAULT_ESTIMATED_POOL_DEPTH_METRES,
@@ -147,6 +150,9 @@ export function PropertyCheckJourney({
   } | null>(null);
   const [fastPlacementSnapshot, setFastPlacementSnapshot] =
     useState<FastPoolPlacementSnapshot | null>(null);
+  const [confirmedPlacementKey, setConfirmedPlacementKey] = useState<
+    string | null
+  >(null);
   const [fastMapSnapshot, setFastMapSnapshot] =
     useState<FastPropertyViewMapSnapshot | null>(null);
   const [reportAudience, setReportAudience] = useState<ReportAudience | null>(
@@ -167,6 +173,8 @@ export function PropertyCheckJourney({
   const detailedStartedRef = useRef(false);
   const fastRequestIdRef = useRef(0);
   const focusedDetailsForRef = useRef<string | null>(null);
+  const focusedPlanningForRef = useRef<string | null>(null);
+  const builderDraftVersionRef = useRef(0);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(
     null,
   );
@@ -208,6 +216,9 @@ export function PropertyCheckJourney({
         current?.placementKey === placementIdentity(placement) ? current : null,
       );
       const nextKey = placementIdentity(placement);
+      setConfirmedPlacementKey((current) =>
+        current === nextKey ? current : null,
+      );
       setSignedSiteAnswers((current) =>
         current?.placementKey === nextKey ? current : null,
       );
@@ -240,6 +251,24 @@ export function PropertyCheckJourney({
     );
     return () => window.clearTimeout(timeout);
   }, [detailedRetryAfterSeconds]);
+
+  useEffect(() => {
+    if (!confirmedPlacementKey || confirmedPlacementKey !== placementKey) {
+      focusedPlanningForRef.current = null;
+      return;
+    }
+    const focusKey = `${reportAudience}:${confirmedPlacementKey}`;
+    if (focusedPlanningForRef.current === focusKey) return;
+    const heading = document.getElementById(
+      reportAudience === "pool_builder"
+        ? "site-questions-heading"
+        : "homeowner-check-heading",
+    );
+    if (heading) {
+      heading.focus();
+      focusedPlanningForRef.current = focusKey;
+    }
+  }, [confirmedPlacementKey, placementKey, reportAudience]);
 
   useEffect(() => {
     const focusKey =
@@ -405,6 +434,7 @@ export function PropertyCheckJourney({
     setRouteDraft(null);
     setRouteFacts(null);
     setFastPlacementSnapshot(null);
+    setConfirmedPlacementKey(null);
     setFastMapSnapshot(null);
     setReportAudience(initialReportAudience);
     setDetailedRetryAfterSeconds(null);
@@ -545,8 +575,11 @@ export function PropertyCheckJourney({
     }
   }
 
-  async function requestDetailedPropertyData() {
-    const depth = lockedDepth ?? parseEstimatedPoolDepth(estimatedDepth);
+  async function requestDetailedPropertyData(
+    depthOverride?: number,
+  ): Promise<{ data: FastPropertyDetails; assessmentSnapshot: string } | null> {
+    const depth =
+      depthOverride ?? lockedDepth ?? parseEstimatedPoolDepth(estimatedDepth);
     if (
       !fastResult ||
       !fastAssessmentSnapshot ||
@@ -554,7 +587,7 @@ export function PropertyCheckJourney({
       isLoadingDetailed ||
       detailedRequestInFlightRef.current
     )
-      return;
+      return null;
     const requestId = fastRequestIdRef.current;
     const sourceSnapshot = fastAssessmentSnapshot;
     detailedRequestInFlightRef.current = true;
@@ -590,7 +623,7 @@ export function PropertyCheckJourney({
         setDetailedRetryAfterSeconds(responseError?.retryAfterSeconds ?? null);
         setError(detailedChecksIssue(responseError));
         setCanRetry(responseError?.code !== "RATE_LIMITED");
-        return;
+        return null;
       }
       setFastMapSnapshot(null);
       setFastAssessmentSnapshot(body.assessmentSnapshot);
@@ -600,13 +633,130 @@ export function PropertyCheckJourney({
       );
       setError(null);
       setDetailedRetryAfterSeconds(null);
+      return {
+        data: body.data,
+        assessmentSnapshot: body.assessmentSnapshot,
+      };
     } catch {
       setError(detailedChecksIssue());
       setCanRetry(true);
+      return null;
     } finally {
       detailedRequestInFlightRef.current = false;
       setIsLoadingDetailed(false);
     }
+  }
+
+  async function saveBuilderSiteAnswers({
+    assessmentSnapshot,
+    draft,
+    routeResponse,
+    adjustedRoute,
+    expectedDraftVersion,
+  }: {
+    assessmentSnapshot: string;
+    draft: BuilderSiteQuestionDraft;
+    routeResponse: "suggested" | "adjust" | "not_sure";
+    adjustedRoute?: AccessRouteGeometry;
+    expectedDraftVersion: number;
+  }): Promise<boolean> {
+    if (!placementKey || !routePoolLayout) return false;
+    try {
+      const response = await fetch(
+        "/api/public/assessment-snapshot/site-answers",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assessmentSnapshot,
+            poolLayout: routePoolLayout,
+            routeResponse,
+            ...(adjustedRoute ? { adjustedRoute } : {}),
+            ...draft,
+          }),
+        },
+      );
+      const body = (await response.json().catch(() => null)) as {
+        assessmentSnapshot?: string;
+        answers?: ConstructabilityAnswers;
+        routeFacts?: AccessRouteFacts | null;
+      } | null;
+      if (
+        !response.ok ||
+        typeof body?.assessmentSnapshot !== "string" ||
+        !body.answers ||
+        builderDraftVersionRef.current !== expectedDraftVersion
+      )
+        return false;
+      setSignedSiteAnswers({
+        sourceSnapshot: assessmentSnapshot,
+        placementKey,
+        snapshot: body.assessmentSnapshot,
+        answers: body.answers,
+      });
+      setRouteFacts(
+        body.routeFacts ? { placementKey, facts: body.routeFacts } : null,
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function checkBuilderProperty(
+    draft: BuilderSiteQuestionDraft,
+  ): Promise<boolean> {
+    const expectedDraftVersion = builderDraftVersionRef.current;
+    const depth = parseEstimatedPoolDepth(estimatedDepth);
+    if (depth === null || !fastResult || !routePoolLayout) {
+      document.getElementById("estimated-pool-depth")?.focus();
+      return false;
+    }
+    if (fastResult.detailedChecks && fastAssessmentSnapshot) {
+      return saveBuilderSiteAnswers({
+        assessmentSnapshot: fastAssessmentSnapshot,
+        draft,
+        routeResponse:
+          routeSuggestion?.confidence === "credible" ? "suggested" : "not_sure",
+        expectedDraftVersion,
+      });
+    }
+    const detailed = await requestDetailedPropertyData(depth);
+    if (!detailed) return false;
+    const checkedResult: FastPropertyViewResult = {
+      ...fastResult,
+      detailedChecks: detailed.data,
+    };
+    const suggestion = suggestAccessRouteFromProperty(
+      checkedResult,
+      routePoolLayout,
+    );
+    return saveBuilderSiteAnswers({
+      assessmentSnapshot: detailed.assessmentSnapshot,
+      draft,
+      routeResponse:
+        suggestion.confidence === "credible" ? "suggested" : "not_sure",
+      expectedDraftVersion,
+    });
+  }
+
+  async function saveBuilderRouteAdjustment(
+    draft: BuilderSiteQuestionDraft & { adjustedRoute: AccessRouteGeometry },
+  ): Promise<boolean> {
+    if (!fastAssessmentSnapshot) return false;
+    const expectedDraftVersion = builderDraftVersionRef.current;
+    return saveBuilderSiteAnswers({
+      assessmentSnapshot: fastAssessmentSnapshot,
+      draft,
+      routeResponse: "adjust",
+      adjustedRoute: draft.adjustedRoute,
+      expectedDraftVersion,
+    });
+  }
+
+  function handleBuilderDraftChange() {
+    builderDraftVersionRef.current += 1;
+    setSignedSiteAnswers(null);
   }
 
   function downloadResult() {
@@ -643,6 +793,7 @@ export function PropertyCheckJourney({
     setPreDetailedSnapshot(null);
     setSignedSiteAnswers(null);
     setFastPlacementSnapshot(null);
+    setConfirmedPlacementKey(null);
     setFastMapSnapshot(null);
     setError(null);
     setCanRetry(false);
@@ -866,28 +1017,15 @@ export function PropertyCheckJourney({
                 : null
             }
             onRouteEdit={handleRouteEdit}
-            onLoadDetailed={() => void requestDetailedPropertyData()}
+            onConfirmPlacement={() => {
+              if (placementKey) setConfirmedPlacementKey(placementKey);
+            }}
             onRetry={() => void requestDetailedPropertyData()}
             onStartAgain={startAgain}
             isLoadingDetailed={isLoadingDetailed}
             onPlacementChange={handleFastPlacementChange}
             onSnapshotReady={setFastMapSnapshot}
-            estimatedDepth={
-              reportAudience === "pool_builder" ? estimatedDepth : undefined
-            }
-            depthLocked={lockedDepth !== null}
-            onEstimatedDepthChange={setEstimatedDepth}
-            onEditEstimatedDepth={() => {
-              if (!preDetailedSnapshot || isLoadingDetailed) return;
-              setFastAssessmentSnapshot(preDetailedSnapshot);
-              setPreDetailedSnapshot(null);
-              setFastResult((current) =>
-                current ? { ...current, detailedChecks: undefined } : current,
-              );
-              setSignedSiteAnswers(null);
-              setFastMapSnapshot(null);
-              setLockedDepth(null);
-            }}
+            placementConfirmed={confirmedPlacementKey === placementKey}
             isDetailedRateLimited={detailedRetryAfterSeconds !== null}
             planningEnabled={reportAudience !== null}
             planningStep={
@@ -906,27 +1044,78 @@ export function PropertyCheckJourney({
           fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
           fastAssessmentSnapshot &&
           reportAudience &&
-          fastResult.detailedChecks &&
+          confirmedPlacementKey === placementKey &&
           placementKey ? (
             <>
               {reportAudience === "homeowner" ? (
-                fastMapSnapshot && (
-                  <HomeownerSubmissionForm
-                    reportAudience={reportAudience}
-                    assessmentSnapshot={fastAssessmentSnapshot}
-                    mapImageDataUrl={fastMapSnapshot.imageDataUrl}
-                    mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
-                    placement={fastPlacementSnapshot}
-                    onSaved={fastSavedReport.saveAssessment}
-                  />
+                fastResult.detailedChecks ? (
+                  fastMapSnapshot && (
+                    <HomeownerSubmissionForm
+                      reportAudience={reportAudience}
+                      assessmentSnapshot={fastAssessmentSnapshot}
+                      mapImageDataUrl={fastMapSnapshot.imageDataUrl}
+                      mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
+                      placement={fastPlacementSnapshot}
+                      onSaved={fastSavedReport.saveAssessment}
+                    />
+                  )
+                ) : (
+                  <section className="border-pool-200 rounded-2xl border bg-white p-5 sm:p-7">
+                    <h3
+                      id="homeowner-check-heading"
+                      tabIndex={-1}
+                      className="text-pool-950 text-xl font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+                    >
+                      Ready to check this property
+                    </h3>
+                    <p className="text-pool-700 mt-2 max-w-3xl text-sm leading-6">
+                      We’ll check the available mapped property information for
+                      the pool position you confirmed.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => void requestDetailedPropertyData()}
+                      disabled={
+                        isLoadingDetailed || detailedRetryAfterSeconds !== null
+                      }
+                      className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 mt-5 min-h-11 rounded-xl px-5 font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
+                    >
+                      {isLoadingDetailed
+                        ? "Checking this property…"
+                        : "Check this property"}
+                    </button>
+                  </section>
                 )
               ) : (
                 <>
                   <SiteQuestions
-                    key={`${fastAssessmentSnapshot}:${placementKey}`}
-                    assessmentSnapshot={fastAssessmentSnapshot}
+                    key={placementKey}
                     placementKey={placementKey}
-                    poolLayout={routePoolLayout ?? undefined}
+                    estimatedDepth={estimatedDepth}
+                    depthLocked={lockedDepth !== null}
+                    onEstimatedDepthChange={setEstimatedDepth}
+                    onEditEstimatedDepth={() => {
+                      if (!preDetailedSnapshot || isLoadingDetailed) return;
+                      setFastAssessmentSnapshot(preDetailedSnapshot);
+                      setPreDetailedSnapshot(null);
+                      setFastResult((current) =>
+                        current
+                          ? { ...current, detailedChecks: undefined }
+                          : current,
+                      );
+                      setSignedSiteAnswers(null);
+                      setRouteDraft(null);
+                      setRouteFacts(null);
+                      setFastMapSnapshot(null);
+                      setLockedDepth(null);
+                    }}
+                    hasCompletedCheck={Boolean(fastResult.detailedChecks)}
+                    hasSavedAnswers={Boolean(
+                      signedSiteAnswers?.sourceSnapshot ===
+                        fastAssessmentSnapshot &&
+                      signedSiteAnswers.placementKey === placementKey,
+                    )}
+                    isChecking={isLoadingDetailed}
                     routeSuggestion={routeSuggestion ?? undefined}
                     adjustedRoute={
                       routeDraft?.placementKey === placementKey
@@ -939,12 +1128,9 @@ export function PropertyCheckJourney({
                         : null
                     }
                     onRouteEdit={handleRouteEdit}
-                    onRouteReset={() => {
-                      setRouteDraft(null);
-                      setRouteFacts(null);
-                      setFastMapSnapshot(null);
-                    }}
-                    onSigned={setSignedSiteAnswers}
+                    onDraftChange={handleBuilderDraftChange}
+                    onCheckProperty={checkBuilderProperty}
+                    onSaveRouteAdjustment={saveBuilderRouteAdjustment}
                   />
                   {signedSiteAnswers?.sourceSnapshot ===
                     fastAssessmentSnapshot &&

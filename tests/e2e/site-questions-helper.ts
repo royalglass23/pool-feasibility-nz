@@ -72,10 +72,18 @@ export async function answerSiteQuestions(
     ).not.toBeChecked();
   }
   await nearby.getByRole("checkbox", { name: "None of these" }).check();
-  await page.getByRole("button", { name: "Continue to your details" }).click();
+  const signingResponse = page.waitForResponse(
+    (response) =>
+      response.url().includes("/api/public/assessment-snapshot/site-answers") &&
+      response.request().method() === "POST",
+    { timeout: 30_000 },
+  );
+  await page.getByRole("button", { name: "Check this property" }).click();
+  const response = await signingResponse;
+  expect(response.status(), await response.text()).toBe(200);
   await expect(
     page.getByRole("heading", {
       name: "Your details for the preliminary report",
     }),
-  ).toBeVisible();
+  ).toBeVisible({ timeout: 30_000 });
 }

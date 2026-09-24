@@ -29,7 +29,7 @@ export function ReportAudiencePathway({
   return (
     <fieldset
       role="radiogroup"
-      className="border-pool-200 rounded-xl border bg-white p-4"
+      className="border-pool-200 rounded-xl border bg-white p-4 sm:p-5"
     >
       <legend className="text-pool-950 px-1 font-semibold">
         Who are you checking this property for?
@@ -37,7 +37,7 @@ export function ReportAudiencePathway({
       <p className="text-pool-600 mt-1 text-sm leading-6">
         Choose one to continue. You can switch before saving your report.
       </p>
-      <div className="mt-3 grid gap-2">
+      <div className="mt-3 grid gap-2 sm:grid-cols-2">
         {pathwayOptions.map((option) => (
           <label
             key={option.value}

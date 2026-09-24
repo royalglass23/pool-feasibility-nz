@@ -246,7 +246,7 @@ it("keeps map layers collapsed until the user asks to see them", async () => {
   ).toBeVisible();
 });
 
-it("keeps live notices above the workspace and next actions with the pool layout", async () => {
+it("keeps live notices above the workspace and placement confirmation below it", async () => {
   render(
     <FastPropertyView
       result={{
@@ -255,7 +255,7 @@ it("keeps live notices above the workspace and next actions with the pool layout
         detailedChecks: undefined,
       }}
       onRetry={() => {}}
-      onLoadDetailed={() => {}}
+      onConfirmPlacement={() => {}}
       onStartAgain={() => {}}
     />,
   );
@@ -280,12 +280,13 @@ it("keeps live notices above the workspace and next actions with the pool layout
   expect(aerialMapFrame).not.toContainElement(
     screen.getByRole("heading", { name: "Needs Checking" }),
   );
-  expect(poolLayout).toContainElement(
-    screen.getByRole("button", { name: "Check for constraints" }),
+  expect(poolLayout).not.toContainElement(
+    screen.getByRole("button", { name: "Use this pool position" }),
   );
-  expect(poolLayout).toContainElement(
-    screen.getByRole("button", { name: "Start again" }),
-  );
+  expect(
+    screen.getByRole("button", { name: "Use this pool position" }),
+  ).toBeVisible();
+  expect(screen.getByRole("button", { name: "Start again" })).toBeVisible();
 });
 
 it("keeps Builder planning content from stretching the map capture frame", async () => {
@@ -359,7 +360,6 @@ it("shows detailed map controls without restoring the detailed checks panel", as
     <FastPropertyView
       result={fastResult}
       isLoadingDetailed={false}
-      onLoadDetailed={() => {}}
       onRetry={() => {}}
     />,
   );
