@@ -14,6 +14,7 @@ const {
   mapCreated,
   mapStyles,
   fitBounds,
+  resizeMap,
   mapEventHandlers,
   markerOffsets,
   getLayer,
@@ -31,6 +32,7 @@ const {
   mapCreated: vi.fn(),
   mapStyles: vi.fn(),
   fitBounds: vi.fn(),
+  resizeMap: vi.fn(),
   mapEventHandlers: new globalThis.Map<string, (event: MapEvent) => void>(),
   markerOffsets: [] as [number, number][],
   setWorkerUrl: vi.fn<(url: string) => void>(),
@@ -111,6 +113,10 @@ vi.mock("maplibre-gl", () => {
     fitBounds(...args: unknown[]) {
       fitBounds(...args);
     }
+    resize() {
+      resizeMap();
+      return this;
+    }
   }
 
   class Marker {
@@ -160,6 +166,7 @@ afterEach(() => {
   mapCreated.mockClear();
   mapStyles.mockClear();
   fitBounds.mockClear();
+  resizeMap.mockClear();
   mapEventHandlers.clear();
   markerOffsets.length = 0;
   vi.unstubAllGlobals();
@@ -621,6 +628,44 @@ it("captures the completed Fast Property View canvas for report reuse", async ()
       visibleLayerKeys: ["wastewater_assets"],
     }),
   );
+});
+
+it("resizes and refits the parcel before recapturing after the map frame changes size", async () => {
+  const resizeCallbacks: ResizeObserverCallback[] = [];
+  vi.stubGlobal(
+    "ResizeObserver",
+    class ResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallbacks.push(callback);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  const onSnapshotReady = vi.fn();
+  render(
+    <FastPropertyView
+      result={fastResult}
+      onRetry={() => {}}
+      onSnapshotReady={onSnapshotReady}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  await waitFor(() => expect(resizeCallbacks).toHaveLength(1));
+  fitBounds.mockClear();
+  onSnapshotReady.mockClear();
+
+  resizeCallbacks[0]!([], {} as ResizeObserver);
+
+  expect(resizeMap).toHaveBeenCalledTimes(1);
+  expect(fitBounds).toHaveBeenCalledWith(expect.anything(), {
+    padding: 56,
+    duration: 0,
+    maxZoom: 20,
+  });
+  expect(onSnapshotReady).toHaveBeenLastCalledWith(null);
 });
 
 it("draws the indicative investigation buffer around the selected pool", async () => {

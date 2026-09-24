@@ -56,26 +56,28 @@ export function SavedReportInteractiveMap({
             <section
               role="region"
               aria-label="Saved pool-shell clearances"
-              className="border-pool-200 mt-4 border-t pt-4"
+              className="border-pool-200 mt-3 grid gap-3 border-t pt-3 md:grid-cols-[minmax(0,1fr)_minmax(18rem,1fr)] md:items-start"
             >
-              <h4 className="text-pool-950 font-semibold">
-                Pool-shell clearances
-              </h4>
-              <ul className="text-pool-800 mt-2 grid grid-cols-2 gap-2 text-xs font-semibold">
+              <div>
+                <h4 className="text-pool-950 font-semibold">
+                  Pool-shell clearances
+                </h4>
+                <p className="text-pool-600 mt-1 text-xs leading-5">
+                  {POOL_SHELL_CLEARANCE_LIMITATION}
+                </p>
+              </div>
+              <ul className="text-pool-800 grid grid-cols-2 gap-x-4 gap-y-1 text-xs font-semibold">
                 {clearances.map((clearance, index) => (
                   <li key={clearance.id}>
                     Side {index + 1}: {clearance.label}
                   </li>
                 ))}
               </ul>
-              <p className="text-pool-600 mt-2 text-xs leading-5">
-                {POOL_SHELL_CLEARANCE_LIMITATION}
-              </p>
             </section>
           )}
           <ul
             aria-label="Captured map layer legend"
-            className="mt-4 grid gap-x-8 sm:grid-cols-2"
+            className="mt-3 grid gap-x-6 md:grid-cols-2 xl:grid-cols-3"
           >
             {entries.map((entry) => (
               <SavedLayerLegend key={entry.id} entry={entry} />
@@ -93,7 +95,7 @@ export function SavedReportInteractiveMap({
 function SavedLayerLegend({ entry }: { entry: ReportMapLegendEntry }) {
   const status = entry.statusLabel ?? "Included in saved capture";
   return (
-    <li className="border-pool-100 flex gap-3 border-t py-3">
+    <li className="border-pool-100 flex gap-3 border-t py-2">
       <span
         aria-hidden="true"
         className={

@@ -1034,6 +1034,33 @@ export function FastPropertyView({
   ]);
 
   useEffect(() => {
+    const map = mapInstanceRef.current;
+    const container = mapRef.current;
+    if (
+      !mapReady ||
+      !map ||
+      !container ||
+      typeof ResizeObserver === "undefined"
+    )
+      return;
+
+    const observer = new ResizeObserver(() => {
+      if (mapInstanceRef.current !== map) return;
+      snapshotHandlerRef.current?.(null);
+      map.resize();
+      if (mapBoundaryGeometry) {
+        map.fitBounds(boundaryBounds(mapBoundaryGeometry), {
+          padding: 56,
+          duration: 0,
+          maxZoom: 20,
+        });
+      }
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [mapBoundaryGeometry, mapReady]);
+
+  useEffect(() => {
     const source = mapInstanceRef.current?.getSource(
       "suggested-access-route",
     ) as import("maplibre-gl").GeoJSONSource | undefined;

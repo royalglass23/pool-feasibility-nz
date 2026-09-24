@@ -31,7 +31,10 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
   ).toHaveClass("h-auto", "w-full", "object-contain");
   expect(
     screen.getByRole("list", { name: "Captured map layer legend" }),
-  ).toHaveClass("sm:grid-cols-2");
+  ).toHaveClass("md:grid-cols-2", "xl:grid-cols-3");
+  expect(
+    screen.getByText("Mapped property boundary").closest("li"),
+  ).toHaveClass("py-2");
   expect(
     screen
       .getByRole("region", { name: "Saved pool-shell clearances" })
