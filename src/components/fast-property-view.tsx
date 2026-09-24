@@ -1325,12 +1325,12 @@ export function FastPropertyView({
           className={
             isInitialAddressLoad
               ? "grid"
-              : "grid lg:grid-cols-[minmax(0,1fr)_22rem]"
+              : "grid items-start lg:grid-cols-[minmax(0,1fr)_22rem]"
           }
         >
           <div
             data-testid="aerial-map-frame"
-            className="relative order-1 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-[600px]"
+            className="relative order-1 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-start-1 lg:h-[600px]"
           >
             <div
               ref={mapRef}

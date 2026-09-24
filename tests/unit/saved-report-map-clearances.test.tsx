@@ -9,7 +9,6 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
       report={buildTestPreliminaryReport({
         pool: { clearancesVisible: true },
       })}
-      attribution="Test map attribution"
     />,
   );
 
@@ -50,7 +49,6 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
       report={buildTestPreliminaryReport({
         pool: { clearancesVisible: false },
       })}
-      attribution="Test map attribution"
     />,
   );
 
@@ -69,7 +67,6 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
           } as never,
         },
       })}
-      attribution="Test map attribution"
     />,
   );
 

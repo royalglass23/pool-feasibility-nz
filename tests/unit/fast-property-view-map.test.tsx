@@ -288,6 +288,21 @@ it("keeps live notices above the workspace and next actions with the pool layout
   );
 });
 
+it("keeps Builder planning content from stretching the map capture frame", async () => {
+  render(
+    <FastPropertyView
+      result={fastResult}
+      onRetry={() => {}}
+      planningStep={<div>Builder site questions</div>}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  expect(screen.getByText("Builder site questions")).toBeVisible();
+  expect(screen.getByTestId("aerial-map-frame")).toHaveClass("lg:h-[600px]");
+  expect(screen.getByTestId("aerial-map-frame")).not.toHaveClass("lg:h-full");
+});
+
 it("keeps the rotate control visible and interactive while taking a snapshot", async () => {
   const onSnapshotReady = vi.fn();
   render(

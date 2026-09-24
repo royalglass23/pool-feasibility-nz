@@ -19,10 +19,8 @@ const SERVICE_LAYER_IDS = new Set([
 
 export function SavedReportInteractiveMap({
   report,
-  attribution,
 }: {
   report: SavedPreliminaryReport;
-  attribution: string;
 }) {
   const { entries } = reportMapLegend(report);
   const clearances = reportPoolShellClearances(report);
@@ -169,9 +167,6 @@ export function SavedReportInteractiveMap({
           </section>
         </aside>
       </div>
-      <p className="border-pool-200 text-pool-600 border-t px-4 py-3 text-xs leading-5 sm:px-5">
-        {attribution}
-      </p>
     </div>
   );
 }

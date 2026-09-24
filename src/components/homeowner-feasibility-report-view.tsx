@@ -170,10 +170,7 @@ export function HomeownerFeasibilityReportView({
               </p>
             </div>
           </div>
-          <SavedReportInteractiveMap
-            report={report}
-            attribution={compactAttribution(report)}
-          />
+          <SavedReportInteractiveMap report={report} />
         </section>
 
         <section aria-labelledby="key-findings-heading">
@@ -674,19 +671,6 @@ function providerSummary(report: SavedPreliminaryReport) {
   return providers.length > 0
     ? providers.join(", ")
     : "the available saved sources";
-}
-
-function compactAttribution(report: SavedPreliminaryReport) {
-  const attributions = [
-    ...new Set(
-      report.sources
-        .map((source) => source.attribution)
-        .filter((value): value is string => Boolean(value)),
-    ),
-  ];
-  return attributions.length > 0
-    ? attributions.join(" · ")
-    : "Mapped information is indicative.";
 }
 
 function formatSourceDate(value: string) {
