@@ -16,6 +16,11 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
   expect(
     screen.getByRole("region", { name: "Saved pool-shell clearances" }),
   ).toHaveTextContent("Indicative mapped pool-shell clearances");
+  expect(screen.getByRole("heading", { name: "Map layers" })).toBeVisible();
+  expect(
+    screen.getByRole("region", { name: "Saved assessment overlays" }),
+  ).toBeVisible();
+  expect(screen.getByRole("region", { name: "Saved contours" })).toBeVisible();
   expect(screen.getAllByText(/m$/)).toHaveLength(4);
   expect(
     screen
@@ -30,11 +35,8 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
     ),
   ).toHaveClass("h-auto", "w-full", "object-contain");
   expect(
-    screen.getByRole("list", { name: "Captured map layer legend" }),
-  ).toHaveClass("md:grid-cols-2", "xl:grid-cols-3");
-  expect(
-    screen.getByText("Mapped property boundary").closest("li"),
-  ).toHaveClass("py-2");
+    screen.getByRole("list", { name: "Saved mapped services" }),
+  ).toHaveClass("lg:grid-cols-5");
   expect(
     screen
       .getByRole("region", { name: "Saved pool-shell clearances" })
@@ -54,7 +56,7 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
 
   expect(
     screen.queryByRole("region", { name: "Saved pool-shell clearances" }),
-  ).not.toBeInTheDocument();
+  ).toHaveTextContent("Not shown in saved capture");
 
   rerender(
     <SavedReportInteractiveMap
@@ -73,5 +75,5 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
 
   expect(
     screen.queryByRole("region", { name: "Saved pool-shell clearances" }),
-  ).not.toBeInTheDocument();
+  ).toHaveTextContent("Measurements unavailable");
 });
