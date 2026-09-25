@@ -168,11 +168,15 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Use this pool position" }).click();
   await page
+    .getByRole("button", { name: "Access and excavation conditions" })
+    .click();
+  await page
     .getByRole("group", {
       name: "Which visible site conditions could affect plant access or excavation?",
     })
     .getByRole("checkbox", { name: "None of these" })
     .check();
+  await page.getByRole("button", { name: "Nearby features" }).click();
   await page
     .getByRole("group", {
       name: "Which existing features are close to the proposed pool area?",

@@ -1009,10 +1009,8 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       )
       .map(([, init]) => JSON.parse(String(init?.body ?? "{}")))
       .find((body) => body.mode === "detailed");
-    expect(detailedRequest).toMatchObject({
-      mode: "detailed",
-      estimatedDepthMetres: 1.5,
-    });
+    expect(detailedRequest).toMatchObject({ mode: "detailed" });
+    expect(detailedRequest).not.toHaveProperty("estimatedDepthMetres");
   });
 
   it("requests parcel-wide detailed checks without sending the pool envelope", async () => {

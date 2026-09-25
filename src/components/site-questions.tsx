@@ -71,6 +71,108 @@ function toggleExclusive<T extends string>(selected: T[], choice: T): T[] {
   ];
 }
 
+function MultiSelectDropdown<T extends string>({
+  id,
+  label,
+  question,
+  choices,
+  selected,
+  open,
+  error,
+  errorText,
+  buttonRef,
+  onOpenChange,
+  onChoiceChange,
+}: {
+  id: string;
+  label: string;
+  question: string;
+  choices: Choice<T>[];
+  selected: T[];
+  open: boolean;
+  error: boolean;
+  errorText: string;
+  buttonRef: React.RefObject<HTMLButtonElement | null>;
+  onOpenChange: (open: boolean) => void;
+  onChoiceChange: (choice: T) => void;
+}) {
+  const panelId = `${id}-panel`;
+  const questionId = `${id}-question`;
+  const errorId = `${id}-error`;
+  const selectedChoices = choices.filter((choice) =>
+    selected.includes(choice.id),
+  );
+
+  return (
+    <div className="border-pool-200 space-y-3 border-t pt-6">
+      <p id={questionId} className="text-pool-950 font-semibold">
+        {question}
+      </p>
+      <button
+        ref={buttonRef}
+        type="button"
+        aria-expanded={open}
+        aria-controls={panelId}
+        aria-describedby={error ? errorId : questionId}
+        onClick={() => onOpenChange(!open)}
+        className="border-pool-300 focus-visible:outline-pool-blue-700 flex min-h-11 w-full items-center justify-between rounded-xl border bg-white px-4 py-2 text-left text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+      >
+        <span>{label}</span>
+        <span aria-hidden="true">{open ? "Close" : "Choose"}</span>
+      </button>
+      {selectedChoices.length > 0 ? (
+        <div
+          className="flex flex-wrap gap-2"
+          aria-label={`${label} selected answers`}
+        >
+          {selectedChoices.map((choice) => (
+            <button
+              key={choice.id}
+              type="button"
+              aria-label={`Remove ${choice.label}`}
+              onClick={() => onChoiceChange(choice.id)}
+              className="bg-pool-blue-50 text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-9 rounded-full px-3 py-1 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              {choice.label} <span aria-hidden="true">×</span>
+            </button>
+          ))}
+        </div>
+      ) : (
+        <p className="text-pool-600 text-sm">No answers selected</p>
+      )}
+      <fieldset
+        id={panelId}
+        hidden={!open}
+        aria-describedby={error ? errorId : undefined}
+        className="border-pool-200 space-y-3 rounded-xl border bg-white p-3"
+      >
+        <legend className="sr-only">{question}</legend>
+        <div className="grid gap-2 sm:grid-cols-2">
+          {choices.map((choice) => (
+            <label
+              key={choice.id}
+              className="border-pool-200 hover:border-pool-300 hover:bg-pool-50 has-checked:border-pool-blue-700 has-checked:bg-pool-blue-50 focus-within:outline-pool-blue-700 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition focus-within:outline-2 focus-within:outline-offset-2"
+            >
+              <input
+                type="checkbox"
+                checked={selected.includes(choice.id)}
+                onChange={() => onChoiceChange(choice.id)}
+                className="size-4 accent-blue-800"
+              />
+              {choice.label}
+            </label>
+          ))}
+        </div>
+      </fieldset>
+      {error && (
+        <p id={errorId} role="alert" className="text-sm text-red-800">
+          {errorText}
+        </p>
+      )}
+    </div>
+  );
+}
+
 export function SiteQuestions({
   placementKey,
   estimatedDepth,
@@ -112,10 +214,12 @@ export function SiteQuestions({
   const [nearbyFeatures, setNearbyFeatures] = useState<NearbyFeature[]>([]);
   const [sideClearanceMillimetres, setSideClearanceMillimetres] = useState(300);
   const [errors, setErrors] = useState({ access: false, nearby: false });
+  const [accessOpen, setAccessOpen] = useState(false);
+  const [nearbyOpen, setNearbyOpen] = useState(false);
   const [requestError, setRequestError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  const accessRef = useRef<HTMLFieldSetElement>(null);
-  const nearbyRef = useRef<HTMLFieldSetElement>(null);
+  const accessRef = useRef<HTMLButtonElement>(null);
+  const nearbyRef = useRef<HTMLButtonElement>(null);
   const requestGenerationRef = useRef(0);
 
   useEffect(
@@ -136,6 +240,8 @@ export function SiteQuestions({
     };
     setErrors(nextErrors);
     if (nextErrors.access || nextErrors.nearby) {
+      if (nextErrors.access) setAccessOpen(true);
+      else setNearbyOpen(true);
       (nextErrors.access ? accessRef : nearbyRef).current?.focus();
       return;
     }
@@ -216,93 +322,44 @@ export function SiteQuestions({
             onEdit={onEditEstimatedDepth}
           />
         </div>
-        <fieldset
-          ref={accessRef}
-          tabIndex={-1}
-          aria-describedby={errors.access ? "site-access-error" : undefined}
-          className="border-pool-200 space-y-3 border-t pt-6 focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          <legend className="text-pool-950 font-semibold">
-            Which visible site conditions could affect plant access or
-            excavation?
-          </legend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {accessChoices.map((choice) => (
-              <label
-                key={choice.id}
-                className="border-pool-200 hover:border-pool-300 hover:bg-pool-50 has-checked:border-pool-blue-700 has-checked:bg-pool-blue-50 focus-within:outline-pool-blue-700 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition focus-within:outline-2 focus-within:outline-offset-2"
-              >
-                <input
-                  type="checkbox"
-                  checked={accessConditions.includes(choice.id)}
-                  onChange={() => {
-                    requestGenerationRef.current += 1;
-                    setSaving(false);
-                    onDraftChange();
-                    setAccessConditions((current) =>
-                      toggleExclusive(current, choice.id),
-                    );
-                    setErrors((current) => ({ ...current, access: false }));
-                  }}
-                  className="size-4 accent-blue-800"
-                />
-                {choice.label}
-              </label>
-            ))}
-          </div>
-          {errors.access && (
-            <p
-              id="site-access-error"
-              role="alert"
-              className="text-sm text-red-800"
-            >
-              Record at least one access or excavation condition.
-            </p>
-          )}
-        </fieldset>
-        <fieldset
-          ref={nearbyRef}
-          tabIndex={-1}
-          aria-describedby={errors.nearby ? "site-nearby-error" : undefined}
-          className="border-pool-200 space-y-3 border-t pt-6 focus-visible:outline-2 focus-visible:outline-offset-2"
-        >
-          <legend className="text-pool-950 font-semibold">
-            Which existing features are close to the proposed pool area?
-          </legend>
-          <div className="grid gap-2 sm:grid-cols-2">
-            {nearbyChoices.map((choice) => (
-              <label
-                key={choice.id}
-                className="border-pool-200 hover:border-pool-300 hover:bg-pool-50 has-checked:border-pool-blue-700 has-checked:bg-pool-blue-50 focus-within:outline-pool-blue-700 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition focus-within:outline-2 focus-within:outline-offset-2"
-              >
-                <input
-                  type="checkbox"
-                  checked={nearbyFeatures.includes(choice.id)}
-                  onChange={() => {
-                    requestGenerationRef.current += 1;
-                    setSaving(false);
-                    onDraftChange();
-                    setNearbyFeatures((current) =>
-                      toggleExclusive(current, choice.id),
-                    );
-                    setErrors((current) => ({ ...current, nearby: false }));
-                  }}
-                  className="size-4 accent-blue-800"
-                />
-                {choice.label}
-              </label>
-            ))}
-          </div>
-          {errors.nearby && (
-            <p
-              id="site-nearby-error"
-              role="alert"
-              className="text-sm text-red-800"
-            >
-              Record at least one nearby feature response.
-            </p>
-          )}
-        </fieldset>
+        <MultiSelectDropdown
+          id="site-access"
+          label="Access and excavation conditions"
+          question="Which visible site conditions could affect plant access or excavation?"
+          choices={accessChoices}
+          selected={accessConditions}
+          open={accessOpen}
+          error={errors.access}
+          errorText="Record at least one access or excavation condition."
+          buttonRef={accessRef}
+          onOpenChange={setAccessOpen}
+          onChoiceChange={(choice) => {
+            requestGenerationRef.current += 1;
+            setSaving(false);
+            onDraftChange();
+            setAccessConditions((current) => toggleExclusive(current, choice));
+            setErrors((current) => ({ ...current, access: false }));
+          }}
+        />
+        <MultiSelectDropdown
+          id="site-nearby"
+          label="Nearby features"
+          question="Which existing features are close to the proposed pool area?"
+          choices={nearbyChoices}
+          selected={nearbyFeatures}
+          open={nearbyOpen}
+          error={errors.nearby}
+          errorText="Record at least one nearby feature response."
+          buttonRef={nearbyRef}
+          onOpenChange={setNearbyOpen}
+          onChoiceChange={(choice) => {
+            requestGenerationRef.current += 1;
+            setSaving(false);
+            onDraftChange();
+            setNearbyFeatures((current) => toggleExclusive(current, choice));
+            setErrors((current) => ({ ...current, nearby: false }));
+          }}
+        />
       </section>
       <section
         aria-labelledby="excavation-planning-heading"

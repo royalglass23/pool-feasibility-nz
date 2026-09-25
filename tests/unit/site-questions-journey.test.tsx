@@ -139,12 +139,12 @@ describe("Site answers in the property journey", () => {
     expect(homeowner).not.toBeChecked();
     expect(builder).not.toBeChecked();
     expect(
-      screen.queryByRole("spinbutton", { name: "Estimated pool depth (m)" }),
+      screen.queryByRole("slider", { name: "Estimated pool depth (m)" }),
     ).not.toBeInTheDocument();
 
     await openValidPlacement(user, "homeowner");
     expect(
-      screen.queryByRole("spinbutton", { name: "Estimated pool depth (m)" }),
+      screen.queryByRole("slider", { name: "Estimated pool depth (m)" }),
     ).not.toBeInTheDocument();
     expect(screen.queryByText("Site questions")).not.toBeInTheDocument();
 
@@ -159,6 +159,13 @@ describe("Site answers in the property journey", () => {
         fetchMock.mock.calls.filter(([url]) => url.endsWith("/stages")),
       ).toHaveLength(2),
     );
+    const homeownerDetailedRequest = (
+      fetchMock.mock.calls as [string, RequestInit?][]
+    )
+      .filter(([url]) => url.endsWith("/stages"))
+      .map(([, init]) => JSON.parse(String(init?.body)))
+      .find((request) => request.mode === "detailed");
+    expect(homeownerDetailedRequest).not.toHaveProperty("estimatedDepthMetres");
     expect(await screen.findByTestId("details-form")).toHaveTextContent(
       "stage-token as homeowner",
     );
@@ -174,7 +181,7 @@ describe("Site answers in the property journey", () => {
     expect(revisitedBuilder).toBeChecked();
     await user.click(screen.getByRole("button", { name: "Continue" }));
     expect(
-      screen.getByRole("spinbutton", { name: "Estimated pool depth (m)" }),
+      screen.getByRole("slider", { name: "Estimated pool depth (m)" }),
     ).toBeVisible();
   });
 
@@ -226,11 +233,10 @@ describe("Site answers in the property journey", () => {
     await user.click(
       screen.getByRole("button", { name: "Use this pool position" }),
     );
-    const depth = await screen.findByRole("spinbutton", {
+    const depth = await screen.findByRole("slider", {
       name: "Estimated pool depth (m)",
     });
-    await user.clear(depth);
-    await user.type(depth, "1.9");
+    fireEvent.change(depth, { target: { value: "1.9" } });
     await chooseNone(user);
     await waitFor(() => expect(depth).toBeDisabled());
     expect(
@@ -244,8 +250,7 @@ describe("Site answers in the property journey", () => {
       screen.getByRole("button", { name: "Edit estimated depth" }),
     );
     expect(depth).toBeEnabled();
-    await user.clear(depth);
-    await user.type(depth, "2");
+    fireEvent.change(depth, { target: { value: "2" } });
     await user.click(
       screen.getByRole("button", { name: "Check this property" }),
     );
@@ -309,6 +314,7 @@ describe("Site answers in the property journey", () => {
     await user.click(
       screen.getByRole("button", { name: /Check the details.*Completed/ }),
     );
+    await openChoiceGroup(user, "Access and excavation conditions");
     await user.click(
       within(
         screen.getByRole("group", {
@@ -325,6 +331,7 @@ describe("Site answers in the property journey", () => {
     await user.click(
       screen.getByRole("button", { name: /Check the details.*Completed/ }),
     );
+    await openChoiceGroup(user, "Nearby features");
     await user.click(
       within(
         screen.getByRole("group", {
@@ -421,9 +428,11 @@ describe("Site answers in the property journey", () => {
     await user.click(
       screen.getByRole("button", { name: "Use this pool position" }),
     );
+    await openChoiceGroup(user, "Access and excavation conditions");
     const access = screen.getByRole("group", {
       name: "Which visible site conditions could affect plant access or excavation?",
     });
+    await openChoiceGroup(user, "Nearby features");
     const nearby = screen.getByRole("group", {
       name: "Which existing features are close to the proposed pool area?",
     });
@@ -545,9 +554,11 @@ describe("Site answers in the property journey", () => {
 });
 
 async function chooseNone(user: ReturnType<typeof userEvent.setup>) {
+  await openChoiceGroup(user, "Access and excavation conditions");
   const access = screen.getByRole("group", {
     name: "Which visible site conditions could affect plant access or excavation?",
   });
+  await openChoiceGroup(user, "Nearby features");
   const nearby = screen.getByRole("group", {
     name: "Which existing features are close to the proposed pool area?",
   });
@@ -562,6 +573,15 @@ async function chooseNone(user: ReturnType<typeof userEvent.setup>) {
       name: /Check this property|Save builder answers/,
     }),
   );
+}
+
+async function openChoiceGroup(
+  user: ReturnType<typeof userEvent.setup>,
+  name: "Access and excavation conditions" | "Nearby features",
+) {
+  const button = screen.getByRole("button", { name });
+  if (button.getAttribute("aria-expanded") === "false")
+    await user.click(button);
 }
 
 function createJourneyFetch() {

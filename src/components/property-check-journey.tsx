@@ -588,12 +588,12 @@ export function PropertyCheckJourney({
   async function requestDetailedPropertyData(
     depthOverride?: number,
   ): Promise<{ data: FastPropertyDetails; assessmentSnapshot: string } | null> {
-    const depth =
+    const builderDepth =
       depthOverride ?? lockedDepth ?? parseEstimatedPoolDepth(estimatedDepth);
     if (
       !fastResult ||
       !fastAssessmentSnapshot ||
-      depth === null ||
+      (reportAudience === "pool_builder" && builderDepth === null) ||
       isLoadingDetailed ||
       detailedRequestInFlightRef.current
     )
@@ -603,7 +603,7 @@ export function PropertyCheckJourney({
     detailedRequestInFlightRef.current = true;
     detailedStartedRef.current = true;
     if (preDetailedSnapshot === null) setPreDetailedSnapshot(sourceSnapshot);
-    setLockedDepth(depth);
+    if (reportAudience === "pool_builder") setLockedDepth(builderDepth);
     setIsLoadingDetailed(true);
     try {
       const response = await fetch("/api/public/property-check/stages", {
@@ -611,7 +611,9 @@ export function PropertyCheckJourney({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "detailed",
-          estimatedDepthMetres: depth,
+          ...(reportAudience === "pool_builder" && builderDepth !== null
+            ? { estimatedDepthMetres: builderDepth }
+            : {}),
           addressId: fastResult.resolvedAddress.addressId,
           coordinates: fastResult.resolvedAddress.coordinates,
           assessmentSnapshot: fastAssessmentSnapshot,

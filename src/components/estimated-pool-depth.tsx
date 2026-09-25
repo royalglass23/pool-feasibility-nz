@@ -14,27 +14,46 @@ export function EstimatedPoolDepth({
   onEdit?: () => void;
 }) {
   const depth = parseEstimatedPoolDepth(value);
+  const isValidSliderDepth = depth !== null && depth >= 1;
+  const displayedDepth = isValidSliderDepth ? depth : 1;
+  const formattedDepth = displayedDepth.toFixed(1);
   return (
-    <div className="border-pool-200 space-y-2 border-t pt-4">
-      <label
-        htmlFor="estimated-pool-depth"
-        className="text-pool-950 block text-sm font-semibold"
-      >
-        Estimated pool depth (m)
-      </label>
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-4">
+        <label
+          htmlFor="estimated-pool-depth"
+          className="text-pool-950 block text-sm font-semibold"
+        >
+          Estimated pool depth (m)
+        </label>
+        <output
+          htmlFor="estimated-pool-depth"
+          className="text-pool-950 min-w-16 text-right text-base font-semibold"
+        >
+          {formattedDepth} m
+        </output>
+      </div>
       <input
         id="estimated-pool-depth"
-        type="number"
-        inputMode="decimal"
+        type="range"
+        min="1"
         max="2"
-        step="any"
-        value={value}
+        step="0.1"
+        value={displayedDepth}
         disabled={locked}
-        aria-invalid={depth === null}
+        aria-valuetext={`${formattedDepth} m`}
+        aria-invalid={!isValidSliderDepth}
         aria-describedby="estimated-pool-depth-help"
-        onChange={(event) => onChange(event.target.value)}
-        className="border-pool-300 focus-visible:outline-pool-blue-700 h-11 w-32 rounded-sm border px-3 text-sm focus-visible:outline-2"
+        onChange={(event) => onChange(Number(event.target.value).toFixed(1))}
+        className="accent-pool-blue-800 min-h-11 w-full"
       />
+      <div
+        className="text-pool-600 flex justify-between text-xs"
+        aria-hidden="true"
+      >
+        <span>Minimum 1.0 m</span>
+        <span>Maximum 2.0 m</span>
+      </div>
       {locked && onEdit && (
         <button
           type="button"
@@ -51,9 +70,9 @@ export function EstimatedPoolDepth({
         2.0 m is the PoolReady modelling scope limit; deeper pools exist and
         need professional assessment.
       </p>
-      {depth === null && (
+      {!isValidSliderDepth && (
         <p role="alert" className="text-sm text-red-700">
-          Enter a depth greater than 0 and no more than 2.0 m.
+          Choose a depth from 1.0 m to 2.0 m.
         </p>
       )}
       {depth !== null && depth > 1.8 && (

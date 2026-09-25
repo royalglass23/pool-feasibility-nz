@@ -53,9 +53,13 @@ export async function answerSiteQuestions(
       page.getByText(/below the provisional 300 mm starting point/i),
     ).toBeVisible();
   }
+  await page
+    .getByRole("button", { name: "Access and excavation conditions" })
+    .click();
   const access = page.getByRole("group", {
     name: "Which visible site conditions could affect plant access or excavation?",
   });
+  await page.getByRole("button", { name: "Nearby features" }).click();
   const nearby = page.getByRole("group", {
     name: "Which existing features are close to the proposed pool area?",
   });

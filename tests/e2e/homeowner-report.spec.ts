@@ -224,7 +224,7 @@ test("saves and reproduces the complete public constructability journey through 
     );
     await expect(switchedHomeownerForm).toBeVisible();
     await expect(
-      page.getByRole("spinbutton", { name: "Estimated pool depth (m)" }),
+      page.getByRole("slider", { name: "Estimated pool depth (m)" }),
     ).toHaveCount(0);
 
     await startJourney(page, 1.5, { visitorType: "pool_builder" });
@@ -389,7 +389,7 @@ async function startJourney(
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
   await page.keyboard.press("Enter");
-  const depthInput = page.getByRole("spinbutton", {
+  const depthInput = page.getByRole("slider", {
     name: "Estimated pool depth (m)",
   });
   await page.getByRole("button", { name: "Use this pool position" }).click();

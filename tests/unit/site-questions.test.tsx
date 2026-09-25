@@ -59,28 +59,112 @@ function renderQuestions(
 }
 
 async function chooseNone(user: ReturnType<typeof userEvent.setup>) {
+  const accessButton = screen.getByRole("button", {
+    name: "Access and excavation conditions",
+  });
+  if (accessButton.getAttribute("aria-expanded") === "false")
+    await user.click(accessButton);
   const access = screen.getByRole("group", {
     name: "Which visible site conditions could affect plant access or excavation?",
-  });
-  const nearby = screen.getByRole("group", {
-    name: "Which existing features are close to the proposed pool area?",
   });
   await user.click(
     within(access).getByRole("checkbox", { name: "None of these" }),
   );
+  const nearbyButton = screen.getByRole("button", { name: "Nearby features" });
+  if (nearbyButton.getAttribute("aria-expanded") === "false")
+    await user.click(nearbyButton);
+  const nearby = screen.getByRole("group", {
+    name: "Which existing features are close to the proposed pool area?",
+  });
   await user.click(
     within(nearby).getByRole("checkbox", { name: "None of these" }),
   );
 }
 
 describe("Pool builder site questions", () => {
+  it("keeps compact selections visible and enforces exclusive answers in both directions", async () => {
+    const user = userEvent.setup();
+    renderQuestions();
+
+    const accessButton = screen.getByRole("button", {
+      name: "Access and excavation conditions",
+    });
+    expect(accessButton).toHaveAttribute("aria-expanded", "false");
+    accessButton.focus();
+    await user.keyboard(" ");
+    expect(accessButton).toHaveAttribute("aria-expanded", "true");
+
+    const access = screen.getByRole("group", {
+      name: "Which visible site conditions could affect plant access or excavation?",
+    });
+    const none = within(access).getByRole("checkbox", {
+      name: "None of these",
+    });
+    const restricted = within(access).getByRole("checkbox", {
+      name: "Restricted gate or narrow access",
+    });
+    await user.click(none);
+    expect(none).toBeChecked();
+    await user.click(restricted);
+    expect(none).not.toBeChecked();
+    expect(restricted).toBeChecked();
+    await user.click(none);
+    expect(restricted).not.toBeChecked();
+
+    await user.click(accessButton);
+    expect(accessButton).toHaveAttribute("aria-expanded", "false");
+    expect(
+      screen.getByRole("button", { name: "Remove None of these" }),
+    ).toBeVisible();
+
+    await user.click(screen.getByRole("button", { name: "Nearby features" }));
+    const nearby = screen.getByRole("group", {
+      name: "Which existing features are close to the proposed pool area?",
+    });
+    await user.click(within(nearby).getByRole("checkbox", { name: "Fences" }));
+    await user.click(within(nearby).getByRole("checkbox", { name: "Walls" }));
+    await user.click(
+      within(nearby).getByRole("checkbox", { name: "I’m not sure" }),
+    );
+    expect(
+      within(nearby).getByRole("checkbox", { name: "Fences" }),
+    ).not.toBeChecked();
+    expect(
+      within(nearby).getByRole("checkbox", { name: "Walls" }),
+    ).not.toBeChecked();
+    expect(
+      within(nearby).getByRole("checkbox", { name: "I’m not sure" }),
+    ).toBeChecked();
+  });
+
+  it("clears one selected answer without erasing unrelated answers", async () => {
+    const user = userEvent.setup();
+    renderQuestions();
+    const nearbyButton = screen.getByRole("button", {
+      name: "Nearby features",
+    });
+    await user.click(nearbyButton);
+    const nearby = screen.getByRole("group", {
+      name: "Which existing features are close to the proposed pool area?",
+    });
+    await user.click(within(nearby).getByRole("checkbox", { name: "Fences" }));
+    await user.click(within(nearby).getByRole("checkbox", { name: "Walls" }));
+    await user.click(nearbyButton);
+
+    await user.click(screen.getByRole("button", { name: "Remove Fences" }));
+    expect(
+      screen.queryByRole("button", { name: "Remove Fences" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Remove Walls" })).toBeVisible();
+  });
+
   it("collects depth and site observations before one property check", async () => {
     const user = userEvent.setup();
     const { onCheckProperty } = renderQuestions();
 
     expect(
-      screen.getByRole("spinbutton", { name: "Estimated pool depth (m)" }),
-    ).toHaveValue(1.5);
+      screen.getByRole("slider", { name: "Estimated pool depth (m)" }),
+    ).toHaveValue("1.5");
     expect(
       screen.queryByRole("heading", { name: "Access route result" }),
     ).not.toBeInTheDocument();
