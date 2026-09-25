@@ -268,9 +268,9 @@ export function AssessmentWorkspace({
             Place a pool concept on the selected property
           </h3>
           <p className="text-pool-600 mt-1 max-w-3xl text-sm leading-6">
-            The map is the working surface. Choose a size, drag the pool, and
-            rotate it to explore the mapped evidence. Warnings are screening
-            signals, not building approval.
+            The map is the working surface. Choose a size and drag the pool to
+            explore the mapped evidence. Warnings are screening signals, not
+            building approval.
           </p>
         </div>
         <PropertyAerialMap

@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { bearing, point } from "@turf/turf";
 import type { Feature, FeatureCollection, Geometry, Point } from "geojson";
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { DataAccessSpikeResult } from "@/modules/data-access-spike/run-data-access-spike";
@@ -76,7 +75,7 @@ export function PropertyAerialMap({
   const [placementPreset, setPlacementPreset] = useState("compact");
   const [customLength, setCustomLength] = useState("6");
   const [customWidth, setCustomWidth] = useState("3");
-  const [rotationDegrees, setRotationDegrees] = useState(0);
+  const rotationDegrees = 0;
   const [position, setPosition] = useState<readonly [number, number]>(
     result.resolvedAddress.coordinates,
   );
@@ -181,12 +180,6 @@ export function PropertyAerialMap({
         return null;
       }
     }, [placementDimensions, position, result, rotationDegrees]);
-  const placementAssessmentRef = useRef<CustomPoolPlacementAssessment | null>(
-    null,
-  );
-  useEffect(() => {
-    placementAssessmentRef.current = placementAssessment;
-  }, [placementAssessment]);
   useEffect(() => {
     onPlacementChange?.(
       placementAssessment
@@ -282,10 +275,6 @@ export function PropertyAerialMap({
         "placement-access": geoJsonSource(
           placementAssessment?.envelopes.access,
         ),
-        "placement-rotation-handle": {
-          type: "geojson",
-          data: rotationHandleGeometry(placementAssessment),
-        },
       };
       const layers: LayerSpecification[] = [];
       if (aerialConfigured) {
@@ -372,25 +361,6 @@ export function PropertyAerialMap({
             source: "placement-shell",
             paint: { "line-color": "#0f172a", "line-width": 3 },
           },
-          {
-            id: "placement-rotation-guide",
-            type: "line",
-            source: "placement-rotation-handle",
-            filter: ["==", ["get", "kind"], "guide"],
-            paint: { "line-color": "#2563eb", "line-width": 2 },
-          },
-          {
-            id: "placement-rotation-handle",
-            type: "circle",
-            source: "placement-rotation-handle",
-            filter: ["==", ["get", "kind"], "handle"],
-            paint: {
-              "circle-color": "#2563eb",
-              "circle-radius": 7,
-              "circle-stroke-color": "#ffffff",
-              "circle-stroke-width": 2,
-            },
-          },
         );
       }
       layers.push(
@@ -445,22 +415,11 @@ export function PropertyAerialMap({
       activeMap.dragPan.disable();
       activeMap.keyboard.disable();
 
-      let interaction: "move" | "rotate" | null = null;
+      let interaction: "move" | null = null;
       const updatePosition = (nextPosition: [number, number]) => {
         if (!isConfirmedParcelForPlacement(result)) return;
         setPosition(nextPosition);
       };
-      const updateRotation = (nextRotation: number) => {
-        if (!isConfirmedParcelForPlacement(result)) return;
-        const wholeRotation = Math.round(nextRotation) % 360;
-        setRotationDegrees(wholeRotation);
-      };
-      activeMap.on("mousedown", "placement-rotation-handle", (event) => {
-        interaction = "rotate";
-        activeMap.getCanvas().style.cursor = "crosshair";
-        activeMap.dragPan.disable();
-        event.originalEvent.stopPropagation();
-      });
       activeMap.on("mousedown", "placement-shell-fill", (event) => {
         interaction = "move";
         activeMap.getCanvas().style.cursor = "grabbing";
@@ -470,16 +429,6 @@ export function PropertyAerialMap({
       activeMap.on("mousemove", (event) => {
         if (interaction === "move") {
           updatePosition(activeMap.unproject(event.point).toArray());
-        } else if (interaction === "rotate") {
-          const currentAssessment = placementAssessmentRef.current;
-          if (!currentAssessment) return;
-          const cursor = activeMap.unproject(event.point).toArray();
-          const nextRotation =
-            (180 -
-              bearing(point([...currentAssessment.position]), point(cursor)) +
-              360) %
-            360;
-          updateRotation((nextRotation + 360) % 360);
         }
       });
       activeMap.on("mouseup", () => {
@@ -540,10 +489,6 @@ export function PropertyAerialMap({
       [
         "placement-access",
         placementAssessment?.envelopes.access ?? emptyGeometry,
-      ],
-      [
-        "placement-rotation-handle",
-        rotationHandleGeometry(placementAssessment),
       ],
     ] as const) {
       const source = map.getSource(sourceId) as
@@ -681,10 +626,7 @@ export function PropertyAerialMap({
           dimensions={placementDimensions}
           onCustomLength={setCustomLength}
           onCustomWidth={setCustomWidth}
-          onPreset={(value) => {
-            setPlacementPreset(value);
-            if (value !== "custom") setRotationDegrees(0);
-          }}
+          onPreset={setPlacementPreset}
           placementPreset={placementPreset}
           validationMessage={placementValidationMessage}
         />
@@ -797,8 +739,7 @@ function PlacementControls({
             Manual pool placement
           </h4>
           <p className="text-pool-600 mt-1 text-sm">
-            Choose a pool size, then drag the blue pool within the parcel. Drag
-            the handle above it to rotate the layout.
+            Choose a pool size, then drag the blue pool within the parcel.
           </p>
         </div>
         <div
@@ -999,36 +940,6 @@ function geoJsonSource(geometry: Feature | undefined) {
   return {
     type: "geojson" as const,
     data: geometry ?? { type: "FeatureCollection" as const, features: [] },
-  };
-}
-
-function rotationHandleGeometry(
-  assessment: CustomPoolPlacementAssessment | null,
-): FeatureCollection {
-  if (!assessment) return { type: "FeatureCollection", features: [] };
-
-  const [first, second] = assessment.shell.geometry.coordinates[0];
-  const handle: [number, number] = [
-    (first[0] + second[0]) / 2,
-    (first[1] + second[1]) / 2,
-  ];
-  return {
-    type: "FeatureCollection",
-    features: [
-      {
-        type: "Feature",
-        properties: { kind: "guide" },
-        geometry: {
-          type: "LineString",
-          coordinates: [[...assessment.position], handle],
-        },
-      },
-      {
-        type: "Feature",
-        properties: { kind: "handle" },
-        geometry: { type: "Point", coordinates: handle },
-      },
-    ],
   };
 }
 

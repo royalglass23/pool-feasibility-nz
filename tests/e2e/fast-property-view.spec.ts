@@ -194,7 +194,7 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     await expect(
       page.getByRole("list", { name: "Fast view progress" }),
     ).toContainText(
-      "Address found. Next, choose a pool size, then move and rotate it into your preferred position.",
+      "Address found. Next, choose a pool layout, then move it into your preferred position.",
     );
     await expect(page.getByText("Mapped boundary found")).toHaveCount(0);
     await expect(page.getByText("Aerial image ready")).toHaveCount(0);
@@ -324,24 +324,8 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       await page.getByLabel("Custom length (m)").fill("7.2");
       await page.getByLabel("Custom width (m)").fill("3.4");
 
-      const rotateControl = page.getByTestId("pool-rotate-control");
-      await expect(rotateControl).toBeVisible();
-      const rotateBounds = (await rotateControl.boundingBox())!;
-      await page.mouse.move(rotateBounds.x + 22, rotateBounds.y + 22);
-      await page.mouse.down();
-      await page.mouse.move(rotateBounds.x + 60, rotateBounds.y - 10, {
-        steps: 6,
-      });
-      await page.mouse.up();
-      await expect
-        .poll(async () =>
-          Number(await rotateControl.getAttribute("data-rotation-degrees")),
-        )
-        .not.toBe(0);
-
       const canvas = page.locator("canvas.maplibregl-canvas");
       const canvasBounds = (await canvas.boundingBox())!;
-      const rotateBoundsBeforeMove = (await rotateControl.boundingBox())!;
       await page.mouse.move(
         canvasBounds.x + canvasBounds.width / 2,
         canvasBounds.y + canvasBounds.height / 2,
@@ -353,15 +337,10 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
         { steps: 4 },
       );
       await page.mouse.up();
-      await expect
-        .poll(async () => {
-          const current = (await rotateControl.boundingBox())!;
-          return Math.hypot(
-            current.x - rotateBoundsBeforeMove.x,
-            current.y - rotateBoundsBeforeMove.y,
-          );
-        })
-        .toBeGreaterThan(3);
+      await expect(page.getByTestId("pool-rotate-control")).toHaveCount(0);
+      await expect(
+        page.getByText(/move and rotate|drag the rotate/i),
+      ).toHaveCount(0);
 
       await expect
         .poll(() => detailedStageRequests)
@@ -499,7 +478,10 @@ test("supports the pool catalogue and bounded custom input", async ({
     page.getByRole("button", { name: /Compact \(6.5/ }),
   ).toHaveAttribute("aria-pressed", "true");
 
-  await page.getByRole("button", { name: /Custom \(6.5/ }).click();
+  const customLayout = page.getByRole("button", { name: /Custom \(6.5/ });
+  await customLayout.focus();
+  await page.keyboard.press("Enter");
+  await expect(customLayout).toHaveAttribute("aria-pressed", "true");
   const length = page.getByLabel("Custom length (m)");
   await length.fill("20.1");
   await expect(length).toHaveAttribute("aria-invalid", "true");
@@ -509,6 +491,7 @@ test("supports the pool catalogue and bounded custom input", async ({
 
   await length.fill("8.0");
   await page.getByLabel("Custom width (m)").fill("3.0");
+  await expect(page.getByTestId("pool-rotate-control")).toHaveCount(0);
   await expect(page.getByRole("button", { name: /Rotate/ })).toHaveCount(0);
   await expect(page.getByText(/^Rotation:/)).toHaveCount(0);
 });

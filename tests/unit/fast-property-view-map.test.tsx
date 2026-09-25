@@ -304,7 +304,7 @@ it("keeps Builder planning content from stretching the map capture frame", async
   expect(screen.getByTestId("aerial-map-frame")).not.toHaveClass("lg:h-full");
 });
 
-it("keeps the rotate control visible and interactive while taking a snapshot", async () => {
+it("keeps rotation out of the public placement controls and map", async () => {
   const onSnapshotReady = vi.fn();
   render(
     <FastPropertyView
@@ -316,13 +316,65 @@ it("keeps the rotate control visible and interactive while taking a snapshot", a
   await waitFor(() => expect(onSnapshotReady).toHaveBeenCalled());
   expect(setWorkerUrl).toHaveBeenCalledWith("/maplibre/maplibre-gl-worker.mjs");
   expect(waitForIdle).not.toHaveBeenCalled();
-  expect(screen.getByTestId("pool-rotate-control")).toBeVisible();
+  expect(screen.queryByTestId("pool-rotate-control")).not.toBeInTheDocument();
+  expect(
+    screen.queryByText(/rotate|rotation|turn it/i),
+  ).not.toBeInTheDocument();
   mapEventHandlers.get("idle:map")?.({} as MapEvent);
-  expect(screen.getByTestId("pool-rotate-control")).toBeVisible();
+  expect(screen.queryByTestId("pool-rotate-control")).not.toBeInTheDocument();
+});
+
+it("emits the selected named identity and keeps Custom identity while dimensions change", async () => {
+  const user = userEvent.setup();
+  const onPlacementChange = vi.fn();
+  render(
+    <FastPropertyView
+      result={fastResult}
+      onRetry={() => {}}
+      onPlacementChange={onPlacementChange}
+    />,
+  );
+
+  const family = screen.getByRole("button", { name: "Family (8 × 4 m)" });
+  await user.click(family);
+  await waitFor(() =>
+    expect(onPlacementChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        layoutId: "family",
+        layoutName: "Family",
+        dimensions: expect.objectContaining({
+          lengthMetres: 8,
+          widthMetres: 4,
+        }),
+        rotationDegrees: 0,
+      }),
+    ),
+  );
+  expect(family).toHaveAttribute("aria-pressed", "true");
+
+  const custom = screen.getByRole("button", { name: "Custom (6.5 × 3 m)" });
+  custom.focus();
+  await user.keyboard("{Enter}");
+  await user.clear(screen.getByLabelText("Custom length (m)"));
+  await user.type(screen.getByLabelText("Custom length (m)"), "7.2");
+  await user.clear(screen.getByLabelText("Custom width (m)"));
+  await user.type(screen.getByLabelText("Custom width (m)"), "3.4");
+
+  await waitFor(() =>
+    expect(onPlacementChange).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        layoutId: "custom",
+        layoutName: "Custom",
+        dimensions: { lengthMetres: 7.2, widthMetres: 3.4 },
+        rotationDegrees: 0,
+      }),
+    ),
+  );
+  expect(custom).toHaveAttribute("aria-pressed", "true");
 });
 
 it.each(["layer", "camera", "clearances"])(
-  "refreshes the snapshot after a %s change without hiding rotation",
+  "refreshes the snapshot after a %s change without adding rotation controls",
   async (change) => {
     const onSnapshotReady = vi.fn();
     render(
@@ -351,7 +403,7 @@ it.each(["layer", "camera", "clearances"])(
       imageDataUrl: "data:image/png;base64,new",
       visibleLayerKeys: change === "layer" ? [] : ["wastewater_assets"],
     });
-    expect(screen.getByTestId("pool-rotate-control")).toBeVisible();
+    expect(screen.queryByTestId("pool-rotate-control")).not.toBeInTheDocument();
   },
 );
 
@@ -805,86 +857,67 @@ it("shows live pool-shell clearances by default and preserves the selected visib
   );
 });
 
-it.each(["drag", "rotate"] as const)(
-  "keeps parcel slope visible and the existing map instance after pool %s",
-  async (interaction) => {
-    render(
-      <FastPropertyView
-        result={{
-          ...fastResult,
-          detailedChecks: {
-            ...fastResult.detailedChecks!,
-            terrain: {
-              status: "measured" as const,
-              averageSlopeDegrees: 2.4,
-              upperSlopeDegrees: 3.8,
-              estimatedFallMetres: 0.36,
-              downhillBearingDegrees: 135,
-              downhillDirection: "SE" as const,
-              confidence: "indicative" as const,
-              source: {
-                provider: "Land Information New Zealand",
-                dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
-                datasetIdentifier: "linz-dem",
-                status: "success" as const,
-                licenceStatus: "permitted" as const,
-                evidenceUse: "spike_only" as const,
-                retrievedAt: "2026-09-14T00:00:00.000Z",
-                datasetDate: "2024",
-                licence: "CC BY 4.0",
-                attribution: null,
-                geometryUsed: "mapped property parcel",
-                attributesUsed: ["elevation_metres"],
-                evidenceType: "terrain_elevation_grid",
-                confidence: "limited" as const,
-              },
+it("keeps parcel slope visible and the existing map instance after moving the pool", async () => {
+  render(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        detailedChecks: {
+          ...fastResult.detailedChecks!,
+          terrain: {
+            status: "measured" as const,
+            averageSlopeDegrees: 2.4,
+            upperSlopeDegrees: 3.8,
+            estimatedFallMetres: 0.36,
+            downhillBearingDegrees: 135,
+            downhillDirection: "SE" as const,
+            confidence: "indicative" as const,
+            source: {
+              provider: "Land Information New Zealand",
+              dataset: "Auckland Part 1 LiDAR 1m DEM (2024)",
+              datasetIdentifier: "linz-dem",
+              status: "success" as const,
+              licenceStatus: "permitted" as const,
+              evidenceUse: "spike_only" as const,
+              retrievedAt: "2026-09-14T00:00:00.000Z",
+              datasetDate: "2024",
+              licence: "CC BY 4.0",
+              attribution: null,
+              geometryUsed: "mapped property parcel",
+              attributesUsed: ["elevation_metres"],
+              evidenceType: "terrain_elevation_grid",
+              confidence: "limited" as const,
             },
           },
-        }}
-        onRetry={() => {}}
-        onPlacementChange={() => {}}
-      />,
-    );
-    await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+        },
+      }}
+      onRetry={() => {}}
+      onPlacementChange={() => {}}
+    />,
+  );
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
 
-    if (interaction === "drag") {
-      const event: MapEvent = {
-        point: { coordinates: [174.6083, -36.8602] },
-        originalEvent: { stopPropagation() {} },
-      };
-      mapEventHandlers.get("mousedown:pool-fill")!(event);
-      mapEventHandlers.get("mousemove:map")!(event);
-      mapEventHandlers.get("mouseup:map")!(event);
-    } else {
-      const rotateControl = screen.getByTestId("pool-rotate-control");
-      Object.assign(rotateControl, {
-        setPointerCapture: vi.fn(),
-        hasPointerCapture: vi.fn(() => true),
-        releasePointerCapture: vi.fn(),
-      });
-      fireEvent.pointerDown(rotateControl, { pointerId: 1 });
-      fireEvent.pointerMove(rotateControl, {
-        pointerId: 1,
-        clientX: 174_608_350,
-        clientY: 36_860_200,
-      });
-      fireEvent.pointerUp(rotateControl, { pointerId: 1 });
-    }
+  const event: MapEvent = {
+    point: { coordinates: [174.6083, -36.8602] },
+    originalEvent: { stopPropagation() {} },
+  };
+  mapEventHandlers.get("mousedown:pool-fill")!(event);
+  mapEventHandlers.get("mousemove:map")!(event);
+  mapEventHandlers.get("mouseup:map")!(event);
 
-    expect(
-      screen.getByRole("heading", { name: "Indicative property slope" }),
-    ).toBeVisible();
-    expect(
-      screen.getByLabelText(
-        "Indicative property slope: average 2.4 degrees, downhill SE",
-      ),
-    ).toBeVisible();
-    expect(
-      screen.queryByText(/The pool position changed\./i),
-    ).not.toBeInTheDocument();
-    expect(mapCreated).toHaveBeenCalledTimes(1);
-  },
-);
+  expect(
+    screen.getByRole("heading", { name: "Indicative property slope" }),
+  ).toBeVisible();
+  expect(
+    screen.getByLabelText(
+      "Indicative property slope: average 2.4 degrees, downhill SE",
+    ),
+  ).toBeVisible();
+  expect(
+    screen.queryByText(/The pool position changed\./i),
+  ).not.toBeInTheDocument();
+  expect(mapCreated).toHaveBeenCalledTimes(1);
+});
 
 it("keeps hidden pool-shell clearances hidden when a map input update recreates the map", async () => {
   const user = userEvent.setup();
