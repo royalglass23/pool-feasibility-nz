@@ -199,7 +199,8 @@ describe("staff assessment detail", () => {
     expect(screen.queryByText(/customer owner/i)).not.toBeInTheDocument();
   });
 
-  it("renders the complete shared saved report without assessment edit controls", () => {
+  it("renders the complete shared saved report without assessment edit controls", async () => {
+    const user = userEvent.setup();
     const homeownerView = render(
       <HomeownerFeasibilityReportView
         report={savedPreliminaryReport}
@@ -207,6 +208,7 @@ describe("staff assessment detail", () => {
         onBack={() => undefined}
       />,
     );
+    await user.click(screen.getByRole("tab", { name: "Property findings" }));
     expect(
       screen.getByAltText(
         "Saved aerial assessment map showing the mapped property and proposed pool",
@@ -229,6 +231,7 @@ describe("staff assessment detail", () => {
     expect(
       screen.getByText(savedPreliminaryReport.overall.summary),
     ).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "Property findings" }));
     expect(
       screen.getByAltText(
         "Saved aerial assessment map showing the mapped property and proposed pool",
@@ -238,6 +241,7 @@ describe("staff assessment detail", () => {
     expect(
       screen.getByText("Wastewater infrastructure near the proposed pool"),
     ).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "What happens next" }));
     expect(
       screen.getByText("Verify water and wastewater infrastructure"),
     ).toBeVisible();
@@ -295,7 +299,8 @@ describe("staff assessment detail", () => {
     expect(evidence.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
-  it("shows the saved Fast Property View capture and records its visible layers", () => {
+  it("shows the saved Fast Property View capture and records its visible layers", async () => {
+    const user = userEvent.setup();
     const report = structuredClone(savedPreliminaryReport);
     report.layers = [
       {
@@ -327,10 +332,12 @@ describe("staff assessment detail", () => {
       />,
     );
 
+    await user.click(screen.getByRole("tab", { name: "Property findings" }));
+
     expect(
       screen.getByRole("region", { name: "Saved assessment map" }),
     ).toBeVisible();
-    expect(screen.getByText("Captured map layers")).toBeVisible();
+    expect(screen.getByText("Map layers")).toBeVisible();
     expect(screen.getByText(/Saved Fast Property View capture/)).toBeVisible();
     expect(screen.getByText("Wastewater")).toBeVisible();
     expect(screen.getByText("Mapped")).toBeVisible();

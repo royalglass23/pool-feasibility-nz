@@ -1,4 +1,5 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { HomeownerFeasibilityReportView } from "@/components/homeowner-feasibility-report-view";
 import {
@@ -197,6 +198,7 @@ describe("web, PDF and email report consistency", () => {
   });
 
   it("keeps saved constructability status and provenance consistent across web, PDF and email", async () => {
+    const user = userEvent.setup();
     const route = {
       type: "LineString" as const,
       coordinates: [
@@ -307,6 +309,8 @@ describe("web, PDF and email report consistency", () => {
     });
     const email = send.mock.calls[0]?.[0] as { html: string; text: string };
 
+    await user.click(screen.getByRole("tab", { name: "Property findings" }));
+
     for (const heading of [
       "Terrain and ground conditions",
       "Pool barrier feasibility",
@@ -349,7 +353,8 @@ describe("web, PDF and email report consistency", () => {
     );
   });
 
-  it("projects a plain-language saved web report for homeowners", () => {
+  it("projects a plain-language saved web report for homeowners", async () => {
+    const user = userEvent.setup();
     const report = buildTestPreliminaryReport({
       reportAudience: "homeowner",
       constructability: buildConstructabilitySnapshot({
@@ -387,11 +392,15 @@ describe("web, PDF and email report consistency", () => {
       />,
     );
 
+    await user.click(screen.getByRole("tab", { name: "Property findings" }));
+
     expect(
       screen.getByRole("heading", { name: "Assessment map" }),
     ).toBeVisible();
     expect(screen.getByRole("heading", { name: "Key findings" })).toBeVisible();
     expect(screen.getAllByText("Not assessed").length).toBeGreaterThan(0);
+    await user.click(screen.getByRole("tab", { name: "What happens next" }));
+
     expect(
       screen.getByRole("heading", {
         name: "What your pool builder will confirm",
@@ -413,10 +422,13 @@ describe("web, PDF and email report consistency", () => {
     expect(
       screen.queryByRole("heading", { name: "Mapping & data information" }),
     ).not.toBeInTheDocument();
-    for (const sectionName of ["At a glance", "Site assessment"]) {
-      const section = screen.getByRole("region", { name: sectionName });
-      expect(within(section).queryByText("Pool safety barrier")).toBeNull();
-      expect(within(section).queryByText("Construction access")).toBeNull();
-    }
+    await user.click(screen.getByRole("tab", { name: "Overview" }));
+    const overview = screen.getByRole("region", { name: "At a glance" });
+    expect(within(overview).queryByText("Pool safety barrier")).toBeNull();
+    expect(within(overview).queryByText("Construction access")).toBeNull();
+    await user.click(screen.getByRole("tab", { name: "Property findings" }));
+    const findings = screen.getByRole("region", { name: "Site assessment" });
+    expect(within(findings).queryByText("Pool safety barrier")).toBeNull();
+    expect(within(findings).queryByText("Construction access")).toBeNull();
   });
 });
