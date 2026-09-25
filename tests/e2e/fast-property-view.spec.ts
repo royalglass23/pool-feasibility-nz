@@ -40,6 +40,171 @@ test("keeps the builder entry URL through browser back and forward navigation", 
   await expect(page).toHaveURL(/audience=pool_builder/);
 });
 
+test("preserves a no-change revisit and invalidates move, layout, and Custom-size edits", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const address = "42A Bahari Drive, Ranui, Auckland";
+  await page.route("**/api/public/property-check", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          requestedAddress: address,
+          resolvedAddress: {
+            addressId: "rg-361-address",
+            fullAddress: address,
+            fullAddressNumber: "42A",
+            unit: null,
+            territorialAuthority: "Auckland",
+            coordinates: [174.6082, -36.8603],
+          },
+          boundary: {
+            state: "provisional",
+            geometry: null,
+            areaSquareMetres: null,
+            parcelId: null,
+          },
+          aerial: { state: "unavailable", durationMs: 1, attribution: null },
+          defaultPool: {
+            id: "compact",
+            label: "Compact",
+            lengthMetres: 6.5,
+            widthMetres: 3,
+          },
+          progress: {
+            address: "found",
+            boundary: "provisional",
+            aerial: "unavailable",
+            detailedChecks: "not_loaded",
+          },
+          firstUsableViewStartedAt: "2026-09-25T00:00:00.000Z",
+          fastPathDurationMs: 1,
+        },
+        assessmentSnapshot: "rg-361-initial-snapshot",
+      }),
+    });
+  });
+  await page.route("**/api/public/property-check/stages", async (route) => {
+    const request = route.request().postDataJSON() as { mode?: string };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        request.mode === "detailed"
+          ? {
+              assessmentSnapshot: "rg-361-detailed-snapshot",
+              data: {
+                status: "complete",
+                constraints: {
+                  status: "complete",
+                  retryableLayerKeys: [],
+                  unavailableLayerKeys: [],
+                },
+                layers: [],
+                retrievedAt: "2026-09-25T00:00:01.000Z",
+                durationMs: 1,
+                region: "Auckland",
+                limitations: [],
+              },
+            }
+          : {
+              assessmentSnapshot: "rg-361-stage-snapshot",
+              data: {
+                boundary: { state: "provisional", geometry: null },
+                aerial: { state: "unavailable", durationMs: 1 },
+                progress: {
+                  address: "found",
+                  boundary: "provisional",
+                  aerial: "unavailable",
+                  detailedChecks: "not_loaded",
+                },
+                fastPathDurationMs: 1,
+              },
+            },
+      ),
+    });
+  });
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.toDataURL = () => "data:image/png;base64,AAAA";
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Not now" }).click();
+  await page.getByRole("radio", { name: "My property" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "Use this pool position" }).click();
+
+  const summary = page.getByRole("region", {
+    name: "Current property and pool",
+  });
+  await expect(summary.getByText(address, { exact: true })).toBeVisible();
+  await expect(summary.getByText("Compact — 6.5 × 3 m")).toBeVisible();
+  await page.getByRole("button", { name: "Check this property" }).click();
+  const contactForm = page.locator(
+    'form[aria-labelledby="homeowner-details-heading"]',
+  );
+  await expect(contactForm.getByLabel("Name")).toBeVisible();
+  await contactForm.getByLabel("Name").fill("Jane Example");
+
+  await page
+    .getByRole("button", { name: "Edit pool size or position" })
+    .click();
+  await page
+    .getByRole("button", { name: /Check the details.*Completed/ })
+    .click();
+  await page.getByRole("button", { name: "Continue to your details" }).click();
+  await expect(contactForm.getByLabel("Name")).toHaveValue("Jane Example");
+
+  await page
+    .getByRole("button", { name: "Edit pool size or position" })
+    .click();
+  await page.getByRole("button", { name: /Family \(8 × 4 m\)/ }).click();
+  await expect(
+    page.getByRole("button", { name: /Check the details.*Locked/ }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Use this pool position" }).click();
+  await expect(page.getByText("Family — 8 × 4 m")).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Edit pool size or position" })
+    .click();
+  await page.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }).click();
+  await page.getByLabel("Custom length (m)").fill("7.2");
+  await page.getByLabel("Custom width (m)").fill("3.4");
+  await expect(
+    page.getByRole("button", { name: /Check the details.*Locked/ }),
+  ).toBeDisabled();
+  await page.getByRole("button", { name: "Use this pool position" }).click();
+  await expect(page.getByText("Custom — 7.2 × 3.4 m")).toBeVisible();
+
+  await page
+    .getByRole("button", { name: "Edit pool size or position" })
+    .click();
+  const canvas = page.locator("canvas.maplibregl-canvas");
+  const bounds = (await canvas.boundingBox())!;
+  await canvas.hover({
+    position: { x: bounds.width / 2, y: bounds.height / 2 },
+  });
+  await expect(canvas).toHaveCSS("cursor", "move");
+  await page.mouse.down();
+  await page.mouse.move(
+    bounds.x + bounds.width / 2 + 18,
+    bounds.y + bounds.height / 2 + 12,
+    { steps: 4 },
+  );
+  await page.mouse.up();
+  await expect(
+    page.getByRole("button", { name: /Check the details.*Locked/ }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Use this pool position" }),
+  ).toBeEnabled();
+});
+
 for (const initialOutcome of ["complete", "retryable", "error"] as const) {
   test(`loads detailed mapping evidence after ${initialOutcome} response`, async ({
     page,

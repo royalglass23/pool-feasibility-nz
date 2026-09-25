@@ -12,6 +12,10 @@ import userEvent from "@testing-library/user-event";
 import { PropertyCheckJourney } from "@/components/property-check-journey";
 import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
 
+const saveAssessmentMock = vi.hoisted(() => vi.fn());
+let latestOnSaved: ((assessment: unknown) => void) | null = null;
+let latestOnSavingChange: ((saving: boolean) => void) | null = null;
+
 vi.mock("@/components/fast-property-view", () => ({
   FastPropertyView: ({
     onPlacementChange,
@@ -29,10 +33,19 @@ vi.mock("@/components/fast-property-view", () => ({
     placementConfirmed: boolean;
     planningStep?: React.ReactNode;
   }) => {
-    function update(longitude: number, clearancesVisible: boolean) {
+    function update(
+      longitude: number,
+      clearancesVisible: boolean,
+      layoutId: "compact" | "family" | "custom" = "compact",
+      layoutName: "Compact" | "Family" | "Custom" = "Compact",
+      lengthMetres = 6.5,
+      widthMetres = 3,
+    ) {
       onPlacementChange({
+        layoutId,
+        layoutName,
         position: [longitude, -36.85],
-        dimensions: { lengthMetres: 6, widthMetres: 3 },
+        dimensions: { lengthMetres, widthMetres },
         rotationDegrees: 0,
         constructionEnvelopeWithinMappedArea: true,
         clearancesVisible,
@@ -45,6 +58,17 @@ vi.mock("@/components/fast-property-view", () => ({
     return (
       <div>
         <button onClick={() => update(174.76, true)}>Set pool layout</button>
+        <button onClick={() => update(174.76, true)}>
+          Revisit pool layout
+        </button>
+        <button onClick={() => update(174.76, true, "family", "Family", 8, 4)}>
+          Change named layout
+        </button>
+        <button
+          onClick={() => update(174.76, true, "custom", "Custom", 7.2, 3.4)}
+        >
+          Change custom dimensions
+        </button>
         <button onClick={() => update(174.76, false)}>Hide clearances</button>
         <button onClick={() => update(174.77, false)}>Move pool</button>
         {planningStep}
@@ -57,15 +81,46 @@ vi.mock("@/components/fast-property-view", () => ({
 }));
 
 vi.mock("@/components/homeowner-submission-form", () => ({
+  emptyHomeownerContactDraft: () => ({
+    name: "",
+    builderCompanyName: "",
+    phone: "",
+    email: "",
+    desiredTiming: "asap",
+    desiredTimingOtherDetail: "",
+    additionalInfo: "",
+    consentGiven: false,
+  }),
   HomeownerSubmissionForm: ({
     assessmentSnapshot,
     reportAudience,
+    draft,
+    onDraftChange,
+    onSaved,
+    onSavingChange,
   }: {
     assessmentSnapshot: string;
     reportAudience: string;
+    draft?: { name: string };
+    onDraftChange?: (draft: { name: string }) => void;
+    onSaved: (assessment: unknown) => void;
+    onSavingChange?: (saving: boolean) => void;
   }) => (
-    <div data-testid="details-form">
+    <div
+      data-testid="details-form"
+      ref={() => {
+        latestOnSaved = onSaved;
+        latestOnSavingChange = onSavingChange ?? null;
+      }}
+    >
       Details for {assessmentSnapshot} as {reportAudience}
+      <label>
+        Name
+        <input
+          value={draft?.name ?? ""}
+          onChange={(event) => onDraftChange?.({ name: event.target.value })}
+        />
+      </label>
     </div>
   ),
 }));
@@ -76,7 +131,7 @@ vi.mock("@/components/saved-assessment-report-panel", () => ({
     assessment: null,
     showReport: false,
     resetReport: () => undefined,
-    saveAssessment: () => undefined,
+    saveAssessment: saveAssessmentMock,
   }),
 }));
 
@@ -87,9 +142,228 @@ vi.mock("@/modules/anonymous-funnel-analytics", () => ({
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
+  saveAssessmentMock.mockReset();
+  latestOnSaved = null;
+  latestOnSavingChange = null;
 });
 
 describe("Site answers in the property journey", () => {
+  it("shows address and pool summaries and preserves evidence on a no-change placement revisit", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", createJourneyFetch());
+
+    render(<PropertyCheckJourney />);
+    await openValidPlacement(user, "homeowner");
+    await user.click(
+      screen.getByRole("button", { name: "Use this pool position" }),
+    );
+
+    expect(screen.getByText("1 Test Street, Auckland")).toBeVisible();
+    expect(screen.getByText("Compact — 6.5 × 3 m")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: "Check this property" }),
+    );
+    expect(await screen.findByTestId("details-form")).toBeVisible();
+    await user.type(screen.getByLabelText("Name"), "Jane Example");
+    expect(
+      screen.getByRole("button", { name: "Edit pool size or position" }),
+    ).toBeVisible();
+
+    await user.click(
+      screen.getByRole("button", { name: "Edit pool size or position" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Revisit pool layout" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Check the details.*Completed/ }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Continue to your details" }),
+    );
+
+    expect(await screen.findByTestId("details-form")).toHaveTextContent(
+      "stage-token as homeowner",
+    );
+    expect(screen.getByLabelText("Name")).toHaveValue("Jane Example");
+  });
+
+  it.each([
+    ["Change named layout", "Family — 8 × 4 m"],
+    ["Change custom dimensions", "Custom — 7.2 × 3.4 m"],
+  ])(
+    "blocks forward progress and replaces stale evidence after %s",
+    async (changeAction, expectedSummary) => {
+      const user = userEvent.setup();
+      vi.stubGlobal("fetch", createJourneyFetch());
+
+      render(<PropertyCheckJourney />);
+      await openValidPlacement(user, "homeowner");
+      await user.click(
+        screen.getByRole("button", { name: "Use this pool position" }),
+      );
+      await user.click(
+        screen.getByRole("button", { name: "Check this property" }),
+      );
+      expect(await screen.findByTestId("details-form")).toBeVisible();
+
+      await user.click(
+        screen.getByRole("button", { name: "Edit pool size or position" }),
+      );
+      await user.click(screen.getByRole("button", { name: changeAction }));
+
+      expect(
+        screen.getByRole("button", { name: /Check the details.*Locked/ }),
+      ).toBeDisabled();
+      expect(screen.queryByTestId("details-form")).not.toBeInTheDocument();
+      await user.click(
+        screen.getByRole("button", { name: "Use this pool position" }),
+      );
+      expect(screen.getByText(expectedSummary)).toBeVisible();
+    },
+  );
+
+  it("clears property evidence for an address change while retaining contact details", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", createJourneyFetch());
+
+    render(<PropertyCheckJourney />);
+    await openValidPlacement(user, "homeowner");
+    await user.click(
+      screen.getByRole("button", { name: "Use this pool position" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Check this property" }),
+    );
+    await user.type(await screen.findByLabelText("Name"), "Jane Example");
+
+    await user.click(
+      screen.getByRole("button", { name: /Find the property.*Completed/ }),
+    );
+    await user.click(screen.getByRole("button", { name: "Change address" }));
+
+    expect(screen.getByLabelText("Auckland property address")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /Place your pool.*Locked/ }),
+    ).toBeDisabled();
+
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      "2 Test Street, Auckland",
+    );
+    await user.keyboard("{Enter}");
+    await user.click(
+      await screen.findByRole("button", { name: "Set pool layout" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Use this pool position" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Check this property" }),
+    );
+
+    expect(await screen.findByLabelText("Name")).toHaveValue("Jane Example");
+  });
+
+  it("ignores a stale save completion after the pool evidence changes", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", createJourneyFetch());
+
+    render(<PropertyCheckJourney />);
+    await openValidPlacement(user, "homeowner");
+    await user.click(
+      screen.getByRole("button", { name: "Use this pool position" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Check this property" }),
+    );
+    expect(await screen.findByTestId("details-form")).toBeVisible();
+    const completeStaleSave = latestOnSaved;
+    expect(completeStaleSave).not.toBeNull();
+
+    await user.click(
+      screen.getByRole("button", { name: "Edit pool size or position" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Change named layout" }),
+    );
+    act(() => completeStaleSave?.({ id: "stale-assessment" }));
+
+    expect(saveAssessmentMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByRole("button", { name: /Your property report.*Locked/ }),
+    ).toBeDisabled();
+  });
+
+  it("does not apply a homeowner detail response after the pathway changes", async () => {
+    const user = userEvent.setup();
+    let finishDetailedRequest: ((response: Response) => void) | null = null;
+    const detailedResponse = new Promise<Response>((resolve) => {
+      finishDetailedRequest = resolve;
+    });
+    const fetchMock = createJourneyFetch();
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((url: string) =>
+        url.endsWith("/stages") ? detailedResponse : fetchMock(url),
+      ),
+    );
+
+    render(<PropertyCheckJourney />);
+    await openValidPlacement(user, "homeowner");
+    await user.click(
+      screen.getByRole("button", { name: "Use this pool position" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Check this property" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
+    );
+    await user.click(
+      screen.getByRole("radio", { name: "A customer property" }),
+    );
+
+    await act(async () => {
+      finishDetailedRequest?.(
+        Response.json({
+          data: { status: "complete", layers: [], limitations: [] },
+          assessmentSnapshot: "stale-homeowner-stage-token",
+        }),
+      );
+      await detailedResponse;
+    });
+
+    expect(screen.queryByTestId("details-form")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Your details.*Locked/ }),
+    ).toBeDisabled();
+  });
+
+  it("locks evidence and contact edits while a report save is in flight", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", createJourneyFetch());
+
+    render(<PropertyCheckJourney />);
+    await openValidPlacement(user, "homeowner");
+    await user.click(
+      screen.getByRole("button", { name: "Use this pool position" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Check this property" }),
+    );
+    expect(await screen.findByTestId("details-form")).toBeVisible();
+
+    act(() => latestOnSavingChange?.(true));
+
+    expect(
+      screen.getByRole("button", { name: "Edit pool size or position" }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
+    ).toBeDisabled();
+  });
+
   it("requires an audience choice before address search and exposes one gated journey", async () => {
     const user = userEvent.setup();
     vi.stubGlobal("fetch", createJourneyFetch());
@@ -366,9 +640,9 @@ describe("Site answers in the property journey", () => {
     await user.click(screen.getByRole("radio", { name: "My property" }));
     await user.click(screen.getByRole("button", { name: "Continue" }));
     await user.click(
-      screen.getByRole("button", { name: "Continue to your details" }),
+      screen.getByRole("button", { name: "Check this property" }),
     );
-    expect(screen.getByTestId("details-form")).toHaveTextContent(
+    expect(await screen.findByTestId("details-form")).toHaveTextContent(
       "stage-token as homeowner",
     );
     await user.click(

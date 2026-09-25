@@ -41,6 +41,30 @@ export type SavedAssessmentResponse = {
   };
 };
 
+export type HomeownerContactDraft = {
+  name: string;
+  builderCompanyName: string;
+  phone: string;
+  email: string;
+  desiredTiming: string;
+  desiredTimingOtherDetail: string;
+  additionalInfo: string;
+  consentGiven: boolean;
+};
+
+export function emptyHomeownerContactDraft(): HomeownerContactDraft {
+  return {
+    name: "",
+    builderCompanyName: "",
+    phone: "",
+    email: "",
+    desiredTiming: "asap",
+    desiredTimingOtherDetail: "",
+    additionalInfo: "",
+    consentGiven: false,
+  };
+}
+
 export function HomeownerSubmissionForm({
   assessmentSnapshot,
   reportAudience,
@@ -48,6 +72,9 @@ export function HomeownerSubmissionForm({
   mapImageDataUrl,
   mapVisibleLayerKeys = [],
   placement,
+  draft,
+  onDraftChange,
+  onSavingChange,
   onSaved,
 }: {
   assessmentSnapshot: string;
@@ -56,12 +83,23 @@ export function HomeownerSubmissionForm({
   mapImageDataUrl: string;
   mapVisibleLayerKeys?: string[];
   placement: FastPoolPlacementSnapshot;
+  draft?: HomeownerContactDraft;
+  onDraftChange?: (draft: HomeownerContactDraft) => void;
+  onSavingChange?: (saving: boolean) => void;
   onSaved: (assessment: SavedAssessmentResponse) => void;
 }) {
   const [saving, setSaving] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
-  const [desiredTiming, setDesiredTiming] = useState("asap");
+  const [internalDraft, setInternalDraft] = useState<HomeownerContactDraft>(
+    emptyHomeownerContactDraft,
+  );
+  const contactDraft = draft ?? internalDraft;
+  function updateDraft(patch: Partial<HomeownerContactDraft>) {
+    const next = { ...contactDraft, ...patch };
+    setInternalDraft(next);
+    onDraftChange?.(next);
+  }
   useEffect(() => {
     trackAnonymousFunnelEvent({ name: "report_form_viewed" });
   }, []);
@@ -75,21 +113,20 @@ export function HomeownerSubmissionForm({
       );
       return;
     }
-    const form = new FormData(event.currentTarget);
     const contact = homeownerContactSchema.safeParse({
-      name: form.get("name"),
-      phone: form.get("phone"),
-      email: form.get("email"),
+      name: contactDraft.name,
+      phone: contactDraft.phone,
+      email: contactDraft.email,
       builderCompanyName:
         reportAudience === "pool_builder"
-          ? form.get("builderCompanyName")
+          ? contactDraft.builderCompanyName
           : undefined,
       visitorType: reportAudience,
-      desiredTiming: form.get("desiredTiming"),
+      desiredTiming: contactDraft.desiredTiming,
       desiredTimingOtherDetail:
-        form.get("desiredTimingOtherDetail") || undefined,
-      additionalInfo: form.get("additionalInfo") || undefined,
-      consentGiven: form.get("consent") === "on",
+        contactDraft.desiredTimingOtherDetail || undefined,
+      additionalInfo: contactDraft.additionalInfo || undefined,
+      consentGiven: contactDraft.consentGiven,
     });
     if (!contact.success) {
       setFieldErrors(friendlyFieldErrors(contact.error.issues));
@@ -106,6 +143,7 @@ export function HomeownerSubmissionForm({
     }
     setFieldErrors({});
     setSaving(true);
+    onSavingChange?.(true);
     setError(null);
 
     try {
@@ -182,6 +220,7 @@ export function HomeownerSubmissionForm({
       setError(friendlyRequestError(503, "save your report"));
     } finally {
       setSaving(false);
+      onSavingChange?.(false);
     }
   }
 
@@ -206,162 +245,193 @@ export function HomeownerSubmissionForm({
         title="Saving your assessment"
         description="Saving your details and preparing your preliminary report."
       />
-      <h3
-        id="homeowner-details-heading"
-        tabIndex={-1}
-        className="text-pool-950 text-xl font-semibold"
-      >
-        Your details for the preliminary report
-      </h3>
-      <p className="text-pool-700 mt-2 text-sm leading-6">
-        Your saved layout will match the pool position shown above. This is a
-        preliminary assessment, not approval or construction advice.
-      </p>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2">
-        <Field label="Name" name="name" required error={fieldErrors.name} />
-        {reportAudience === "pool_builder" && (
-          <Field
-            label="Company / trading name (optional)"
-            name="builderCompanyName"
-            error={fieldErrors.builderCompanyName}
-          />
-        )}
-        <div className="text-pool-800 text-sm font-medium">
-          <label htmlFor="homeowner-phone">Phone</label>
-          <input
-            id="homeowner-phone"
-            name="phone"
-            type="tel"
-            autoComplete="tel"
-            required
-            maxLength={40}
-            aria-invalid={fieldErrors.phone ? true : undefined}
-            aria-describedby={
-              fieldErrors.phone ? "homeowner-phone-error" : undefined
-            }
-            onBlur={(event) => {
-              setFieldErrors((current) => ({
-                ...current,
-                phone:
-                  event.target.value.length > 0 &&
-                  !isValidNzPhone(event.target.value)
-                    ? NZ_PHONE_ERROR
-                    : "",
-              }));
-            }}
-            className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3 aria-[invalid=true]:border-orange-600 aria-[invalid=true]:outline-orange-100"
-          />
-          {fieldErrors.phone && (
-            <FieldValidationMessage id="homeowner-phone-error">
-              {NZ_PHONE_ERROR}
-            </FieldValidationMessage>
-          )}
-        </div>
-        <Field
-          label="Email"
-          name="email"
-          type="email"
-          required
-          error={fieldErrors.email}
-        />
-        <label className="text-pool-800 text-sm font-medium">
-          When do you need it?
-          <select
-            name="desiredTiming"
-            required
-            value={desiredTiming}
-            onChange={(event) => setDesiredTiming(event.target.value)}
-            className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3"
-          >
-            <option value="asap">ASAP</option>
-            <option value="3_months">Within 3 months</option>
-            <option value="6_months">Within 6 months</option>
-            <option value="12_months">Within 12 months</option>
-            <option value="other">Other</option>
-          </select>
-        </label>
-        {desiredTiming === "other" && (
-          <Field
-            label="Tell us when you need it"
-            name="desiredTimingOtherDetail"
-            required
-            error={fieldErrors.desiredTimingOtherDetail}
-          />
-        )}
-        <label className="text-pool-800 text-sm font-medium sm:col-span-2">
-          Additional Info (optional)
-          <textarea
-            name="additionalInfo"
-            maxLength={4000}
-            rows={3}
-            aria-invalid={fieldErrors.additionalInfo ? true : undefined}
-            aria-describedby={
-              fieldErrors.additionalInfo
-                ? "homeowner-additionalInfo-error"
-                : undefined
-            }
-            className="border-pool-300 mt-1 block w-full rounded-lg border bg-white px-3 py-2 aria-[invalid=true]:border-orange-600 aria-[invalid=true]:outline-orange-100"
-          />
-          {fieldErrors.additionalInfo && (
-            <FieldValidationMessage id="homeowner-additionalInfo-error">
-              {fieldErrors.additionalInfo}
-            </FieldValidationMessage>
-          )}
-        </label>
-        <p className="text-pool-700 text-sm leading-6 sm:col-span-2">
-          Before submitting, read our{" "}
-          <Link
-            href="/privacy"
-            className="text-pool-blue-800 decoration-pool-blue-300 hover:text-pool-blue-950 focus-visible:outline-pool-blue-700 font-semibold underline underline-offset-4 outline-offset-4 focus-visible:outline-2"
-          >
-            privacy notice
-          </Link>
-          . It explains what we collect, the 12-month retention period, and how
-          to ask for access, correction, or early deletion.
-        </p>
-        <label className="text-pool-800 text-sm leading-6 sm:col-span-2">
-          <span className="flex gap-3">
-            <input
-              name="consent"
-              type="checkbox"
-              required
-              aria-invalid={fieldErrors.consentGiven ? true : undefined}
-              aria-describedby={
-                fieldErrors.consentGiven ? "homeowner-consent-error" : undefined
-              }
-              className="mt-1 size-4"
-            />
-            <span>
-              I consent to PoolReady saving these details and this preliminary
-              assessment, sending my report, and following up about this
-              request. This is not marketing consent.
-            </span>
-          </span>
-          {fieldErrors.consentGiven && (
-            <FieldValidationMessage
-              id="homeowner-consent-error"
-              className="ml-7"
-            >
-              {fieldErrors.consentGiven}
-            </FieldValidationMessage>
-          )}
-        </label>
-      </div>
-      {error && (
-        <div
-          role="alert"
-          className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-950"
+      <fieldset disabled={saving} className="contents">
+        <h3
+          id="homeowner-details-heading"
+          tabIndex={-1}
+          className="text-pool-950 text-xl font-semibold"
         >
-          <p>{error}</p>
+          Your details for the preliminary report
+        </h3>
+        <p className="text-pool-700 mt-2 text-sm leading-6">
+          Your saved layout will match the pool position shown above. This is a
+          preliminary assessment, not approval or construction advice.
+        </p>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <Field
+            label="Name"
+            name="name"
+            required
+            error={fieldErrors.name}
+            value={contactDraft.name}
+            onChange={(value) => updateDraft({ name: value })}
+          />
+          {reportAudience === "pool_builder" && (
+            <Field
+              label="Company / trading name (optional)"
+              name="builderCompanyName"
+              error={fieldErrors.builderCompanyName}
+              value={contactDraft.builderCompanyName}
+              onChange={(value) => updateDraft({ builderCompanyName: value })}
+            />
+          )}
+          <div className="text-pool-800 text-sm font-medium">
+            <label htmlFor="homeowner-phone">Phone</label>
+            <input
+              id="homeowner-phone"
+              name="phone"
+              type="tel"
+              autoComplete="tel"
+              required
+              maxLength={40}
+              value={contactDraft.phone}
+              onChange={(event) => updateDraft({ phone: event.target.value })}
+              aria-invalid={fieldErrors.phone ? true : undefined}
+              aria-describedby={
+                fieldErrors.phone ? "homeowner-phone-error" : undefined
+              }
+              onBlur={(event) => {
+                setFieldErrors((current) => ({
+                  ...current,
+                  phone:
+                    event.target.value.length > 0 &&
+                    !isValidNzPhone(event.target.value)
+                      ? NZ_PHONE_ERROR
+                      : "",
+                }));
+              }}
+              className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3 aria-[invalid=true]:border-orange-600 aria-[invalid=true]:outline-orange-100"
+            />
+            {fieldErrors.phone && (
+              <FieldValidationMessage id="homeowner-phone-error">
+                {NZ_PHONE_ERROR}
+              </FieldValidationMessage>
+            )}
+          </div>
+          <Field
+            label="Email"
+            name="email"
+            type="email"
+            required
+            error={fieldErrors.email}
+            value={contactDraft.email}
+            onChange={(value) => updateDraft({ email: value })}
+          />
+          <label className="text-pool-800 text-sm font-medium">
+            When do you need it?
+            <select
+              name="desiredTiming"
+              required
+              value={contactDraft.desiredTiming}
+              onChange={(event) =>
+                updateDraft({ desiredTiming: event.target.value })
+              }
+              className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3"
+            >
+              <option value="asap">ASAP</option>
+              <option value="3_months">Within 3 months</option>
+              <option value="6_months">Within 6 months</option>
+              <option value="12_months">Within 12 months</option>
+              <option value="other">Other</option>
+            </select>
+          </label>
+          {contactDraft.desiredTiming === "other" && (
+            <Field
+              label="Tell us when you need it"
+              name="desiredTimingOtherDetail"
+              required
+              error={fieldErrors.desiredTimingOtherDetail}
+              value={contactDraft.desiredTimingOtherDetail}
+              onChange={(value) =>
+                updateDraft({ desiredTimingOtherDetail: value })
+              }
+            />
+          )}
+          <label className="text-pool-800 text-sm font-medium sm:col-span-2">
+            Additional Info (optional)
+            <textarea
+              name="additionalInfo"
+              maxLength={4000}
+              rows={3}
+              value={contactDraft.additionalInfo}
+              onChange={(event) =>
+                updateDraft({ additionalInfo: event.target.value })
+              }
+              aria-invalid={fieldErrors.additionalInfo ? true : undefined}
+              aria-describedby={
+                fieldErrors.additionalInfo
+                  ? "homeowner-additionalInfo-error"
+                  : undefined
+              }
+              className="border-pool-300 mt-1 block w-full rounded-lg border bg-white px-3 py-2 aria-[invalid=true]:border-orange-600 aria-[invalid=true]:outline-orange-100"
+            />
+            {fieldErrors.additionalInfo && (
+              <FieldValidationMessage id="homeowner-additionalInfo-error">
+                {fieldErrors.additionalInfo}
+              </FieldValidationMessage>
+            )}
+          </label>
+          <p className="text-pool-700 text-sm leading-6 sm:col-span-2">
+            Before submitting, read our{" "}
+            <Link
+              href="/privacy"
+              className="text-pool-blue-800 decoration-pool-blue-300 hover:text-pool-blue-950 focus-visible:outline-pool-blue-700 font-semibold underline underline-offset-4 outline-offset-4 focus-visible:outline-2"
+            >
+              privacy notice
+            </Link>
+            . It explains what we collect, the 12-month retention period, and
+            how to ask for access, correction, or early deletion.
+          </p>
+          <label className="text-pool-800 text-sm leading-6 sm:col-span-2">
+            <span className="flex gap-3">
+              <input
+                name="consent"
+                type="checkbox"
+                required
+                checked={contactDraft.consentGiven}
+                onChange={(event) =>
+                  updateDraft({ consentGiven: event.target.checked })
+                }
+                aria-invalid={fieldErrors.consentGiven ? true : undefined}
+                aria-describedby={
+                  fieldErrors.consentGiven
+                    ? "homeowner-consent-error"
+                    : undefined
+                }
+                className="mt-1 size-4"
+              />
+              <span>
+                I consent to PoolReady saving these details and this preliminary
+                assessment, sending my report, and following up about this
+                request. This is not marketing consent.
+              </span>
+            </span>
+            {fieldErrors.consentGiven && (
+              <FieldValidationMessage
+                id="homeowner-consent-error"
+                className="ml-7"
+              >
+                {fieldErrors.consentGiven}
+              </FieldValidationMessage>
+            )}
+          </label>
         </div>
-      )}
-      <button
-        type="submit"
-        disabled={saving}
-        className="bg-pool-950 disabled:bg-pool-400 mt-5 min-h-11 rounded-xl px-5 font-semibold text-white disabled:cursor-not-allowed"
-      >
-        {saving ? "Saving assessment…" : "Save and show my report"}
-      </button>
+        {error && (
+          <div
+            role="alert"
+            className="mt-4 rounded-xl border border-red-200 bg-red-50 p-4 text-sm leading-6 text-red-950"
+          >
+            <p>{error}</p>
+          </div>
+        )}
+        <button
+          type="submit"
+          disabled={saving}
+          className="bg-pool-950 disabled:bg-pool-400 mt-5 min-h-11 rounded-xl px-5 font-semibold text-white disabled:cursor-not-allowed"
+        >
+          {saving ? "Saving assessment…" : "Save and show my report"}
+        </button>
+      </fieldset>
     </form>
   );
 }
@@ -372,12 +442,16 @@ function Field({
   type = "text",
   required,
   error,
+  value,
+  onChange,
 }: {
   label: string;
   name: string;
   type?: string;
   required?: boolean;
   error?: string;
+  value: string;
+  onChange: (value: string) => void;
 }) {
   const id = `homeowner-${name}`;
   return (
@@ -388,6 +462,8 @@ function Field({
         name={name}
         type={type}
         required={required}
+        value={value}
+        onChange={(event) => onChange(event.target.value)}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? `${id}-error` : undefined}
         className="border-pool-300 mt-1 block min-h-11 w-full rounded-lg border bg-white px-3 aria-[invalid=true]:border-orange-600 aria-[invalid=true]:outline-orange-100"

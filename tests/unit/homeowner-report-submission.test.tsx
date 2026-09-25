@@ -486,6 +486,96 @@ describe("homeowner report submission", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
+  it("locks the submitted evidence and persists only one report while saving", async () => {
+    const user = userEvent.setup();
+    let finishAudienceRequest: ((response: Response) => void) | null = null;
+    const audienceResponse = new Promise<Response>((resolve) => {
+      finishAudienceRequest = resolve;
+    });
+    const request = vi
+      .fn()
+      .mockReturnValueOnce(audienceResponse)
+      .mockResolvedValueOnce(
+        Response.json(
+          {
+            assessment: {
+              id: "assessment-locked",
+              reference: report.reference,
+              status: "new_enquiry",
+              created: true,
+              report,
+              reportAccessToken: "saved-report-access-token",
+              delivery: {
+                homeowner: "pending",
+                internal_test_report: "pending",
+              },
+            },
+          },
+          { status: 201 },
+        ),
+      );
+    vi.stubGlobal("fetch", request);
+    const onSaved = vi.fn();
+    const onSavingChange = vi.fn();
+
+    render(
+      <HomeownerSubmissionForm
+        assessmentSnapshot="server-issued-assessment-snapshot"
+        reportAudience="homeowner"
+        mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
+        placement={{
+          layoutId: "compact",
+          layoutName: "Compact",
+          position: [174.76, -36.85],
+          rotationDegrees: 12,
+          dimensions: { lengthMetres: 6.5, widthMetres: 3 },
+          poolGeometry: validPoolGeometry,
+          constructionEnvelopeGeometry: validPoolGeometry,
+          constructionEnvelopeWithinMappedArea: true,
+          warning: {
+            status: "needs_checking",
+            label: "Needs Checking",
+            text: "Some mapped evidence is unavailable or uncertain.",
+            recommendation: null,
+            conflictingDatasets: [],
+            checkingDatasets: [],
+          },
+        }}
+        onSavingChange={onSavingChange}
+        onSaved={onSaved}
+      />,
+    );
+
+    const form = within(screen.getAllByRole("form").at(-1)!);
+    await user.type(form.getByLabelText("Name"), "Jane Homeowner");
+    await user.type(form.getByLabelText("Phone"), "021 555 1234");
+    await user.type(form.getByLabelText("Email"), "jane@example.com");
+    await user.click(form.getByRole("checkbox"));
+    await user.click(
+      form.getByRole("button", { name: "Save and show my report" }),
+    );
+
+    expect(form.getByLabelText("Name")).toBeDisabled();
+    expect(onSavingChange).toHaveBeenLastCalledWith(true);
+    expect(request).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      finishAudienceRequest?.(
+        Response.json({
+          assessmentSnapshot: "audience-signed-assessment-snapshot",
+        }),
+      );
+      await audienceResponse;
+    });
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(
+      request.mock.calls.filter(([url]) => url === "/api/public/assessments"),
+    ).toHaveLength(1);
+    expect(onSavingChange).toHaveBeenLastCalledWith(false);
+  });
+
   it("collects the optional builder company without restoring the visitor-type question", async () => {
     const user = userEvent.setup();
     const request = vi
@@ -586,7 +676,8 @@ describe("homeowner report submission", () => {
     });
   });
 
-  it("shows the saved report without PDF download controls or requests", () => {
+  it("shows the saved report without PDF download controls or requests", async () => {
+    const user = userEvent.setup();
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
 
@@ -624,17 +715,17 @@ describe("homeowner report submission", () => {
       ),
     ).toBeVisible();
     expect(screen.getByText(/Generated 29 Jul 2026, 2:03 pm/)).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "What happens next" }));
     expect(screen.getByText("Confirm the pool position")).toBeVisible();
     expect(
       screen.queryByText("Emailing the saved report to the client..."),
     ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Property findings" }));
     const reportMapPanel = screen.getByRole("region", {
       name: "Saved assessment map",
     });
     expect(reportMapPanel).toHaveClass("rounded-xl", "border-pool-200");
-    expect(
-      within(reportMapPanel).getByText("Captured map layers"),
-    ).toBeVisible();
+    expect(within(reportMapPanel).getByText("Map layers")).toBeVisible();
     expect(
       within(reportMapPanel).getByText("Mapped property boundary"),
     ).toBeVisible();
@@ -720,6 +811,7 @@ describe("homeowner report submission", () => {
       />,
     );
 
+    await user.click(screen.getByRole("tab", { name: "What happens next" }));
     await user.click(screen.getByRole("button", { name: "Start again" }));
 
     expect(onStartAgain).toHaveBeenCalledOnce();
