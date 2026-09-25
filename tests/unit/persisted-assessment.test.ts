@@ -24,6 +24,8 @@ const validSubmission = {
     boundaryStatus: "provisional",
   },
   poolLayout: {
+    layoutId: "compact",
+    layoutName: "Compact",
     lengthMetres: 6.5,
     widthMetres: 3,
     rotationDegrees: 12,
@@ -63,6 +65,12 @@ const validSubmission = {
     feasibilityState: "needs_checking",
     mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
     reportData: {
+      poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      },
       recommendation: "Confirm the boundary.",
       preliminaryFeasibilityWording: "Preliminary only.",
       risks: [],
@@ -179,6 +187,77 @@ describe("persisted homeowner assessment contract", () => {
       parsePersistedAssessmentSubmission(validSubmission).poolLayout
         .clearancesVisible,
     ).toBe(true);
+  });
+
+  it("round-trips named layouts and gives historical layouts a neutral identity", () => {
+    expect(
+      parsePersistedAssessmentSubmission(validSubmission).poolLayout,
+    ).toMatchObject({
+      layoutId: "compact",
+      layoutName: "Compact",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    });
+    expect(
+      parsePersistedAssessmentSubmission(validSubmission).report.reportData
+        .poolLayout,
+    ).toEqual({
+      layoutId: "compact",
+      layoutName: "Compact",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    });
+
+    const legacyLayout: Record<string, unknown> = {
+      ...validSubmission.poolLayout,
+    };
+    delete legacyLayout.layoutId;
+    delete legacyLayout.layoutName;
+    const legacyReportData: Record<string, unknown> = {
+      ...validSubmission.report.reportData,
+    };
+    delete legacyReportData.poolLayout;
+    expect(
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        poolLayout: legacyLayout,
+        report: { ...validSubmission.report, reportData: legacyReportData },
+      }).poolLayout,
+    ).toMatchObject({
+      layoutId: null,
+      layoutName: "Saved pool layout",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    });
+  });
+
+  it("rejects incompatible persisted layout metadata", () => {
+    expect(() =>
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        poolLayout: {
+          ...validSubmission.poolLayout,
+          layoutName: "Custom",
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        report: {
+          ...validSubmission.report,
+          reportData: {
+            ...validSubmission.report.reportData,
+            poolLayout: {
+              layoutId: "custom",
+              layoutName: "Custom",
+              lengthMetres: 6.5,
+              widthMetres: 3,
+            },
+          },
+        },
+      }),
+    ).toThrow();
   });
 
   it("rejects missing consent and invalid timing", () => {

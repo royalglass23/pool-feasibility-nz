@@ -1,5 +1,6 @@
 import "server-only";
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
+import { isDeepStrictEqual } from "node:util";
 import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fast-property-details";
 import type {
   FastPropertyViewResult,
@@ -11,6 +12,10 @@ import {
 } from "./constructability-evidence";
 import { estimatedPoolDepthSchema } from "./estimated-pool-depth";
 import { reportAudienceSchema, type ReportAudience } from "./report-audience";
+import {
+  namedPoolLayoutSchema,
+  type NamedPoolLayout,
+} from "./pool-layout-schema";
 
 const ASSESSMENT_SNAPSHOT_TTL_MS = 15 * 60 * 1_000;
 const snapshotGlobal = globalThis as typeof globalThis & {
@@ -26,6 +31,7 @@ export type TrustedAssessmentSnapshot = {
   constructability?: TrustedConstructabilitySubmission;
   lockedEstimatedDepthMetres?: number;
   reportAudience?: ReportAudience;
+  poolLayout?: NamedPoolLayout;
 };
 
 export function issueAssessmentSnapshot(
@@ -55,10 +61,12 @@ export function attachConstructabilityAnswers(
 export function attachReportAudience(
   snapshot: TrustedAssessmentSnapshot,
   reportAudience: ReportAudience,
+  poolLayout?: NamedPoolLayout,
 ): string {
   return configuredSnapshotService().attachReportAudience(
     snapshot,
     reportAudience,
+    poolLayout,
   );
 }
 
@@ -151,6 +159,7 @@ export function createAssessmentSnapshotService(
     attachReportAudience(
       snapshot: TrustedAssessmentSnapshot,
       reportAudience: ReportAudience,
+      poolLayout?: NamedPoolLayout,
     ): string {
       if (snapshot.expiresAt <= now())
         throw new AssessmentSnapshotValidationError();
@@ -160,10 +169,21 @@ export function createAssessmentSnapshotService(
       ) {
         throw new AssessmentSnapshotValidationError();
       }
+      const parsedPoolLayout = poolLayout
+        ? namedPoolLayoutSchema.parse(poolLayout)
+        : undefined;
+      if (
+        snapshot.poolLayout !== undefined &&
+        (!parsedPoolLayout ||
+          !isDeepStrictEqual(snapshot.poolLayout, parsedPoolLayout))
+      ) {
+        throw new AssessmentSnapshotValidationError();
+      }
       return encodeAndSign(
         {
           ...snapshot,
           reportAudience: reportAudienceSchema.parse(reportAudience),
+          ...(parsedPoolLayout ? { poolLayout: parsedPoolLayout } : {}),
         },
         signingKey,
       );
@@ -213,6 +233,12 @@ export function createAssessmentSnapshotService(
       if (
         snapshot.reportAudience !== undefined &&
         !reportAudienceSchema.safeParse(snapshot.reportAudience).success
+      ) {
+        throw new AssessmentSnapshotValidationError();
+      }
+      if (
+        snapshot.poolLayout !== undefined &&
+        !namedPoolLayoutSchema.safeParse(snapshot.poolLayout).success
       ) {
         throw new AssessmentSnapshotValidationError();
       }

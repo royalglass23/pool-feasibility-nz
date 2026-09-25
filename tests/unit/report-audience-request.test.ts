@@ -61,6 +61,12 @@ describe("report audience snapshot request", () => {
         body: JSON.stringify({
           assessmentSnapshot: assessmentSnapshot(),
           reportAudience: "pool_builder",
+          poolLayout: {
+            layoutId: "compact",
+            layoutName: "Compact",
+            lengthMetres: 6.5,
+            widthMetres: 3,
+          },
         }),
       }),
     );
@@ -70,6 +76,32 @@ describe("report audience snapshot request", () => {
     expect(service.verify(body.assessmentSnapshot).reportAudience).toBe(
       "pool_builder",
     );
+    expect(service.verify(body.assessmentSnapshot).poolLayout).toEqual({
+      layoutId: "compact",
+      layoutName: "Compact",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    });
+  });
+
+  it("rejects an incompatible named layout before issuing a save snapshot", async () => {
+    const response = await handleReportAudienceRequest(
+      new Request("http://localhost/api/public/assessment-snapshot/audience", {
+        method: "POST",
+        body: JSON.stringify({
+          assessmentSnapshot: assessmentSnapshot(),
+          reportAudience: "homeowner",
+          poolLayout: {
+            layoutId: "compact",
+            layoutName: "Custom",
+            lengthMetres: 6.5,
+            widthMetres: 3,
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
   });
 
   it("rejects a non-canonical audience", async () => {
@@ -79,6 +111,12 @@ describe("report audience snapshot request", () => {
         body: JSON.stringify({
           assessmentSnapshot: assessmentSnapshot(),
           reportAudience: "other",
+          poolLayout: {
+            layoutId: "compact",
+            layoutName: "Compact",
+            lengthMetres: 6.5,
+            widthMetres: 3,
+          },
         }),
       }),
     );

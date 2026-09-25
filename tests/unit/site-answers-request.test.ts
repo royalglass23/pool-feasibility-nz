@@ -118,6 +118,8 @@ describe("public Site answers boundary", () => {
       },
     } as FastPropertyViewResult;
     const poolLayout = {
+      layoutId: "plunge" as const,
+      layoutName: "Plunge" as const,
       position: [174.76015, -36.8499],
       lengthMetres: 4,
       widthMetres: 2.4,
@@ -226,6 +228,8 @@ describe("public Site answers boundary", () => {
 
   it("keeps the Site journey completable with uncertain provenance when route evidence is unavailable", async () => {
     const poolLayout = {
+      layoutId: "plunge" as const,
+      layoutName: "Plunge" as const,
       position: [174.76015, -36.8499],
       lengthMetres: 4,
       widthMetres: 2.4,

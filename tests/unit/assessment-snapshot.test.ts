@@ -1,3 +1,4 @@
+import { createHmac } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("server-only", () => ({}));
@@ -58,6 +59,75 @@ function fastResult() {
 }
 
 describe("assessment snapshots", () => {
+  const compactLayout = {
+    layoutId: "compact" as const,
+    layoutName: "Compact" as const,
+    lengthMetres: 6.5 as const,
+    widthMetres: 3 as const,
+  };
+
+  it("signs and verifies the selected named pool layout", () => {
+    const service = createAssessmentSnapshotService(signingKey);
+    const initial = service.verify(service.issue(fastResult()));
+    const token = service.attachReportAudience(
+      initial,
+      "homeowner",
+      compactLayout,
+    );
+
+    expect(service.verify(token).poolLayout).toEqual(compactLayout);
+  });
+
+  it("rejects a conflicting layout rebind even when the dimensions match", () => {
+    const service = createAssessmentSnapshotService(signingKey);
+    const initial = service.verify(service.issue(fastResult()));
+    const bound = service.verify(
+      service.attachReportAudience(initial, "homeowner", compactLayout),
+    );
+
+    expect(() =>
+      service.attachReportAudience(bound, "homeowner", {
+        layoutId: "custom",
+        layoutName: "Custom",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      }),
+    ).toThrow(AssessmentSnapshotValidationError);
+  });
+
+  it("rejects a correctly signed but incompatible layout contract", () => {
+    const service = createAssessmentSnapshotService(signingKey);
+    const [payload] = service.issue(fastResult()).split(".");
+    const parsed = JSON.parse(
+      Buffer.from(payload, "base64url").toString("utf8"),
+    );
+    parsed.poolLayout = {
+      layoutId: "compact",
+      layoutName: "Custom",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    };
+    const incompatiblePayload = Buffer.from(
+      JSON.stringify(parsed),
+      "utf8",
+    ).toString("base64url");
+    const signature = createHmac("sha256", signingKey)
+      .update(incompatiblePayload)
+      .digest("base64url");
+
+    expect(() => service.verify(`${incompatiblePayload}.${signature}`)).toThrow(
+      AssessmentSnapshotValidationError,
+    );
+  });
+
+  it("continues to verify historical snapshots without layout metadata", () => {
+    const service = createAssessmentSnapshotService(signingKey);
+
+    expect(
+      service.verify(service.issue(fastResult())).poolLayout,
+    ).toBeUndefined();
+  });
+
   it("signs and verifies the selected report audience", () => {
     const service = createAssessmentSnapshotService(signingKey);
     const initial = service.verify(service.issue(fastResult()));

@@ -34,6 +34,8 @@ const context = {
     parcelIdentifier: "NA123/45",
   },
   poolLayout: {
+    layoutId: "compact",
+    layoutName: "Compact",
     lengthMetres: 6.5,
     widthMetres: 3,
     rotationDegrees: 12,
@@ -298,6 +300,8 @@ describe("homeowner report submission", () => {
         mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         mapVisibleLayerKeys={["wastewater_assets"]}
         placement={{
+          layoutId: "compact",
+          layoutName: "Compact",
           position: [174.76, -36.85],
           rotationDegrees: 12,
           dimensions: { lengthMetres: 6.5, widthMetres: 3 },
@@ -408,6 +412,12 @@ describe("homeowner report submission", () => {
     expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
       assessmentSnapshot: "server-issued-assessment-snapshot",
       reportAudience: "homeowner",
+      poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      },
     });
     const body = JSON.parse(String(request.mock.calls[1]?.[1]?.body));
     expect(body).toMatchObject({
@@ -415,6 +425,8 @@ describe("homeowner report submission", () => {
       mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
       mapVisibleLayerKeys: ["wastewater_assets"],
       poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
         lengthMetres: 6.5,
         widthMetres: 3,
         clearancesVisible: false,
@@ -438,6 +450,8 @@ describe("homeowner report submission", () => {
         reportAudience="homeowner"
         mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         placement={{
+          layoutId: "compact",
+          layoutName: "Compact",
           position: [174.76, -36.85],
           rotationDegrees: 12,
           dimensions: { lengthMetres: 6.5, widthMetres: 3 },
@@ -508,6 +522,8 @@ describe("homeowner report submission", () => {
         reportAudience="pool_builder"
         mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         placement={{
+          layoutId: "compact",
+          layoutName: "Compact",
           position: [174.76, -36.85],
           rotationDegrees: 12,
           dimensions: { lengthMetres: 6.5, widthMetres: 3 },
@@ -553,6 +569,12 @@ describe("homeowner report submission", () => {
     expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
       assessmentSnapshot: "server-issued-assessment-snapshot",
       reportAudience: "pool_builder",
+      poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      },
     });
     expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toMatchObject({
       homeowner: {

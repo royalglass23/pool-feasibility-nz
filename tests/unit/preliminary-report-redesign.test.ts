@@ -26,6 +26,29 @@ function buildReport(
 }
 
 describe("canonical homeowner feasibility report", () => {
+  it("uses persisted layout identity and preserves a neutral historical fallback", () => {
+    const named = buildReport();
+    const historical = buildReport((submission) => {
+      submission.poolLayout.layoutId = null;
+      submission.poolLayout.layoutName = "Saved pool layout";
+      submission.poolLayout.lengthMetres = 6.5;
+      submission.poolLayout.widthMetres = 3;
+    });
+
+    expect(named.pool).toMatchObject({
+      layoutId: "compact",
+      layoutName: "Compact",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    });
+    expect(historical.pool).toMatchObject({
+      layoutId: null,
+      layoutName: "Saved pool layout",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    });
+  });
+
   it("keeps normal later-stage verification separate from a green overall result", () => {
     const report = buildReport((submission) => {
       submission.report.feasibilityState = "no_warning";

@@ -188,6 +188,12 @@ async function saveScenario(
     evidence: TrustedConstructabilityEvidence;
   },
 ) {
+  const poolLayout = {
+    layoutId: "compact" as const,
+    layoutName: "Compact" as const,
+    lengthMetres: 6.5,
+    widthMetres: 3,
+  };
   const snapshot = signedSnapshot(input.answers, input.evidence);
   const siteAnswersResponse = await request.post(
     "/api/public/assessment-snapshot/site-answers",
@@ -209,6 +215,7 @@ async function saveScenario(
       data: {
         assessmentSnapshot: siteAnswersBody.assessmentSnapshot,
         reportAudience: input.visitorType,
+        poolLayout,
       },
     },
   );
@@ -222,6 +229,7 @@ async function saveScenario(
         data: {
           assessmentSnapshot: audienceBody.assessmentSnapshot,
           reportAudience: "pool_builder",
+          poolLayout,
         },
       },
     );
@@ -234,8 +242,7 @@ async function saveScenario(
     mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
     mapVisibleLayerKeys: [],
     poolLayout: {
-      lengthMetres: 6.5,
-      widthMetres: 3,
+      ...poolLayout,
       rotationDegrees: 0,
       position: [174.6082, -36.8603],
       clearancesVisible: true,

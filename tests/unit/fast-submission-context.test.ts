@@ -60,6 +60,8 @@ describe("fast submission terrain provenance", () => {
       },
     } as unknown as FastPropertyViewResult;
     const placement = {
+      layoutId: "compact",
+      layoutName: "Compact",
       dimensions: { lengthMetres: 6.5, widthMetres: 3 },
       poolGeometry: { type: "Feature", properties: {}, geometry: polygon },
       constructionEnvelopeGeometry: {

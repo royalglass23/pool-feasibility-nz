@@ -6,6 +6,7 @@ import {
   verifyAssessmentSnapshot,
 } from "./assessment-snapshot";
 import { reportAudienceSchema } from "./report-audience";
+import { namedPoolLayoutSchema } from "./pool-layout-schema";
 import {
   apiErrorResponse,
   apiJsonResponse,
@@ -20,6 +21,7 @@ const requestSchema = z
   .object({
     assessmentSnapshot: z.string().min(32).max(5_500_000),
     reportAudience: reportAudienceSchema,
+    poolLayout: namedPoolLayoutSchema,
   })
   .strict();
 
@@ -36,6 +38,7 @@ export async function handleReportAudienceRequest(
     const assessmentSnapshot = attachReportAudience(
       snapshot,
       parsed.reportAudience,
+      parsed.poolLayout,
     );
     return apiJsonResponse(
       { assessmentSnapshot, reportAudience: parsed.reportAudience },

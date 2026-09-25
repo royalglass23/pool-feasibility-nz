@@ -125,6 +125,12 @@ const validSubmission = {
   assessmentSnapshot: snapshotService.attachReportAudience(
     snapshotService.verify(unsignedValidAssessmentSnapshot),
     "homeowner",
+    {
+      layoutId: "compact",
+      layoutName: "Compact",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    },
   ),
   mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
   mapVisibleLayerKeys: ["wastewater_assets"],
@@ -137,6 +143,8 @@ const validSubmission = {
     consentGiven: true,
   },
   poolLayout: {
+    layoutId: "compact" as const,
+    layoutName: "Compact" as const,
     lengthMetres: 6.5,
     widthMetres: 3,
     rotationDegrees: 12,
@@ -152,6 +160,12 @@ function issueTrustedAssessmentSnapshot(
   return snapshotService.attachReportAudience(
     snapshotService.verify(unsigned),
     "homeowner",
+    {
+      layoutId: "compact",
+      layoutName: "Compact",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    },
   );
 }
 
@@ -360,6 +374,12 @@ describe("POST /api/internal/assessments", () => {
     const assessmentSnapshot = snapshotService.attachReportAudience(
       initial,
       "pool_builder",
+      {
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      },
     );
     const request = parseBrowserAssessmentSaveRequest({
       ...validSubmission,
@@ -386,6 +406,43 @@ describe("POST /api/internal/assessments", () => {
         snapshot,
       }),
     ).rejects.toThrow("INVALID_ASSESSMENT_SNAPSHOT");
+  });
+
+  it("rejects a layout identity changed after the save snapshot was signed", async () => {
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      poolLayout: {
+        ...validSubmission.poolLayout,
+        layoutId: "custom",
+        layoutName: "Custom",
+      },
+    });
+    const snapshot = snapshotService.verify(request.assessmentSnapshot);
+
+    await expect(
+      buildServerAssessmentSubmission({ request, snapshot }),
+    ).rejects.toThrow("INVALID_ASSESSMENT_SNAPSHOT");
+  });
+
+  it("rejects a tampered layout before idempotency lookup or persistence", async () => {
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/assessments", {
+        method: "POST",
+        body: JSON.stringify({
+          ...validSubmission,
+          poolLayout: {
+            ...validSubmission.poolLayout,
+            layoutId: "custom",
+            layoutName: "Custom",
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(getDb).not.toHaveBeenCalled();
+    expect(getHomeownerAssessmentByIdempotencyKey).not.toHaveBeenCalled();
+    expect(saveHomeownerAssessment).not.toHaveBeenCalled();
   });
 
   it("round-trips submitted Site answers and trusted mapped evidence into the saved report", async () => {
@@ -575,7 +632,7 @@ describe("POST /api/internal/assessments", () => {
   });
 
   it("carries the locked depth through Site answers, public submission and saved report", async () => {
-    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const original = snapshotService.verify(unsignedValidAssessmentSnapshot);
     const locked = snapshotService.refresh(
       { ...original, lockedEstimatedDepthMetres: 1.9 },
       { detailedChecks: completeDetailedChecks() },
@@ -595,14 +652,24 @@ describe("POST /api/internal/assessments", () => {
     );
     expect(response.status).toBe(200);
     const signed = await response.json();
+    const customLayout = {
+      layoutId: "custom" as const,
+      layoutName: "Custom" as const,
+      lengthMetres: 6,
+      widthMetres: 3,
+    };
+    const assessmentSnapshot = snapshotService.attachReportAudience(
+      snapshotService.verify(signed.assessmentSnapshot),
+      "homeowner",
+      customLayout,
+    );
     const request = parseBrowserAssessmentSaveRequest({
       ...validSubmission,
-      assessmentSnapshot: signed.assessmentSnapshot,
+      assessmentSnapshot,
       constructability: signed.answers,
       poolLayout: {
         ...validSubmission.poolLayout,
-        lengthMetres: 6,
-        widthMetres: 3,
+        ...customLayout,
       },
     });
     const snapshot = snapshotService.verify(request.assessmentSnapshot);
@@ -1799,7 +1866,13 @@ describe("POST /api/internal/assessments", () => {
         boundaryAreaSquareMetres: 900,
         parcelIdentifier: null,
       },
-      pool: { lengthMetres: 6.5, widthMetres: 3, rotationDegrees: 12 },
+      pool: {
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+        rotationDegrees: 12,
+      },
       warnings: [],
       recommendations: [],
       layers: [],
@@ -1815,7 +1888,21 @@ describe("POST /api/internal/assessments", () => {
       });
 
     expect((await POST(createRequest())).status).toBe(201);
-    expect((await POST(createRequest())).status).toBe(200);
+    const replay = await POST(createRequest());
+    expect(replay.status).toBe(200);
+    await expect(replay.json()).resolves.toMatchObject({
+      assessment: {
+        created: false,
+        report: {
+          pool: {
+            layoutId: "compact",
+            layoutName: "Compact",
+            lengthMetres: 6.5,
+            widthMetres: 3,
+          },
+        },
+      },
+    });
 
     expect(executeFastPropertyDetailsRequest).toHaveBeenCalledOnce();
     expect(saveHomeownerAssessment).toHaveBeenCalledOnce();

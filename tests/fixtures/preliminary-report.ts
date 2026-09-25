@@ -42,6 +42,8 @@ export function buildTestPreliminaryReport(
       },
     },
     pool: {
+      layoutId: "compact",
+      layoutName: "Compact",
       lengthMetres: 6.5,
       widthMetres: 3,
       rotationDegrees: 12,
@@ -293,6 +295,8 @@ export function buildTestPersistedAssessmentSubmission(
       },
     },
     poolLayout: {
+      layoutId: "compact",
+      layoutName: "Compact",
       lengthMetres: 6.5,
       widthMetres: 3,
       rotationDegrees: 12,
@@ -324,6 +328,12 @@ export function buildTestPersistedAssessmentSubmission(
       feasibilityState: "needs_checking",
       mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
       reportData: {
+        poolLayout: {
+          layoutId: "compact",
+          layoutName: "Compact",
+          lengthMetres: 6.5,
+          widthMetres: 3,
+        },
         recommendation: "Confirm the mapped evidence.",
         preliminaryFeasibilityWording: "Preliminary assessment only.",
         risks: [],

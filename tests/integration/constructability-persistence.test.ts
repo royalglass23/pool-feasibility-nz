@@ -67,9 +67,19 @@ describe.skipIf(!databaseUrl)(
       const makeSubmission = (
         depth: number,
         feature: "fences" | "none_of_these",
+        layout: "compact" | "custom",
       ) => {
         const submission =
           buildTestPersistedAssessmentSubmission(idempotencyKey);
+        submission.poolLayout.layoutId = layout;
+        submission.poolLayout.layoutName =
+          layout === "compact" ? "Compact" : "Custom";
+        submission.report.reportData.poolLayout = {
+          layoutId: layout,
+          layoutName: layout === "compact" ? "Compact" : "Custom",
+          lengthMetres: 6.5,
+          widthMetres: 3,
+        };
         submission.report.reportData.constructability =
           buildConstructabilitySnapshot({
             answers: {
@@ -82,8 +92,8 @@ describe.skipIf(!databaseUrl)(
           });
         return submission;
       };
-      const left = makeSubmission(1.5, "fences");
-      const right = makeSubmission(1.8, "none_of_these");
+      const left = makeSubmission(1.5, "fences", "compact");
+      const right = makeSubmission(1.8, "none_of_these", "custom");
       let savedId: string | undefined;
       try {
         const [first, second] = await Promise.all([
@@ -112,6 +122,11 @@ describe.skipIf(!databaseUrl)(
             expect.objectContaining({ id: "later-provider-change" }),
           ],
         });
+        expect(report?.pool).toMatchObject(
+          first.created
+            ? { layoutId: "compact", layoutName: "Compact" }
+            : { layoutId: "custom", layoutName: "Custom" },
+        );
       } finally {
         if (savedId) {
           const deleted = await db

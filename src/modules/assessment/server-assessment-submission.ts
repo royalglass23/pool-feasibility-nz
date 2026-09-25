@@ -29,6 +29,7 @@ import type { TrustedAssessmentSnapshot } from "./assessment-snapshot";
 import { suggestAccessRouteFromProperty } from "@/modules/spatial/suggest-access-route";
 import { analyseAccessRouteFromProperty } from "@/modules/spatial/analyse-access-route";
 import { poolLayoutSchema } from "./pool-layout-schema";
+import { namedPoolLayoutSchema } from "./pool-layout-schema";
 import {
   parsePersistedAssessmentSubmission,
   type PersistedAssessmentSubmission,
@@ -101,6 +102,26 @@ export function assertReportAudienceMatchesSnapshot(
   }
 }
 
+export function assertPoolLayoutMatchesSnapshot(
+  request: BrowserAssessmentSaveRequest,
+  snapshot: TrustedAssessmentSnapshot,
+): asserts snapshot is TrustedAssessmentSnapshot & {
+  poolLayout: NonNullable<TrustedAssessmentSnapshot["poolLayout"]>;
+} {
+  const requestedLayout = namedPoolLayoutSchema.parse({
+    layoutId: request.poolLayout.layoutId,
+    layoutName: request.poolLayout.layoutName,
+    lengthMetres: request.poolLayout.lengthMetres,
+    widthMetres: request.poolLayout.widthMetres,
+  });
+  if (
+    snapshot.poolLayout === undefined ||
+    !isDeepStrictEqual(snapshot.poolLayout, requestedLayout)
+  ) {
+    throw new AssessmentSnapshotValidationError();
+  }
+}
+
 export async function buildServerAssessmentSubmission(input: {
   request: BrowserAssessmentSaveRequest;
   snapshot: TrustedAssessmentSnapshot;
@@ -109,6 +130,7 @@ export async function buildServerAssessmentSubmission(input: {
 }): Promise<PersistedAssessmentSubmission> {
   const { request, snapshot } = input;
   assertReportAudienceMatchesSnapshot(request, snapshot);
+  assertPoolLayoutMatchesSnapshot(request, snapshot);
   const reportAudience = snapshot.reportAudience;
   const dimensions = validateFastCustomDimensions(
     request.poolLayout.lengthMetres,
@@ -275,6 +297,7 @@ export async function buildServerAssessmentSubmission(input: {
       mapImageDataUrl: request.mapImageDataUrl,
       reportData: {
         reportAudience,
+        poolLayout: snapshot.poolLayout,
         mapImageSource: "fast_property_view_capture",
         mapVisibleLayerKeys: request.mapVisibleLayerKeys,
         recommendation:

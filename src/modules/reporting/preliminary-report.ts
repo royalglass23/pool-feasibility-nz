@@ -31,6 +31,8 @@ export type SavedPreliminaryReport = {
     > | null;
   };
   pool: {
+    layoutId: PersistedAssessmentSubmission["poolLayout"]["layoutId"];
+    layoutName: string;
     lengthMetres: number;
     widthMetres: number;
     rotationDegrees: number;
@@ -220,6 +222,8 @@ export function buildSavedPreliminaryReport({
       boundaryGeometry: submission.addressEvidence.boundaryGeometry ?? null,
     },
     pool: {
+      layoutId: submission.poolLayout.layoutId,
+      layoutName: submission.poolLayout.layoutName,
       lengthMetres: submission.poolLayout.lengthMetres,
       widthMetres: submission.poolLayout.widthMetres,
       rotationDegrees: submission.poolLayout.rotationDegrees,

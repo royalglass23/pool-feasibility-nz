@@ -7,23 +7,23 @@ import {
 } from "@turf/turf";
 import type { Feature, Polygon, Position } from "geojson";
 import { destination } from "@turf/turf";
+import {
+  CUSTOM_POOL_DIMENSION_LIMITS,
+  POOL_LAYOUT_CATALOGUE,
+  type PoolLayoutId,
+  validateCustomPoolDimensions,
+} from "@/modules/assessment/pool-layout-contract";
 
-export const FAST_POOL_CATALOGUE = [
-  { id: "plunge", label: "Plunge", lengthMetres: 4, widthMetres: 2.4 },
-  { id: "compact", label: "Compact", lengthMetres: 6.5, widthMetres: 3 },
-  { id: "slimline", label: "Slimline", lengthMetres: 8, widthMetres: 3 },
-  { id: "family", label: "Family", lengthMetres: 8, widthMetres: 4 },
-  { id: "large", label: "Large", lengthMetres: 10, widthMetres: 4.4 },
-  { id: "custom", label: "Custom", lengthMetres: 6.5, widthMetres: 3 },
-] as const;
+export const FAST_POOL_CATALOGUE = POOL_LAYOUT_CATALOGUE.map((layout) => ({
+  id: layout.id,
+  label: layout.name,
+  lengthMetres: layout.lengthMetres,
+  widthMetres: layout.widthMetres,
+}));
 
-export type FastPoolId = (typeof FAST_POOL_CATALOGUE)[number]["id"];
+export type FastPoolId = PoolLayoutId;
 
-export const FAST_CUSTOM_POOL_LIMITS = {
-  length: { min: 2, max: 20 },
-  width: { min: 1.5, max: 10 },
-  step: 0.1,
-} as const;
+export const FAST_CUSTOM_POOL_LIMITS = CUSTOM_POOL_DIMENSION_LIMITS;
 
 export const FAST_POOL_CONSTRUCTION_MARGIN_METRES = 1;
 
@@ -43,17 +43,7 @@ export function validateFastCustomDimensions(
   lengthMetres: number,
   widthMetres: number,
 ): { lengthMetres: number; widthMetres: number } | null {
-  if (
-    !isStepValue(lengthMetres, FAST_CUSTOM_POOL_LIMITS.step) ||
-    !isStepValue(widthMetres, FAST_CUSTOM_POOL_LIMITS.step) ||
-    lengthMetres < FAST_CUSTOM_POOL_LIMITS.length.min ||
-    lengthMetres > FAST_CUSTOM_POOL_LIMITS.length.max ||
-    widthMetres < FAST_CUSTOM_POOL_LIMITS.width.min ||
-    widthMetres > FAST_CUSTOM_POOL_LIMITS.width.max
-  ) {
-    return null;
-  }
-  return { lengthMetres, widthMetres };
+  return validateCustomPoolDimensions(lengthMetres, widthMetres);
 }
 
 export function buildFastPoolGeometry(
@@ -121,13 +111,6 @@ export function findFastPoolDefaultPosition(
         mappedArea,
       ),
     ) ?? null
-  );
-}
-
-function isStepValue(value: number, step: number): boolean {
-  return (
-    Number.isFinite(value) &&
-    Math.abs(value / step - Math.round(value / step)) < 1e-8
   );
 }
 

@@ -117,6 +117,12 @@ export function HomeownerSubmissionForm({
           body: JSON.stringify({
             assessmentSnapshot,
             reportAudience,
+            poolLayout: {
+              layoutId: placement.layoutId,
+              layoutName: placement.layoutName,
+              lengthMetres: placement.dimensions?.lengthMetres,
+              widthMetres: placement.dimensions?.widthMetres,
+            },
           }),
         },
       );
@@ -145,6 +151,8 @@ export function HomeownerSubmissionForm({
           mapImageDataUrl,
           mapVisibleLayerKeys,
           poolLayout: {
+            layoutId: placement.layoutId,
+            layoutName: placement.layoutName,
             lengthMetres: placement.dimensions?.lengthMetres,
             widthMetres: placement.dimensions?.widthMetres,
             rotationDegrees: placement.rotationDegrees,
@@ -426,6 +434,8 @@ export function buildFastSubmissionContext(
       parcelIdentifier: result.boundary.parcelId ?? undefined,
     },
     poolLayout: {
+      layoutId: placement.layoutId,
+      layoutName: placement.layoutName,
       lengthMetres: placement.dimensions.lengthMetres,
       widthMetres: placement.dimensions.widthMetres,
       rotationDegrees: placement.rotationDegrees,

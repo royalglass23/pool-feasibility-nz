@@ -254,17 +254,19 @@ export function FastPropertyView({
   useEffect(() => {
     snapshotHandlerRef.current = onSnapshotReady;
   }, [onSnapshotReady]);
+  const selectedPool = useMemo(
+    () => FAST_POOL_CATALOGUE.find((pool) => pool.id === selectedPoolId)!,
+    [selectedPoolId],
+  );
   const dimensions = useMemo(() => {
-    const preset = FAST_POOL_CATALOGUE.find(
-      (pool) => pool.id === selectedPoolId,
-    );
+    const preset = selectedPool;
     if (!preset) return null;
     if (selectedPoolId !== "custom") return preset;
     return validateFastCustomDimensions(
       Number(customLength),
       Number(customWidth),
     );
-  }, [customLength, customWidth, selectedPoolId]);
+  }, [customLength, customWidth, selectedPool, selectedPoolId]);
   const constructionEnvelopeDimensions = useMemo(
     () => dimensions && fastPoolConstructionEnvelopeDimensions(dimensions),
     [dimensions],
@@ -456,6 +458,8 @@ export function FastPropertyView({
   useEffect(() => {
     if (isInitialAddressLoad) return;
     onPlacementChange?.({
+      layoutId: selectedPool.id,
+      layoutName: selectedPool.label,
       position,
       rotationDegrees,
       dimensions,
@@ -476,6 +480,7 @@ export function FastPropertyView({
     poolWarning,
     position,
     rotationDegrees,
+    selectedPool,
   ]);
 
   useEffect(() => {

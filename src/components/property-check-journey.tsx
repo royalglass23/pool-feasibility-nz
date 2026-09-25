@@ -89,6 +89,8 @@ type PropertyCheckIssue = {
 
 function placementIdentity(placement: FastPoolPlacementSnapshot): string {
   return JSON.stringify([
+    placement.layoutId,
+    placement.layoutName,
     placement.position,
     placement.dimensions,
     placement.rotationDegrees,
@@ -190,6 +192,8 @@ export function PropertyCheckJourney({
     () =>
       fastPlacementSnapshot?.dimensions
         ? {
+            layoutId: fastPlacementSnapshot.layoutId,
+            layoutName: fastPlacementSnapshot.layoutName,
             position: fastPlacementSnapshot.position,
             lengthMetres: fastPlacementSnapshot.dimensions.lengthMetres,
             widthMetres: fastPlacementSnapshot.dimensions.widthMetres,

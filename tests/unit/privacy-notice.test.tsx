@@ -7,6 +7,8 @@ import { TEST_MAP_IMAGE_DATA_URL } from "../fixtures/preliminary-report";
 vi.mock("server-only", () => ({}));
 
 const placement = {
+  layoutId: "compact" as const,
+  layoutName: "Compact",
   position: [174.76, -36.85] as [number, number],
   rotationDegrees: 12,
   dimensions: { lengthMetres: 6.5, widthMetres: 3 },
