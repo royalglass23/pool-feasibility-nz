@@ -103,9 +103,12 @@ test("shows an authenticated staff member the saved constructability snapshot as
     await page.goto(`/staff/${assessmentId}`);
 
     await expect(page).toHaveURL(new RegExp(`/staff/${assessmentId}$`));
+    const poolLayout = page.getByText("Pool layout").locator("..");
+    await expect(poolLayout).toContainText("Compact — 6.5 x 3 m");
     const report = page.getByRole("article", {
       name: "Preliminary Pool Feasibility Report",
     });
+    await expect(report).toContainText("Proposed pool: Compact — 6.5 x 3 m");
     const reportTabs = report.getByRole("tab");
     await expect(reportTabs).toHaveCount(3);
     await expect(reportTabs).toHaveText([

@@ -144,6 +144,13 @@ describe("web, PDF and email report consistency", () => {
       expect(email.html).toContain(value);
       expect(email.text).toContain(value);
     }
+    const selectedLayout = "Compact — 6.5 x 3 m";
+    expect(
+      screen.getByText(`Proposed pool: ${selectedLayout}`, { exact: false }),
+    ).toBeVisible();
+    expect(pdfHtml).toContain(`Proposed pool: ${selectedLayout}`);
+    expect(email.html).toContain(selectedLayout);
+    expect(email.text).toContain(selectedLayout);
     expect(pdfHtml).toContain(report.overall.recommendedStage);
     // The email invites a reply; the detailed report retains the recommended stage.
     for (const body of [email.html, email.text]) {
@@ -196,6 +203,87 @@ describe("web, PDF and email report consistency", () => {
     );
     expect(email.attachment).toEqual(Buffer.from("%PDF-same-snapshot"));
   });
+
+  it.each([
+    {
+      label: "Custom — 6.5 x 3 m",
+      pool: {
+        layoutId: "custom" as const,
+        layoutName: "Custom",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      },
+    },
+    {
+      label: "Saved pool layout — 6.5 x 3 m",
+      pool: {
+        layoutId: null,
+        layoutName: "Saved pool layout",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      },
+    },
+  ])(
+    "keeps $label unchanged across saved projections",
+    async ({ label, pool }) => {
+      const report = buildTestPreliminaryReport({ pool });
+      render(
+        <HomeownerFeasibilityReportView
+          report={report}
+          delivery={{ homeowner: "sent", internal_test_report: "sent" }}
+          onBack={() => undefined}
+        />,
+      );
+      const pdfHtml = renderCanonicalPreliminaryReportHtml(report);
+      const send = vi.fn().mockResolvedValue({ id: "layout-email" });
+      const store: AssessmentDeliveryStore = {
+        claim: vi.fn(
+          async (
+            _reference,
+            channel,
+          ): Promise<AssessmentDeliveryClaim | null> =>
+            channel === "homeowner"
+              ? {
+                  channel,
+                  claimToken: "layout-claim",
+                  homeownerName: "Jane Homeowner",
+                  homeownerPhone: "021 123 4567",
+                  homeownerEmail: "jane@example.com",
+                  builderCompanyName: null,
+                  visitorType: "homeowner",
+                  visitorTypeOtherDetail: null,
+                  desiredTiming: "3_months",
+                  desiredTimingOtherDetail: null,
+                  additionalInfo: null,
+                  report,
+                }
+              : null,
+        ),
+        markSent: vi.fn(async () => undefined),
+        markFailed: vi.fn(async () => undefined),
+      };
+
+      await deliverAssessmentReport(report.reference, {
+        store,
+        renderPdf: vi.fn().mockResolvedValue(Buffer.from("%PDF-layout")),
+        send,
+        from: "PoolReady <reports@example.com>",
+        deliveryEnvironment: {
+          mode: "synthetic_test",
+          vercelEnvironment: "preview",
+          nodeEnvironment: "production",
+        },
+      });
+      const email = send.mock.calls[0]?.[0] as { html: string; text: string };
+
+      expect(
+        screen.getByText(`Proposed pool: ${label}`, { exact: false }),
+      ).toBeVisible();
+      expect(pdfHtml).toContain(`Proposed pool: ${label}`);
+      expect(email.html).toContain(label);
+      expect(email.text).toContain(label);
+    },
+  );
 
   it("keeps saved constructability status and provenance consistent across web, PDF and email", async () => {
     const user = userEvent.setup();

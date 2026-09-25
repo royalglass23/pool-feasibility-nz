@@ -6,7 +6,7 @@ import type { ReportDeliveryState } from "@/modules/reporting/report-delivery-po
 import { type SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import {
   assessmentStatusLabel,
-  formatReportNumber,
+  formatNamedPoolLayout,
   reportShortStatus,
   type AssessmentStatus,
   type ReportAssessment,
@@ -117,8 +117,7 @@ export function HomeownerFeasibilityReportView({
               </p>
             )}
             <p className="text-pool-600 mt-1 text-sm">
-              Proposed pool: {formatReportNumber(report.pool.lengthMetres)} x{" "}
-              {formatReportNumber(report.pool.widthMetres)} m · Generated{" "}
+              Proposed pool: {formatNamedPoolLayout(report.pool)} · Generated{" "}
               {formatReportGeneratedAt(report.generatedAt)}
             </p>
           </div>

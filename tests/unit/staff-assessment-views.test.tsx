@@ -36,6 +36,8 @@ describe("staff assessment dashboard", () => {
       desiredTiming: "3_months",
       createdAt: new Date("2026-07-29T01:30:00.000Z"),
       poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
         lengthMetres: 6.5,
         widthMetres: 3,
         rotationDegrees: 24,
@@ -85,6 +87,7 @@ describe("staff assessment dashboard", () => {
     expect(screen.getByText("Nora Warning")).toBeVisible();
     expect(screen.getAllByText("1 Test Street, Auckland")[0]).toBeVisible();
     expect(screen.getByText("021 555 1234")).toBeVisible();
+    expect(screen.getAllByText("Compact — 6.5 x 3 m")[0]).toBeVisible();
     for (const state of ["No Warning", "Needs Checking", "Blocked"]) {
       expect(screen.getByText(state)).toBeVisible();
     }
@@ -117,7 +120,13 @@ describe("staff assessment dashboard", () => {
       desiredTiming: "3_months" as const,
       feasibilityState: "no_warning" as const,
       createdAt: new Date(`2026-07-${20 + index}T01:30:00.000Z`),
-      poolLayout: { lengthMetres: 6.5, widthMetres: 3, rotationDegrees: 24 },
+      poolLayout: {
+        layoutId: "compact" as const,
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+        rotationDegrees: 24,
+      },
       evidenceCount: 2,
     }));
 
@@ -237,7 +246,9 @@ describe("staff assessment detail", () => {
         "Saved aerial assessment map showing the mapped property and proposed pool",
       ),
     ).toHaveAttribute("src", savedPreliminaryReport.mapImageDataUrl);
-    expect(screen.getByText(/Proposed pool: 6.5 x 3 m/)).toBeVisible();
+    expect(
+      screen.getByText(/Proposed pool: Compact — 6.5 x 3 m/),
+    ).toBeVisible();
     expect(
       screen.getByText("Wastewater infrastructure near the proposed pool"),
     ).toBeVisible();

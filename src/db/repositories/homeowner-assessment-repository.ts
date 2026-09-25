@@ -75,6 +75,8 @@ export async function listHomeownerAssessments(
         ),
       createdAt: assessment.createdAt,
       poolLayout: {
+        layoutId: parsedLayout.layoutId,
+        layoutName: parsedLayout.layoutName,
         lengthMetres: parsedLayout.lengthMetres,
         widthMetres: parsedLayout.widthMetres,
         rotationDegrees: parsedLayout.rotationDegrees,
@@ -105,6 +107,7 @@ export async function getHomeownerAssessmentById(
       desiredTimingOtherDetail: true,
       additionalInfo: true,
       boundaryStatus: true,
+      poolLayout: true,
       feasibilityState: true,
       emailDeliveryState: true,
       forwardingState: true,
@@ -118,6 +121,11 @@ export async function getHomeownerAssessmentById(
   });
 
   if (!assessment || assessment.archivedAt !== null) return null;
+
+  const parsedLayout =
+    persistedAssessmentSubmissionSchema.shape.poolLayout.parse(
+      assessment.poolLayout,
+    );
 
   return {
     id: assessment.id,
@@ -152,6 +160,12 @@ export async function getHomeownerAssessmentById(
       persistedAssessmentSubmissionSchema.shape.addressEvidence.shape.boundaryStatus.parse(
         assessment.boundaryStatus,
       ),
+    poolLayout: {
+      layoutId: parsedLayout.layoutId,
+      layoutName: parsedLayout.layoutName,
+      lengthMetres: parsedLayout.lengthMetres,
+      widthMetres: parsedLayout.widthMetres,
+    },
     feasibilityState:
       persistedAssessmentSubmissionSchema.shape.report.shape.feasibilityState.parse(
         assessment.feasibilityState,

@@ -5,6 +5,7 @@ import { StaffConstructabilityEvidence } from "@/components/staff/staff-construc
 import { getProjectTimingLabel } from "@/modules/assessment/visitor-context";
 import { getVisitorTypeLabel } from "@/modules/assessment/visitor-type";
 import type { StaffAssessmentDetail as StaffAssessmentDetailModel } from "@/modules/staff/staff-assessment-read-model";
+import { formatNamedPoolLayout } from "@/modules/reporting/pool-feasibility-report";
 
 const submittedDate = new Intl.DateTimeFormat("en-NZ", {
   dateStyle: "medium",
@@ -63,6 +64,10 @@ export function StaffAssessmentDetail({
                   ? (assessment.visitorTypeOtherDetail ?? "Other")
                   : getVisitorTypeLabel(assessment.visitorType)
             }
+          />
+          <Fact
+            label="Pool layout"
+            value={formatNamedPoolLayout(assessment.poolLayout)}
           />
           <Fact
             label="Submitted"

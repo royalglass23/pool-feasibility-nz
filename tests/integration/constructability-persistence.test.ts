@@ -32,7 +32,10 @@ describe.skipIf(!databaseUrl)(
             nearbyFeatures: ["none_of_these"],
           },
           excavation: {
-            dimensions: { lengthMetres: 6, widthMetres: 3 },
+            dimensions: {
+              lengthMetres: submission.poolLayout.lengthMetres,
+              widthMetres: submission.poolLayout.widthMetres,
+            },
             terrainAdjustment: "unavailable",
           },
         });
@@ -45,9 +48,9 @@ describe.skipIf(!databaseUrl)(
           version: 1,
           estimatedDepthMetres: 1.9,
           excavationGeometry: {
-            assumptionId: "firth-masonry-side-300mm-v1",
-            poolOutlineCubicMetres: 34.2,
-            sideAllowanceCubicMetres: 45.14,
+            assumptionId: "user-selected-side-clearance-v1",
+            poolOutlineCubicMetres: 37.05,
+            sideAllowanceCubicMetres: 48.56,
           },
         });
       } finally {

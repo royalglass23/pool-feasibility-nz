@@ -343,6 +343,8 @@ describe("PDF assessment report delivery", () => {
 
     expect(send).toHaveBeenCalledOnce();
     expect(send.mock.calls[0]?.[0].to).toBe("jane@example.com");
+    expect(send.mock.calls[0]?.[0].html).toContain("Compact — 6.5 x 3 m");
+    expect(send.mock.calls[0]?.[0].text).toContain("Compact — 6.5 x 3 m");
     expect(result).toEqual({
       homeowner: "sent",
       internal_test_report: "unchanged",
@@ -414,6 +416,8 @@ describe("PDF assessment report delivery", () => {
       filename: "preliminary-pool-feasibility-1-test-street.pdf",
       idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
     });
+    expect(send.mock.calls[0]?.[0].html).toContain("Compact — 6.5 x 3 m");
+    expect(send.mock.calls[0]?.[0].text).toContain("Compact — 6.5 x 3 m");
     expect(result).toEqual({
       homeowner: "unchanged",
       internal_test_report: "sent",

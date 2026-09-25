@@ -8,6 +8,7 @@ import {
   type StaffAssessmentSummary,
   type StaffFeasibilityState,
 } from "@/modules/staff/staff-assessment-read-model";
+import { formatNamedPoolLayout } from "@/modules/reporting/pool-feasibility-report";
 
 const submittedDate = new Intl.DateTimeFormat("en-NZ", {
   dateStyle: "medium",
@@ -180,6 +181,9 @@ export function StaffAssessmentDashboard({
               <th className="px-4 py-3" scope="col">
                 Phone
               </th>
+              <th className="px-4 py-3" scope="col">
+                Pool layout
+              </th>
               <th aria-sort={sortDirection} className="px-4 py-3" scope="col">
                 <button
                   aria-label={`Sort by date submitted ${sortDirection === "descending" ? "oldest first" : "newest first"}`}
@@ -215,6 +219,9 @@ export function StaffAssessmentDashboard({
                 </td>
                 <td className="text-pool-700 px-4 py-3 align-top whitespace-nowrap">
                   {assessment.homeownerPhone}
+                </td>
+                <td className="text-pool-700 px-4 py-3 align-top whitespace-nowrap">
+                  {formatNamedPoolLayout(assessment.poolLayout)}
                 </td>
                 <td className="text-pool-700 px-4 py-3 align-top whitespace-nowrap">
                   <time dateTime={assessment.createdAt.toISOString()}>
@@ -288,11 +295,20 @@ function exportAssessmentsCsv(assessments: StaffAssessmentSummary[]) {
     assessment.homeownerName,
     assessment.homeownerAddress,
     assessment.homeownerPhone,
+    formatNamedPoolLayout(assessment.poolLayout),
     submittedDate.format(assessment.createdAt),
     staffFeasibilityLabels[assessment.feasibilityState],
   ]);
   const csv = [
-    ["Reference", "Name", "Address", "Phone", "Date submitted", "Status"],
+    [
+      "Reference",
+      "Name",
+      "Address",
+      "Phone",
+      "Pool layout",
+      "Date submitted",
+      "Status",
+    ],
     ...rows,
   ]
     .map((row) => row.map(csvCell).join(","))

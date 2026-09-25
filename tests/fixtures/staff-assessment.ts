@@ -101,6 +101,12 @@ export const staffAssessmentDetail = {
   desiredTimingOtherDetail: null,
   additionalInfo: "A narrow access path.",
   boundaryStatus: "provisional",
+  poolLayout: {
+    layoutId: "compact",
+    layoutName: "Compact",
+    lengthMetres: 6.5,
+    widthMetres: 3,
+  },
   feasibilityState: "blocked",
   emailDeliveryState: "sent",
   forwardingState: "pending",
@@ -202,6 +208,8 @@ export const staffAssessmentSummaries = [
     feasibilityState: "blocked",
     createdAt: new Date("2026-07-29T01:30:00.000Z"),
     poolLayout: {
+      layoutId: "compact",
+      layoutName: "Compact",
       lengthMetres: 6.5,
       widthMetres: 3,
       rotationDegrees: 24,
@@ -218,6 +226,8 @@ export const staffAssessmentSummaries = [
     feasibilityState: "no_warning",
     createdAt: new Date("2026-07-28T01:30:00.000Z"),
     poolLayout: {
+      layoutId: "plunge",
+      layoutName: "Plunge",
       lengthMetres: 4,
       widthMetres: 2.4,
       rotationDegrees: 0,

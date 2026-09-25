@@ -430,6 +430,60 @@ describe("assessment report delivery", () => {
     );
   });
 
+  it("fails closed when concurrent delivery claims carry different named layouts with the same dimensions", async () => {
+    const compactReport = buildTestPreliminaryReport();
+    const customReport = buildTestPreliminaryReport({
+      pool: { layoutId: "custom", layoutName: "Custom" },
+    });
+    const store: AssessmentDeliveryStore = {
+      claim: vi.fn((_: string, channel) =>
+        Promise.resolve<AssessmentDeliveryClaim>({
+          channel,
+          claimToken: `${channel}-claim`,
+          homeownerName: "Jane Homeowner",
+          homeownerPhone: "021 123 4567",
+          homeownerEmail: "jane@example.com",
+          builderCompanyName: null,
+          visitorType: "homeowner",
+          visitorTypeOtherDetail: null,
+          desiredTiming: "3_months",
+          desiredTimingOtherDetail: null,
+          additionalInfo: null,
+          report: channel === "homeowner" ? compactReport : customReport,
+        }),
+      ),
+      markSent: vi.fn().mockResolvedValue(undefined),
+      markFailed: vi.fn().mockResolvedValue(undefined),
+    };
+    const send = vi.fn().mockResolvedValue({ id: "must-not-send" });
+    const renderPdf = vi.fn().mockResolvedValue(Buffer.from("%PDF-wrong"));
+
+    await expect(
+      deliverAssessmentReport(compactReport.reference, {
+        store,
+        send,
+        from: "PoolReady <reports@example.com>",
+        renderPdf,
+        deliveryEnvironment: controlledTestDeliveryEnvironment,
+      }),
+    ).resolves.toEqual({ homeowner: "failed", internal_test_report: "failed" });
+    expect(renderPdf).not.toHaveBeenCalled();
+    expect(send).not.toHaveBeenCalled();
+    expect(store.markFailed).toHaveBeenCalledTimes(2);
+    expect(store.markFailed).toHaveBeenCalledWith(
+      compactReport.reference,
+      "homeowner",
+      "homeowner-claim",
+      "REPORT_PROJECTION_MISMATCH",
+    );
+    expect(store.markFailed).toHaveBeenCalledWith(
+      compactReport.reference,
+      "internal_test_report",
+      "internal_test_report-claim",
+      "REPORT_PROJECTION_MISMATCH",
+    );
+  });
+
   it("still notifies support when the homeowner email fails", async () => {
     const report = buildTestPreliminaryReport();
     const store: AssessmentDeliveryStore = {

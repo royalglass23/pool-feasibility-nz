@@ -47,6 +47,14 @@ describe("canonical homeowner feasibility report", () => {
       lengthMetres: 6.5,
       widthMetres: 3,
     });
+    expect(named.assessments.pool_fit.details).toContainEqual({
+      label: "Selected pool",
+      value: "Compact — 6.5 x 3 m",
+    });
+    expect(historical.assessments.pool_fit.details).toContainEqual({
+      label: "Selected pool",
+      value: "Saved pool layout — 6.5 x 3 m",
+    });
   });
 
   it("keeps normal later-stage verification separate from a green overall result", () => {

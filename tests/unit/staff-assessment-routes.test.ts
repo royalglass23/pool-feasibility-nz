@@ -64,7 +64,15 @@ describe("staff assessment reads", () => {
 
     expect(response.status).toBe(200);
     const body = await response.json();
-    expect(body.data.assessments[0]).toMatchObject({ id: "assessment-new" });
+    expect(body.data.assessments[0]).toMatchObject({
+      id: "assessment-new",
+      poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      },
+    });
   });
 
   it("returns the staff record with the persisted shared homeowner report to an authenticated Admin", async () => {
@@ -91,8 +99,20 @@ describe("staff assessment reads", () => {
       data: {
         assessment: {
           id: "assessment-new",
+          poolLayout: {
+            layoutId: "compact",
+            layoutName: "Compact",
+            lengthMetres: 6.5,
+            widthMetres: 3,
+          },
           report: {
             reference: "GF-2026-000042",
+            pool: {
+              layoutId: "compact",
+              layoutName: "Compact",
+              lengthMetres: 6.5,
+              widthMetres: 3,
+            },
             mapImageDataUrl: savedConstructabilityReport.mapImageDataUrl,
           },
           constructabilityEvidence: {

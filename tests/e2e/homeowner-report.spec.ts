@@ -170,14 +170,19 @@ test("saves and reproduces the complete public constructability journey through 
     await expect(
       page.getByRole("region", { name: "Site constructability" }),
     ).toHaveCount(0);
+    const savedReport = page.getByRole("article", {
+      name: "Preliminary Pool Feasibility Report",
+    });
+    await savedReport.getByRole("tab", { name: "What happens next" }).click();
     await expect(
-      page.getByRole("heading", {
+      savedReport.getByRole("heading", {
         name: "What your pool builder will confirm",
       }),
     ).toBeVisible();
     await expect(
-      page.getByText("Arrange an onsite visit with a pool builder."),
+      savedReport.getByText("Arrange an onsite visit with a pool builder."),
     ).toBeVisible();
+    await savedReport.getByRole("tab", { name: "Overview" }).click();
     await expect(page.getByText("Estimated pool depth")).toHaveCount(0);
     await expect(page.getByText(/Firth masonry guidance/i)).toHaveCount(0);
     await expect(
@@ -295,6 +300,10 @@ test("saves and reproduces the complete public constructability journey through 
         { category: "access_excavation", condition: "gate_or_narrow_passage" },
       ]),
     });
+    const builderReport = page.getByRole("article", {
+      name: "Preliminary Pool Feasibility Report",
+    });
+    await builderReport.getByRole("tab", { name: "Property findings" }).click();
     const builderConstructability = page.getByRole("region", {
       name: "Site constructability",
     });
@@ -463,6 +472,9 @@ async function submitAndReadRealResponse(page: Page) {
   expect(response.status(), JSON.stringify(body)).toBe(201);
   await expect(
     page.getByRole("heading", { name: "Preliminary pool feasibility report" }),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/Proposed pool: Compact — 6\.5 x 3 m/),
   ).toBeVisible();
   return {
     id: body.assessment.id as string,

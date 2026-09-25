@@ -38,6 +38,8 @@ function assessmentRow(
       boundaryStatus: "provisional",
     },
     poolLayout: {
+      layoutId: "compact",
+      layoutName: "Compact",
       lengthMetres: 6.5,
       widthMetres: 3,
       rotationDegrees: 24,
@@ -216,6 +218,8 @@ describe("staff assessment read model", () => {
       feasibilityState: "needs_checking",
       createdAt: new Date("2026-07-29T02:00:00.000Z"),
       poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
         lengthMetres: 6.5,
         widthMetres: 3,
         rotationDegrees: 24,
@@ -271,12 +275,17 @@ describe("staff assessment read model", () => {
       homeownerEmail: "jane@example.com",
       builderCompanyName: "North Shore Pools Ltd",
       visitorType: "pool_builder",
+      poolLayout: expect.objectContaining({
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      }),
       feasibilityState: "needs_checking",
       emailDeliveryState: "sent",
       forwardingState: "pending",
     });
     expect(active).not.toHaveProperty("idempotencyKey");
-    expect(active).not.toHaveProperty("poolLayout");
     expect(active).not.toHaveProperty("warnings");
     expect(active).not.toHaveProperty("reportData");
     await expect(

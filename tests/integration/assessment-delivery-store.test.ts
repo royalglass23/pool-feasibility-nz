@@ -42,6 +42,12 @@ describe.skipIf(!databaseUrl)(
           report: {
             reference: saved.assessment.reference,
             reportAudience: "pool_builder",
+            pool: {
+              layoutId: "compact",
+              layoutName: "Compact",
+              lengthMetres: 6.5,
+              widthMetres: 3,
+            },
             mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
           },
         });
@@ -62,6 +68,12 @@ describe.skipIf(!databaseUrl)(
         );
         expect(retryClaim?.claimToken).not.toBe(homeownerClaim?.claimToken);
         expect(retryClaim?.report.reportAudience).toBe("pool_builder");
+        expect(retryClaim?.report.pool).toMatchObject({
+          layoutId: "compact",
+          layoutName: "Compact",
+          lengthMetres: 6.5,
+          widthMetres: 3,
+        });
         expect(retryClaim?.report).toEqual(homeownerClaim?.report);
         await store.markSent(
           saved.assessment.reference,
@@ -89,6 +101,12 @@ describe.skipIf(!databaseUrl)(
           report: {
             reference: saved.assessment.reference,
             reportAudience: "pool_builder",
+            pool: {
+              layoutId: "compact",
+              layoutName: "Compact",
+              lengthMetres: 6.5,
+              widthMetres: 3,
+            },
             mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
           },
         });

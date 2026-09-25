@@ -39,7 +39,11 @@ export type StaffAssessmentSummary = {
   createdAt: Date;
   poolLayout: Pick<
     PersistedAssessmentSubmission["poolLayout"],
-    "lengthMetres" | "widthMetres" | "rotationDegrees"
+    | "layoutId"
+    | "layoutName"
+    | "lengthMetres"
+    | "widthMetres"
+    | "rotationDegrees"
   >;
   evidenceCount: number;
 };
@@ -60,6 +64,10 @@ export type StaffAssessmentRecord = {
   desiredTimingOtherDetail: string | null;
   additionalInfo: string | null;
   boundaryStatus: PersistedAssessmentSubmission["addressEvidence"]["boundaryStatus"];
+  poolLayout: Pick<
+    PersistedAssessmentSubmission["poolLayout"],
+    "layoutId" | "layoutName" | "lengthMetres" | "widthMetres"
+  >;
   feasibilityState: StaffFeasibilityState;
   emailDeliveryState: StaffDeliveryState;
   forwardingState: StaffDeliveryState;

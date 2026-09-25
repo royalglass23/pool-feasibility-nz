@@ -1,6 +1,7 @@
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
 import {
   assessmentStatusLabel,
+  formatNamedPoolLayout,
   formatReportNumber,
   reportShortStatus,
   type ReportAssessment,
@@ -34,7 +35,7 @@ export function renderCanonicalPreliminaryReportHtml(
   const audiencePresentation = reportAudiencePresentation(
     report.reportAudience,
   );
-  const poolDimensions = `${formatReportNumber(report.pool.lengthMetres)} x ${formatReportNumber(report.pool.widthMetres)} m`;
+  const poolLayout = formatNamedPoolLayout(report.pool);
   const header = () => `
     <header class="report-header">
       <div class="report-brand"><strong>PoolReady</strong><span>Powered by Blue Haven</span></div>
@@ -270,7 +271,7 @@ export function renderCanonicalPreliminaryReportHtml(
   <section class="page">
     ${header()}
     <div class="property-line">
-      <p>Proposed pool: ${esc(poolDimensions)}</p>
+      <p>Proposed pool: ${esc(poolLayout)}</p>
       ${builderCompany}
     </div>
     <section class="overall ${esc(report.overall.status)}" aria-label="Overall assessment">
@@ -516,6 +517,7 @@ export const canonicalReportConsistencyFields = (
 ) => ({
   reference: report.reference,
   address: report.property.address,
+  poolLayout: formatNamedPoolLayout(report.pool),
   poolDimensions: `${formatReportNumber(report.pool.lengthMetres)} x ${formatReportNumber(report.pool.widthMetres)} m`,
   overallStatus: assessmentStatusLabel(report.overall.status),
   overallSummary: report.overall.summary,
