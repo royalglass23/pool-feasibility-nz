@@ -51,6 +51,10 @@ import {
   type ClientApiError,
 } from "@/shared/http/client-api-error";
 import { ReportAudiencePathway } from "@/components/report-audience-pathway";
+import {
+  PropertyCheckJourneyNav,
+  type PropertyCheckStage,
+} from "@/components/property-check-journey-nav";
 import type { ReportAudience } from "@/modules/assessment/report-audience";
 import { useSearchParams } from "next/navigation";
 
@@ -160,6 +164,8 @@ export function PropertyCheckJourney({
   const [reportAudience, setReportAudience] = useState<ReportAudience | null>(
     initialReportAudience,
   );
+  const [currentStage, setCurrentStage] =
+    useState<PropertyCheckStage>("audience");
   const fastSavedReport = useSavedAssessmentReport();
   const [error, setError] = useState<PropertyCheckIssue | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
@@ -440,7 +446,6 @@ export function PropertyCheckJourney({
     setFastPlacementSnapshot(null);
     setConfirmedPlacementKey(null);
     setFastMapSnapshot(null);
-    setReportAudience(initialReportAudience);
     setDetailedRetryAfterSeconds(null);
     fastSavedReport.resetReport();
     setAddressOptions([]);
@@ -503,6 +508,7 @@ export function PropertyCheckJourney({
 
       if (fastRequestIdRef.current !== requestId) return;
       setFastResult(body.data);
+      setCurrentStage("placement");
       setPendingSelectedAddress(null);
       setFastAssessmentSnapshot(body.assessmentSnapshot);
       setSignedSiteAnswers(null);
@@ -599,7 +605,6 @@ export function PropertyCheckJourney({
     if (preDetailedSnapshot === null) setPreDetailedSnapshot(sourceSnapshot);
     setLockedDepth(depth);
     setIsLoadingDetailed(true);
-    setFastMapSnapshot(null);
     try {
       const response = await fetch("/api/public/property-check/stages", {
         method: "POST",
@@ -629,7 +634,6 @@ export function PropertyCheckJourney({
         setCanRetry(responseError?.code !== "RATE_LIMITED");
         return null;
       }
-      setFastMapSnapshot(null);
       setFastAssessmentSnapshot(body.assessmentSnapshot);
       setSignedSiteAnswers(null);
       setFastResult((current) =>
@@ -804,7 +808,46 @@ export function PropertyCheckJourney({
     setAddressOptions([]);
     setSuggestionMessage(null);
     fastSavedReport.resetReport();
+    setCurrentStage(reportAudience ? "property" : "audience");
   }
+
+  const completedStages = useMemo<PropertyCheckStage[]>(() => {
+    const completed: PropertyCheckStage[] = [];
+    if (reportAudience) completed.push("audience");
+    if (fastResult || result) completed.push("property");
+    if (
+      placementKey &&
+      confirmedPlacementKey === placementKey &&
+      fastPlacementSnapshot?.constructionEnvelopeWithinMappedArea
+    ) {
+      completed.push("placement");
+    }
+    const builderDetailsComplete = Boolean(
+      reportAudience === "pool_builder" &&
+      signedSiteAnswers?.sourceSnapshot === fastAssessmentSnapshot &&
+      signedSiteAnswers?.placementKey === placementKey,
+    );
+    if (
+      (reportAudience === "homeowner" && Boolean(fastResult?.detailedChecks)) ||
+      builderDetailsComplete
+    ) {
+      completed.push("details");
+    }
+    if (fastSavedReport.assessment) {
+      completed.push("contact", "report");
+    }
+    return completed;
+  }, [
+    confirmedPlacementKey,
+    fastAssessmentSnapshot,
+    fastPlacementSnapshot?.constructionEnvelopeWithinMappedArea,
+    fastResult,
+    fastSavedReport.assessment,
+    placementKey,
+    reportAudience,
+    result,
+    signedSiteAnswers,
+  ]);
 
   return (
     <div className="space-y-8">
@@ -818,7 +861,46 @@ export function PropertyCheckJourney({
         title="Running detailed official checks"
         description="Reviewing available official datasets for your preliminary report."
       />
-      {isEnteringAddress && (
+      <PropertyCheckJourneyNav
+        currentStage={currentStage}
+        completedStages={completedStages}
+        onNavigate={setCurrentStage}
+      />
+
+      {currentStage === "audience" && (
+        <section className="border-pool-200 rounded-[3px] border bg-white p-5 sm:p-7">
+          <h2 className="text-pool-950 text-xl font-semibold">
+            Who is this for?
+          </h2>
+          <div className="mt-4">
+            <ReportAudiencePathway
+              value={reportAudience}
+              onChange={(nextAudience) => {
+                if (nextAudience !== reportAudience) setSignedSiteAnswers(null);
+                setReportAudience(nextAudience);
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            disabled={!reportAudience}
+            onClick={() =>
+              setCurrentStage(
+                fastResult || result
+                  ? placementKey && confirmedPlacementKey === placementKey
+                    ? "details"
+                    : "placement"
+                  : "property",
+              )
+            }
+            className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 mt-5 min-h-11 rounded-[3px] px-5 font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Continue
+          </button>
+        </section>
+      )}
+
+      {currentStage === "property" && isEnteringAddress && (
         <form
           onSubmit={handleSubmit}
           noValidate
@@ -953,6 +1035,33 @@ export function PropertyCheckJourney({
         </form>
       )}
 
+      {currentStage === "property" && fastResult && (
+        <section className="border-pool-200 rounded-[3px] border bg-white p-5 sm:p-7">
+          <h2 className="text-pool-950 text-xl font-semibold">
+            Find the property
+          </h2>
+          <p className="text-pool-700 mt-2 text-sm leading-6">
+            {fastResult.resolvedAddress.fullAddress}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setCurrentStage("placement")}
+              className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 min-h-11 rounded-[3px] px-5 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Continue to pool placement
+            </button>
+            <button
+              type="button"
+              onClick={startAgain}
+              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-[3px] border bg-white px-5 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Change address
+            </button>
+          </div>
+        </section>
+      )}
+
       {pendingSelectedAddress && !fastResult && !result && (
         <SelectedAddressPending
           address={pendingSelectedAddress.fullAddress}
@@ -1001,68 +1110,69 @@ export function PropertyCheckJourney({
               </div>
             </div>
           )}
-          <FastPropertyView
-            result={fastResult}
-            suggestedRoute={
-              reportAudience === "pool_builder"
-                ? routeDraft?.placementKey === placementKey
-                  ? routeDraft.geometry
-                  : (routeSuggestion?.geometry ?? null)
-                : null
-            }
-            editableRoute={
-              reportAudience === "pool_builder" &&
-              routeSuggestion?.confidence === "credible" &&
-              placementKey &&
-              fastResult.detailedChecks
-                ? routeDraft?.placementKey === placementKey
-                  ? routeDraft.geometry
-                  : routeSuggestion.geometry
-                : null
-            }
-            onRouteEdit={handleRouteEdit}
-            onConfirmPlacement={() => {
-              if (placementKey) setConfirmedPlacementKey(placementKey);
-            }}
-            onRetry={() => void requestDetailedPropertyData()}
-            onStartAgain={startAgain}
-            isLoadingDetailed={isLoadingDetailed}
-            onPlacementChange={handleFastPlacementChange}
-            onSnapshotReady={setFastMapSnapshot}
-            placementConfirmed={confirmedPlacementKey === placementKey}
-            isDetailedRateLimited={detailedRetryAfterSeconds !== null}
-            planningEnabled={reportAudience !== null}
-            planningStep={
-              <ReportAudiencePathway
-                value={reportAudience}
-                onChange={(nextAudience) => {
-                  if (nextAudience !== reportAudience) {
-                    setSignedSiteAnswers(null);
-                  }
-                  setReportAudience(nextAudience);
-                }}
-              />
-            }
-          />
-          {fastPlacementSnapshot?.dimensions &&
+          <div hidden={currentStage !== "placement"}>
+            <FastPropertyView
+              result={fastResult}
+              suggestedRoute={
+                reportAudience === "pool_builder"
+                  ? routeDraft?.placementKey === placementKey
+                    ? routeDraft.geometry
+                    : (routeSuggestion?.geometry ?? null)
+                  : null
+              }
+              editableRoute={
+                reportAudience === "pool_builder" &&
+                routeSuggestion?.confidence === "credible" &&
+                placementKey &&
+                fastResult.detailedChecks
+                  ? routeDraft?.placementKey === placementKey
+                    ? routeDraft.geometry
+                    : routeSuggestion.geometry
+                  : null
+              }
+              onRouteEdit={handleRouteEdit}
+              onConfirmPlacement={() => {
+                if (placementKey) {
+                  setConfirmedPlacementKey(placementKey);
+                  setCurrentStage("details");
+                }
+              }}
+              onRetry={() => void requestDetailedPropertyData()}
+              onStartAgain={startAgain}
+              isLoadingDetailed={isLoadingDetailed}
+              onPlacementChange={handleFastPlacementChange}
+              onSnapshotReady={setFastMapSnapshot}
+              placementConfirmed={confirmedPlacementKey === placementKey}
+              isDetailedRateLimited={detailedRetryAfterSeconds !== null}
+              planningEnabled
+            />
+          </div>
+          {(currentStage === "details" || currentStage === "contact") &&
+          fastPlacementSnapshot?.dimensions &&
           fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
           fastAssessmentSnapshot &&
           reportAudience &&
           confirmedPlacementKey === placementKey &&
           placementKey ? (
-            <>
+            <div hidden={currentStage !== "details"}>
               {reportAudience === "homeowner" ? (
                 fastResult.detailedChecks ? (
-                  fastMapSnapshot && (
-                    <HomeownerSubmissionForm
-                      reportAudience={reportAudience}
-                      assessmentSnapshot={fastAssessmentSnapshot}
-                      mapImageDataUrl={fastMapSnapshot.imageDataUrl}
-                      mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
-                      placement={fastPlacementSnapshot}
-                      onSaved={fastSavedReport.saveAssessment}
-                    />
-                  )
+                  <section className="border-pool-200 rounded-[3px] border bg-white p-5 sm:p-7">
+                    <h3 className="text-pool-950 text-xl font-semibold">
+                      Property details checked
+                    </h3>
+                    <p className="text-pool-700 mt-2 text-sm leading-6">
+                      Continue to add your details and create the property
+                      report.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setCurrentStage("contact")}
+                      className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 mt-5 min-h-11 rounded-[3px] px-5 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2"
+                    >
+                      Continue to your details
+                    </button>
+                  </section>
                 ) : (
                   <section className="border-pool-200 rounded-2xl border bg-white p-5 sm:p-7">
                     <h3
@@ -1078,7 +1188,10 @@ export function PropertyCheckJourney({
                     </p>
                     <button
                       type="button"
-                      onClick={() => void requestDetailedPropertyData()}
+                      onClick={async () => {
+                        const detailed = await requestDetailedPropertyData();
+                        if (detailed) setCurrentStage("contact");
+                      }}
                       disabled={
                         isLoadingDetailed || detailedRetryAfterSeconds !== null
                       }
@@ -1133,31 +1246,52 @@ export function PropertyCheckJourney({
                     }
                     onRouteEdit={handleRouteEdit}
                     onDraftChange={handleBuilderDraftChange}
-                    onCheckProperty={checkBuilderProperty}
-                    onSaveRouteAdjustment={saveBuilderRouteAdjustment}
+                    onCheckProperty={async (draft) => {
+                      const saved = await checkBuilderProperty(draft);
+                      if (saved) setCurrentStage("contact");
+                      return saved;
+                    }}
+                    onSaveRouteAdjustment={async (draft) => {
+                      const saved = await saveBuilderRouteAdjustment(draft);
+                      if (saved) setCurrentStage("contact");
+                      return saved;
+                    }}
                   />
-                  {signedSiteAnswers?.sourceSnapshot ===
-                    fastAssessmentSnapshot &&
-                    signedSiteAnswers.placementKey === placementKey &&
-                    fastMapSnapshot && (
-                      <HomeownerSubmissionForm
-                        reportAudience={reportAudience}
-                        assessmentSnapshot={signedSiteAnswers.snapshot}
-                        constructability={signedSiteAnswers.answers}
-                        mapImageDataUrl={fastMapSnapshot.imageDataUrl}
-                        mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
-                        placement={fastPlacementSnapshot}
-                        onSaved={fastSavedReport.saveAssessment}
-                      />
-                    )}
                 </>
               )}
-            </>
+            </div>
+          ) : null}
+
+          {currentStage === "contact" &&
+          fastMapSnapshot &&
+          fastPlacementSnapshot?.dimensions &&
+          reportAudience &&
+          fastAssessmentSnapshot ? (
+            <HomeownerSubmissionForm
+              reportAudience={reportAudience}
+              assessmentSnapshot={
+                reportAudience === "pool_builder" && signedSiteAnswers
+                  ? signedSiteAnswers.snapshot
+                  : fastAssessmentSnapshot
+              }
+              constructability={
+                reportAudience === "pool_builder"
+                  ? signedSiteAnswers?.answers
+                  : undefined
+              }
+              mapImageDataUrl={fastMapSnapshot.imageDataUrl}
+              mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
+              placement={fastPlacementSnapshot}
+              onSaved={(assessment) => {
+                fastSavedReport.saveAssessment(assessment);
+                setCurrentStage("report");
+              }}
+            />
           ) : null}
         </>
       )}
 
-      {fastSavedReport.assessment && (
+      {currentStage === "report" && fastSavedReport.assessment && (
         <SavedAssessmentReportPanel
           assessment={fastSavedReport.assessment}
           showReport={fastSavedReport.showReport}

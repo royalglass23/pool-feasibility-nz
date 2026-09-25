@@ -160,11 +160,12 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
 
   await page.goto("/");
   await page.getByRole("button", { name: "Reject analytics" }).click();
+  await page.getByRole("radio", { name: "A customer property" }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page
     .getByLabel("Auckland property address")
     .fill("1 Test Street, Auckland");
   await page.keyboard.press("Enter");
-  await page.getByRole("radio", { name: "A customer property" }).check();
   await page.getByRole("button", { name: "Use this pool position" }).click();
   await page
     .getByRole("group", {

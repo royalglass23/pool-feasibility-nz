@@ -90,14 +90,48 @@ afterEach(() => {
 });
 
 describe("Site answers in the property journey", () => {
+  it("requires an audience choice before address search and exposes one gated journey", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", createJourneyFetch());
+
+    render(<PropertyCheckJourney />);
+
+    expect(
+      screen.getByRole("navigation", { name: "Property Check journey" }),
+    ).toBeVisible();
+    expect(screen.getAllByRole("navigation")).toHaveLength(1);
+    expect(
+      screen.getByRole("radio", { name: "My property" }),
+    ).not.toBeChecked();
+    expect(
+      screen.getByRole("radio", { name: "A customer property" }),
+    ).not.toBeChecked();
+    expect(
+      screen.queryByLabelText("Auckland property address"),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Find the property.*Locked/ }),
+    ).toBeDisabled();
+
+    screen.getByRole("radio", { name: "My property" }).focus();
+    await user.keyboard(" ");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+
+    expect(screen.getByLabelText("Auckland property address")).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
+    ).toBeEnabled();
+    expect(
+      screen.getByRole("button", { name: /Find the property.*Current/ }),
+    ).toHaveAttribute("aria-current", "step");
+  });
+
   it("takes homeowners from mapped checks to details without technical inputs", async () => {
     const user = userEvent.setup();
     const fetchMock = createJourneyFetch();
     vi.stubGlobal("fetch", fetchMock);
 
     render(<PropertyCheckJourney />);
-    await openValidPlacement(user);
-
     const homeowner = screen.getByRole("radio", { name: "My property" });
     const builder = screen.getByRole("radio", {
       name: "A customer property",
@@ -108,9 +142,7 @@ describe("Site answers in the property journey", () => {
       screen.queryByRole("spinbutton", { name: "Estimated pool depth (m)" }),
     ).not.toBeInTheDocument();
 
-    homeowner.focus();
-    await user.keyboard(" ");
-    expect(homeowner).toBeChecked();
+    await openValidPlacement(user, "homeowner");
     expect(
       screen.queryByRole("spinbutton", { name: "Estimated pool depth (m)" }),
     ).not.toBeInTheDocument();
@@ -127,13 +159,20 @@ describe("Site answers in the property journey", () => {
         fetchMock.mock.calls.filter(([url]) => url.endsWith("/stages")),
       ).toHaveLength(2),
     );
-    await user.click(screen.getByRole("button", { name: "Hide clearances" }));
     expect(await screen.findByTestId("details-form")).toHaveTextContent(
       "stage-token as homeowner",
     );
 
-    await user.click(builder);
-    expect(builder).toBeChecked();
+    await user.click(
+      screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
+    );
+    expect(screen.getByRole("radio", { name: "My property" })).toBeChecked();
+    const revisitedBuilder = screen.getByRole("radio", {
+      name: "A customer property",
+    });
+    await user.click(revisitedBuilder);
+    expect(revisitedBuilder).toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
     expect(
       screen.getByRole("spinbutton", { name: "Estimated pool depth (m)" }),
     ).toBeVisible();
@@ -144,14 +183,14 @@ describe("Site answers in the property journey", () => {
     vi.stubGlobal("fetch", createJourneyFetch());
 
     render(<PropertyCheckJourney initialReportAudience="pool_builder" />);
-    await openValidPlacement(user);
-
     const builder = screen.getByRole("radio", {
       name: "A customer property",
     });
     expect(builder).toBeChecked();
     await user.click(screen.getByRole("radio", { name: "My property" }));
     expect(builder).not.toBeChecked();
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(screen.getByLabelText("Auckland property address")).toBeVisible();
   });
 
   it("locks the chosen depth for checks and requires a new check after editing", async () => {
@@ -183,22 +222,7 @@ describe("Site answers in the property journey", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<PropertyCheckJourney />);
-    await user.type(
-      screen.getByLabelText("Auckland property address"),
-      "1 Test Street, Auckland",
-    );
-    await user.keyboard("{Enter}");
-    await waitFor(() =>
-      expect(
-        fetchMock.mock.calls.some(([url]) => url.endsWith("/stages")),
-      ).toBe(true),
-    );
-    await user.click(
-      await screen.findByRole("button", { name: "Set pool layout" }),
-    );
-    await user.click(
-      screen.getByRole("radio", { name: "A customer property" }),
-    );
+    await openValidPlacement(user, "pool_builder");
     await user.click(
       screen.getByRole("button", { name: "Use this pool position" }),
     );
@@ -273,31 +297,18 @@ describe("Site answers in the property journey", () => {
     });
     vi.stubGlobal("fetch", fetchMock);
     render(<PropertyCheckJourney />);
-    await user.type(
-      screen.getByLabelText("Auckland property address"),
-      "1 Test Street, Auckland",
-    );
-    await user.keyboard("{Enter}");
-    await waitFor(() =>
-      expect(
-        fetchMock.mock.calls.some(([url]) => url.endsWith("/stages")),
-      ).toBe(true),
-    );
-    await user.click(
-      await screen.findByRole("button", { name: "Set pool layout" }),
-    );
-    await user.click(
-      screen.getByRole("radio", { name: "A customer property" }),
-    );
+    await openValidPlacement(user, "pool_builder");
     await user.click(
       screen.getByRole("button", { name: "Use this pool position" }),
     );
     await chooseNone(user);
-    await user.click(screen.getByRole("button", { name: "Hide clearances" }));
     expect(await screen.findByTestId("details-form")).toHaveTextContent(
       "signed-stage-token",
     );
 
+    await user.click(
+      screen.getByRole("button", { name: /Check the details.*Completed/ }),
+    );
     await user.click(
       within(
         screen.getByRole("group", {
@@ -312,6 +323,9 @@ describe("Site answers in the property journey", () => {
     expect(await screen.findByTestId("details-form")).toBeVisible();
 
     await user.click(
+      screen.getByRole("button", { name: /Check the details.*Completed/ }),
+    );
+    await user.click(
       within(
         screen.getByRole("group", {
           name: "Which existing features are close to the proposed pool area?",
@@ -324,6 +338,9 @@ describe("Site answers in the property journey", () => {
     );
     expect(await screen.findByTestId("details-form")).toBeVisible();
 
+    await user.click(
+      screen.getByRole("button", { name: /Check the details.*Completed/ }),
+    );
     fireEvent.change(
       screen.getByRole("slider", {
         name: "Indicative excavation side clearance",
@@ -336,18 +353,31 @@ describe("Site answers in the property journey", () => {
     );
     expect(await screen.findByTestId("details-form")).toBeVisible();
 
+    await user.click(
+      screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
+    );
     await user.click(screen.getByRole("radio", { name: "My property" }));
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    await user.click(
+      screen.getByRole("button", { name: "Continue to your details" }),
+    );
     expect(screen.getByTestId("details-form")).toHaveTextContent(
       "stage-token as homeowner",
     );
     await user.click(
+      screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
+    );
+    await user.click(
       screen.getByRole("radio", { name: "A customer property" }),
     );
+    await user.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.queryByTestId("details-form")).not.toBeInTheDocument();
     await chooseNone(user);
 
-    await user.click(screen.getByRole("button", { name: "Hide clearances" }));
     expect(screen.getByTestId("details-form")).toBeVisible();
+    await user.click(
+      screen.getByRole("button", { name: /Place your pool.*Completed/ }),
+    );
     await user.click(screen.getByRole("button", { name: "Move pool" }));
     expect(screen.queryByTestId("details-form")).not.toBeInTheDocument();
     await user.click(
@@ -387,15 +417,10 @@ describe("Site answers in the property journey", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<PropertyCheckJourney />);
-    await openValidPlacement(user);
-    await user.click(
-      screen.getByRole("radio", { name: "A customer property" }),
-    );
+    await openValidPlacement(user, "pool_builder");
     await user.click(
       screen.getByRole("button", { name: "Use this pool position" }),
     );
-    await user.click(screen.getByRole("button", { name: "Hide clearances" }));
-
     const access = screen.getByRole("group", {
       name: "Which visible site conditions could affect plant access or excavation?",
     });
@@ -491,10 +516,7 @@ describe("Site answers in the property journey", () => {
     vi.stubGlobal("fetch", fetchMock);
 
     render(<PropertyCheckJourney />);
-    await openValidPlacement(user);
-    await user.click(
-      screen.getByRole("radio", { name: "A customer property" }),
-    );
+    await openValidPlacement(user, "pool_builder");
     await user.click(
       screen.getByRole("button", { name: "Use this pool position" }),
     );
@@ -503,7 +525,9 @@ describe("Site answers in the property journey", () => {
     expect(
       await screen.findByText(/couldn’t complete the property check/i),
     ).toBeVisible();
-    await user.click(screen.getByRole("button", { name: "Hide clearances" }));
+    await user.click(
+      screen.getByRole("button", { name: /Check the details.*Current/ }),
+    );
     await user.click(
       screen.getByRole("button", { name: "Save builder answers" }),
     );
@@ -563,7 +587,16 @@ function createJourneyFetch() {
   });
 }
 
-async function openValidPlacement(user: ReturnType<typeof userEvent.setup>) {
+async function openValidPlacement(
+  user: ReturnType<typeof userEvent.setup>,
+  audience: "homeowner" | "pool_builder" = "homeowner",
+) {
+  const audienceRadio = screen.getByRole("radio", {
+    name: audience === "homeowner" ? "My property" : "A customer property",
+  });
+  if (!(audienceRadio as HTMLInputElement).checked)
+    await user.click(audienceRadio);
+  await user.click(screen.getByRole("button", { name: "Continue" }));
   await user.type(
     screen.getByLabelText("Auckland property address"),
     "1 Test Street, Auckland",

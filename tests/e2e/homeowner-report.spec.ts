@@ -362,10 +362,6 @@ async function startJourney(
   if (rejectAnalytics) {
     await page.getByRole("button", { name: "Reject analytics" }).click();
   }
-  await page
-    .getByLabel("Auckland property address")
-    .fill("42A Bahari Drive, Ranui, Auckland");
-  await page.keyboard.press("Enter");
   const pathway = page.getByRole("radiogroup", {
     name: "Who are you checking this property for?",
   });
@@ -388,6 +384,11 @@ async function startJourney(
     await page.keyboard.press("Space");
     await expect(chosenPath).toBeChecked();
   }
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page
+    .getByLabel("Auckland property address")
+    .fill("42A Bahari Drive, Ranui, Auckland");
+  await page.keyboard.press("Enter");
   const depthInput = page.getByRole("spinbutton", {
     name: "Estimated pool depth (m)",
   });

@@ -204,9 +204,10 @@ test("one signed session separates automatic stages and constraints, then respec
   });
 
   await page.goto("/");
+  await page.getByRole("radio", { name: "My property" }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("option", { name: address }).click();
-  await page.getByRole("radio", { name: "My property" }).check();
   await page.getByRole("button", { name: "Use this pool position" }).click();
   await page.getByRole("button", { name: "Check this property" }).click();
   await page.getByRole("button", { name: "Check this property" }).click();

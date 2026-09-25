@@ -180,6 +180,27 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     const builderEntry = initialOutcome === "retryable";
     await page.goto(builderEntry ? "/?audience=pool_builder" : "/");
     await page.getByRole("button", { name: "Not now" }).click();
+    const homeownerPath = page.getByRole("radio", { name: "My property" });
+    const builderPath = page.getByRole("radio", {
+      name: "A customer property",
+    });
+    if (builderEntry) {
+      await expect(builderPath).toBeChecked();
+      await homeownerPath.click();
+      await expect(homeownerPath).toBeChecked();
+      await builderPath.click();
+      await expect(builderPath).toBeChecked();
+      await homeownerPath.click();
+    } else {
+      await expect(homeownerPath).not.toBeChecked();
+      await expect(builderPath).not.toBeChecked();
+      await homeownerPath.focus();
+      await page.keyboard.press("Space");
+      await expect(homeownerPath).toBeChecked();
+      await builderPath.click();
+      await homeownerPath.click();
+    }
+    await page.getByRole("button", { name: "Continue" }).click();
     await page
       .getByLabel("Auckland property address")
       .fill("42A Bahari Drive, Ranui, Auckland");
@@ -210,26 +231,6 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "false");
     await mapLayersToggle.click();
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "true");
-    const homeownerPath = page.getByRole("radio", { name: "My property" });
-    const builderPath = page.getByRole("radio", {
-      name: "A customer property",
-    });
-    if (builderEntry) {
-      await expect(builderPath).toBeChecked();
-      await homeownerPath.click();
-      await expect(homeownerPath).toBeChecked();
-      await builderPath.click();
-      await expect(builderPath).toBeChecked();
-      await homeownerPath.click();
-    } else {
-      await expect(homeownerPath).not.toBeChecked();
-      await expect(builderPath).not.toBeChecked();
-      await homeownerPath.focus();
-      await page.keyboard.press("Space");
-      await expect(homeownerPath).toBeChecked();
-      await builderPath.click();
-      await homeownerPath.click();
-    }
     await expect(
       page.getByRole("button", { name: "Use this pool position" }),
     ).toBeVisible();
@@ -252,6 +253,9 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       await retry.click();
       await expect.poll(() => detailedStageRequests).toBe(2);
     }
+    await page
+      .getByRole("button", { name: /Place your pool.*Completed/ })
+      .click();
     await expect(
       page.getByText(/No valid elevation data covers this property\./),
     ).toBeVisible();

@@ -3,7 +3,13 @@ import {
   splitDataAccessGateway,
 } from "../fixtures/normalized-data-access";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PropertyCheckJourney } from "@/components/property-check-journey";
 import { runDataAccessSpike } from "@/modules/data-access-spike/run-data-access-spike";
@@ -33,7 +39,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
 
     const input = screen.getByLabelText("Auckland property address");
     await user.click(input);
@@ -59,7 +65,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
         : Promise.resolve(Response.json({ suggestions: [] }, { status: 200 })),
     );
     vi.stubGlobal("fetch", fetchMock);
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
 
     const input = screen.getByLabelText("Auckland property address");
     expect(input).toHaveValue("");
@@ -131,7 +137,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
           ),
         ),
       );
-      render(<PropertyCheckJourney />);
+      renderJourneyAtAddress();
 
       await user.type(
         screen.getByLabelText("Auckland property address"),
@@ -159,7 +165,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data: result }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -200,7 +206,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => undefined);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -267,7 +273,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data: result }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -300,7 +306,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
         vi.fn(async () => Response.json({ data: result }, { status: 200 })),
       );
 
-      render(<PropertyCheckJourney />);
+      renderJourneyAtAddress();
       await user.type(
         screen.getByLabelText("Auckland property address"),
         requestedAddress,
@@ -359,16 +365,13 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       });
       vi.stubGlobal("fetch", fetchMock);
 
-      render(<PropertyCheckJourney />);
+      renderJourneyAtAddress();
       await user.type(
         screen.getByLabelText("Auckland property address"),
         requestedAddress,
       );
       await new Promise((resolve) => setTimeout(resolve, 300));
       await user.keyboard("{Enter}");
-      await user.click(
-        await screen.findByRole("radio", { name: "My property" }),
-      );
 
       expect(
         await screen.findByRole("button", { name: "Use this pool position" }),
@@ -408,7 +411,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ suggestions: [] }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       "42A Bahari",
@@ -430,7 +433,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       }),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       "42A Bahari",
@@ -468,7 +471,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       }),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       "Bahari Drive, Ranui, Auckland",
@@ -505,7 +508,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -548,7 +551,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -576,7 +579,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     expect(
       screen.queryByLabelText("Preferred pool size"),
     ).not.toBeInTheDocument();
@@ -619,7 +622,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data: result }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -700,7 +703,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data: result }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -756,7 +759,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       "Bahari Drive, Ranui, Auckland",
@@ -801,7 +804,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       .mockResolvedValueOnce(Response.json({ data: result }, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     const input = screen.getByLabelText("Auckland property address");
     await user.type(input, "42A Bahari");
 
@@ -855,7 +858,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       .mockResolvedValueOnce(Response.json({ data: result }, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -898,7 +901,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -979,7 +982,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1045,13 +1048,12 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
     await user.keyboard("{Enter}");
-    await user.click(await screen.findByRole("radio", { name: "My property" }));
     await user.click(
       await screen.findByRole("button", { name: "Use this pool position" }),
     );
@@ -1110,13 +1112,12 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       }),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
     await user.keyboard("{Enter}");
-    await user.click(await screen.findByRole("radio", { name: "My property" }));
     await user.click(
       await screen.findByRole("button", { name: "Use this pool position" }),
     );
@@ -1136,6 +1137,9 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     expect(
       screen.getByRole("button", { name: "Check this property" }),
     ).toBeDisabled();
+    await user.click(
+      screen.getByRole("button", { name: /Place your pool.*Completed/ }),
+    );
     expect(
       screen.getByRole("button", { name: "Retry property check" }),
     ).toBeDisabled();
@@ -1208,18 +1212,20 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
     await user.keyboard("{Enter}");
-    await user.click(await screen.findByRole("radio", { name: "My property" }));
     await user.click(
       await screen.findByRole("button", { name: "Use this pool position" }),
     );
     await user.click(
       await screen.findByRole("button", { name: "Check this property" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Place your pool.*Completed/ }),
     );
     expect(
       await screen.findByRole("heading", { name: "Indicative property slope" }),
@@ -1297,18 +1303,20 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       }),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
     );
     await user.keyboard("{Enter}");
-    await user.click(await screen.findByRole("radio", { name: "My property" }));
     await user.click(
       await screen.findByRole("button", { name: "Use this pool position" }),
     );
     await user.click(
       await screen.findByRole("button", { name: "Check this property" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: /Place your pool.*Completed/ }),
     );
 
     expect(
@@ -1372,6 +1380,8 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
         <PropertyCheckJourney />
       </>,
     );
+    fireEvent.click(screen.getByRole("radio", { name: "My property" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(
       screen.getByRole("heading", {
         name: "Begin with a practical property check",
@@ -1428,7 +1438,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       ),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1469,7 +1479,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1501,4 +1511,11 @@ async function createResult() {
     gateway: createDataAccessGateway(),
     now: () => new Date("2026-07-16T00:00:00.000Z"),
   });
+}
+
+function renderJourneyAtAddress() {
+  const view = render(<PropertyCheckJourney />);
+  fireEvent.click(screen.getByRole("radio", { name: "My property" }));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  return view;
 }

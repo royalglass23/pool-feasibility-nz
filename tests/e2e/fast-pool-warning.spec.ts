@@ -113,6 +113,8 @@ async function openFastView(page: import("@playwright/test").Page) {
     });
   });
   await page.goto("/");
+  await page.getByRole("radio", { name: "My property" }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page
     .getByLabel("Auckland property address")
     .fill(baseResult.requestedAddress);
@@ -152,9 +154,11 @@ test("shows Needs Checking before detailed evidence, then No Warning after a cle
       }),
     });
   });
-  await page.getByRole("radio", { name: "My property" }).check();
   await page.getByRole("button", { name: "Use this pool position" }).click();
   await page.getByRole("button", { name: "Check this property" }).click();
+  await page
+    .getByRole("button", { name: /Place your pool.*Completed/ })
+    .click();
   await expect(page.getByRole("heading", { name: "No Warning" })).toBeVisible();
   const mapTopAfterCheck = await documentTop(aerialMap);
   expect(mapTopAfterCheck).toBeCloseTo(mapTopBeforeCheck, 0);
@@ -183,9 +187,11 @@ test("keeps the mobile workspace anchored when the live result changes", async (
       }),
     });
   });
-  await page.getByRole("radio", { name: "My property" }).check();
   await page.getByRole("button", { name: "Use this pool position" }).click();
   await page.getByRole("button", { name: "Check this property" }).click();
+  await page
+    .getByRole("button", { name: /Place your pool.*Completed/ })
+    .click();
   await expect(page.getByRole("heading", { name: "No Warning" })).toBeVisible();
 
   expect(await documentTop(aerialMap)).toBeCloseTo(mapTopBeforeCheck, 0);
@@ -207,9 +213,11 @@ test("shows friendly position-review guidance while leaving the pool controls av
       }),
     });
   });
-  await page.getByRole("radio", { name: "My property" }).check();
   await page.getByRole("button", { name: "Use this pool position" }).click();
   await page.getByRole("button", { name: "Check this property" }).click();
+  await page
+    .getByRole("button", { name: /Place your pool.*Completed/ })
+    .click();
   await expect(
     page.getByRole("heading", { name: "This pool position needs review" }),
   ).toBeVisible();
