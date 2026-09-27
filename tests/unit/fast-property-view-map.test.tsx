@@ -304,24 +304,79 @@ it("keeps Builder planning content from stretching the map capture frame", async
   expect(screen.getByTestId("aerial-map-frame")).not.toHaveClass("lg:h-full");
 });
 
-it("keeps rotation out of the public placement controls and map", async () => {
+it("keeps the icon-only rotation control interactive without rotation wording", async () => {
   const onSnapshotReady = vi.fn();
+  const onPlacementChange = vi.fn();
   render(
     <FastPropertyView
       result={fastResult}
       onRetry={() => {}}
+      onPlacementChange={onPlacementChange}
       onSnapshotReady={onSnapshotReady}
     />,
   );
   await waitFor(() => expect(onSnapshotReady).toHaveBeenCalled());
   expect(setWorkerUrl).toHaveBeenCalledWith("/maplibre/maplibre-gl-worker.mjs");
   expect(waitForIdle).not.toHaveBeenCalled();
-  expect(screen.queryByTestId("pool-rotate-control")).not.toBeInTheDocument();
+  const rotateControl = screen.getByTestId("pool-rotate-control");
+  expect(rotateControl).toBeVisible();
   expect(
     screen.queryByText(/rotate|rotation|turn it/i),
   ).not.toBeInTheDocument();
+
+  Object.assign(rotateControl, {
+    setPointerCapture: vi.fn(),
+    hasPointerCapture: vi.fn(() => true),
+    releasePointerCapture: vi.fn(),
+  });
+  fireEvent.pointerDown(rotateControl, { pointerId: 1 });
+  fireEvent.pointerMove(rotateControl, {
+    pointerId: 1,
+    clientX: 174_608_350,
+    clientY: 36_860_200,
+  });
+  fireEvent.pointerUp(rotateControl, { pointerId: 1 });
+
+  await waitFor(() =>
+    expect(
+      onPlacementChange.mock.calls.some(
+        ([snapshot]) => snapshot.rotationDegrees !== 0,
+      ),
+    ).toBe(true),
+  );
   mapEventHandlers.get("idle:map")?.({} as MapEvent);
-  expect(screen.queryByTestId("pool-rotate-control")).not.toBeInTheDocument();
+  expect(rotateControl).toBeVisible();
+});
+
+it("makes the icon-only rotation control keyboard operable", async () => {
+  const onPlacementChange = vi.fn();
+  render(
+    <FastPropertyView
+      result={fastResult}
+      onRetry={() => {}}
+      onPlacementChange={onPlacementChange}
+    />,
+  );
+
+  const rotateControl = await screen.findByRole("slider", {
+    name: "Pool orientation",
+  });
+  expect(rotateControl).toHaveAttribute("aria-valuenow", "0");
+
+  rotateControl.focus();
+  fireEvent.keyDown(rotateControl, { key: "ArrowRight" });
+
+  await waitFor(() => {
+    expect(rotateControl).toHaveAttribute("aria-valuenow", "5");
+    expect(
+      onPlacementChange.mock.calls.some(
+        ([snapshot]) => snapshot.rotationDegrees === 5,
+      ),
+    ).toBe(true);
+  });
+  expect(
+    screen.queryByText(/rotate|rotation|orientation|turn it/i),
+  ).not.toBeInTheDocument();
 });
 
 it("emits the selected named identity and keeps Custom identity while dimensions change", async () => {
@@ -374,7 +429,7 @@ it("emits the selected named identity and keeps Custom identity while dimensions
 });
 
 it.each(["layer", "camera", "clearances"])(
-  "refreshes the snapshot after a %s change without adding rotation controls",
+  "refreshes the snapshot after a %s change without hiding the rotation icon",
   async (change) => {
     const onSnapshotReady = vi.fn();
     render(
@@ -403,7 +458,7 @@ it.each(["layer", "camera", "clearances"])(
       imageDataUrl: "data:image/png;base64,new",
       visibleLayerKeys: change === "layer" ? [] : ["wastewater_assets"],
     });
-    expect(screen.queryByTestId("pool-rotate-control")).not.toBeInTheDocument();
+    expect(screen.getByTestId("pool-rotate-control")).toBeVisible();
   },
 );
 

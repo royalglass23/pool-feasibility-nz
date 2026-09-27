@@ -506,7 +506,7 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
         { steps: 4 },
       );
       await page.mouse.up();
-      await expect(page.getByTestId("pool-rotate-control")).toHaveCount(0);
+      await expect(page.getByTestId("pool-rotate-control")).toBeVisible();
       await expect(
         page.getByText(/move and rotate|drag the rotate/i),
       ).toHaveCount(0);
@@ -663,7 +663,9 @@ test("supports the pool catalogue and bounded custom input", async ({
 
   await length.fill("8.0");
   await page.getByLabel("Custom width (m)").fill("3.0");
-  await expect(page.getByTestId("pool-rotate-control")).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /Rotate/ })).toHaveCount(0);
+  await expect(page.getByTestId("pool-rotate-control")).toBeVisible();
+  await expect(
+    page.getByRole("slider", { name: "Pool orientation" }),
+  ).toBeVisible();
   await expect(page.getByText(/^Rotation:/)).toHaveCount(0);
 });

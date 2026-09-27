@@ -1,7 +1,7 @@
 import { expect, test } from "@playwright/test";
 import type { FastPropertyViewResult } from "@/modules/data-access-spike/fast-property-view";
 
-test("keeps public pool placement move-only and keyboard selectable", async ({
+test("keeps icon-only rotation functional and pool layouts keyboard selectable", async ({
   page,
 }) => {
   await page.route("**/api/public/property-check", (route) =>
@@ -22,7 +22,10 @@ test("keeps public pool placement move-only and keyboard selectable", async ({
   const catalogue = page.getByRole("group", { name: "Pool catalogue" });
   await expect(catalogue).toBeVisible();
   await expect(catalogue.getByRole("button")).toHaveCount(6);
-  await expect(page.getByTestId("pool-rotate-control")).toHaveCount(0);
+  const rotateControl = page.getByRole("slider", {
+    name: "Pool orientation",
+  });
+  await expect(rotateControl).toBeVisible();
   await expect(page.getByText(/move and rotate|drag the rotate/i)).toHaveCount(
     0,
   );
@@ -46,9 +49,25 @@ test("keeps public pool placement move-only and keyboard selectable", async ({
   );
   await page.mouse.up();
 
+  const rotateBounds = (await rotateControl.boundingBox())!;
+  await page.mouse.move(
+    rotateBounds.x + rotateBounds.width / 2,
+    rotateBounds.y + rotateBounds.height / 2,
+  );
+  await page.mouse.down();
+  await page.mouse.move(rotateBounds.x + 70, rotateBounds.y - 15, {
+    steps: 12,
+  });
+  await page.mouse.up();
+
   await expect(family).toHaveAttribute("aria-pressed", "true");
   await expect(map).toBeVisible();
-  await expect(page.getByTestId("pool-rotate-control")).toHaveCount(0);
+  await expect
+    .poll(async () =>
+      Number(await rotateControl.getAttribute("data-rotation-degrees")),
+    )
+    .not.toBe(0);
+  await expect(rotateControl).toBeVisible();
 });
 
 const fastResult = {

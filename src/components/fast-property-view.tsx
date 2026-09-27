@@ -46,7 +46,7 @@ import {
   readClientApiErrorFromBlobError,
   type ClientApiError,
 } from "@/shared/http/client-api-error";
-import { destination, point } from "@turf/turf";
+import { bearing, destination, point } from "@turf/turf";
 import {
   assessSelectedPoolTerrain,
   type SelectedPoolTerrain,
@@ -200,6 +200,8 @@ export function FastPropertyView({
   routeAdjustmentMode?: boolean;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
+  const rotationControlVisibleRef = useRef(false);
+  const syncRotationControlRef = useRef<() => void>(() => {});
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
   const suggestedRouteRef = useRef(suggestedRoute);
   const editableRouteRef = useRef(editableRoute);
@@ -217,7 +219,15 @@ export function FastPropertyView({
   const clearanceLabelMarkersRef = useRef<import("maplibre-gl").Marker[]>([]);
   const poolShellClearancesRef = useRef<PoolShellClearance[]>([]);
   const clearancesVisibleRef = useRef(true);
+  const placementRef = useRef<{
+    position: [number, number];
+    rotationDegrees: number;
+    dimensions: { lengthMetres: number; widthMetres: number } | null;
+  } | null>(null);
   const positionHandlerRef = useRef<(candidate: [number, number]) => void>(
+    () => undefined,
+  );
+  const rotationHandlerRef = useRef<(candidate: number) => void>(
     () => undefined,
   );
   const snapshotHandlerRef = useRef(onSnapshotReady);
@@ -226,7 +236,7 @@ export function FastPropertyView({
   const [selectedPoolId, setSelectedPoolId] = useState<FastPoolId>("compact");
   const [customLength, setCustomLength] = useState("6.5");
   const [customWidth, setCustomWidth] = useState("3");
-  const rotationDegrees = 0;
+  const [rotationDegrees, setRotationDegrees] = useState(0);
   const [utilityVisibility, setUtilityVisibility] = useState(
     allUtilityCategoriesVisible,
   );
@@ -475,6 +485,18 @@ export function FastPropertyView({
     selectedPool,
   ]);
 
+  useEffect(() => {
+    placementRef.current = { position, rotationDegrees, dimensions };
+    rotationControlVisibleRef.current =
+      !isInitialAddressLoad && Boolean(poolGeometry);
+  }, [
+    dimensions,
+    position,
+    rotationDegrees,
+    isInitialAddressLoad,
+    poolGeometry,
+  ]);
+
   const setCandidatePosition = (candidate: [number, number]) => {
     if (isInitialAddressLoad) return;
     if (
@@ -493,8 +515,28 @@ export function FastPropertyView({
     setPosition(candidate);
   };
 
+  const setCandidateRotation = (candidate: number) => {
+    if (isInitialAddressLoad) return;
+    const normalized = ((candidate % 360) + 360) % 360;
+    if (
+      constructionEnvelopeDimensions &&
+      result.boundary.geometry &&
+      !isFastPoolWithinMappedArea(
+        position,
+        constructionEnvelopeDimensions,
+        normalized,
+        result.boundary.geometry,
+      )
+    ) {
+      return;
+    }
+    setPlacementMessage(null);
+    setRotationDegrees(normalized);
+  };
+
   useEffect(() => {
     positionHandlerRef.current = setCandidatePosition;
+    rotationHandlerRef.current = setCandidateRotation;
   });
 
   const choosePool = (poolId: FastPoolId) => {
@@ -518,6 +560,7 @@ export function FastPropertyView({
             0,
           )
         : null;
+    setRotationDegrees(0);
     if (nextPosition) setPosition(nextPosition as [number, number]);
     setPlacementMessage(
       nextPosition || !result.boundary.geometry
@@ -529,6 +572,7 @@ export function FastPropertyView({
   useEffect(() => {
     let map: import("maplibre-gl").Map | null = null;
     let disposed = false;
+    let rotationMarker: import("maplibre-gl").Marker | null = null;
     const clearanceLabelMarkers = clearanceLabelMarkersRef.current;
     void import("maplibre-gl").then((maplibregl) => {
       if (disposed || !mapRef.current) return;
@@ -763,6 +807,47 @@ export function FastPropertyView({
           attributionControl: { compact: true },
           canvasContextAttributes: { preserveDrawingBuffer: true },
         });
+        // Keep the icon as a DOM overlay so it stays interactive while the
+        // report snapshot captures only the underlying map canvas.
+        const control = document.createElement("div");
+        control.dataset.testid = "pool-rotate-control";
+        control.tabIndex = 0;
+        control.setAttribute("role", "slider");
+        control.setAttribute("aria-label", "Pool orientation");
+        control.setAttribute("aria-valuemin", "0");
+        control.setAttribute("aria-valuemax", "359");
+        control.style.cssText =
+          "width:44px;height:44px;border-radius:50%;background:white;border:1px solid #0077bd;display:grid;place-items:center;pointer-events:auto;touch-action:none;cursor:grab;";
+        control.innerHTML =
+          '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#0077bd" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 7v-5m0 5h-5M20 7a8 8 0 1 0 1 8"/></svg>';
+        rotationMarker = new maplibregl.Marker({
+          element: control,
+          anchor: "center",
+        })
+          .setLngLat(mapCoordinates)
+          .addTo(map);
+        syncRotationControlRef.current = () => {
+          const active = placementRef.current;
+          if (!map || !active) return;
+          control.dataset.rotationDegrees = String(active.rotationDegrees);
+          control.setAttribute("aria-valuenow", String(active.rotationDegrees));
+          const geometry = rotationHandleGeometry(
+            active.position,
+            active.rotationDegrees,
+            rotationControlVisibleRef.current ? active.dimensions : null,
+            map,
+          );
+          const handle = geometry.features.find(
+            (entry) => entry.geometry.type === "Point",
+          );
+          control.style.display = handle ? "grid" : "none";
+          if (handle?.geometry.type === "Point")
+            rotationMarker?.setLngLat(
+              handle.geometry.coordinates as [number, number],
+            );
+        };
+        syncRotationControlRef.current();
+        map.on("move", () => syncRotationControlRef.current());
         mapInstanceRef.current = map;
         setMapReady(true);
         map.addControl(new maplibregl.NavigationControl(), "top-right");
@@ -831,10 +916,17 @@ export function FastPropertyView({
             snapshotHandlerRef.current?.(null);
           }
         });
-        let interaction: "move" | null = null;
+        let interaction: "move" | "rotate" | null = null;
         type PoolInteractionEvent =
           | import("maplibre-gl").MapMouseEvent
           | import("maplibre-gl").MapTouchEvent;
+        const updateRotationFromCursor = (cursor: [number, number]) => {
+          const active = placementRef.current;
+          if (!active) return;
+          rotationHandlerRef.current(
+            180 - bearing(point(active.position), point(cursor)),
+          );
+        };
         const updateInteraction = (event: PoolInteractionEvent) => {
           if (!interaction && event.type === "mousemove" && map) {
             // Pointer events can arrive before the style's layers are ready.
@@ -853,10 +945,14 @@ export function FastPropertyView({
             positionHandlerRef.current(
               map!.unproject(event.point).toArray() as [number, number],
             );
+          } else if (interaction === "rotate") {
+            updateRotationFromCursor(
+              map!.unproject(event.point).toArray() as [number, number],
+            );
           }
         };
         const beginInteraction = (
-          nextInteraction: "move",
+          nextInteraction: "move" | "rotate",
           event: PoolInteractionEvent,
           cursor: "grabbing" | null,
         ) => {
@@ -871,6 +967,51 @@ export function FastPropertyView({
           map?.dragPan.enable();
           map?.getCanvas().style.setProperty("cursor", "");
         };
+        control.addEventListener("pointerdown", (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          interaction = "rotate";
+          control.setPointerCapture(event.pointerId);
+          map?.dragPan.disable();
+          control.style.cursor = "grabbing";
+        });
+        control.addEventListener("pointermove", (event) => {
+          if (!control.hasPointerCapture(event.pointerId) || !map) return;
+          const bounds = map.getCanvas().getBoundingClientRect();
+          const cursor = map
+            .unproject([
+              event.clientX - bounds.left,
+              event.clientY - bounds.top,
+            ])
+            .toArray() as [number, number];
+          updateRotationFromCursor(cursor);
+        });
+        const releaseRotation = (event: PointerEvent) => {
+          if (control.hasPointerCapture(event.pointerId))
+            control.releasePointerCapture(event.pointerId);
+          control.style.cursor = "grab";
+          endInteraction();
+        };
+        control.addEventListener("pointerup", releaseRotation);
+        control.addEventListener("pointercancel", releaseRotation);
+        control.addEventListener("keydown", (event) => {
+          const active = placementRef.current;
+          if (!active) return;
+          const candidate =
+            event.key === "ArrowRight" || event.key === "ArrowUp"
+              ? active.rotationDegrees + 5
+              : event.key === "ArrowLeft" || event.key === "ArrowDown"
+                ? active.rotationDegrees - 5
+                : event.key === "Home"
+                  ? 0
+                  : event.key === "End"
+                    ? 355
+                    : null;
+          if (candidate === null) return;
+          event.preventDefault();
+          event.stopPropagation();
+          rotationHandlerRef.current(candidate);
+        });
         map.on("mousedown", "pool-fill", (event) =>
           beginInteraction("move", event, "grabbing"),
         );
@@ -893,6 +1034,8 @@ export function FastPropertyView({
     return () => {
       disposed = true;
       setMapReady(false);
+      rotationMarker?.remove();
+      syncRotationControlRef.current = () => {};
       removePoolShellClearanceLabels(clearanceLabelMarkers);
       map?.remove();
       mapInstanceRef.current = null;
@@ -1095,6 +1238,7 @@ export function FastPropertyView({
         visible: clearancesVisible,
       });
     }
+    syncRotationControlRef.current();
   }, [
     constructionEnvelopeGeometry,
     clearancesVisible,
@@ -2059,6 +2203,59 @@ function defaultPlacement(result: FastPropertyViewResult): {
   return {
     position: result.resolvedAddress.coordinates as [number, number],
     message: null,
+  };
+}
+
+function rotationHandleGeometry(
+  position: [number, number],
+  rotationDegrees: number,
+  dimensions: { lengthMetres: number; widthMetres: number } | null | undefined,
+  map?: Pick<import("maplibre-gl").Map, "project" | "unproject">,
+) {
+  if (!dimensions) return { type: "FeatureCollection" as const, features: [] };
+  const envelope = fastPoolConstructionEnvelopeDimensions(dimensions);
+  const pool = buildFastPoolGeometry(
+    position,
+    envelope.lengthMetres,
+    envelope.widthMetres,
+    rotationDegrees,
+  );
+  const [first, second] = pool.geometry.coordinates[0];
+  let handle: [number, number] = [
+    (first[0] + second[0]) / 2,
+    (first[1] + second[1]) / 2,
+  ];
+  if (map) {
+    const centre = map.project(position);
+    const edge = map.project(handle);
+    const distance = Math.hypot(edge.x - centre.x, edge.y - centre.y);
+    if (distance > 0) {
+      // 22px icon radius, 8px gap, plus clearance for the orange stroke.
+      handle = map
+        .unproject([
+          edge.x + ((edge.x - centre.x) / distance) * 32,
+          edge.y + ((edge.y - centre.y) / distance) * 32,
+        ])
+        .toArray() as [number, number];
+    }
+  }
+  return {
+    type: "FeatureCollection" as const,
+    features: [
+      {
+        type: "Feature" as const,
+        properties: { kind: "guide" },
+        geometry: {
+          type: "LineString" as const,
+          coordinates: [position, handle],
+        },
+      },
+      {
+        type: "Feature" as const,
+        properties: { kind: "handle" },
+        geometry: { type: "Point" as const, coordinates: handle },
+      },
+    ],
   };
 }
 
