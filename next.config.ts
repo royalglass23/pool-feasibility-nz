@@ -25,6 +25,8 @@ const nextConfig: NextConfig = {
     // scope includes to one handler. Broader request-path keys also match
     // descendants such as `delivery/status`; test:build-tracing verifies the
     // emitted .nft.json files so Chromium does not leak into unrelated routes.
+    // Dynamic route brackets are escaped because these keys are picomatch globs.
+    "/api/internal/assessments/\\[id\\]/report/route": [CHROMIUM_BINARY_GLOB],
     "/api/internal/report/pdf/route": [CHROMIUM_BINARY_GLOB],
     "/api/public/report/pdf/route": [CHROMIUM_BINARY_GLOB],
     "/api/public/assessments/report/delivery/route": [CHROMIUM_BINARY_GLOB],
