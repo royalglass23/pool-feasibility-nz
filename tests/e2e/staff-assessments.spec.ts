@@ -59,7 +59,7 @@ test("shows an authenticated staff member the saved constructability snapshot as
   );
   submission.homeowner = {
     ...submission.homeowner,
-    name: "RG-345 Synthetic Pool Builder",
+    name: "Synthetic Pool Builder",
     phone: "021 000 0345",
     email: "rg345-staff-e2e@example.test",
     address: "345 Release Evidence Road, Auckland",
