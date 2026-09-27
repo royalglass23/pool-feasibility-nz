@@ -115,7 +115,7 @@ function MultiSelectDropdown<T extends string>({
         aria-controls={panelId}
         aria-describedby={error ? errorId : questionId}
         onClick={() => onOpenChange(!open)}
-        className="border-pool-300 focus-visible:outline-pool-blue-700 flex min-h-11 w-full items-center justify-between rounded-xl border bg-white px-4 py-2 text-left text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+        className="border-pool-300 focus-visible:outline-pool-blue-700 flex min-h-11 w-full items-center justify-between rounded-[3px] border bg-white px-4 py-2 text-left text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
       >
         <span>{label}</span>
         <span aria-hidden="true">{open ? "Close" : "Choose"}</span>
@@ -144,14 +144,14 @@ function MultiSelectDropdown<T extends string>({
         id={panelId}
         hidden={!open}
         aria-describedby={error ? errorId : undefined}
-        className="border-pool-200 space-y-3 rounded-xl border bg-white p-3"
+        className="border-pool-200 space-y-3 rounded-[3px] border bg-white p-3"
       >
         <legend className="sr-only">{question}</legend>
         <div className="grid gap-2 sm:grid-cols-2">
           {choices.map((choice) => (
             <label
               key={choice.id}
-              className="border-pool-200 hover:border-pool-300 hover:bg-pool-50 has-checked:border-pool-blue-700 has-checked:bg-pool-blue-50 focus-within:outline-pool-blue-700 flex min-h-11 cursor-pointer items-center gap-3 rounded-xl border px-3 py-2 text-sm transition focus-within:outline-2 focus-within:outline-offset-2"
+              className="border-pool-200 hover:border-pool-300 hover:bg-pool-50 has-checked:border-pool-blue-700 has-checked:bg-pool-blue-50 focus-within:outline-pool-blue-700 flex min-h-11 cursor-pointer items-center gap-3 rounded-[3px] border px-3 py-2 text-sm transition focus-within:outline-2 focus-within:outline-offset-2"
             >
               <input
                 type="checkbox"
@@ -189,6 +189,7 @@ export function SiteQuestions({
   onDraftChange,
   onCheckProperty,
   onSaveRouteAdjustment,
+  onContinue,
 }: {
   placementKey: string;
   estimatedDepth: string;
@@ -207,6 +208,7 @@ export function SiteQuestions({
   onSaveRouteAdjustment: (
     draft: BuilderSiteQuestionDraft & { adjustedRoute: AccessRouteGeometry },
   ) => Promise<boolean>;
+  onContinue: () => void;
 }) {
   const [accessConditions, setAccessConditions] = useState<AccessCondition[]>(
     [],
@@ -298,7 +300,7 @@ export function SiteQuestions({
     <div className="space-y-6">
       <section
         aria-labelledby="site-questions-heading"
-        className="border-pool-200 space-y-6 rounded-2xl border bg-white p-5 sm:p-7"
+        className="border-pool-200 space-y-6 rounded-[3px] border bg-white p-5 sm:p-7"
       >
         <div>
           <h3
@@ -364,7 +366,7 @@ export function SiteQuestions({
       <section
         aria-labelledby="excavation-planning-heading"
         aria-describedby="excavation-side-clearance-help"
-        className="border-pool-200 space-y-3 rounded-2xl border bg-white p-5 sm:p-7"
+        className="border-pool-200 space-y-3 rounded-[3px] border bg-white p-5 sm:p-7"
       >
         <h3
           id="excavation-planning-heading"
@@ -416,7 +418,7 @@ export function SiteQuestions({
       {hasCompletedCheck && (
         <section
           aria-labelledby="access-route-result-heading"
-          className="border-pool-200 space-y-4 rounded-2xl border bg-white p-5 sm:p-7"
+          className="border-pool-200 space-y-4 rounded-[3px] border bg-white p-5 sm:p-7"
         >
           <div>
             <h3
@@ -454,7 +456,7 @@ export function SiteQuestions({
                     ]);
                     onRouteEdit?.({ type: "LineString", coordinates }, true);
                   }}
-                  className="border-pool-300 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-lg border px-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                  className="border-pool-300 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-[3px] border px-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   Adjust suggested route
                 </button>
@@ -473,7 +475,7 @@ export function SiteQuestions({
                       coordinates.splice(coordinates.length - 2, 1);
                       onRouteEdit?.({ type: "LineString", coordinates }, true);
                     }}
-                    className="border-pool-300 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-lg border px-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2"
+                    className="border-pool-300 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-[3px] border px-3 text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2"
                   >
                     Remove last turning point
                   </button>
@@ -537,7 +539,7 @@ export function SiteQuestions({
               ? saveRouteAdjustment()
               : checkProperty())
           }
-          className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 min-h-11 rounded-xl px-5 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
+          className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 min-h-11 rounded-[3px] px-5 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
         >
           {saving || isChecking
             ? "Checking this property…"
@@ -546,6 +548,15 @@ export function SiteQuestions({
               : hasCompletedCheck
                 ? "Save builder answers"
                 : "Check this property"}
+        </button>
+      )}
+      {hasSavedAnswers && (adjustedRoute?.coordinates.length ?? 0) < 3 && (
+        <button
+          type="button"
+          onClick={onContinue}
+          className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 min-h-11 rounded-[3px] px-5 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          Continue to your details
         </button>
       )}
     </div>

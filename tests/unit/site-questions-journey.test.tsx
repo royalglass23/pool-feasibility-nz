@@ -113,6 +113,9 @@ vi.mock("@/components/homeowner-submission-form", () => ({
         latestOnSavingChange = onSavingChange ?? null;
       }}
     >
+      <h3 id="homeowner-details-heading" tabIndex={-1}>
+        Your details for the preliminary report
+      </h3>
       Details for {assessmentSnapshot} as {reportAudience}
       <label>
         Name
@@ -581,6 +584,7 @@ describe("Site answers in the property journey", () => {
       screen.getByRole("button", { name: "Use this pool position" }),
     );
     await chooseNone(user);
+    await continueToDetails(user);
     expect(await screen.findByTestId("details-form")).toHaveTextContent(
       "signed-stage-token",
     );
@@ -600,6 +604,7 @@ describe("Site answers in the property journey", () => {
     await user.click(
       screen.getByRole("button", { name: "Save builder answers" }),
     );
+    await continueToDetails(user);
     expect(await screen.findByTestId("details-form")).toBeVisible();
 
     await user.click(
@@ -617,6 +622,7 @@ describe("Site answers in the property journey", () => {
     await user.click(
       screen.getByRole("button", { name: "Save builder answers" }),
     );
+    await continueToDetails(user);
     expect(await screen.findByTestId("details-form")).toBeVisible();
 
     await user.click(
@@ -632,6 +638,7 @@ describe("Site answers in the property journey", () => {
     await user.click(
       screen.getByRole("button", { name: "Save builder answers" }),
     );
+    await continueToDetails(user);
     expect(await screen.findByTestId("details-form")).toBeVisible();
 
     await user.click(
@@ -654,6 +661,7 @@ describe("Site answers in the property journey", () => {
     await user.click(screen.getByRole("button", { name: "Continue" }));
     expect(screen.queryByTestId("details-form")).not.toBeInTheDocument();
     await chooseNone(user);
+    await continueToDetails(user);
 
     expect(screen.getByTestId("details-form")).toBeVisible();
     await user.click(
@@ -665,6 +673,7 @@ describe("Site answers in the property journey", () => {
       screen.getByRole("button", { name: "Use this pool position" }),
     );
     await chooseNone(user);
+    await continueToDetails(user);
     expect(await screen.findByTestId("details-form")).toBeVisible();
   });
 
@@ -814,6 +823,7 @@ describe("Site answers in the property journey", () => {
     await user.click(
       screen.getByRole("button", { name: "Save builder answers" }),
     );
+    await continueToDetails(user);
     expect(await screen.findByTestId("details-form")).toHaveTextContent(
       "signed-detailed-token",
     );
@@ -846,6 +856,19 @@ async function chooseNone(user: ReturnType<typeof userEvent.setup>) {
     screen.getByRole("button", {
       name: /Check this property|Save builder answers/,
     }),
+  );
+}
+
+async function continueToDetails(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(
+    await screen.findByRole("button", { name: "Continue to your details" }),
+  );
+  await waitFor(() =>
+    expect(
+      screen.getByRole("heading", {
+        name: "Your details for the preliminary report",
+      }),
+    ).toHaveFocus(),
   );
 }
 

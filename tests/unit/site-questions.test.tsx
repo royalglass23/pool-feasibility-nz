@@ -33,7 +33,8 @@ function renderQuestions(
   const onSaveRouteAdjustment = vi.fn(async () => true);
   const onRouteEdit = vi.fn();
   const onDraftChange = vi.fn();
-  render(
+  const onContinue = vi.fn();
+  const view = render(
     <SiteQuestions
       placementKey="placement-1"
       estimatedDepth="1.5"
@@ -47,14 +48,17 @@ function renderQuestions(
       onSaveRouteAdjustment={onSaveRouteAdjustment}
       onRouteEdit={onRouteEdit}
       onDraftChange={onDraftChange}
+      onContinue={onContinue}
       {...overrides}
     />,
   );
   return {
+    ...view,
     onCheckProperty,
     onSaveRouteAdjustment,
     onRouteEdit,
     onDraftChange,
+    onContinue,
   };
 }
 
@@ -82,6 +86,39 @@ async function chooseNone(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe("Pool builder site questions", () => {
+  it("uses the shared 3px treatment for rectangular builder controls", () => {
+    const { container } = renderQuestions({
+      hasCompletedCheck: true,
+      hasSavedAnswers: true,
+      depthLocked: true,
+      routeSuggestion: credibleRoute,
+    });
+
+    expect(
+      container.querySelectorAll(
+        '[class*="rounded-lg"], [class*="rounded-xl"], [class*="rounded-2xl"]',
+      ),
+    ).toHaveLength(0);
+    expect(
+      container.querySelectorAll('[class*="rounded-[3px]"]'),
+    ).not.toHaveLength(0);
+  });
+
+  it("lets a builder review completed route evidence before continuing", async () => {
+    const user = userEvent.setup();
+    const { onContinue } = renderQuestions({
+      hasCompletedCheck: true,
+      hasSavedAnswers: true,
+      routeSuggestion: credibleRoute,
+    });
+
+    await user.click(
+      screen.getByRole("button", { name: "Continue to your details" }),
+    );
+
+    expect(onContinue).toHaveBeenCalledOnce();
+  });
+
   it("keeps compact selections visible and enforces exclusive answers in both directions", async () => {
     const user = userEvent.setup();
     renderQuestions();

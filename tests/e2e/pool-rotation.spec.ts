@@ -12,6 +12,8 @@ test("keeps public pool placement move-only and keyboard selectable", async ({
 
   await page.goto("/");
   await page.getByRole("button", { name: "Not now" }).click();
+  await page.getByRole("radio", { name: "My property" }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page
     .getByLabel("Auckland property address")
     .fill(fastResult.requestedAddress);

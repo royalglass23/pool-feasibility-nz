@@ -1,13 +1,16 @@
 import "dotenv/config";
 import { createHmac, randomUUID } from "node:crypto";
-import { readFile, writeFile } from "node:fs/promises";
+import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import { neon } from "@neondatabase/serverless";
 import { eq } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/neon-http";
+import { drizzle, type NeonHttpDatabase } from "drizzle-orm/neon-http";
 import * as schema from "@/db/schema";
-import { getSavedPreliminaryReportById } from "@/db/repositories/homeowner-assessment-repository";
+import {
+  getAssessmentDeliveryStateById,
+  getSavedPreliminaryReportById,
+} from "@/db/repositories/homeowner-assessment-repository";
 import type { TrustedConstructabilityEvidence } from "@/modules/assessment/constructability-evidence";
 import { officialDatasetEvidence } from "@/modules/providers/official-dataset-catalog";
 import { queryableDatasetKeys } from "@/modules/data-access-spike/dataset-catalog";
@@ -18,6 +21,7 @@ const signingKey =
   process.env.INTERNAL_REPORT_SIGNING_SECRET ??
   "playwright-report-signing-secret-2026-07-22-at-least-32-bytes";
 const mailCapturePath = resolve("tmp/audience-path-compatibility/emails.jsonl");
+const visualEvidencePath = resolve("tmp/rg-364-visual-evidence");
 
 const baseResult = {
   requestedAddress: "42A Bahari Drive, Ranui, Auckland",
@@ -70,6 +74,7 @@ test("saves and reproduces the complete public constructability journey through 
   const submittedAudiences: string[] = [];
   let detailedJourneyCount = 0;
 
+  await page.setExtraHTTPHeaders({ "x-forwarded-for": "198.51.100.90" });
   await writeFile(mailCapturePath, "");
 
   await page.route("**/api/public/property-check", (route) =>
@@ -133,12 +138,14 @@ test("saves and reproduces the complete public constructability journey through 
   });
 
   try {
+    await mkdir(visualEvidencePath, { recursive: true });
     await page.setViewportSize({ width: 390, height: 844 });
     const cdp = await page.context().newCDPSession(page);
     await cdp.send("Emulation.setPageScaleFactor", { pageScaleFactor: 2 });
     await startJourney(page, 1.7, {
       rejectAnalytics: true,
       visitorType: "homeowner",
+      evidencePrefix: "homeowner-mobile-200-percent",
     });
     await assertConsentAndValidation(page);
     const genericHomeowner = await submitAndReadRealResponse(page);
@@ -154,6 +161,8 @@ test("saves and reproduces the complete public constructability journey through 
     expect(genericHomeowner.response.report.reportAudience).toBe("homeowner");
     const homeownerEmailPdf = await assertDeliveredProjection({
       page,
+      db,
+      assessmentId: genericHomeowner.id,
       accessToken: genericHomeowner.response.reportAccessToken,
       reference: genericHomeowner.response.reference,
       expectedAudience: "homeowner",
@@ -173,7 +182,11 @@ test("saves and reproduces the complete public constructability journey through 
     const savedReport = page.getByRole("article", {
       name: "Preliminary Pool Feasibility Report",
     });
+    await captureVisualEvidence(page, "report-overview");
+    await savedReport.getByRole("tab", { name: "Property findings" }).click();
+    await captureVisualEvidence(page, "report-property-findings");
     await savedReport.getByRole("tab", { name: "What happens next" }).click();
+    await captureVisualEvidence(page, "report-what-happens-next");
     await expect(
       savedReport.getByRole("heading", {
         name: "What your pool builder will confirm",
@@ -232,11 +245,15 @@ test("saves and reproduces the complete public constructability journey through 
       page.getByRole("slider", { name: "Estimated pool depth (m)" }),
     ).toHaveCount(0);
 
-    await startJourney(page, 1.5, { visitorType: "pool_builder" });
+    await startJourney(page, 1.5, {
+      visitorType: "pool_builder",
+      evidencePrefix: "builder-desktop",
+    });
     await answerSiteQuestions(page, {
       accessCondition: "Restricted gate or narrow access",
       sideClearanceMillimetres: 200,
     });
+    await captureVisualEvidence(page, "builder-your-details");
     const genericBuilderForm = page.locator(
       'form[aria-labelledby="homeowner-details-heading"]',
     );
@@ -260,6 +277,8 @@ test("saves and reproduces the complete public constructability journey through 
     expect(genericBuilder.response.report.reportAudience).toBe("pool_builder");
     const builderEmailPdf = await assertDeliveredProjection({
       page,
+      db,
+      assessmentId: genericBuilder.id,
       accessToken: genericBuilder.response.reportAccessToken,
       reference: genericBuilder.response.reference,
       expectedAudience: "pool_builder",
@@ -352,6 +371,7 @@ async function startJourney(
     entry?: "generic" | "builder_landing";
     rejectAnalytics?: boolean;
     visitorType?: "homeowner" | "pool_builder";
+    evidencePrefix?: string;
   } = {},
 ) {
   const {
@@ -398,11 +418,26 @@ async function startJourney(
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
   await page.keyboard.press("Enter");
+  await expect(
+    page.getByRole("button", { name: "Use this pool position" }),
+  ).toBeVisible();
+  if (options.evidencePrefix) {
+    await captureVisualEvidence(
+      page,
+      `${options.evidencePrefix}-place-your-pool`,
+    );
+  }
   const depthInput = page.getByRole("slider", {
     name: "Estimated pool depth (m)",
   });
   await page.getByRole("button", { name: "Use this pool position" }).click();
   if (visitorType === "homeowner") {
+    if (options.evidencePrefix) {
+      await captureVisualEvidence(
+        page,
+        `${options.evidencePrefix}-check-the-details`,
+      );
+    }
     await expect(depthInput).toHaveCount(0);
     await page.getByRole("button", { name: "Check this property" }).click();
     await expect(
@@ -419,11 +454,30 @@ async function startJourney(
         name: "Your details for the preliminary report",
       }),
     ).toBeFocused();
+    if (options.evidencePrefix) {
+      await captureVisualEvidence(
+        page,
+        `${options.evidencePrefix}-your-details`,
+      );
+    }
     return;
   }
   await expect(depthInput).toHaveValue("1.5");
   if (depth !== 1.5) await depthInput.fill(String(depth));
   await expect(depthInput).toBeEnabled();
+  if (options.evidencePrefix) {
+    await captureVisualEvidence(
+      page,
+      `${options.evidencePrefix}-check-the-details`,
+    );
+  }
+}
+
+async function captureVisualEvidence(page: Page, name: string) {
+  await page.screenshot({
+    path: resolve(visualEvidencePath, `${name}.png`),
+    fullPage: true,
+  });
 }
 
 async function assertConsentAndValidation(page: Page) {
@@ -499,33 +553,37 @@ async function readSavedPdf(page: Page, accessToken: string) {
 
 async function assertDeliveredProjection({
   page,
+  db,
+  assessmentId,
   accessToken,
   reference,
   expectedAudience,
 }: {
   page: Page;
+  db: NeonHttpDatabase<typeof schema>;
+  assessmentId: string;
   accessToken: string;
   reference: string;
   expectedAudience: "homeowner" | "pool_builder";
 }) {
   await expect
     .poll(
-      async () => {
-        const response = await page.request.post(
-          "/api/public/assessments/report/delivery/status",
-          { data: { accessToken } },
-        );
-        if (!response.ok()) {
-          return {
-            httpStatus: response.status(),
-            body: await response.text(),
-          };
-        }
-        return (await response.json()).delivery;
-      },
+      async () =>
+        (await getAssessmentDeliveryStateById(db, assessmentId))?.delivery,
       { intervals: [2_000, 5_000, 10_000, 15_000], timeout: 90_000 },
     )
     .toEqual({ homeowner: "sent", internal_test_report: "sent" });
+
+  const statusResponse = await page.request.post(
+    "/api/public/assessments/report/delivery/status",
+    { data: { accessToken } },
+  );
+  const statusBody = await statusResponse.text();
+  expect(statusResponse.status(), statusBody).toBe(200);
+  expect(JSON.parse(statusBody).delivery).toEqual({
+    homeowner: "sent",
+    internal_test_report: "sent",
+  });
 
   const captured = (await readFile(mailCapturePath, "utf8"))
     .trim()

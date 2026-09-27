@@ -66,6 +66,8 @@ test("loads the app-hosted MapLibre worker graph for the public property check",
 
   await page.goto("/");
   await page.getByRole("button", { name: "Reject analytics" }).click();
+  await page.getByRole("radio", { name: "My property" }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");

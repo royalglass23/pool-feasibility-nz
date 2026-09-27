@@ -113,6 +113,7 @@ async function openFastView(page: import("@playwright/test").Page) {
     });
   });
   await page.goto("/");
+  await page.getByRole("button", { name: "Reject analytics" }).click();
   await page.getByRole("radio", { name: "My property" }).check();
   await page.getByRole("button", { name: "Continue" }).click();
   await page
@@ -169,7 +170,6 @@ test("keeps the mobile workspace anchored when the live result changes", async (
 }) => {
   await page.setViewportSize({ width: 320, height: 720 });
   await openFastView(page);
-  await page.getByRole("button", { name: "Reject analytics" }).click();
   const aerialMap = page.getByLabel(
     `Fast aerial map for ${baseResult.resolvedAddress.fullAddress}`,
   );

@@ -181,6 +181,7 @@ export function FastPropertyView({
   isDetailedRateLimited = false,
   planningStep,
   planningEnabled = true,
+  routeAdjustmentMode = false,
 }: {
   result: FastPropertyViewResult;
   suggestedRoute?: LineString | null;
@@ -196,6 +197,7 @@ export function FastPropertyView({
   isDetailedRateLimited?: boolean;
   planningStep?: ReactNode;
   planningEnabled?: boolean;
+  routeAdjustmentMode?: boolean;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
@@ -1115,30 +1117,43 @@ export function FastPropertyView({
             id="fast-view-heading"
             className="text-pool-950 text-2xl font-semibold"
           >
-            {result.resolvedAddress.fullAddress}
+            {routeAdjustmentMode
+              ? "Adjust the suggested access route"
+              : result.resolvedAddress.fullAddress}
           </h2>
           <p className="text-pool-600 mt-2 max-w-3xl text-sm leading-6">
-            <strong>Preliminary feasibility only.</strong>{" "}
-            {PRELIMINARY_FEASIBILITY_SCOPE}
+            {routeAdjustmentMode ? (
+              <>
+                Move the turning point on the map, then save the route
+                adjustment below. Confirm the final construction access onsite.
+              </>
+            ) : (
+              <>
+                <strong>Preliminary feasibility only.</strong>{" "}
+                {PRELIMINARY_FEASIBILITY_SCOPE}
+              </>
+            )}
           </p>
         </div>
       </div>
-      <ol
-        aria-label="Fast view progress"
-        className="grid gap-2 text-sm lg:mr-[22rem]"
-      >
-        <Progress
-          label={
-            isInitialAddressLoad
-              ? "Address found"
-              : "Address found. Next, choose a pool layout, then move it into your preferred position."
-          }
-          state="complete"
-        />
-        {isInitialAddressLoad && (
-          <Progress label="Finding the property boundary…" state="pending" />
-        )}
-      </ol>
+      {!routeAdjustmentMode && (
+        <ol
+          aria-label="Fast view progress"
+          className="grid gap-2 text-sm lg:mr-[22rem]"
+        >
+          <Progress
+            label={
+              isInitialAddressLoad
+                ? "Address found"
+                : "Address found. Next, choose a pool layout, then move it into your preferred position."
+            }
+            state="complete"
+          />
+          {isInitialAddressLoad && (
+            <Progress label="Finding the property boundary…" state="pending" />
+          )}
+        </ol>
+      )}
       <div className="border-pool-200 overflow-hidden rounded-sm border">
         {(!isInitialAddressLoad ||
           placementMessage ||
@@ -1196,14 +1211,14 @@ export function FastPropertyView({
             )}
           </div>
         )}
-        {!isInitialAddressLoad && planningStep ? (
+        {!routeAdjustmentMode && !isInitialAddressLoad && planningStep ? (
           <div className="border-pool-200 bg-pool-50 border-b p-4 sm:p-5">
             {planningStep}
           </div>
         ) : null}
         <div
           className={
-            isInitialAddressLoad
+            isInitialAddressLoad || routeAdjustmentMode
               ? "grid"
               : "grid items-start lg:grid-cols-[minmax(0,1fr)_22rem]"
           }
@@ -1219,7 +1234,7 @@ export function FastPropertyView({
             />
             <PropertySlopeMapOverlay terrain={result.detailedChecks?.terrain} />
           </div>
-          {!isInitialAddressLoad && (
+          {!isInitialAddressLoad && !routeAdjustmentMode && (
             <div
               aria-label="Pool catalogue and placement controls"
               className="border-pool-200 order-2 flex flex-col gap-4 border-t bg-white p-4 lg:col-start-2 lg:row-start-1 lg:border-t-0 lg:border-l"
@@ -1317,7 +1332,10 @@ export function FastPropertyView({
           )}
         </div>
         {dimensions && constructionEnvelopeWithinMappedArea && (
-          <div className="border-pool-200 grid gap-4 border-t bg-white p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5">
+          <div
+            hidden={routeAdjustmentMode}
+            className="border-pool-200 grid gap-4 border-t bg-white p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5"
+          >
             <p className="text-pool-700 text-sm leading-6" aria-live="polite">
               {!planningEnabled ? (
                 "Choose who you are checking this property for to continue."
@@ -1364,6 +1382,7 @@ export function FastPropertyView({
           </div>
         )}
         <section
+          hidden={routeAdjustmentMode}
           aria-label="Map layers"
           className="border-pool-200 border-t bg-white"
         >
@@ -1595,7 +1614,10 @@ export function FastPropertyView({
           </div>
         </section>
         {!isInitialAddressLoad && (
-          <div className="flex justify-end bg-white px-4 py-3 text-sm">
+          <div
+            hidden={routeAdjustmentMode}
+            className="flex justify-end bg-white px-4 py-3 text-sm"
+          >
             <p className="text-pool-600">
               Default pool: {result.defaultPool.label} (
               {result.defaultPool.lengthMetres} ×{" "}
@@ -1604,7 +1626,7 @@ export function FastPropertyView({
           </div>
         )}
       </div>
-      {result.detailedChecks?.terrain ? (
+      {!routeAdjustmentMode && result.detailedChecks?.terrain ? (
         <TerrainSlopeResult
           terrain={result.detailedChecks.terrain}
           contoursAvailable={Boolean(mappedContours)}

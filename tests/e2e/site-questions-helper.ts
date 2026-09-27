@@ -86,6 +86,10 @@ export async function answerSiteQuestions(
   const response = await signingResponse;
   expect(response.status(), await response.text()).toBe(200);
   await expect(
+    page.getByRole("region", { name: "Access route result" }),
+  ).toBeVisible({ timeout: 30_000 });
+  await page.getByRole("button", { name: "Continue to your details" }).click();
+  await expect(
     page.getByRole("heading", {
       name: "Your details for the preliminary report",
     }),

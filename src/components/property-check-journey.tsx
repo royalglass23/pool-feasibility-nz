@@ -211,6 +211,11 @@ export function PropertyCheckJourney({
   const placementKey = fastPlacementSnapshot
     ? placementIdentity(fastPlacementSnapshot)
     : null;
+  const isAdjustingBuilderRoute =
+    currentStage === "details" &&
+    reportAudience === "pool_builder" &&
+    routeDraft?.placementKey === placementKey &&
+    routeDraft.geometry.coordinates.length > 2;
   const reportEvidenceVersion = reportEvidenceVersionRef.current;
   const routePoolLayout = useMemo(
     () =>
@@ -334,6 +339,10 @@ export function PropertyCheckJourney({
   }, [confirmedPlacementKey, placementKey, reportAudience]);
 
   useEffect(() => {
+    if (currentStage !== "contact") {
+      focusedDetailsForRef.current = null;
+      return;
+    }
     const focusKey =
       reportAudience === "homeowner" &&
       fastAssessmentSnapshot &&
@@ -365,6 +374,7 @@ export function PropertyCheckJourney({
     fastMapSnapshot,
     fastResult?.detailedChecks,
     reportAudience,
+    currentStage,
   ]);
 
   useEffect(() => {
@@ -1197,7 +1207,9 @@ export function PropertyCheckJourney({
               </div>
             </div>
           )}
-          <div hidden={currentStage !== "placement"}>
+          <div
+            hidden={currentStage !== "placement" && !isAdjustingBuilderRoute}
+          >
             <FastPropertyView
               result={fastResult}
               suggestedRoute={
@@ -1234,6 +1246,7 @@ export function PropertyCheckJourney({
               placementConfirmed={confirmedPlacementKey === placementKey}
               isDetailedRateLimited={detailedRetryAfterSeconds !== null}
               planningEnabled
+              routeAdjustmentMode={isAdjustingBuilderRoute}
             />
           </div>
           {(currentStage === "details" || currentStage === "contact") &&
@@ -1345,16 +1358,13 @@ export function PropertyCheckJourney({
                       }
                       onRouteEdit={handleRouteEdit}
                       onDraftChange={handleBuilderDraftChange}
-                      onCheckProperty={async (draft) => {
-                        const saved = await checkBuilderProperty(draft);
-                        if (saved) setCurrentStage("contact");
-                        return saved;
-                      }}
+                      onCheckProperty={checkBuilderProperty}
                       onSaveRouteAdjustment={async (draft) => {
                         const saved = await saveBuilderRouteAdjustment(draft);
                         if (saved) setCurrentStage("contact");
                         return saved;
                       }}
+                      onContinue={() => setCurrentStage("contact")}
                     />
                   </>
                 )}

@@ -5,7 +5,10 @@ import { neon } from "@neondatabase/serverless";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-http";
 import * as schema from "@/db/schema";
-import { getSavedPreliminaryReportById } from "@/db/repositories/homeowner-assessment-repository";
+import {
+  getAssessmentDeliveryStateById,
+  getSavedPreliminaryReportById,
+} from "@/db/repositories/homeowner-assessment-repository";
 import type {
   ConstructabilityAnswers,
   TrustedConstructabilityEvidence,
@@ -18,6 +21,8 @@ const databaseUrl = process.env.DATABASE_URL_DEV;
 const signingKey =
   process.env.INTERNAL_REPORT_SIGNING_SECRET ??
   "playwright-report-signing-secret-2026-07-22-at-least-32-bytes";
+
+test.use({ extraHTTPHeaders: { "x-forwarded-for": "198.51.100.91" } });
 
 test("persists mapped, user, conflicting, and audience-equivalent constructability evidence", async ({
   request,
@@ -127,6 +132,25 @@ test("persists mapped, user, conflicting, and audience-equivalent constructabili
         { category: "access_excavation", condition: "gate_or_narrow_passage" },
       ]),
     });
+    await expect
+      .poll(
+        async () => {
+          const deliveryStates = await Promise.all(
+            assessmentIds.map((id) => getAssessmentDeliveryStateById(db, id)),
+          );
+          return deliveryStates.every((state) => {
+            const channels = Object.values(state?.delivery ?? {});
+            return (
+              channels.length === 2 &&
+              channels.every(
+                (channel) => channel === "sent" || channel === "failed",
+              )
+            );
+          });
+        },
+        { intervals: [500, 1_000, 2_000, 5_000], timeout: 60_000 },
+      )
+      .toBe(true);
   } finally {
     for (const id of assessmentIds) {
       await db

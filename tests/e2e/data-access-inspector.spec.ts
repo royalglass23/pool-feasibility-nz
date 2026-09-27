@@ -78,6 +78,9 @@ test("selecting an address suggestion opens the fast property view without a fet
   });
 
   await page.goto("/");
+  await page.getByRole("button", { name: "Reject analytics" }).click();
+  await page.getByRole("radio", { name: "My property" }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page
     .getByLabel("Auckland property address")
     .fill("Bahari Drive, Ranui, Auckland");
@@ -204,6 +207,7 @@ test("one signed session separates automatic stages and constraints, then respec
   });
 
   await page.goto("/");
+  await page.getByRole("button", { name: "Reject analytics" }).click();
   await page.getByRole("radio", { name: "My property" }).check();
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByLabel("Auckland property address").fill(address);
@@ -220,6 +224,10 @@ test("one signed session separates automatic stages and constraints, then respec
   await expect(
     page.getByRole("button", { name: "Search a different address" }),
   ).toHaveCount(0);
-  await expect(page.getByRole("heading", { name: address })).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Current property and pool" })
+      .getByText(address, { exact: true }),
+  ).toBeVisible();
   expect(stageModes).toEqual([undefined, "detailed", "detailed"]);
 });
