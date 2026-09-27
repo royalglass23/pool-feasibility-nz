@@ -66,6 +66,10 @@ export function StaffAssessmentDetail({
             }
           />
           <Fact
+            label="Report audience"
+            value={getVisitorTypeLabel(assessment.reportAudience)}
+          />
+          <Fact
             label="Pool layout"
             value={formatNamedPoolLayout(assessment.poolLayout)}
           />

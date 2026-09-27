@@ -100,9 +100,24 @@ test("shows an authenticated staff member the saved constructability snapshot as
         url: "http://127.0.0.1:3100",
       },
     ]);
+    const detailResponse = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/internal/assessments/${assessmentId}`) &&
+        response.request().method() === "GET",
+      { timeout: 30_000 },
+    );
     await page.goto(`/staff/${assessmentId}`);
 
     await expect(page).toHaveURL(new RegExp(`/staff/${assessmentId}$`));
+    const response = await detailResponse;
+    expect(response.status(), await response.text()).toBe(200);
+    const reportAudience = page.getByText("Report audience").locator("..");
+    await expect(reportAudience).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(
+      reportAudience.getByText("Pool Builder", { exact: true }),
+    ).toBeVisible();
     const poolLayout = page.getByText("Pool layout").locator("..");
     await expect(poolLayout).toContainText("Compact — 6.5 x 3 m");
     const report = page.getByRole("article", {

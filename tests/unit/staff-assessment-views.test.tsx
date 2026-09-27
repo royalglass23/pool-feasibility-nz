@@ -191,6 +191,26 @@ describe("staff assessment detail", () => {
     expect(screen.getByText("Pool Builder")).toBeVisible();
   });
 
+  it("identifies the trusted report audience separately from historical visitor data", () => {
+    render(
+      <StaffAssessmentDetail
+        assessment={{
+          ...staffAssessmentDetail,
+          visitorType: "other",
+          visitorTypeOtherDetail: "Landscape architect",
+          reportAudience: "homeowner",
+        }}
+        onBack={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Report audience")).toBeVisible();
+    expect(screen.getByText("Homeowner")).toBeVisible();
+    expect(screen.getByText("Landscape architect")).toBeVisible();
+    expect(screen.getByText("Pool layout")).toBeVisible();
+    expect(screen.getByText("Compact — 6.5 x 3 m")).toBeVisible();
+  });
+
   it("shows a saved builder company without adding customer-owner details", () => {
     render(
       <StaffAssessmentDetail
@@ -233,14 +253,15 @@ describe("staff assessment detail", () => {
     );
 
     expect(
-      screen.getByRole("heading", { name: "Jane Homeowner" }),
-    ).toBeVisible();
-    expect(screen.getByText("I am a")).toBeVisible();
-    expect(screen.getByText("Homeowner")).toBeVisible();
-    expect(
       screen.getByText(savedPreliminaryReport.overall.summary),
     ).toBeVisible();
     await user.click(screen.getByRole("tab", { name: "Property findings" }));
+
+    expect(
+      screen.getByRole("heading", { name: "Jane Homeowner" }),
+    ).toBeVisible();
+    expect(screen.getByText("I am a")).toBeVisible();
+    expect(screen.getAllByText("Homeowner")).toHaveLength(2);
     expect(
       screen.getByAltText(
         "Saved aerial assessment map showing the mapped property and proposed pool",
