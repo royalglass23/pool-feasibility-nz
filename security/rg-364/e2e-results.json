@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "feature": "rg-364-wizard-polish",
+  "commit": "5ca4529ff95c46a69e70c47c1159beb0e69eeac4",
+  "executionSource": "clean-git-archive",
+  "command": "npm run test:e2e -- --retries=0 --workers=1",
+  "retries": 0,
+  "environment": {
+    "name": "isolated-local-development-database",
+    "baseUrl": "http://127.0.0.1:3100",
+    "production": false
+  },
+  "projects": ["chromium"],
+  "coverage": { "required": 10, "covered": 10 },
+  "counts": {
+    "total": 22,
+    "passed": 21,
+    "failed": 1,
+    "skipped": 0,
+    "flaky": 0
+  },
+  "verdict": "BLOCKED",
+  "blocker": "The committed staff-assessments fixture uses a synthetic homeowner name rejected by the existing letters-only schema; the corrected fixture is present only in unrelated uncommitted work and was not authorized for this commit."
+}
