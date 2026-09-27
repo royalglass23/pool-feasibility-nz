@@ -99,6 +99,7 @@ export default function Home() {
         </section>
       </div>
       <AnalyticsConsent
+        gtmId={env.NEXT_PUBLIC_GTM_CONTAINER_ID}
         measurementId={env.NEXT_PUBLIC_GA4_MEASUREMENT_ID}
         hotjarSiteId={env.NEXT_PUBLIC_HOTJAR_SITE_ID}
       />

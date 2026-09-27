@@ -21,12 +21,14 @@ test("keeps the test site noindex and analytics behind reversible consent", asyn
   );
 
   const gaScript = page.locator('script[src*="googletagmanager.com/gtag/js"]');
+  const gtmScript = page.locator('script[src*="googletagmanager.com/gtm.js"]');
   const hotjarScript = page.locator("#hotjar-loader");
   const posthogScript = page.locator("#posthog-loader");
   await expect(
     page.getByRole("heading", { name: "Analytics cookies" }),
   ).toBeVisible();
   await expect(gaScript).toHaveCount(0);
+  await expect(gtmScript).toHaveCount(0);
   await expect(hotjarScript).toHaveCount(0);
   await expect(posthogScript).toHaveCount(0);
 
@@ -43,6 +45,8 @@ test("keeps the test site noindex and analytics behind reversible consent", asyn
   await page.getByRole("button", { name: "Analytics settings" }).click();
   await page.getByRole("button", { name: "Allow analytics" }).click();
   await expect(gaScript).toHaveCount(1);
+  await expect(gtmScript).toHaveCount(1);
+  await expect(gtmScript).toHaveAttribute("src", /id=GTM-WC3QDMX6/);
   await expect(hotjarScript).toHaveCount(1);
   await expect(posthogScript).toHaveCount(1);
   await expect
@@ -64,6 +68,11 @@ test("keeps the test site noindex and analytics behind reversible consent", asyn
     )
     .toBe(true);
 
+  await page.evaluate(() => {
+    document.cookie = "_ga=synthetic; Path=/";
+    document.cookie = "_ga_CONTAINER=synthetic; Path=/";
+  });
+
   await page.getByRole("button", { name: "Analytics settings" }).click();
   await page.getByRole("button", { name: "Turn analytics off" }).click();
   await expect
@@ -76,13 +85,35 @@ test("keeps the test site noindex and analytics behind reversible consent", asyn
       ),
     )
     .toBe(true);
+  await expect
+    .poll(() =>
+      page.evaluate(() => {
+        const dataLayer = (window as unknown as { dataLayer?: unknown[][] })
+          .dataLayer;
+        return dataLayer?.some(
+          (entry) =>
+            entry[0] === "consent" &&
+            entry[1] === "update" &&
+            (entry[2] as { analytics_storage?: string })?.analytics_storage ===
+              "denied",
+        );
+      }),
+    )
+    .toBe(true);
+  expect(await page.evaluate(() => document.cookie)).not.toContain("_ga=");
+  expect(await page.evaluate(() => document.cookie)).not.toContain(
+    "_ga_CONTAINER=",
+  );
   expect(
     await page.evaluate(() => localStorage.getItem("rg_analytics_consent_v1")),
   ).toBe("denied");
 });
 
-test("does not mount Hotjar or PostHog on staff routes", async ({ page }) => {
+test("does not mount public analytics on staff routes", async ({ page }) => {
   await page.goto("/staff/sign-in");
+  await expect(
+    page.locator('script[src*="googletagmanager.com/gtm.js"]'),
+  ).toHaveCount(0);
   await expect(page.locator("#hotjar-loader")).toHaveCount(0);
   await expect(page.locator("#posthog-loader")).toHaveCount(0);
 });

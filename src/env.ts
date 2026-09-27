@@ -43,6 +43,10 @@ export const env = createEnv({
     OPENAI_MODEL: z.string().min(1).default("gpt-5.6-luna"),
   },
   client: {
+    NEXT_PUBLIC_GTM_CONTAINER_ID: z
+      .string()
+      .regex(/^GTM-[A-Z0-9]+$/i)
+      .default("GTM-WC3QDMX6"),
     NEXT_PUBLIC_GA4_MEASUREMENT_ID: z
       .string()
       .regex(/^G-[A-Z0-9]+$/i)
@@ -72,6 +76,7 @@ export const env = createEnv({
     AI_PROVIDER: process.env.AI_PROVIDER,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     OPENAI_MODEL: process.env.OPENAI_MODEL,
+    NEXT_PUBLIC_GTM_CONTAINER_ID: process.env.NEXT_PUBLIC_GTM_CONTAINER_ID,
     NEXT_PUBLIC_GA4_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID,
     NEXT_PUBLIC_HOTJAR_SITE_ID: process.env.NEXT_PUBLIC_HOTJAR_SITE_ID,
   },
