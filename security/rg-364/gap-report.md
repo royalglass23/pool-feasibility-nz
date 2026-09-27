@@ -9,4 +9,4 @@
 | Older browser specs skipped the required audience stage | Four specs now dismiss analytics and complete the audience step explicitly |
 | Delivery polling exhausted a shared public rate-limit bucket | Persistence lane observes terminal states directly in the authorized dev DB; public API remains covered in report E2E |
 
-No open RG-364 implementation or review finding remains. Release sign-off is blocked by the repository-wide exact-commit E2E failure in the unrelated stale staff fixture; its synthetic homeowner name must be corrected and the gate rerun.
+No open RG-364 implementation, review, security, or exact-commit validation finding remains.

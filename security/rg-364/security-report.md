@@ -2,7 +2,7 @@
 
 ## Result
 
-The committed RG-364 implementation passes its functional, accessibility, security-abuse, dependency, type, lint, unit, visual, production-build, and feature-specific E2E checks. The release verdict is **BLOCKED** because the repository-wide exact-commit E2E gate finished 21/22: an unrelated stale staff fixture name violates the existing letters-only schema.
+The committed RG-364 implementation passes its functional, accessibility, security-abuse, dependency, type, lint, unit, visual, production-build, and repository-wide exact-commit E2E checks. The release verdict is **PASS**.
 
 ## OWASP Top 10:2021
 
@@ -26,5 +26,5 @@ V1, V3, V4, V5, V7, V8, V11, V13, and V14 remain satisfied for this bounded chan
 ## Gate caveats
 
 - Full Prettier reports one unchanged baseline warning in tracked `tsconfig.json`; every RG-364 file passes scoped Prettier and `git diff --check`.
-- Exact-commit E2E ran from a clean Git archive of `5ca4529ff95c46a69e70c47c1159beb0e69eeac4`. The stale staff fixture must be corrected and the gate rerun before PASS.
+- Exact-commit E2E ran from a clean Git archive of `3a2db915ae9245732c7207da4799dfd2f70e8cc4` and passed 22/22 with zero retries.
 - No push, deployment, migration, or Linear closeout was performed.
