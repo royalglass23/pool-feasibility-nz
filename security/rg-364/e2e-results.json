@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "feature": "rg-364-wizard-polish",
+  "commit": "3a2db915ae9245732c7207da4799dfd2f70e8cc4",
+  "executionSource": "clean-git-archive",
+  "command": "npm run test:e2e -- --retries=0 --workers=1",
+  "retries": 0,
+  "environment": {
+    "name": "isolated-local-development-database",
+    "baseUrl": "http://127.0.0.1:3100",
+    "production": false
+  },
+  "projects": ["chromium"],
+  "coverage": { "required": 10, "covered": 10 },
+  "counts": {
+    "total": 22,
+    "passed": 22,
+    "failed": 0,
+    "skipped": 0,
+    "flaky": 0
+  },
+  "verdict": "PASS",
+  "blocker": null
+}

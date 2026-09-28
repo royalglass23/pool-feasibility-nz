@@ -5,6 +5,7 @@ import type {
   FastPropertyDetails,
 } from "./execute-fast-property-details";
 import type { BoundaryState } from "./run-data-access-spike";
+import type { FastPoolId } from "./fast-pool-placement";
 
 export const FAST_POOL_SERVICE_RECOMMENDATION =
   "Try a different pool position. If you want to keep this position, confirm the mapped constraint and required clearance with the relevant provider or a qualified pool professional.";
@@ -48,6 +49,8 @@ export type FastPoolWarningInput = {
 };
 
 export type FastPoolPlacementSnapshot = {
+  layoutId: FastPoolId;
+  layoutName: string;
   position: [number, number];
   rotationDegrees: number;
   dimensions: { lengthMetres: number; widthMetres: number } | null;

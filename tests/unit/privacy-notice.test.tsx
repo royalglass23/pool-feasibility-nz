@@ -7,6 +7,8 @@ import { TEST_MAP_IMAGE_DATA_URL } from "../fixtures/preliminary-report";
 vi.mock("server-only", () => ({}));
 
 const placement = {
+  layoutId: "compact" as const,
+  layoutName: "Compact",
   position: [174.76, -36.85] as [number, number],
   rotationDegrees: 12,
   dimensions: { lengthMetres: 6.5, widthMetres: 3 },
@@ -28,6 +30,7 @@ describe("report-request privacy notice", () => {
     render(
       <HomeownerSubmissionForm
         assessmentSnapshot="server-issued-assessment-snapshot"
+        reportAudience="homeowner"
         mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         placement={placement}
         onSaved={vi.fn()}
@@ -54,6 +57,9 @@ describe("report-request privacy notice", () => {
     ).toBeVisible();
     expect(
       notice.getByText(/name, phone number, and email address/i),
+    ).toBeVisible();
+    expect(
+      notice.getByText(/optional company or trading name for Pool Builders/i),
     ).toBeVisible();
     expect(
       notice.getByText(/prepare, display, and email your preliminary report/i),

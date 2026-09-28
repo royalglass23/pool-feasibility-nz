@@ -3,9 +3,10 @@ import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 
 const getDb = vi.hoisted(() => vi.fn(() => ({}) as never));
 const getSavedPreliminaryReportById = vi.hoisted(() => vi.fn());
+const getSavedPreliminaryReportRenderById = vi.hoisted(() => vi.fn());
 const getAssessmentDeliveryStateById = vi.hoisted(() => vi.fn());
 const startAssessmentReportDeliveryByReference = vi.hoisted(() => vi.fn());
-const generatePreliminaryReportPdf = vi.hoisted(() => vi.fn());
+const generateSavedPreliminaryReportPdf = vi.hoisted(() => vi.fn());
 const verifySavedReportAccessToken = vi.hoisted(() => vi.fn());
 const ReportRendererBusyError = vi.hoisted(
   () => class ReportRendererBusyError extends Error {},
@@ -33,12 +34,13 @@ vi.mock("@/db/client", () => ({ getDb }));
 vi.mock("@/db/repositories/homeowner-assessment-repository", () => ({
   getAssessmentDeliveryStateById,
   getSavedPreliminaryReportById,
+  getSavedPreliminaryReportRenderById,
 }));
 vi.mock("@/modules/reporting/deliver-assessment-report", () => ({
   startAssessmentReportDeliveryByReference,
 }));
 vi.mock("@/modules/reporting/report-renderer", () => ({
-  generatePreliminaryReportPdf,
+  generateSavedPreliminaryReportPdf,
   ReportRendererBusyError,
   ReportRendererTimeoutError,
 }));
@@ -56,9 +58,10 @@ const report = buildTestPreliminaryReport();
 afterEach(() => {
   getDb.mockClear();
   getSavedPreliminaryReportById.mockReset();
+  getSavedPreliminaryReportRenderById.mockReset();
   getAssessmentDeliveryStateById.mockReset();
   startAssessmentReportDeliveryByReference.mockReset();
-  generatePreliminaryReportPdf.mockReset();
+  generateSavedPreliminaryReportPdf.mockReset();
   verifySavedReportAccessToken.mockReset();
 });
 
@@ -287,8 +290,13 @@ describe("POST public saved report PDF", () => {
       assessmentId: "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48",
       reference: report.reference,
     });
-    getSavedPreliminaryReportById.mockResolvedValue(report);
-    generatePreliminaryReportPdf.mockResolvedValue(Buffer.from("%PDF-public"));
+    getSavedPreliminaryReportRenderById.mockResolvedValue({
+      report: { ...report, reportAudience: "pool_builder" },
+      context: { builderCompanyName: "North Shore Pools Ltd" },
+    });
+    generateSavedPreliminaryReportPdf.mockResolvedValue(
+      Buffer.from("%PDF-public"),
+    );
 
     const response = await POST(
       new Request("https://pool.example/api/public/assessments/report/pdf", {
@@ -302,11 +310,14 @@ describe("POST public saved report PDF", () => {
     expect(response.status).toBe(200);
     expect(response.headers.get("Content-Type")).toBe("application/pdf");
     expect(response.headers.get("X-Content-Type-Options")).toBe("nosniff");
-    expect(getSavedPreliminaryReportById).toHaveBeenCalledWith(
+    expect(getSavedPreliminaryReportRenderById).toHaveBeenCalledWith(
       expect.anything(),
       "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48",
     );
-    expect(generatePreliminaryReportPdf).toHaveBeenCalledWith(report);
+    expect(generateSavedPreliminaryReportPdf).toHaveBeenCalledWith({
+      report: { ...report, reportAudience: "pool_builder" },
+      context: { builderCompanyName: "North Shore Pools Ltd" },
+    });
   });
 
   it("fails closed when the loaded report reference does not match the token", async () => {
@@ -314,7 +325,10 @@ describe("POST public saved report PDF", () => {
       assessmentId: "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48",
       reference: "GF-2026-000999",
     });
-    getSavedPreliminaryReportById.mockResolvedValue(report);
+    getSavedPreliminaryReportRenderById.mockResolvedValue({
+      report,
+      context: { builderCompanyName: null },
+    });
 
     const response = await POST(
       new Request("https://pool.example/api/public/assessments/report/pdf", {
@@ -326,6 +340,6 @@ describe("POST public saved report PDF", () => {
     );
 
     expect(response.status).toBe(404);
-    expect(generatePreliminaryReportPdf).not.toHaveBeenCalled();
+    expect(generateSavedPreliminaryReportPdf).not.toHaveBeenCalled();
   });
 });

@@ -7,8 +7,14 @@ import {
   type ReportDataSource,
 } from "@/modules/reporting/pool-feasibility-report";
 import { renderCanonicalPreliminaryReportHtml } from "@/modules/reporting/preliminary-report-html";
+import {
+  resolveLegacyReportAudience,
+  type ReportAudience,
+} from "@/modules/assessment/report-audience";
+import type { VisitorType } from "@/modules/assessment/visitor-type";
 
 export type SavedPreliminaryReport = {
+  reportAudience: ReportAudience;
   reference: string;
   generatedAt: string;
   title: string;
@@ -25,6 +31,8 @@ export type SavedPreliminaryReport = {
     > | null;
   };
   pool: {
+    layoutId: PersistedAssessmentSubmission["poolLayout"]["layoutId"];
+    layoutName: string;
     lengthMetres: number;
     widthMetres: number;
     rotationDegrees: number;
@@ -130,10 +138,12 @@ export function buildSavedPreliminaryReport({
   submission,
   reference,
   createdAt,
+  legacyVisitorType,
 }: {
   submission: SavedPreliminaryReportSource;
   reference: string;
   createdAt: string;
+  legacyVisitorType?: VisitorType | null;
 }): SavedPreliminaryReport {
   const reportData = submission.report.reportData;
   const snapshot = reportData.assessmentSnapshot ?? null;
@@ -168,6 +178,9 @@ export function buildSavedPreliminaryReport({
   );
   return {
     ...canonical,
+    reportAudience:
+      reportData.reportAudience ??
+      resolveLegacyReportAudience(legacyVisitorType),
     overall:
       canonical.overall.status === "red"
         ? canonical.overall
@@ -209,6 +222,8 @@ export function buildSavedPreliminaryReport({
       boundaryGeometry: submission.addressEvidence.boundaryGeometry ?? null,
     },
     pool: {
+      layoutId: submission.poolLayout.layoutId,
+      layoutName: submission.poolLayout.layoutName,
       lengthMetres: submission.poolLayout.lengthMetres,
       widthMetres: submission.poolLayout.widthMetres,
       rotationDegrees: submission.poolLayout.rotationDegrees,

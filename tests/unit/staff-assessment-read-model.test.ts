@@ -18,6 +18,7 @@ function assessmentRow(
     homeownerPhone: "021 555 1234",
     homeownerEmail: "jane@example.com",
     homeownerAddress: "1 Test Street, Auckland",
+    builderCompanyName: "North Shore Pools Ltd",
     visitorType: "pool_builder",
     visitorTypeOtherDetail: null,
     desiredTiming: "3_months",
@@ -37,6 +38,8 @@ function assessmentRow(
       boundaryStatus: "provisional",
     },
     poolLayout: {
+      layoutId: "compact",
+      layoutName: "Compact",
       lengthMetres: 6.5,
       widthMetres: 3,
       rotationDegrees: 24,
@@ -99,7 +102,10 @@ describe("staff assessment read model", () => {
         status: "captured",
         scenarios: [
           { label: "Selected pool outline", value: "33.15 m³" },
-          { label: "300 mm side-allowance scenario", value: "43.45 m³" },
+          {
+            label: "300 mm selected side-clearance scenario",
+            value: "43.45 m³",
+          },
         ],
         terrain: "Base geometry estimate only — terrain adjustment unavailable",
       },
@@ -212,6 +218,8 @@ describe("staff assessment read model", () => {
       feasibilityState: "needs_checking",
       createdAt: new Date("2026-07-29T02:00:00.000Z"),
       poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
         lengthMetres: 6.5,
         widthMetres: 3,
         rotationDegrees: 24,
@@ -265,13 +273,19 @@ describe("staff assessment read model", () => {
       id: "assessment-1",
       homeownerName: "Jane Homeowner",
       homeownerEmail: "jane@example.com",
+      builderCompanyName: "North Shore Pools Ltd",
       visitorType: "pool_builder",
+      poolLayout: expect.objectContaining({
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      }),
       feasibilityState: "needs_checking",
       emailDeliveryState: "sent",
       forwardingState: "pending",
     });
     expect(active).not.toHaveProperty("idempotencyKey");
-    expect(active).not.toHaveProperty("poolLayout");
     expect(active).not.toHaveProperty("warnings");
     expect(active).not.toHaveProperty("reportData");
     await expect(
@@ -284,6 +298,7 @@ describe("staff assessment read model", () => {
       assessmentRow({
         visitorType: null,
         visitorTypeOtherDetail: null,
+        builderCompanyName: null,
         desiredTimingOtherDetail: null,
       }),
     );
@@ -296,7 +311,28 @@ describe("staff assessment read model", () => {
     ).resolves.toMatchObject({
       visitorType: null,
       visitorTypeOtherDetail: null,
+      builderCompanyName: null,
+      reportAudience: "homeowner",
       desiredTimingOtherDetail: null,
+    });
+  });
+
+  it("exposes the persisted report audience independently of legacy visitor display state", async () => {
+    const row = assessmentRow({ visitorType: "homeowner" });
+    row.reportData = {
+      ...(row.reportData as Record<string, unknown>),
+      reportAudience: "pool_builder",
+    };
+    const findFirst = vi.fn().mockResolvedValue(row);
+    const db = {
+      query: { homeownerAssessments: { findFirst } },
+    } as unknown as Parameters<typeof getHomeownerAssessmentById>[0];
+
+    await expect(
+      getHomeownerAssessmentById(db, "assessment-1"),
+    ).resolves.toMatchObject({
+      visitorType: "homeowner",
+      reportAudience: "pool_builder",
     });
   });
 });

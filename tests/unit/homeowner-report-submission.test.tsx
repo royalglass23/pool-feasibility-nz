@@ -34,6 +34,8 @@ const context = {
     parcelIdentifier: "NA123/45",
   },
   poolLayout: {
+    layoutId: "compact",
+    layoutName: "Compact",
     lengthMetres: 6.5,
     widthMetres: 3,
     rotationDegrees: 12,
@@ -109,6 +111,30 @@ afterEach(() => {
 });
 
 describe("homeowner report submission", () => {
+  it("shows the saved Pool Builder company name in the web report", () => {
+    render(
+      <SavedAssessmentReportPanel
+        assessment={{
+          id: "assessment-builder",
+          reference: report.reference,
+          status: "new_enquiry",
+          created: true,
+          builderCompanyName: "North Shore Pools Ltd",
+          report: { ...report, reportAudience: "pool_builder" },
+          reportAccessToken: "saved-report-access-token",
+          delivery: { homeowner: "pending", internal_test_report: "pending" },
+        }}
+        showReport
+        onOpen={() => undefined}
+        onBack={() => undefined}
+      />,
+    );
+
+    expect(
+      screen.getByText("Company / trading name: North Shore Pools Ltd"),
+    ).toBeVisible();
+  });
+
   it.each([
     ["sent", "sent", "delivered"],
     ["sent", "failed", "partial"],
@@ -239,33 +265,43 @@ describe("homeowner report submission", () => {
   it("submits the saved map and hands the complete report to the browser immediately", async () => {
     const user = userEvent.setup();
     const onSaved = vi.fn();
-    const request = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          assessment: {
-            id: "assessment-1",
-            reference: report.reference,
-            status: "new_enquiry",
-            created: true,
-            report,
-            reportAccessToken: "saved-report-access-token",
-            delivery: {
-              homeowner: "pending",
-              internal_test_report: "pending",
-            },
-          },
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          assessmentSnapshot: "audience-signed-assessment-snapshot",
         }),
-        { status: 201, headers: { "Content-Type": "application/json" } },
-      ),
-    );
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            assessment: {
+              id: "assessment-1",
+              reference: report.reference,
+              status: "new_enquiry",
+              created: true,
+              report,
+              reportAccessToken: "saved-report-access-token",
+              delivery: {
+                homeowner: "pending",
+                internal_test_report: "pending",
+              },
+            },
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        ),
+      );
     vi.stubGlobal("fetch", request);
 
     render(
       <HomeownerSubmissionForm
         assessmentSnapshot="server-issued-assessment-snapshot"
+        reportAudience="homeowner"
         mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         mapVisibleLayerKeys={["wastewater_assets"]}
         placement={{
+          layoutId: "compact",
+          layoutName: "Compact",
           position: [174.76, -36.85],
           rotationDegrees: 12,
           dimensions: { lengthMetres: 6.5, widthMetres: 3 },
@@ -289,6 +325,9 @@ describe("homeowner report submission", () => {
     expect(trackAnonymousFunnelEvent).toHaveBeenCalledWith({
       name: "report_form_viewed",
     });
+    expect(
+      screen.queryByLabelText("Company / trading name (optional)"),
+    ).not.toBeInTheDocument();
 
     await user.type(screen.getByLabelText("Name"), "Jane Homeowner");
     await user.type(screen.getByLabelText("Phone"), "abcdefg");
@@ -367,12 +406,27 @@ describe("homeowner report submission", () => {
     expect(trackAnonymousFunnelEvent).not.toHaveBeenCalledWith(
       expect.objectContaining({ name: "report_delivery_outcome" }),
     );
-    const body = JSON.parse(String(request.mock.calls[0]?.[1]?.body));
-    expect(body).toMatchObject({
+    expect(request.mock.calls[0]?.[0]).toBe(
+      "/api/public/assessment-snapshot/audience",
+    );
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
       assessmentSnapshot: "server-issued-assessment-snapshot",
+      reportAudience: "homeowner",
+      poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      },
+    });
+    const body = JSON.parse(String(request.mock.calls[1]?.[1]?.body));
+    expect(body).toMatchObject({
+      assessmentSnapshot: "audience-signed-assessment-snapshot",
       mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
       mapVisibleLayerKeys: ["wastewater_assets"],
       poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
         lengthMetres: 6.5,
         widthMetres: 3,
         clearancesVisible: false,
@@ -393,8 +447,11 @@ describe("homeowner report submission", () => {
     render(
       <HomeownerSubmissionForm
         assessmentSnapshot="server-issued-assessment-snapshot"
+        reportAudience="homeowner"
         mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         placement={{
+          layoutId: "compact",
+          layoutName: "Compact",
           position: [174.76, -36.85],
           rotationDegrees: 12,
           dimensions: { lengthMetres: 6.5, widthMetres: 3 },
@@ -429,34 +486,134 @@ describe("homeowner report submission", () => {
     expect(request).not.toHaveBeenCalled();
   });
 
-  it("collects visitor context and explains Other selections before requesting the report", async () => {
+  it("locks the submitted evidence and persists only one report while saving", async () => {
     const user = userEvent.setup();
-    const request = vi.fn().mockResolvedValue(
-      new Response(
-        JSON.stringify({
-          assessment: {
-            id: "assessment-2",
-            reference: report.reference,
-            status: "new_enquiry",
-            created: true,
-            report,
-            reportAccessToken: "saved-report-access-token",
-            delivery: {
-              homeowner: "pending",
-              internal_test_report: "pending",
+    let finishAudienceRequest: ((response: Response) => void) | null = null;
+    const audienceResponse = new Promise<Response>((resolve) => {
+      finishAudienceRequest = resolve;
+    });
+    const request = vi
+      .fn()
+      .mockReturnValueOnce(audienceResponse)
+      .mockResolvedValueOnce(
+        Response.json(
+          {
+            assessment: {
+              id: "assessment-locked",
+              reference: report.reference,
+              status: "new_enquiry",
+              created: true,
+              report,
+              reportAccessToken: "saved-report-access-token",
+              delivery: {
+                homeowner: "pending",
+                internal_test_report: "pending",
+              },
             },
           },
-        }),
-        { status: 201, headers: { "Content-Type": "application/json" } },
-      ),
+          { status: 201 },
+        ),
+      );
+    vi.stubGlobal("fetch", request);
+    const onSaved = vi.fn();
+    const onSavingChange = vi.fn();
+
+    render(
+      <HomeownerSubmissionForm
+        assessmentSnapshot="server-issued-assessment-snapshot"
+        reportAudience="homeowner"
+        mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
+        placement={{
+          layoutId: "compact",
+          layoutName: "Compact",
+          position: [174.76, -36.85],
+          rotationDegrees: 12,
+          dimensions: { lengthMetres: 6.5, widthMetres: 3 },
+          poolGeometry: validPoolGeometry,
+          constructionEnvelopeGeometry: validPoolGeometry,
+          constructionEnvelopeWithinMappedArea: true,
+          warning: {
+            status: "needs_checking",
+            label: "Needs Checking",
+            text: "Some mapped evidence is unavailable or uncertain.",
+            recommendation: null,
+            conflictingDatasets: [],
+            checkingDatasets: [],
+          },
+        }}
+        onSavingChange={onSavingChange}
+        onSaved={onSaved}
+      />,
     );
+
+    const form = within(screen.getAllByRole("form").at(-1)!);
+    await user.type(form.getByLabelText("Name"), "Jane Homeowner");
+    await user.type(form.getByLabelText("Phone"), "021 555 1234");
+    await user.type(form.getByLabelText("Email"), "jane@example.com");
+    await user.click(form.getByRole("checkbox"));
+    await user.click(
+      form.getByRole("button", { name: "Save and show my report" }),
+    );
+
+    expect(form.getByLabelText("Name")).toBeDisabled();
+    expect(onSavingChange).toHaveBeenLastCalledWith(true);
+    expect(request).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      finishAudienceRequest?.(
+        Response.json({
+          assessmentSnapshot: "audience-signed-assessment-snapshot",
+        }),
+      );
+      await audienceResponse;
+    });
+
+    await waitFor(() => expect(onSaved).toHaveBeenCalledTimes(1));
+    expect(request).toHaveBeenCalledTimes(2);
+    expect(
+      request.mock.calls.filter(([url]) => url === "/api/public/assessments"),
+    ).toHaveLength(1);
+    expect(onSavingChange).toHaveBeenLastCalledWith(false);
+  });
+
+  it("collects the optional builder company without restoring the visitor-type question", async () => {
+    const user = userEvent.setup();
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          assessmentSnapshot: "audience-signed-assessment-snapshot",
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            assessment: {
+              id: "assessment-2",
+              reference: report.reference,
+              status: "new_enquiry",
+              created: true,
+              report,
+              reportAccessToken: "saved-report-access-token",
+              delivery: {
+                homeowner: "pending",
+                internal_test_report: "pending",
+              },
+            },
+          }),
+          { status: 201, headers: { "Content-Type": "application/json" } },
+        ),
+      );
     vi.stubGlobal("fetch", request);
 
     render(
       <HomeownerSubmissionForm
         assessmentSnapshot="server-issued-assessment-snapshot"
+        reportAudience="pool_builder"
         mapImageDataUrl={TEST_MAP_IMAGE_DATA_URL}
         placement={{
+          layoutId: "compact",
+          layoutName: "Compact",
           position: [174.76, -36.85],
           rotationDegrees: 12,
           dimensions: { lengthMetres: 6.5, widthMetres: 3 },
@@ -477,20 +634,14 @@ describe("homeowner report submission", () => {
     );
 
     const form = within(screen.getAllByRole("form").at(-1)!);
-    expect(form.getByRole("option", { name: "Homeowner" })).toHaveValue(
-      "homeowner",
-    );
-    expect(form.getByRole("option", { name: "Pool Builder" })).toHaveValue(
-      "pool_builder",
-    );
+    expect(form.queryByLabelText("I am a")).not.toBeInTheDocument();
     await user.type(form.getByLabelText("Name"), "Roxy Builder");
+    await user.type(
+      form.getByLabelText("Company / trading name (optional)"),
+      "  North Shore Pools Ltd  ",
+    );
     await user.type(form.getByLabelText("Phone"), "021 555 4567");
     await user.type(form.getByLabelText("Email"), "roxy@example.com");
-    await user.selectOptions(form.getByLabelText("I am a"), "other");
-    await user.type(
-      form.getByLabelText("Tell us who you are"),
-      "Landscape architect",
-    );
     await user.selectOptions(
       form.getByLabelText("When do you need it?"),
       "other",
@@ -504,18 +655,29 @@ describe("homeowner report submission", () => {
       form.getByRole("button", { name: "Save and show my report" }),
     );
 
-    await waitFor(() => expect(request).toHaveBeenCalledOnce());
-    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toMatchObject({
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    expect(JSON.parse(String(request.mock.calls[0]?.[1]?.body))).toEqual({
+      assessmentSnapshot: "server-issued-assessment-snapshot",
+      reportAudience: "pool_builder",
+      poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      },
+    });
+    expect(JSON.parse(String(request.mock.calls[1]?.[1]?.body))).toMatchObject({
       homeowner: {
-        visitorType: "other",
-        visitorTypeOtherDetail: "Landscape architect",
+        visitorType: "pool_builder",
+        builderCompanyName: "North Shore Pools Ltd",
         desiredTiming: "other",
         desiredTimingOtherDetail: "Next summer",
       },
     });
   });
 
-  it("shows the saved report without PDF download controls or requests", () => {
+  it("shows the saved report without PDF download controls or requests", async () => {
+    const user = userEvent.setup();
     const request = vi.fn();
     vi.stubGlobal("fetch", request);
 
@@ -553,17 +715,17 @@ describe("homeowner report submission", () => {
       ),
     ).toBeVisible();
     expect(screen.getByText(/Generated 29 Jul 2026, 2:03 pm/)).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "What happens next" }));
     expect(screen.getByText("Confirm the pool position")).toBeVisible();
     expect(
       screen.queryByText("Emailing the saved report to the client..."),
     ).not.toBeInTheDocument();
+    await user.click(screen.getByRole("tab", { name: "Property findings" }));
     const reportMapPanel = screen.getByRole("region", {
       name: "Saved assessment map",
     });
     expect(reportMapPanel).toHaveClass("rounded-xl", "border-pool-200");
-    expect(
-      within(reportMapPanel).getByText("Captured map layers"),
-    ).toBeVisible();
+    expect(within(reportMapPanel).getByText("Map layers")).toBeVisible();
     expect(
       within(reportMapPanel).getByText("Mapped property boundary"),
     ).toBeVisible();
@@ -649,6 +811,7 @@ describe("homeowner report submission", () => {
       />,
     );
 
+    await user.click(screen.getByRole("tab", { name: "What happens next" }));
     await user.click(screen.getByRole("button", { name: "Start again" }));
 
     expect(onStartAgain).toHaveBeenCalledOnce();

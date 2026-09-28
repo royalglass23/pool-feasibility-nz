@@ -9,6 +9,8 @@ import {
 } from "@/db/repositories/homeowner-assessment-repository";
 import {
   assertConstructabilityMatchesSnapshot,
+  assertPoolLayoutMatchesSnapshot,
+  assertReportAudienceMatchesSnapshot,
   buildServerAssessmentSubmission,
   parseBrowserAssessmentSaveRequest,
   ServerAssessmentSubmissionError,
@@ -96,6 +98,8 @@ export async function POST(request: Request) {
     const snapshot = verifyAssessmentSnapshot(
       browserRequest.assessmentSnapshot,
     );
+    assertReportAudienceMatchesSnapshot(browserRequest, snapshot);
+    assertPoolLayoutMatchesSnapshot(browserRequest, snapshot);
     assertConstructabilityMatchesSnapshot(browserRequest, snapshot);
     validated = { browserRequest, snapshot };
   } catch (error) {
@@ -246,6 +250,7 @@ async function savedAssessmentResponse({
         reference: result.assessment.reference,
         status: result.assessment.status,
         created: result.created,
+        builderCompanyName: result.assessment.builderCompanyName,
         report,
         reportAccessToken,
         delivery: {

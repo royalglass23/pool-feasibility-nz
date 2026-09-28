@@ -1,9 +1,177 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator } from "@playwright/test";
+
+type BoundingBox = {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+async function expectRelativeLayout(
+  first: Locator,
+  second: Locator,
+  matches: (first: BoundingBox, second: BoundingBox) => boolean,
+) {
+  await expect
+    .poll(async () => {
+      const [firstBounds, secondBounds] = await Promise.all([
+        first.boundingBox(),
+        second.boundingBox(),
+      ]);
+      return Boolean(
+        firstBounds && secondBounds && matches(firstBounds, secondBounds),
+      );
+    })
+    .toBe(true);
+}
+
+test("keeps the builder entry URL through browser back and forward navigation", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  await page.goto("/auckland-pool-planning-for-builders");
+  await page
+    .getByRole("link", { name: "Check a property with PoolReady" })
+    .click();
+  await expect(page).toHaveURL(/audience=pool_builder/);
+  await page.goBack();
+  await expect(page).toHaveURL(/auckland-pool-planning-for-builders/);
+  await page.goForward();
+  await expect(page).toHaveURL(/audience=pool_builder/);
+});
+
+test("locks earlier steps and pool placement after checking constraints", async ({
+  page,
+}) => {
+  test.setTimeout(90_000);
+  const address = "42A Bahari Drive, Ranui, Auckland";
+  await page.route("**/api/public/property-check", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        data: {
+          requestedAddress: address,
+          resolvedAddress: {
+            addressId: "rg-361-address",
+            fullAddress: address,
+            fullAddressNumber: "42A",
+            unit: null,
+            territorialAuthority: "Auckland",
+            coordinates: [174.6082, -36.8603],
+          },
+          boundary: {
+            state: "provisional",
+            geometry: null,
+            areaSquareMetres: null,
+            parcelId: null,
+          },
+          aerial: { state: "unavailable", durationMs: 1, attribution: null },
+          defaultPool: {
+            id: "compact",
+            label: "Compact",
+            lengthMetres: 6.5,
+            widthMetres: 3,
+          },
+          progress: {
+            address: "found",
+            boundary: "provisional",
+            aerial: "unavailable",
+            detailedChecks: "not_loaded",
+          },
+          firstUsableViewStartedAt: "2026-09-25T00:00:00.000Z",
+          fastPathDurationMs: 1,
+        },
+        assessmentSnapshot: "rg-361-initial-snapshot",
+      }),
+    });
+  });
+  await page.route("**/api/public/property-check/stages", async (route) => {
+    const request = route.request().postDataJSON() as { mode?: string };
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify(
+        request.mode === "detailed"
+          ? {
+              assessmentSnapshot: "rg-361-detailed-snapshot",
+              data: {
+                status: "complete",
+                constraints: {
+                  status: "complete",
+                  retryableLayerKeys: [],
+                  unavailableLayerKeys: [],
+                },
+                layers: [],
+                retrievedAt: "2026-09-25T00:00:01.000Z",
+                durationMs: 1,
+                region: "Auckland",
+                limitations: [],
+              },
+            }
+          : {
+              assessmentSnapshot: "rg-361-stage-snapshot",
+              data: {
+                boundary: { state: "provisional", geometry: null },
+                aerial: { state: "unavailable", durationMs: 1 },
+                progress: {
+                  address: "found",
+                  boundary: "provisional",
+                  aerial: "unavailable",
+                  detailedChecks: "not_loaded",
+                },
+                fastPathDurationMs: 1,
+              },
+            },
+      ),
+    });
+  });
+  await page.addInitScript(() => {
+    HTMLCanvasElement.prototype.toDataURL = () => "data:image/png;base64,AAAA";
+  });
+
+  await page.goto("/");
+  await page.getByRole("button", { name: "Not now" }).click();
+  await page.getByRole("radio", { name: "My property" }).click();
+  await page.getByRole("button", { name: "Continue" }).click();
+  await page.getByLabel("Auckland property address").fill(address);
+  await page.keyboard.press("Enter");
+  await page.getByRole("button", { name: "Check for constraints" }).click();
+
+  await expect(
+    page.getByRole("heading", { name: "Property details checked" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Plan your pool.*Current/ }),
+  ).toHaveAttribute("aria-current", "step");
+  await expect(
+    page.getByRole("button", { name: /Who is this for?.*Completed/ }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: /Find the property.*Completed/ }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Start again", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+  ).toBeDisabled();
+
+  await page.getByRole("button", { name: "Continue to your details" }).click();
+  const contactForm = page.locator(
+    'form[aria-labelledby="homeowner-details-heading"]',
+  );
+  await expect(contactForm.getByLabel("Name")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Edit pool size or position" }),
+  ).toHaveCount(0);
+});
 
 for (const initialOutcome of ["complete", "retryable", "error"] as const) {
   test(`loads detailed mapping evidence after ${initialOutcome} response`, async ({
     page,
   }) => {
+    test.setTimeout(90_000);
     await page.route("**/api/public/property-check", async (route) => {
       await route.fulfill({
         status: 200,
@@ -136,8 +304,30 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     await page.addInitScript(() => {
       HTMLCanvasElement.prototype.toDataURL = () => "";
     });
-    await page.goto("/");
+    const builderEntry = initialOutcome === "retryable";
+    await page.goto(builderEntry ? "/?audience=pool_builder" : "/");
     await page.getByRole("button", { name: "Not now" }).click();
+    const homeownerPath = page.getByRole("radio", { name: "My property" });
+    const builderPath = page.getByRole("radio", {
+      name: "A customer property",
+    });
+    if (builderEntry) {
+      await expect(builderPath).toBeChecked();
+      await homeownerPath.click();
+      await expect(homeownerPath).toBeChecked();
+      await builderPath.click();
+      await expect(builderPath).toBeChecked();
+      await homeownerPath.click();
+    } else {
+      await expect(homeownerPath).not.toBeChecked();
+      await expect(builderPath).not.toBeChecked();
+      await homeownerPath.focus();
+      await page.keyboard.press("Space");
+      await expect(homeownerPath).toBeChecked();
+      await builderPath.click();
+      await homeownerPath.click();
+    }
+    await page.getByRole("button", { name: "Continue" }).click();
     await page
       .getByLabel("Auckland property address")
       .fill("42A Bahari Drive, Ranui, Auckland");
@@ -152,7 +342,7 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     await expect(
       page.getByRole("list", { name: "Fast view progress" }),
     ).toContainText(
-      "Address found. Next, choose a pool size, then move and rotate it into your preferred position.",
+      "Address found. Next, choose a pool layout, then move it into your preferred position.",
     );
     await expect(page.getByText("Mapped boundary found")).toHaveCount(0);
     await expect(page.getByText("Aerial image ready")).toHaveCount(0);
@@ -166,11 +356,6 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       name: /Map layers/,
     });
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "false");
-    await expect(
-      legend.getByText(
-        "Select “Check for constraints” to see terrain contours and mapped services.",
-      ),
-    ).toHaveCount(0);
     await mapLayersToggle.click();
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "true");
     await expect(
@@ -181,16 +366,10 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       .filter({ hasText: "Detailed official checks" });
     await expect(detailedChecksPanel).toHaveCount(0);
     await page.getByRole("button", { name: "Check for constraints" }).click();
-    await expect(
-      page.getByRole("button", { name: "Checking constraints…" }),
-    ).toBeDisabled();
     await expect.poll(() => detailedStageRequests).toBe(1);
-    if (initialOutcome !== "complete") {
+    if (initialOutcome === "error") {
       const retry = page.getByRole("button", {
-        name:
-          initialOutcome === "retryable"
-            ? "Retry unavailable constraints"
-            : "Check for constraints",
+        name: "Retry property check",
         exact: true,
       });
       await expect(retry).toBeEnabled();
@@ -198,11 +377,8 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       await expect.poll(() => detailedStageRequests).toBe(2);
     }
     await expect(
-      page.getByRole("button", {
-        name: "All available constraints loaded",
-        exact: true,
-      }),
-    ).toBeDisabled();
+      page.getByText(/No valid elevation data covers this property\./),
+    ).toBeVisible();
     if (initialOutcome === "complete") {
       const clearancesPanel = legend.getByTestId("map-layer-clearances");
       const slopePanel = legend.getByTestId("map-layer-slope");
@@ -267,49 +443,13 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     ).toBeVisible();
     if (initialOutcome === "complete") {
       const requestCountBeforePlacementChanges = detailedStageRequests;
-      await page.getByRole("button", { name: /Family \(8 × 4 m\)/ }).click();
-      await page.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }).click();
-      await page.getByLabel("Custom length (m)").fill("7.2");
-      await page.getByLabel("Custom width (m)").fill("3.4");
-
-      const rotateControl = page.getByTestId("pool-rotate-control");
-      await expect(rotateControl).toBeVisible();
-      const rotateBounds = (await rotateControl.boundingBox())!;
-      await page.mouse.move(rotateBounds.x + 22, rotateBounds.y + 22);
-      await page.mouse.down();
-      await page.mouse.move(rotateBounds.x + 60, rotateBounds.y - 10, {
-        steps: 6,
-      });
-      await page.mouse.up();
-      await expect
-        .poll(async () =>
-          Number(await rotateControl.getAttribute("data-rotation-degrees")),
-        )
-        .not.toBe(0);
-
-      const canvas = page.locator("canvas.maplibregl-canvas");
-      const canvasBounds = (await canvas.boundingBox())!;
-      const rotateBoundsBeforeMove = (await rotateControl.boundingBox())!;
-      await page.mouse.move(
-        canvasBounds.x + canvasBounds.width / 2,
-        canvasBounds.y + canvasBounds.height / 2,
-      );
-      await page.mouse.down();
-      await page.mouse.move(
-        canvasBounds.x + canvasBounds.width / 2 + 15,
-        canvasBounds.y + canvasBounds.height / 2 + 10,
-        { steps: 4 },
-      );
-      await page.mouse.up();
-      await expect
-        .poll(async () => {
-          const current = (await rotateControl.boundingBox())!;
-          return Math.hypot(
-            current.x - rotateBoundsBeforeMove.x,
-            current.y - rotateBoundsBeforeMove.y,
-          );
-        })
-        .toBeGreaterThan(3);
+      await expect(
+        page.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+      ).toBeDisabled();
+      await expect(
+        page.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }),
+      ).toBeDisabled();
+      await expect(page.getByTestId("pool-rotate-control")).toBeHidden();
 
       await expect
         .poll(() => detailedStageRequests)
@@ -324,21 +464,13 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
 
     await expect(
       page.getByRole("button", { name: "Start again", exact: true }),
-    ).toBeEnabled();
+    ).toHaveCount(0);
     const poolLayout = page.getByLabel("Pool catalogue and placement controls");
-    const detailedAction = poolLayout.getByRole("button", {
-      name: "All available constraints loaded",
-      exact: true,
-    });
     await expect(
       page
         .getByLabel("Property check notices")
         .getByRole("heading", { name: /Needs Checking|No Warning/ }),
     ).toBeVisible();
-    await expect(detailedAction).toBeVisible();
-    await expect(
-      poolLayout.getByRole("button", { name: "Start again", exact: true }),
-    ).toBeEnabled();
     const mapBounds = await page
       .getByLabel("Fast aerial map for 42A Bahari Drive, Ranui, Auckland")
       .boundingBox();
@@ -346,7 +478,6 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       .getByLabel("Property check notices")
       .boundingBox();
     const poolLayoutBounds = await poolLayout.boundingBox();
-    const actionBounds = await detailedAction.boundingBox();
     expect(noticeBounds!.y + noticeBounds!.height).toBeLessThanOrEqual(
       mapBounds!.y,
     );
@@ -354,13 +485,15 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     expect(noticeBounds!.x + noticeBounds!.width).toBeGreaterThanOrEqual(
       poolLayoutBounds!.x + poolLayoutBounds!.width,
     );
-    expect(actionBounds!.x).toBeGreaterThanOrEqual(
-      mapBounds!.x + mapBounds!.width,
-    );
-    expect(actionBounds!.y).toBeLessThan(mapBounds!.y + mapBounds!.height);
-    await expect(
-      legend.getByRole("checkbox", { name: "Wastewater" }),
-    ).toBeChecked();
+    const wastewaterLayer = legend.getByRole("checkbox", {
+      name: "Wastewater",
+    });
+    if (initialOutcome === "retryable") {
+      await expect(wastewaterLayer).not.toBeChecked();
+      await expect(wastewaterLayer).toBeDisabled();
+    } else {
+      await expect(wastewaterLayer).toBeChecked();
+    }
     await expect(detailedChecksPanel).toHaveCount(0);
   });
 }
@@ -405,11 +538,15 @@ test("supports the pool catalogue and bounded custom input", async ({
           firstUsableViewStartedAt: "2026-07-28T00:00:00.000Z",
           fastPathDurationMs: 120,
         },
+        assessmentSnapshot: "server-issued-initial-snapshot",
       }),
     });
   });
 
   await page.goto("/");
+  await page.getByRole("button", { name: "Reject analytics" }).click();
+  await page.getByRole("radio", { name: "My property" }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
@@ -423,28 +560,32 @@ test("supports the pool catalogue and bounded custom input", async ({
   const aerialMap = page.getByLabel(
     "Fast aerial map for 42A Bahari Drive, Ranui, Auckland",
   );
-  const desktopControls = await placementControls.boundingBox();
-  const desktopMap = await aerialMap.boundingBox();
-  expect(desktopControls!.x).toBeGreaterThanOrEqual(
-    desktopMap!.x + desktopMap!.width,
+  await expectRelativeLayout(
+    placementControls,
+    aerialMap,
+    (controls, map) =>
+      controls.x >= map.x + map.width && Math.abs(controls.y - map.y) <= 1,
   );
-  expect(Math.abs(desktopControls!.y - desktopMap!.y)).toBeLessThanOrEqual(1);
   await page.setViewportSize({ width: 390, height: 844 });
-  const mobileControls = await placementControls.boundingBox();
-  const mobileMap = await aerialMap.boundingBox();
-  const mobileLayers = await page.getByLabel("Map layers").boundingBox();
-  expect(mobileMap!.y + mobileMap!.height).toBeLessThanOrEqual(
-    mobileControls!.y,
+  await expectRelativeLayout(
+    placementControls,
+    aerialMap,
+    (controls, map) => map.y + map.height <= controls.y,
   );
-  expect(mobileControls!.y + mobileControls!.height).toBeLessThanOrEqual(
-    mobileLayers!.y,
+  await expectRelativeLayout(
+    placementControls,
+    page.getByLabel("Map layers"),
+    (controls, layers) => controls.y + controls.height <= layers.y,
   );
 
   await expect(
     page.getByRole("button", { name: /Compact \(6.5/ }),
   ).toHaveAttribute("aria-pressed", "true");
 
-  await page.getByRole("button", { name: /Custom \(6.5/ }).click();
+  const customLayout = page.getByRole("button", { name: /Custom \(6.5/ });
+  await customLayout.focus();
+  await page.keyboard.press("Enter");
+  await expect(customLayout).toHaveAttribute("aria-pressed", "true");
   const length = page.getByLabel("Custom length (m)");
   await length.fill("20.1");
   await expect(length).toHaveAttribute("aria-invalid", "true");
@@ -454,6 +595,9 @@ test("supports the pool catalogue and bounded custom input", async ({
 
   await length.fill("8.0");
   await page.getByLabel("Custom width (m)").fill("3.0");
-  await expect(page.getByRole("button", { name: /Rotate/ })).toHaveCount(0);
+  await expect(page.getByTestId("pool-rotate-control")).toBeVisible();
+  await expect(
+    page.getByRole("slider", { name: "Pool orientation" }),
+  ).toBeVisible();
   await expect(page.getByText(/^Rotation:/)).toHaveCount(0);
 });

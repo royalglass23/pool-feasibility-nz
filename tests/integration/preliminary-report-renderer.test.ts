@@ -9,12 +9,22 @@ import { buildConstructabilitySnapshot } from "@/modules/assessment/constructabi
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 
 const report = buildTestPreliminaryReport({
+  reportAudience: "pool_builder",
   summary: "The selected pool needs checking.",
   constructability: buildConstructabilitySnapshot({
     answers: {
       version: 1,
       estimatedDepthMetres: 1.5,
-      route: { provenance: "uncertain", geometry: null },
+      route: {
+        provenance: "suggested",
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [174.7598, -36.8502],
+            [174.76, -36.85],
+          ],
+        },
+      },
       accessConditions: ["rocky_ground"],
       nearbyFeatures: ["fences"],
     },
@@ -48,6 +58,14 @@ const report = buildTestPreliminaryReport({
       },
     ],
     assumptions: ["Route policy v1 retained from the saved assessment."],
+    suggestedRoute: {
+      type: "LineString",
+      coordinates: [
+        [174.7598, -36.8502],
+        [174.76, -36.85],
+      ],
+    },
+    routePolicyVersion: 1,
     excavation: {
       dimensions: { lengthMetres: 6, widthMetres: 3 },
       terrainAdjustment: "unavailable",
@@ -76,6 +94,134 @@ const report = buildTestPreliminaryReport({
 });
 
 describe("persisted preliminary report renderer", () => {
+  it("projects trusted Homeowner content into PDF HTML", () => {
+    const homeownerReport = buildTestPreliminaryReport({
+      reportAudience: "homeowner",
+      constructability: report.constructability,
+      mapImageSource: "fast_property_view_capture",
+    });
+
+    const html = renderCanonicalPreliminaryReportHtml(homeownerReport);
+
+    expect(html).toContain("What your pool builder will confirm");
+    expect(html).toContain("Arrange an onsite visit with a pool builder");
+    expect(html).toContain(
+      "PoolReady does not arrange, assign, introduce or book a builder",
+    );
+    expect(html).not.toContain("Site constructability");
+    expect(html).not.toContain("Illustrative excavation geometry");
+    expect(html).not.toContain("Firth masonry guidance");
+    expect(html).not.toContain("user-selected-side-clearance-v1");
+    expect(html).not.toContain("Mapping information &amp; licences");
+    expect(html).not.toContain("Pool-shell clearances");
+    expect(html).not.toContain("Suggested access route");
+  });
+
+  it("shows the optional company only in the trusted Pool Builder projection", () => {
+    const builderHtml = renderCanonicalPreliminaryReportHtml(report, {
+      builderCompanyName: "North Shore Pools Ltd",
+    });
+    const homeownerHtml = renderCanonicalPreliminaryReportHtml(
+      buildTestPreliminaryReport({ reportAudience: "homeowner" }),
+      { builderCompanyName: "North Shore Pools Ltd" },
+    );
+
+    expect(builderHtml).toContain(
+      "Company / trading name:</strong> North Shore Pools Ltd",
+    );
+    expect(builderHtml).not.toContain("Customer name");
+    expect(builderHtml).not.toContain("Customer phone");
+    expect(builderHtml).not.toContain("Customer email");
+    expect(homeownerHtml).not.toContain("North Shore Pools Ltd");
+  });
+
+  it("keeps the Homeowner projection inside three A4 pages without orphaned guidance headings", async () => {
+    const homeownerReport = buildTestPreliminaryReport({
+      reportAudience: "homeowner",
+      constructability: report.constructability,
+      mapImageSource: "fast_property_view_capture",
+    });
+    let layout:
+      | {
+          pageCount: number;
+          pageOverflowPixels: number[];
+          contentClearOfFooters: boolean;
+          guidanceHeadingsHaveContent: boolean;
+          guidanceClearOfFooter: boolean;
+        }
+      | undefined;
+
+    const pdf = await generatePreliminaryReportPdf(homeownerReport, {
+      async render(html) {
+        const browser = await puppeteer.launch({
+          executablePath: testChromiumExecutable(),
+          headless: true,
+        });
+        try {
+          const page = await browser.newPage();
+          await page.setContent(html, { waitUntil: "load" });
+          await page.emulateMediaType("print");
+          layout = await page.evaluate(() => {
+            const pages = Array.from(
+              document.querySelectorAll<HTMLElement>(".page"),
+            );
+            const guidance = document.querySelector<HTMLElement>(
+              ".homeowner-guidance",
+            );
+            const guidancePage = guidance?.closest<HTMLElement>(".page");
+            const guidanceFooter =
+              guidancePage?.querySelector<HTMLElement>("footer");
+            const guidanceHeadings = Array.from(
+              guidance?.querySelectorAll<HTMLElement>("h2") ?? [],
+            );
+            return {
+              pageCount: pages.length,
+              pageOverflowPixels: pages.map((reportPage) =>
+                Math.max(0, reportPage.scrollHeight - reportPage.clientHeight),
+              ),
+              contentClearOfFooters: pages.every((reportPage) => {
+                const footer = reportPage.querySelector<HTMLElement>("footer");
+                if (!footer) return false;
+                const boundary = footer.getBoundingClientRect().top - 8;
+                return Array.from(reportPage.children).every(
+                  (child) =>
+                    child === footer ||
+                    child.getBoundingClientRect().bottom <= boundary,
+                );
+              }),
+              guidanceHeadingsHaveContent:
+                guidanceHeadings.length === 2 &&
+                guidanceHeadings.every((heading) =>
+                  Boolean(heading.nextElementSibling?.textContent?.trim()),
+                ),
+              guidanceClearOfFooter: Boolean(
+                guidance &&
+                guidanceFooter &&
+                guidance.getBoundingClientRect().bottom <=
+                  guidanceFooter.getBoundingClientRect().top - 8,
+              ),
+            };
+          });
+          return Buffer.from(
+            await page.pdf({ format: "A4", printBackground: true }),
+          );
+        } finally {
+          await browser.close();
+        }
+      },
+    });
+
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(pdf.toString("latin1").match(/\/Type\s*\/Page\b/g)).toHaveLength(3);
+    expect(layout).toEqual({
+      pageCount: 3,
+      pageOverflowPixels: [0, 0, 0],
+      contentClearOfFooters: true,
+      guidanceHeadingsHaveContent: true,
+      guidanceClearOfFooter: true,
+    });
+  }, 30_000);
+
   it("renders the shared saved report through the real local Chromium boundary", async () => {
     const pdf = await generatePreliminaryReportPdf(report);
     const source = pdf.toString("latin1");
@@ -94,6 +240,7 @@ describe("persisted preliminary report renderer", () => {
 
   it("groups repeated map credits and fits the report on three pages", async () => {
     const fullSourceReport = buildTestPreliminaryReport({
+      reportAudience: "pool_builder",
       sources: Array.from({ length: 23 }, (_, index) => ({
         ...report.sources[0]!,
         provider:
@@ -141,6 +288,7 @@ describe("persisted preliminary report renderer", () => {
 
   it("shows one provider credit when saved layers have differing licence metadata", () => {
     const sharedCreditReport = buildTestPreliminaryReport({
+      reportAudience: "pool_builder",
       sources: [
         {
           ...report.sources[0]!,
@@ -163,8 +311,9 @@ describe("persisted preliminary report renderer", () => {
     expect(html).not.toContain("Second dataset");
   });
 
-  it("refuses a three-page PDF when complete source attribution cannot fit", async () => {
+  it("expands a Pool Builder PDF when complete source attribution needs more pages", async () => {
     const crowdedReport = buildTestPreliminaryReport({
+      reportAudience: "pool_builder",
       sources: Array.from({ length: 50 }, (_, index) => ({
         ...report.sources[0]!,
         provider: `Mapped provider ${index + 1}`,
@@ -173,13 +322,17 @@ describe("persisted preliminary report renderer", () => {
       })),
     });
 
-    await expect(generatePreliminaryReportPdf(crowdedReport)).rejects.toThrow(
-      "REPORT_GENERATION_FAILED: attribution exceeds the three-page layout",
-    );
+    const pdf = await generatePreliminaryReportPdf(crowdedReport);
+
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(
+      pdf.toString("latin1").match(/\/Type\s*\/Page\b/g)?.length ?? 0,
+    ).toBeGreaterThan(3);
   }, 30_000);
 
-  it("refuses a three-page PDF when valid limitations would be clipped", async () => {
+  it("expands a Pool Builder PDF when valid limitations need more than three pages", async () => {
     const crowdedReport = buildTestPreliminaryReport({
+      reportAudience: "pool_builder",
       limitations: Array.from(
         { length: 8 },
         (_, index) =>
@@ -187,13 +340,32 @@ describe("persisted preliminary report renderer", () => {
       ),
     });
 
-    await expect(generatePreliminaryReportPdf(crowdedReport)).rejects.toThrow(
-      "REPORT_GENERATION_FAILED: content exceeds the three-page layout",
+    const pdf = await generatePreliminaryReportPdf(crowdedReport);
+
+    expect(pdf.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(
+      pdf.toString("latin1").match(/\/Type\s*\/Page\b/g)?.length ?? 0,
+    ).toBeGreaterThan(3);
+  }, 30_000);
+
+  it("rejects a Pool Builder PDF when one unbreakable evidence item cannot fit a page", async () => {
+    const unreadableReport = buildTestPreliminaryReport({
+      reportAudience: "pool_builder",
+      limitations: [
+        `Unbreakable evidence item: ${"This evidence must remain readable as one item. ".repeat(500)}`,
+      ],
+    });
+
+    await expect(
+      generatePreliminaryReportPdf(unreadableReport),
+    ).rejects.toThrow(
+      "REPORT_GENERATION_FAILED: builder content cannot paginate cleanly",
     );
   }, 30_000);
 
   it("keeps the saved map and clearances inside the fixed three-page A4 report", async () => {
     const sixStateReport = buildTestPreliminaryReport({
+      reportAudience: "pool_builder",
       keyFindings: [
         {
           id: "pool_position_review",

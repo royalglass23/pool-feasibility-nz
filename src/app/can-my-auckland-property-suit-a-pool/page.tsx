@@ -26,8 +26,8 @@ export default function PropertySuitabilityPage() {
         <div className="mt-12 space-y-8 border-y border-[#c6dce9] py-8">
           <Section title="Start with usable space">
             Try an indicative pool layout against the mapped property. The
-            layout is yours to move and rotate; it is not a final placement or a
-            design recommendation.
+            layout is yours to move; it is not a final placement or a design
+            recommendation.
           </Section>
           <Section title="Look beyond the pool shell">
             Access for people and machinery, slope, ground conditions, drainage,

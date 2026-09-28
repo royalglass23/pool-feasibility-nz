@@ -4,6 +4,7 @@ import {
   preliminaryReportFilename,
 } from "@/modules/reporting/preliminary-report";
 import { renderCanonicalPreliminaryReportHtml } from "@/modules/reporting/preliminary-report-html";
+import { buildConstructabilitySnapshot } from "@/modules/assessment/constructability-evidence";
 import { buildTestPersistedAssessmentSubmission } from "../fixtures/preliminary-report";
 
 const createdAt = "2026-08-13T02:00:00.000Z";
@@ -25,6 +26,37 @@ function buildReport(
 }
 
 describe("canonical homeowner feasibility report", () => {
+  it("uses persisted layout identity and preserves a neutral historical fallback", () => {
+    const named = buildReport();
+    const historical = buildReport((submission) => {
+      submission.poolLayout.layoutId = null;
+      submission.poolLayout.layoutName = "Saved pool layout";
+      submission.poolLayout.lengthMetres = 6.5;
+      submission.poolLayout.widthMetres = 3;
+    });
+
+    expect(named.pool).toMatchObject({
+      layoutId: "compact",
+      layoutName: "Compact",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    });
+    expect(historical.pool).toMatchObject({
+      layoutId: null,
+      layoutName: "Saved pool layout",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    });
+    expect(named.assessments.pool_fit.details).toContainEqual({
+      label: "Selected pool",
+      value: "Compact — 6.5 x 3 m",
+    });
+    expect(historical.assessments.pool_fit.details).toContainEqual({
+      label: "Selected pool",
+      value: "Saved pool layout — 6.5 x 3 m",
+    });
+  });
+
   it("keeps normal later-stage verification separate from a green overall result", () => {
     const report = buildReport((submission) => {
       submission.report.feasibilityState = "no_warning";
@@ -314,10 +346,11 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).toContain("Key findings");
     expect(html).toContain("Still needs checking");
     expect(html).toContain("Recommended next stage");
-    expect(html).toContain("Assumptions and limitations");
+    expect(html).toContain("What your pool builder will confirm");
+    expect(html).toContain("Arrange an onsite visit with a pool builder");
     expect(html).toContain(report.overall.summary);
     expect(html).toContain(report.overall.recommendedStage);
-    expect(html).toContain("Mapping information &amp; licences");
+    expect(html).not.toContain("Mapping information &amp; licences");
     expect(html).toContain("PoolReady");
     expect(html).toContain("Powered by Blue Haven");
     expect(html).not.toContain('alt="Blue Haven"');
@@ -342,6 +375,195 @@ describe("canonical homeowner feasibility report", () => {
     const overallRule = html.match(/\.overall\{([^}]*)\}/)?.[1];
     expect(overallRule).not.toContain("background");
     expect(overallRule).not.toContain("border-radius");
+  });
+
+  it("keeps excavation and access detail on page two without changing page three", () => {
+    const route = {
+      type: "LineString" as const,
+      coordinates: [
+        [174.7598, -36.8502],
+        [174.76, -36.85],
+      ] as [number, number][],
+    };
+    const report = buildReport();
+    report.reportAudience = "pool_builder";
+    report.constructability = buildConstructabilitySnapshot({
+      answers: {
+        version: 1,
+        estimatedDepthMetres: 1.5,
+        excavationSideAllowanceMetres: 0.3,
+        route: { provenance: "confirmed", geometry: route },
+        accessConditions: ["gate_or_narrow_passage"],
+        nearbyFeatures: ["none_of_these"],
+      },
+      suggestedRoute: route,
+      routePolicyVersion: 1,
+      routeFacts: {
+        valid: true,
+        length: { status: "assessed", value: 18.4 },
+        elevationChange: { status: "assessed", value: 1.2 },
+        steepestGradient: { status: "assessed", value: 8.5 },
+        parcelDeparture: { status: "assessed", value: false },
+        buildings: { status: "assessed", value: false },
+        services: { status: "not_assessed", reason: "data_unavailable" },
+      },
+      excavation: {
+        dimensions: { lengthMetres: 6.5, widthMetres: 3 },
+        terrainAdjustment: "available_separate",
+      },
+      mappedEvidence: [
+        {
+          id: "mapped-access",
+          category: "access_excavation",
+          status: "no_concern",
+          provider: "Auckland Council",
+          dataset: "Mapped access check",
+        },
+      ],
+      providerAvailability: [
+        {
+          category: "access_excavation",
+          provider: "Auckland Council",
+          dataset: "Mapped access check",
+          status: "available",
+        },
+      ],
+    });
+
+    const pages = new DOMParser()
+      .parseFromString(
+        renderCanonicalPreliminaryReportHtml(report),
+        "text/html",
+      )
+      .querySelectorAll(".page");
+    const pageTwo = pages[1];
+    const pageThree = pages[2];
+
+    expect(pageTwo?.textContent).toContain("Site constructability");
+    expect(pageTwo?.textContent).toContain(
+      "Excavation and construction access",
+    );
+    expect(
+      pageTwo?.querySelector(".constructability-card.access_excavation"),
+    ).not.toBeNull();
+    expect(pageTwo?.textContent).toContain("Estimated pool depth");
+    expect(pageTwo?.textContent).toContain(
+      "300 mm selected side-clearance scenario",
+    );
+    expect(pageTwo?.textContent).toContain("Route length");
+    expect(pageTwo?.textContent).toContain("Route elevation change");
+    expect(pageTwo?.textContent).toContain("1.2 m");
+    expect(pageTwo?.textContent).toContain("Steepest route gradient");
+    expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
+      ".constructability-card{--card-heading-size:12pt;--card-body-size:8pt",
+    );
+    expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
+      ".constructability-card h3,.constructability-card h4{font-size:var(--card-heading-size)",
+    );
+    expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
+      "p,li{font-size:8pt",
+    );
+    expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
+      ".assessment-card h2{font-size:12pt",
+    );
+    expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
+      ".recommended-stage h2{font-size:12pt",
+    );
+    expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
+      ".report-brand span{color:var(--report-muted);font-size:8pt",
+    );
+    expect(renderCanonicalPreliminaryReportHtml(report)).toMatch(
+      /footer\{[^}]*font-size:8pt\}/,
+    );
+    expect(pageTwo?.textContent).toContain("Mapped evidence");
+    expect(pageTwo?.textContent).toContain("Your Site answer");
+    expect(pageTwo?.textContent).toContain("Saved route analysis");
+    expect(pageTwo?.textContent).toContain("Provider availability");
+    expect(pageTwo?.textContent).toContain(
+      "Mapped evidence and your Site answer are both retained",
+    );
+    expect(pageTwo?.textContent).toContain(
+      "Indicative planning volumes only — not a quote, specification or upper bound. These figures use your selected side clearance but exclude base preparation, drainage, terrain, services and installation method. Confirm final excavation requirements onsite.",
+    );
+    expect(pageTwo?.textContent).not.toContain("Firth");
+    expect(pageTwo?.textContent).not.toContain(
+      "user-selected-side-clearance-v1",
+    );
+    expect(
+      pageTwo?.querySelector(".constructability-card.access_excavation")
+        ?.textContent,
+    ).not.toContain("Saved assumption");
+    expect(
+      pageTwo?.querySelector(".constructability-card.access_excavation")
+        ?.textContent,
+    ).toContain("Confirm access, excavation and ground conditions onsite");
+    expect(pageThree?.textContent).not.toContain("Site constructability");
+    expect(
+      Array.from(pageThree?.querySelectorAll("h2") ?? [], (heading) =>
+        heading.textContent?.trim(),
+      ),
+    ).toEqual([
+      "Recommended next stage",
+      "Mapping information & licences",
+      "Assumptions and limitations",
+      "Preliminary assessment",
+    ]);
+  });
+
+  it("identifies a user-adjusted clearance without exposing internal source notes", () => {
+    const report = buildReport();
+    report.reportAudience = "pool_builder";
+    report.constructability = buildConstructabilitySnapshot({
+      answers: {
+        version: 1,
+        estimatedDepthMetres: 1.5,
+        excavationSideAllowanceMetres: 0.2,
+        route: { provenance: "uncertain", geometry: null },
+        accessConditions: ["none_of_these"],
+        nearbyFeatures: ["none_of_these"],
+      },
+      excavation: {
+        dimensions: { lengthMetres: 6.5, widthMetres: 3 },
+        terrainAdjustment: "available_separate",
+      },
+    });
+
+    const accessCard = new DOMParser()
+      .parseFromString(
+        renderCanonicalPreliminaryReportHtml(report),
+        "text/html",
+      )
+      .querySelector(".constructability-card.access_excavation");
+
+    expect(accessCard?.textContent).toContain(
+      "200 mm selected side-clearance scenario",
+    );
+    expect(accessCard?.textContent).toContain(
+      "Indicative planning volumes only — not a quote, specification or upper bound. These figures use your selected side clearance but exclude base preparation, drainage, terrain, services and installation method. Confirm final excavation requirements onsite.",
+    );
+    expect(accessCard?.textContent).not.toContain("Firth-derived");
+    expect(accessCard?.textContent).not.toContain(
+      "user-selected-side-clearance-v1",
+    );
+  });
+
+  it("prints the generated timestamp on every page", () => {
+    const pages = new DOMParser()
+      .parseFromString(
+        renderCanonicalPreliminaryReportHtml(buildReport()),
+        "text/html",
+      )
+      .querySelectorAll(".page");
+
+    expect(pages).toHaveLength(3);
+    for (const page of pages) {
+      expect(page.textContent).toContain("13 Aug 2026, 2:00 pm");
+      expect(
+        page.querySelector(
+          ".report-heading strong, .continuation-header span:last-child",
+        )?.textContent,
+      ).toBe("Preliminary Feasibility Report");
+    }
   });
 
   it("retains specific missing information without adding it to page three", () => {
@@ -376,8 +598,8 @@ describe("canonical homeowner feasibility report", () => {
       ),
     ).toEqual([
       "Recommended next stage",
-      "Mapping information & licences",
-      "Assumptions and limitations",
+      "What your pool builder will confirm",
+      "Recommended next step",
       "Preliminary assessment",
     ]);
     expect(pageThree?.textContent).not.toContain(
@@ -386,18 +608,20 @@ describe("canonical homeowner feasibility report", () => {
   });
 
   it("shows the saved layer legend and pool-shell clearances below the PDF map", () => {
-    const shown = renderCanonicalPreliminaryReportHtml(buildReport());
+    const shownReport = buildReport();
+    shownReport.reportAudience = "pool_builder";
+    const shown = renderCanonicalPreliminaryReportHtml(shownReport);
     expect(shown).toContain("Captured map layers");
     expect(shown).toContain('class="map-legend"');
     expect(shown).toContain("Indicative mapped pool-shell clearances");
     expect(shown).toMatch(/Side 1: [\d.]+ m/);
     expect(shown).toMatch(/Side 4: [\d.]+ m/);
 
-    const hidden = renderCanonicalPreliminaryReportHtml(
-      buildReport((submission) => {
-        submission.poolLayout.clearancesVisible = false;
-      }),
-    );
+    const hiddenReport = buildReport((submission) => {
+      submission.poolLayout.clearancesVisible = false;
+    });
+    hiddenReport.reportAudience = "pool_builder";
+    const hidden = renderCanonicalPreliminaryReportHtml(hiddenReport);
     expect(hidden).not.toContain("Indicative mapped pool-shell clearances");
   });
 

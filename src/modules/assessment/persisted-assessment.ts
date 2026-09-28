@@ -1,9 +1,17 @@
 import { z } from "zod";
-import { homeownerContactFields } from "./homeowner-contact";
-import { requireOtherDetails } from "@/modules/assessment/visitor-context";
+import {
+  homeownerContactFields,
+  refineHomeownerContactContext,
+} from "./homeowner-contact";
 import { isValidPngMapImageDataUrl } from "@/modules/reporting/map-image";
 import { reportAssessmentSnapshotSchema } from "@/modules/reporting/report-assessment-snapshot";
 import { constructabilitySnapshotSchema } from "./constructability-evidence";
+import { reportAudienceSchema } from "./report-audience";
+import {
+  namedPoolLayoutSchema,
+  poolLayoutIdSchema,
+} from "./pool-layout-schema";
+import { CUSTOM_POOL_DIMENSION_LIMITS } from "./pool-layout-contract";
 
 const isoDateTime = z.string().datetime({ offset: true });
 
@@ -73,15 +81,47 @@ const geometryReference = z.object({
   geometry: geoJsonGeometry.optional(),
 });
 
-const poolLayout = z.object({
-  lengthMetres: z.number().finite().min(2).max(20),
-  widthMetres: z.number().finite().min(1.5).max(10),
-  rotationDegrees: z.number().finite().min(-360).max(360),
-  position: z.tuple([z.number().finite(), z.number().finite()]),
-  shellGeometry: geoJsonGeometry,
-  constructionEnvelopeGeometry: geoJsonGeometry,
-  clearancesVisible: z.boolean().default(true),
-});
+const poolLayout = z
+  .object({
+    layoutId: poolLayoutIdSchema.optional(),
+    layoutName: z.string().min(1).max(80).optional(),
+    lengthMetres: z
+      .number()
+      .finite()
+      .min(CUSTOM_POOL_DIMENSION_LIMITS.length.min)
+      .max(CUSTOM_POOL_DIMENSION_LIMITS.length.max),
+    widthMetres: z
+      .number()
+      .finite()
+      .min(CUSTOM_POOL_DIMENSION_LIMITS.width.min)
+      .max(CUSTOM_POOL_DIMENSION_LIMITS.width.max),
+    rotationDegrees: z.number().finite().min(-360).max(360),
+    position: z.tuple([z.number().finite(), z.number().finite()]),
+    shellGeometry: geoJsonGeometry,
+    constructionEnvelopeGeometry: geoJsonGeometry,
+    clearancesVisible: z.boolean().default(true),
+  })
+  .superRefine((layout, context) => {
+    if (layout.layoutId === undefined && layout.layoutName === undefined)
+      return;
+    const result = namedPoolLayoutSchema.safeParse({
+      layoutId: layout.layoutId,
+      layoutName: layout.layoutName,
+      lengthMetres: layout.lengthMetres,
+      widthMetres: layout.widthMetres,
+    });
+    if (!result.success) {
+      context.addIssue({
+        code: "custom",
+        message: "Persisted pool layout metadata is incompatible.",
+      });
+    }
+  })
+  .transform((layout) => ({
+    ...layout,
+    layoutId: layout.layoutId ?? null,
+    layoutName: layout.layoutName ?? "Saved pool layout",
+  }));
 
 const warning = z.object({
   state: z.enum(["no_warning", "needs_checking", "blocked"]),
@@ -232,6 +272,8 @@ const reportTerrain = z.discriminatedUnion("status", [
 ]);
 
 const reportData = z.object({
+  reportAudience: reportAudienceSchema.optional(),
+  poolLayout: namedPoolLayoutSchema.optional(),
   mapImageSource: z
     .enum(["trusted_report_render", "fast_property_view_capture"])
     .optional(),
@@ -267,7 +309,7 @@ export const persistedAssessmentSubmissionSchema = z
         consentVersion: z.string().trim().min(1).max(80),
         consentedAt: isoDateTime,
       })
-      .superRefine(requireOtherDetails),
+      .superRefine(refineHomeownerContactContext),
     addressEvidence: z.object({
       selectedAddressId: z.string().trim().min(1).max(200),
       formattedAddress: z.string().trim().min(1).max(500),
@@ -316,6 +358,24 @@ export const persistedAssessmentSubmissionSchema = z
         });
       }
     });
+    const reportPoolLayout = submission.report.reportData.poolLayout;
+    const savedPoolLayout = submission.poolLayout;
+    const layoutMatches =
+      reportPoolLayout !== undefined &&
+      savedPoolLayout.layoutId === reportPoolLayout.layoutId &&
+      savedPoolLayout.layoutName === reportPoolLayout.layoutName &&
+      savedPoolLayout.lengthMetres === reportPoolLayout.lengthMetres &&
+      savedPoolLayout.widthMetres === reportPoolLayout.widthMetres;
+    if (
+      (savedPoolLayout.layoutId === null && reportPoolLayout !== undefined) ||
+      (savedPoolLayout.layoutId !== null && !layoutMatches)
+    ) {
+      context.addIssue({
+        code: "custom",
+        path: ["report", "reportData", "poolLayout"],
+        message: "Report pool layout must match the saved pool layout.",
+      });
+    }
     const excavation =
       submission.report.reportData.constructability?.excavationGeometry;
     if (

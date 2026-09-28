@@ -5,6 +5,10 @@ import nextConfig from "../../next.config";
 
 describe("Vercel native package tracing", () => {
   it("packages the native runtimes needed by public assessment saves and saved-report delivery", () => {
+    const internalAssessmentReportIncludes =
+      nextConfig.outputFileTracingIncludes?.[
+        "/api/internal/assessments/\\[id\\]/report/route"
+      ];
     const assessmentIncludes =
       nextConfig.outputFileTracingIncludes?.["/api/public/assessments/route"];
     const deliveryIncludes =
@@ -20,6 +24,9 @@ describe("Vercel native package tracing", () => {
         "/api/public/assessments/report/pdf/route"
       ];
 
+    expect(internalAssessmentReportIncludes).toEqual([
+      "./node_modules/@sparticuz/chromium/bin/**/*",
+    ]);
     expect(assessmentIncludes).toEqual([
       "./node_modules/@img/sharp-linux-x64/package.json",
       "./node_modules/@img/sharp-linux-x64/index.cjs",

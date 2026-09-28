@@ -70,58 +70,68 @@ import { POST as POST_PUBLIC } from "@/app/api/public/assessments/route";
 const snapshotSigningKey = "test-assessment-snapshot-signing-key-32-bytes";
 const snapshotService = createAssessmentSnapshotService(snapshotSigningKey);
 const ASSESSMENT_ID = "d6bfe050-bd85-4682-8f16-7c3ca4fd4c48";
-const validSubmission = {
-  assessmentSnapshot: snapshotService.issue({
-    requestedAddress: "1 Test Street, Auckland",
-    resolvedAddress: {
-      addressId: "linz-123",
-      fullAddress: "1 Test Street, Auckland",
-      fullAddressNumber: "1 Test Street",
-      unit: null,
-      territorialAuthority: "Auckland",
-      coordinates: [174.76, -36.85],
-    },
-    boundary: {
-      state: "confirmed",
-      geometry: {
-        type: "Polygon",
-        coordinates: [
-          [
-            [174.75, -36.86],
-            [174.77, -36.86],
-            [174.77, -36.84],
-            [174.75, -36.84],
-            [174.75, -36.86],
-          ],
+const unsignedValidAssessmentSnapshot = snapshotService.issue({
+  requestedAddress: "1 Test Street, Auckland",
+  resolvedAddress: {
+    addressId: "linz-123",
+    fullAddress: "1 Test Street, Auckland",
+    fullAddressNumber: "1 Test Street",
+    unit: null,
+    territorialAuthority: "Auckland",
+    coordinates: [174.76, -36.85],
+  },
+  boundary: {
+    state: "confirmed",
+    geometry: {
+      type: "Polygon",
+      coordinates: [
+        [
+          [174.75, -36.86],
+          [174.77, -36.86],
+          [174.77, -36.84],
+          [174.75, -36.84],
+          [174.75, -36.86],
         ],
-      },
-      areaSquareMetres: 900,
-      parcelId: "parcel-123",
+      ],
     },
-    aerial: { state: "unavailable", durationMs: null, attribution: null },
-    datasets: {
-      address_resolution: officialDatasetEvidence(
-        "address_resolution",
-        "2026-07-29T01:00:00.000Z",
-      ),
-      legal_parcel: null,
-      aerial_imagery: null,
-    },
-    defaultPool: {
-      id: "compact",
-      label: "Compact",
+    areaSquareMetres: 900,
+    parcelId: "parcel-123",
+  },
+  aerial: { state: "unavailable", durationMs: null, attribution: null },
+  datasets: {
+    address_resolution: officialDatasetEvidence(
+      "address_resolution",
+      "2026-07-29T01:00:00.000Z",
+    ),
+    legal_parcel: null,
+    aerial_imagery: null,
+  },
+  defaultPool: {
+    id: "compact",
+    label: "Compact",
+    lengthMetres: 6.5,
+    widthMetres: 3,
+  },
+  progress: {
+    address: "found",
+    boundary: "found",
+    aerial: "unavailable",
+    detailedChecks: "not_loaded",
+  },
+  firstUsableViewStartedAt: "2026-07-29T01:00:00.000Z",
+  fastPathDurationMs: 10,
+});
+const validSubmission = {
+  assessmentSnapshot: snapshotService.attachReportAudience(
+    snapshotService.verify(unsignedValidAssessmentSnapshot),
+    "homeowner",
+    {
+      layoutId: "compact",
+      layoutName: "Compact",
       lengthMetres: 6.5,
       widthMetres: 3,
     },
-    progress: {
-      address: "found",
-      boundary: "found",
-      aerial: "unavailable",
-      detailedChecks: "not_loaded",
-    },
-    firstUsableViewStartedAt: "2026-07-29T01:00:00.000Z",
-    fastPathDurationMs: 10,
-  }),
+  ),
   mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
   mapVisibleLayerKeys: ["wastewater_assets"],
   homeowner: {
@@ -133,12 +143,31 @@ const validSubmission = {
     consentGiven: true,
   },
   poolLayout: {
+    layoutId: "compact" as const,
+    layoutName: "Compact" as const,
     lengthMetres: 6.5,
     widthMetres: 3,
     rotationDegrees: 12,
     position: [174.76, -36.85],
   },
 };
+
+function issueTrustedAssessmentSnapshot(
+  fastResult: Parameters<typeof snapshotService.issue>[0],
+  constructability?: Parameters<typeof snapshotService.issue>[1],
+) {
+  const unsigned = snapshotService.issue(fastResult, constructability);
+  return snapshotService.attachReportAudience(
+    snapshotService.verify(unsigned),
+    "homeowner",
+    {
+      layoutId: "compact",
+      layoutName: "Compact",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    },
+  );
+}
 
 beforeEach(() => {
   terrainReportPromotion.enabled = false;
@@ -173,7 +202,7 @@ describe("POST /api/internal/assessments", () => {
     const original = snapshotService.verify(validSubmission.assessmentSnapshot);
     const detailedChecks = completeDetailedChecks();
     detailedChecks.terrain = reportAllowedTerrain();
-    const assessmentSnapshot = snapshotService.issue({
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot({
       ...original.fastResult,
       detailedChecks,
     });
@@ -254,6 +283,22 @@ describe("POST /api/internal/assessments", () => {
     expect(saveHomeownerAssessment).not.toHaveBeenCalled();
   });
 
+  it("rejects a final save whose snapshot has no trusted report audience", async () => {
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/assessments", {
+        method: "POST",
+        body: JSON.stringify({
+          ...validSubmission,
+          assessmentSnapshot: unsignedValidAssessmentSnapshot,
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(getDb).not.toHaveBeenCalled();
+    expect(getHomeownerAssessmentByIdempotencyKey).not.toHaveBeenCalled();
+  });
+
   it("stops reading an oversized body without trusting content-length", async () => {
     const cancel = vi.fn();
     const body = new ReadableStream<Uint8Array>({
@@ -324,6 +369,82 @@ describe("POST /api/internal/assessments", () => {
     });
   });
 
+  it("persists the signed report audience and rejects a changed visitor type", async () => {
+    const initial = snapshotService.verify(unsignedValidAssessmentSnapshot);
+    const assessmentSnapshot = snapshotService.attachReportAudience(
+      initial,
+      "pool_builder",
+      {
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      },
+    );
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+      homeowner: {
+        ...validSubmission.homeowner,
+        visitorType: "pool_builder",
+      },
+    });
+    const snapshot = snapshotService.verify(assessmentSnapshot);
+
+    await expect(
+      buildServerAssessmentSubmission({ request, snapshot }),
+    ).resolves.toMatchObject({
+      report: { reportData: { reportAudience: "pool_builder" } },
+    });
+
+    await expect(
+      buildServerAssessmentSubmission({
+        request: {
+          ...request,
+          homeowner: { ...request.homeowner, visitorType: "homeowner" },
+        },
+        snapshot,
+      }),
+    ).rejects.toThrow("INVALID_ASSESSMENT_SNAPSHOT");
+  });
+
+  it("rejects a layout identity changed after the save snapshot was signed", async () => {
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      poolLayout: {
+        ...validSubmission.poolLayout,
+        layoutId: "custom",
+        layoutName: "Custom",
+      },
+    });
+    const snapshot = snapshotService.verify(request.assessmentSnapshot);
+
+    await expect(
+      buildServerAssessmentSubmission({ request, snapshot }),
+    ).rejects.toThrow("INVALID_ASSESSMENT_SNAPSHOT");
+  });
+
+  it("rejects a tampered layout before idempotency lookup or persistence", async () => {
+    const response = await POST_PUBLIC(
+      new Request("https://pool.example/api/public/assessments", {
+        method: "POST",
+        body: JSON.stringify({
+          ...validSubmission,
+          poolLayout: {
+            ...validSubmission.poolLayout,
+            layoutId: "custom",
+            layoutName: "Custom",
+          },
+        }),
+      }),
+    );
+
+    expect(response.status).toBe(400);
+    expect(getDb).not.toHaveBeenCalled();
+    expect(getHomeownerAssessmentByIdempotencyKey).not.toHaveBeenCalled();
+    expect(saveHomeownerAssessment).not.toHaveBeenCalled();
+  });
+
   it("round-trips submitted Site answers and trusted mapped evidence into the saved report", async () => {
     const baseSnapshot = snapshotService.verify(
       validSubmission.assessmentSnapshot,
@@ -335,30 +456,33 @@ describe("POST /api/internal/assessments", () => {
       accessConditions: ["none_of_these" as const],
       nearbyFeatures: ["fences" as const],
     };
-    const assessmentSnapshot = snapshotService.issue(baseSnapshot.fastResult, {
-      answers,
-      evidence: {
-        suggestedRoute: null,
-        mappedEvidence: [
-          {
-            id: "mapped-retaining-wall",
-            category: "access_excavation",
-            status: "concern",
-            provider: "official-map",
-            dataset: "retaining-walls",
-          },
-        ],
-        providerAvailability: [
-          {
-            category: "access_excavation",
-            provider: "official-map",
-            dataset: "retaining-walls",
-            status: "available",
-          },
-        ],
-        assumptions: ["Onsite confirmation required."],
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot(
+      baseSnapshot.fastResult,
+      {
+        answers,
+        evidence: {
+          suggestedRoute: null,
+          mappedEvidence: [
+            {
+              id: "mapped-retaining-wall",
+              category: "access_excavation",
+              status: "concern",
+              provider: "official-map",
+              dataset: "retaining-walls",
+            },
+          ],
+          providerAvailability: [
+            {
+              category: "access_excavation",
+              provider: "official-map",
+              dataset: "retaining-walls",
+              status: "available",
+            },
+          ],
+          assumptions: ["Onsite confirmation required."],
+        },
       },
-    });
+    );
     const request = parseBrowserAssessmentSaveRequest({
       ...validSubmission,
       assessmentSnapshot,
@@ -424,7 +548,7 @@ describe("POST /api/internal/assessments", () => {
         {
           method: "POST",
           body: JSON.stringify({
-            assessmentSnapshot: snapshotService.issue(property),
+            assessmentSnapshot: issueTrustedAssessmentSnapshot(property),
             accessConditions: ["none_of_these"],
             nearbyFeatures: ["none_of_these"],
             routeResponse: "confirm",
@@ -469,7 +593,9 @@ describe("POST /api/internal/assessments", () => {
         {
           method: "POST",
           body: JSON.stringify({
-            assessmentSnapshot: snapshotService.issue(original.fastResult),
+            assessmentSnapshot: issueTrustedAssessmentSnapshot(
+              original.fastResult,
+            ),
             accessConditions: ["none_of_these"],
             nearbyFeatures: ["none_of_these"],
             routeResponse: "not_sure",
@@ -506,7 +632,7 @@ describe("POST /api/internal/assessments", () => {
   });
 
   it("carries the locked depth through Site answers, public submission and saved report", async () => {
-    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const original = snapshotService.verify(unsignedValidAssessmentSnapshot);
     const locked = snapshotService.refresh(
       { ...original, lockedEstimatedDepthMetres: 1.9 },
       { detailedChecks: completeDetailedChecks() },
@@ -526,14 +652,24 @@ describe("POST /api/internal/assessments", () => {
     );
     expect(response.status).toBe(200);
     const signed = await response.json();
+    const customLayout = {
+      layoutId: "custom" as const,
+      layoutName: "Custom" as const,
+      lengthMetres: 6,
+      widthMetres: 3,
+    };
+    const assessmentSnapshot = snapshotService.attachReportAudience(
+      snapshotService.verify(signed.assessmentSnapshot),
+      "homeowner",
+      customLayout,
+    );
     const request = parseBrowserAssessmentSaveRequest({
       ...validSubmission,
-      assessmentSnapshot: signed.assessmentSnapshot,
+      assessmentSnapshot,
       constructability: signed.answers,
       poolLayout: {
         ...validSubmission.poolLayout,
-        lengthMetres: 6,
-        widthMetres: 3,
+        ...customLayout,
       },
     });
     const snapshot = snapshotService.verify(request.assessmentSnapshot);
@@ -550,7 +686,8 @@ describe("POST /api/internal/assessments", () => {
       version: 1,
       estimatedDepthMetres: 1.9,
       excavationGeometry: {
-        assumptionId: "firth-masonry-side-300mm-v1",
+        version: 2,
+        assumptionId: "user-selected-side-clearance-v1",
         inputs: {
           lengthMetres: 6,
           widthMetres: 3,
@@ -558,6 +695,8 @@ describe("POST /api/internal/assessments", () => {
         },
         poolOutlineCubicMetres: 34.2,
         sideAllowanceCubicMetres: 45.14,
+        sideAllowanceMetres: 0.3,
+        selectionSource: "default_300mm",
         specialistDepthWarning: true,
         terrainAdjustment: "unavailable",
       },
@@ -568,6 +707,26 @@ describe("POST /api/internal/assessments", () => {
         snapshot: { ...snapshot, lockedEstimatedDepthMetres: 2 },
       }),
     ).rejects.toThrow("INVALID_CONSTRUCTABILITY_ROUTE");
+  });
+
+  it("accepts a Homeowner submission with a locked detailed-check depth and no Site answers", async () => {
+    const original = snapshotService.verify(validSubmission.assessmentSnapshot);
+    const assessmentSnapshot = snapshotService.refresh(
+      { ...original, lockedEstimatedDepthMetres: 1.5 },
+      { detailedChecks: completeDetailedChecks() },
+    );
+    const request = parseBrowserAssessmentSaveRequest({
+      ...validSubmission,
+      assessmentSnapshot,
+    });
+
+    const submission = await buildServerAssessmentSubmission({
+      request,
+      snapshot: snapshotService.verify(request.assessmentSnapshot),
+    });
+
+    expect("constructability" in submission).toBe(false);
+    expect(submission.report.reportData.reportAudience).toBe("homeowner");
   });
 
   it("rejects malformed Site evidence before any assessment is saved", async () => {
@@ -602,15 +761,18 @@ describe("POST /api/internal/assessments", () => {
     const baseSnapshot = snapshotService.verify(
       validSubmission.assessmentSnapshot,
     );
-    const assessmentSnapshot = snapshotService.issue(baseSnapshot.fastResult, {
-      answers,
-      evidence: {
-        suggestedRoute: null,
-        mappedEvidence: [],
-        providerAvailability: [],
-        assumptions: [],
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot(
+      baseSnapshot.fastResult,
+      {
+        answers,
+        evidence: {
+          suggestedRoute: null,
+          mappedEvidence: [],
+          providerAvailability: [],
+          assumptions: [],
+        },
       },
-    });
+    );
     const response = await POST_PUBLIC(
       new Request("https://pool.example/api/public/assessments", {
         method: "POST",
@@ -637,15 +799,18 @@ describe("POST /api/internal/assessments", () => {
     const baseSnapshot = snapshotService.verify(
       validSubmission.assessmentSnapshot,
     );
-    const assessmentSnapshot = snapshotService.issue(baseSnapshot.fastResult, {
-      answers,
-      evidence: {
-        suggestedRoute: null,
-        mappedEvidence: [],
-        providerAvailability: [],
-        assumptions: [],
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot(
+      baseSnapshot.fastResult,
+      {
+        answers,
+        evidence: {
+          suggestedRoute: null,
+          mappedEvidence: [],
+          providerAvailability: [],
+          assumptions: [],
+        },
       },
-    });
+    );
     const response = await POST_PUBLIC(
       new Request("https://pool.example/api/public/assessments", {
         method: "POST",
@@ -684,15 +849,18 @@ describe("POST /api/internal/assessments", () => {
     const baseSnapshot = snapshotService.verify(
       validSubmission.assessmentSnapshot,
     );
-    const assessmentSnapshot = snapshotService.issue(baseSnapshot.fastResult, {
-      answers,
-      evidence: {
-        suggestedRoute: null,
-        mappedEvidence: [],
-        providerAvailability: [],
-        assumptions: [],
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot(
+      baseSnapshot.fastResult,
+      {
+        answers,
+        evidence: {
+          suggestedRoute: null,
+          mappedEvidence: [],
+          providerAvailability: [],
+          assumptions: [],
+        },
       },
-    });
+    );
     const request = parseBrowserAssessmentSaveRequest({
       ...validSubmission,
       assessmentSnapshot,
@@ -747,7 +915,7 @@ describe("POST /api/internal/assessments", () => {
     };
     const request = parseBrowserAssessmentSaveRequest({
       ...validSubmission,
-      assessmentSnapshot: snapshotService.issue({
+      assessmentSnapshot: issueTrustedAssessmentSnapshot({
         ...original.fastResult,
         detailedChecks,
       }),
@@ -781,7 +949,7 @@ describe("POST /api/internal/assessments", () => {
 
   it("persists a scored report with risks, actions, and missing information", async () => {
     const original = snapshotService.verify(validSubmission.assessmentSnapshot);
-    const assessmentSnapshot = snapshotService.issue({
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot({
       ...original.fastResult,
       detailedChecks: completeDetailedChecks(),
     });
@@ -857,7 +1025,7 @@ describe("POST /api/internal/assessments", () => {
       accessConditions: ["none_of_these" as const],
       nearbyFeatures: ["none_of_these" as const],
     };
-    const assessmentSnapshot = snapshotService.issue(
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot(
       { ...original.fastResult, detailedChecks },
       {
         answers: constructabilityAnswers,
@@ -944,7 +1112,7 @@ describe("POST /api/internal/assessments", () => {
       );
       const detailedChecks = completeDetailedChecks();
       detailedChecks.terrain = reportAllowedTerrain(sourceOverrides);
-      const assessmentSnapshot = snapshotService.issue({
+      const assessmentSnapshot = issueTrustedAssessmentSnapshot({
         ...original.fastResult,
         detailedChecks,
       });
@@ -993,7 +1161,7 @@ describe("POST /api/internal/assessments", () => {
       accessConditions: ["none_of_these" as const],
       nearbyFeatures: ["none_of_these" as const],
     };
-    const assessmentSnapshot = snapshotService.issue(
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot(
       { ...original.fastResult, detailedChecks },
       {
         answers: constructabilityAnswers,
@@ -1100,7 +1268,7 @@ describe("POST /api/internal/assessments", () => {
       { ...asset, assetUrl: "https://example.test/uncontrolled-terrain.tiff" },
     ];
     detailedChecks.terrain = terrain;
-    const assessmentSnapshot = snapshotService.issue({
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot({
       ...original.fastResult,
       detailedChecks,
     });
@@ -1135,7 +1303,7 @@ describe("POST /api/internal/assessments", () => {
       },
     ];
     detailedChecks.terrain = terrain;
-    const assessmentSnapshot = snapshotService.issue({
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot({
       ...original.fastResult,
       detailedChecks,
     });
@@ -1171,7 +1339,7 @@ describe("POST /api/internal/assessments", () => {
       },
     ];
     detailedChecks.terrain = terrain;
-    const assessmentSnapshot = snapshotService.issue({
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot({
       ...original.fastResult,
       detailedChecks,
     });
@@ -1203,7 +1371,7 @@ describe("POST /api/internal/assessments", () => {
       { ...asset, assetUpdatedAt: "2025-01-01T00:00:00.000Z" },
     ];
     detailedChecks.terrain = terrain;
-    const assessmentSnapshot = snapshotService.issue({
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot({
       ...original.fastResult,
       detailedChecks,
     });
@@ -1284,7 +1452,7 @@ describe("POST /api/internal/assessments", () => {
         ],
       },
     };
-    const assessmentSnapshot = snapshotService.issue({
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot({
       ...original.fastResult,
       detailedChecks,
     });
@@ -1384,7 +1552,7 @@ describe("POST /api/internal/assessments", () => {
         },
       ],
     };
-    const assessmentSnapshot = snapshotService.issue({
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot({
       ...original.fastResult,
       detailedChecks,
     });
@@ -1447,7 +1615,7 @@ describe("POST /api/internal/assessments", () => {
 
   it("rejects a pool position outside a provisional mapped property boundary", async () => {
     const original = snapshotService.verify(validSubmission.assessmentSnapshot);
-    const assessmentSnapshot = snapshotService.issue({
+    const assessmentSnapshot = issueTrustedAssessmentSnapshot({
       ...original.fastResult,
       boundary: {
         ...original.fastResult.boundary,
@@ -1698,7 +1866,13 @@ describe("POST /api/internal/assessments", () => {
         boundaryAreaSquareMetres: 900,
         parcelIdentifier: null,
       },
-      pool: { lengthMetres: 6.5, widthMetres: 3, rotationDegrees: 12 },
+      pool: {
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+        rotationDegrees: 12,
+      },
       warnings: [],
       recommendations: [],
       layers: [],
@@ -1714,7 +1888,21 @@ describe("POST /api/internal/assessments", () => {
       });
 
     expect((await POST(createRequest())).status).toBe(201);
-    expect((await POST(createRequest())).status).toBe(200);
+    const replay = await POST(createRequest());
+    expect(replay.status).toBe(200);
+    await expect(replay.json()).resolves.toMatchObject({
+      assessment: {
+        created: false,
+        report: {
+          pool: {
+            layoutId: "compact",
+            layoutName: "Compact",
+            lengthMetres: 6.5,
+            widthMetres: 3,
+          },
+        },
+      },
+    });
 
     expect(executeFastPropertyDetailsRequest).toHaveBeenCalledOnce();
     expect(saveHomeownerAssessment).toHaveBeenCalledOnce();

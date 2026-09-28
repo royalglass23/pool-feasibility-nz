@@ -1,5 +1,28 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "functions": {
+    "src/app/api/internal/assessments/[[]id[]]/report/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/internal/report/pdf/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/public/assessments/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/public/assessments/report/delivery/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/public/assessments/report/pdf/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/public/report/pdf/route.ts": {
+      "maxDuration": 300
+    },
+    "src/app/api/cron/linz-address-refresh/route.ts": {
+      "maxDuration": 300
+    }
+  },
   "crons": [
     {
       "path": "/api/cron/report-request-retention",

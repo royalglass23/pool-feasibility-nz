@@ -1,0 +1,1 @@
+ALTER TABLE "homeowner_assessments" ADD COLUMN "builder_company_name" text;

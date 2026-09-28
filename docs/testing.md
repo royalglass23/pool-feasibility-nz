@@ -34,7 +34,13 @@ npm run test:e2e
 This runs the ordinary Property Check, analytics, report, map, and Staff Admin
 journeys on port 3000. It excludes contact/partnership delivery and the dedicated
 input-security suite. The configuration uses one Chromium worker and zero
-retries so failures cannot be hidden by reruns.
+retries so failures cannot be hidden by reruns. Report delivery runs only in
+local `synthetic_test` mode: a Node preload fixture captures Resend requests in
+`tmp/audience-path-compatibility/emails.jsonl`, and configured Upstash
+credentials are blanked so the lane cannot send email or consume an external
+rate-limit store. When `DATABASE_URL_DEV` is present, the audience-path test
+creates synthetic records in that approved development database and deletes
+only the records it created.
 
 ### Contact and partnership journeys
 

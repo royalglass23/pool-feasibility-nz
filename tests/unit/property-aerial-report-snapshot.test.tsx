@@ -15,7 +15,7 @@ const mapInstances = vi.hoisted(
         isEnabled: () => boolean;
       };
       triggerLayerMouseDown: (
-        layer: "placement-shell-fill" | "placement-rotation-handle",
+        layer: "placement-shell-fill",
         point: [number, number],
       ) => void;
       triggerMouseMove: (point: [number, number]) => void;
@@ -127,7 +127,7 @@ vi.mock("maplibre-gl", () => {
     }
 
     triggerLayerMouseDown(
-      layer: "placement-shell-fill" | "placement-rotation-handle",
+      layer: "placement-shell-fill",
       point: [number, number],
     ) {
       this.layerMouseDownHandlers.get(layer)?.({
@@ -301,8 +301,6 @@ it("keeps the property map camera locked while capturing report evidence", async
     "placement-construction-line",
     "placement-shell-fill",
     "placement-shell-outline",
-    "placement-rotation-guide",
-    "placement-rotation-handle",
     "parcel-fill",
     "parcel-outline",
     "address-point",
@@ -333,16 +331,10 @@ it("keeps the property map camera locked while capturing report evidence", async
     ),
   );
 
-  mapInstances[0].triggerLayerMouseDown(
-    "placement-rotation-handle",
-    [174.60786, -36.86024],
+  expect(onPlacementChange).toHaveBeenLastCalledWith(
+    expect.objectContaining({ rotationDegrees: 0 }),
   );
-  mapInstances[0].triggerMouseMove([174.60796, -36.86024]);
-  await waitFor(() =>
-    expect(onPlacementChange).toHaveBeenLastCalledWith(
-      expect.objectContaining({ rotationDegrees: 90 }),
-    ),
-  );
+  expect(screen.queryByText(/rotate|rotation/i)).not.toBeInTheDocument();
 
   mapInstances[0].triggerMouseUp();
   expect(mapInstances[0].dragPan.isEnabled()).toBe(false);

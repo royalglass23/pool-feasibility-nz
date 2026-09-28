@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type {
   Feature,
   FeatureCollection,
@@ -42,8 +42,6 @@ import type { AccessRouteGeometry } from "@/modules/spatial/suggest-access-route
 import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
 import { aerialTileRateLimitMessage } from "@/components/map/aerial-tile-error";
 import { FieldValidationMessage } from "@/components/field-validation-message";
-import { EstimatedPoolDepth } from "@/components/estimated-pool-depth";
-import { parseEstimatedPoolDepth } from "@/modules/assessment/estimated-pool-depth";
 import {
   readClientApiErrorFromBlobError,
   type ClientApiError,
@@ -173,36 +171,37 @@ export function FastPropertyView({
   suggestedRoute,
   editableRoute,
   onRouteEdit,
-  onLoadDetailed,
+  onConfirmPlacement,
   onRetry,
   onStartAgain,
   isLoadingDetailed = false,
   onPlacementChange,
   onSnapshotReady,
-  estimatedDepth,
-  depthLocked = false,
-  onEstimatedDepthChange,
-  onEditEstimatedDepth,
+  placementConfirmed = false,
   isDetailedRateLimited = false,
+  planningStep,
+  planningEnabled = true,
+  routeAdjustmentMode = false,
 }: {
   result: FastPropertyViewResult;
   suggestedRoute?: LineString | null;
   editableRoute?: AccessRouteGeometry | null;
   onRouteEdit?: (route: AccessRouteGeometry, complete: boolean) => void;
-  onLoadDetailed?: () => void;
+  onConfirmPlacement?: () => void;
   onRetry: () => void;
   onStartAgain?: () => void;
   isLoadingDetailed?: boolean;
   onPlacementChange?: (snapshot: FastPoolPlacementSnapshot) => void;
   onSnapshotReady?: (snapshot: FastPropertyViewMapSnapshot | null) => void;
-  estimatedDepth?: string;
-  depthLocked?: boolean;
-  onEstimatedDepthChange?: (value: string) => void;
-  onEditEstimatedDepth?: () => void;
+  placementConfirmed?: boolean;
   isDetailedRateLimited?: boolean;
+  planningStep?: ReactNode;
+  planningEnabled?: boolean;
+  routeAdjustmentMode?: boolean;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const rotationControlVisibleRef = useRef(false);
+  const placementConfirmedRef = useRef(placementConfirmed);
   const syncRotationControlRef = useRef<() => void>(() => {});
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
   const suggestedRouteRef = useRef(suggestedRoute);
@@ -258,17 +257,23 @@ export function FastPropertyView({
   useEffect(() => {
     snapshotHandlerRef.current = onSnapshotReady;
   }, [onSnapshotReady]);
+  useEffect(() => {
+    placementConfirmedRef.current = placementConfirmed;
+    syncRotationControlRef.current();
+  }, [placementConfirmed]);
+  const selectedPool = useMemo(
+    () => FAST_POOL_CATALOGUE.find((pool) => pool.id === selectedPoolId)!,
+    [selectedPoolId],
+  );
   const dimensions = useMemo(() => {
-    const preset = FAST_POOL_CATALOGUE.find(
-      (pool) => pool.id === selectedPoolId,
-    );
+    const preset = selectedPool;
     if (!preset) return null;
     if (selectedPoolId !== "custom") return preset;
     return validateFastCustomDimensions(
       Number(customLength),
       Number(customWidth),
     );
-  }, [customLength, customWidth, selectedPoolId]);
+  }, [customLength, customWidth, selectedPool, selectedPoolId]);
   const constructionEnvelopeDimensions = useMemo(
     () => dimensions && fastPoolConstructionEnvelopeDimensions(dimensions),
     [dimensions],
@@ -394,9 +399,7 @@ export function FastPropertyView({
     isInitialAddressLoad ||
     isLoadingDetailed ||
     isDetailedRateLimited ||
-    detailedConstraintStatus === "complete" ||
-    (estimatedDepth !== undefined &&
-      parseEstimatedPoolDepth(estimatedDepth) === null);
+    detailedConstraintStatus === "complete";
   const mappedUtilityLayers = useMemo(
     () =>
       (detailedLayers ?? []).flatMap((layer) => {
@@ -462,6 +465,8 @@ export function FastPropertyView({
   useEffect(() => {
     if (isInitialAddressLoad) return;
     onPlacementChange?.({
+      layoutId: selectedPool.id,
+      layoutName: selectedPool.label,
       position,
       rotationDegrees,
       dimensions,
@@ -482,6 +487,7 @@ export function FastPropertyView({
     poolWarning,
     position,
     rotationDegrees,
+    selectedPool,
   ]);
 
   useEffect(() => {
@@ -497,7 +503,7 @@ export function FastPropertyView({
   ]);
 
   const setCandidatePosition = (candidate: [number, number]) => {
-    if (isInitialAddressLoad) return;
+    if (isInitialAddressLoad || placementConfirmed) return;
     if (
       constructionEnvelopeDimensions &&
       result.boundary.geometry &&
@@ -515,7 +521,7 @@ export function FastPropertyView({
   };
 
   const setCandidateRotation = (candidate: number) => {
-    if (isInitialAddressLoad) return;
+    if (isInitialAddressLoad || placementConfirmed) return;
     const normalized = ((candidate % 360) + 360) % 360;
     if (
       constructionEnvelopeDimensions &&
@@ -539,7 +545,7 @@ export function FastPropertyView({
   });
 
   const choosePool = (poolId: FastPoolId) => {
-    if (isInitialAddressLoad) return;
+    if (isInitialAddressLoad || placementConfirmed) return;
     setSelectedPoolId(poolId);
     const pool = FAST_POOL_CATALOGUE.find((item) => item.id === poolId)!;
     const nextDimensions =
@@ -806,10 +812,15 @@ export function FastPropertyView({
           attributionControl: { compact: true },
           canvasContextAttributes: { preserveDrawingBuffer: true },
         });
-        // DOM overlays stay visible while canvas snapshots are captured.
+        // Keep the icon as a DOM overlay so it stays interactive while the
+        // report snapshot captures only the underlying map canvas.
         const control = document.createElement("div");
         control.dataset.testid = "pool-rotate-control";
-        control.title = "Drag to rotate pool";
+        control.tabIndex = 0;
+        control.setAttribute("role", "slider");
+        control.setAttribute("aria-label", "Pool orientation");
+        control.setAttribute("aria-valuemin", "0");
+        control.setAttribute("aria-valuemax", "359");
         control.style.cssText =
           "width:44px;height:44px;border-radius:50%;background:white;border:1px solid #0077bd;display:grid;place-items:center;pointer-events:auto;touch-action:none;cursor:grab;";
         control.innerHTML =
@@ -824,6 +835,7 @@ export function FastPropertyView({
           const active = placementRef.current;
           if (!map || !active) return;
           control.dataset.rotationDegrees = String(active.rotationDegrees);
+          control.setAttribute("aria-valuenow", String(active.rotationDegrees));
           const geometry = rotationHandleGeometry(
             active.position,
             active.rotationDegrees,
@@ -833,7 +845,8 @@ export function FastPropertyView({
           const handle = geometry.features.find(
             (entry) => entry.geometry.type === "Point",
           );
-          control.style.display = handle ? "grid" : "none";
+          control.style.display =
+            handle && !placementConfirmedRef.current ? "grid" : "none";
           if (handle?.geometry.type === "Point")
             rotationMarker?.setLngLat(
               handle.geometry.coordinates as [number, number],
@@ -913,7 +926,16 @@ export function FastPropertyView({
         type PoolInteractionEvent =
           | import("maplibre-gl").MapMouseEvent
           | import("maplibre-gl").MapTouchEvent;
+        const updateRotationFromCursor = (cursor: [number, number]) => {
+          if (placementConfirmedRef.current) return;
+          const active = placementRef.current;
+          if (!active) return;
+          rotationHandlerRef.current(
+            180 - bearing(point(active.position), point(cursor)),
+          );
+        };
         const updateInteraction = (event: PoolInteractionEvent) => {
+          if (placementConfirmedRef.current) return;
           if (!interaction && event.type === "mousemove" && map) {
             // Pointer events can arrive before the style's layers are ready.
             // Querying a missing layer emits a MapLibre error even when the
@@ -932,11 +954,8 @@ export function FastPropertyView({
               map!.unproject(event.point).toArray() as [number, number],
             );
           } else if (interaction === "rotate") {
-            const active = placementRef.current;
-            if (!active) return;
-            const cursor = map!.unproject(event.point).toArray();
-            rotationHandlerRef.current(
-              180 - bearing(point(active.position), point(cursor)),
+            updateRotationFromCursor(
+              map!.unproject(event.point).toArray() as [number, number],
             );
           }
         };
@@ -945,6 +964,7 @@ export function FastPropertyView({
           event: PoolInteractionEvent,
           cursor: "grabbing" | null,
         ) => {
+          if (placementConfirmedRef.current) return;
           interaction = nextInteraction;
           map?.dragPan.disable();
           if (cursor) map?.getCanvas().style.setProperty("cursor", cursor);
@@ -957,6 +977,7 @@ export function FastPropertyView({
           map?.getCanvas().style.setProperty("cursor", "");
         };
         control.addEventListener("pointerdown", (event) => {
+          if (placementConfirmedRef.current) return;
           event.preventDefault();
           event.stopPropagation();
           interaction = "rotate";
@@ -966,18 +987,14 @@ export function FastPropertyView({
         });
         control.addEventListener("pointermove", (event) => {
           if (!control.hasPointerCapture(event.pointerId) || !map) return;
-          const active = placementRef.current;
-          if (!active) return;
           const bounds = map.getCanvas().getBoundingClientRect();
           const cursor = map
             .unproject([
               event.clientX - bounds.left,
               event.clientY - bounds.top,
             ])
-            .toArray();
-          rotationHandlerRef.current(
-            180 - bearing(point(active.position), point(cursor)),
-          );
+            .toArray() as [number, number];
+          updateRotationFromCursor(cursor);
         });
         const releaseRotation = (event: PointerEvent) => {
           if (control.hasPointerCapture(event.pointerId))
@@ -987,6 +1004,25 @@ export function FastPropertyView({
         };
         control.addEventListener("pointerup", releaseRotation);
         control.addEventListener("pointercancel", releaseRotation);
+        control.addEventListener("keydown", (event) => {
+          if (placementConfirmedRef.current) return;
+          const active = placementRef.current;
+          if (!active) return;
+          const candidate =
+            event.key === "ArrowRight" || event.key === "ArrowUp"
+              ? active.rotationDegrees + 5
+              : event.key === "ArrowLeft" || event.key === "ArrowDown"
+                ? active.rotationDegrees - 5
+                : event.key === "Home"
+                  ? 0
+                  : event.key === "End"
+                    ? 355
+                    : null;
+          if (candidate === null) return;
+          event.preventDefault();
+          event.stopPropagation();
+          rotationHandlerRef.current(candidate);
+        });
         map.on("mousedown", "pool-fill", (event) =>
           beginInteraction("move", event, "grabbing"),
         );
@@ -1028,6 +1064,33 @@ export function FastPropertyView({
     mappedUtilityLayers,
     terrainSlopeGeometry,
   ]);
+
+  useEffect(() => {
+    const map = mapInstanceRef.current;
+    const container = mapRef.current;
+    if (
+      !mapReady ||
+      !map ||
+      !container ||
+      typeof ResizeObserver === "undefined"
+    )
+      return;
+
+    const observer = new ResizeObserver(() => {
+      if (mapInstanceRef.current !== map) return;
+      snapshotHandlerRef.current?.(null);
+      map.resize();
+      if (mapBoundaryGeometry) {
+        map.fitBounds(boundaryBounds(mapBoundaryGeometry), {
+          padding: 56,
+          duration: 0,
+          maxZoom: 20,
+        });
+      }
+    });
+    observer.observe(container);
+    return () => observer.disconnect();
+  }, [mapBoundaryGeometry, mapReady]);
 
   useEffect(() => {
     const source = mapInstanceRef.current?.getSource(
@@ -1209,30 +1272,43 @@ export function FastPropertyView({
             id="fast-view-heading"
             className="text-pool-950 text-2xl font-semibold"
           >
-            {result.resolvedAddress.fullAddress}
+            {routeAdjustmentMode
+              ? "Adjust the suggested access route"
+              : result.resolvedAddress.fullAddress}
           </h2>
           <p className="text-pool-600 mt-2 max-w-3xl text-sm leading-6">
-            <strong>Preliminary feasibility only.</strong>{" "}
-            {PRELIMINARY_FEASIBILITY_SCOPE}
+            {routeAdjustmentMode ? (
+              <>
+                Move the turning point on the map, then save the route
+                adjustment below. Confirm the final construction access onsite.
+              </>
+            ) : (
+              <>
+                <strong>Preliminary feasibility only.</strong>{" "}
+                {PRELIMINARY_FEASIBILITY_SCOPE}
+              </>
+            )}
           </p>
         </div>
       </div>
-      <ol
-        aria-label="Fast view progress"
-        className="grid gap-2 text-sm lg:mr-[22rem]"
-      >
-        <Progress
-          label={
-            isInitialAddressLoad
-              ? "Address found"
-              : "Address found. Next, choose a pool size, then move and rotate it into your preferred position."
-          }
-          state="complete"
-        />
-        {isInitialAddressLoad && (
-          <Progress label="Finding the property boundary…" state="pending" />
-        )}
-      </ol>
+      {!routeAdjustmentMode && (
+        <ol
+          aria-label="Fast view progress"
+          className="grid gap-2 text-sm lg:mr-[22rem]"
+        >
+          <Progress
+            label={
+              isInitialAddressLoad
+                ? "Address found"
+                : "Address found. Next, choose a pool layout, then move it into your preferred position."
+            }
+            state="complete"
+          />
+          {isInitialAddressLoad && (
+            <Progress label="Finding the property boundary…" state="pending" />
+          )}
+        </ol>
+      )}
       <div className="border-pool-200 overflow-hidden rounded-sm border">
         {(!isInitialAddressLoad ||
           placementMessage ||
@@ -1290,16 +1366,21 @@ export function FastPropertyView({
             )}
           </div>
         )}
+        {!routeAdjustmentMode && !isInitialAddressLoad && planningStep ? (
+          <div className="border-pool-200 bg-pool-50 border-b p-4 sm:p-5">
+            {planningStep}
+          </div>
+        ) : null}
         <div
           className={
-            isInitialAddressLoad
+            isInitialAddressLoad || routeAdjustmentMode
               ? "grid"
-              : "grid lg:grid-cols-[minmax(0,1fr)_22rem]"
+              : "grid items-start lg:grid-cols-[minmax(0,1fr)_22rem]"
           }
         >
           <div
             data-testid="aerial-map-frame"
-            className="relative order-1 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-start-1 lg:h-full lg:min-h-[600px]"
+            className="relative order-1 h-[min(62vw,600px)] min-h-[360px] w-full lg:col-start-1 lg:row-start-1 lg:h-[600px]"
           >
             <div
               ref={mapRef}
@@ -1308,7 +1389,7 @@ export function FastPropertyView({
             />
             <PropertySlopeMapOverlay terrain={result.detailedChecks?.terrain} />
           </div>
-          {!isInitialAddressLoad && (
+          {!isInitialAddressLoad && !routeAdjustmentMode && (
             <div
               aria-label="Pool catalogue and placement controls"
               className="border-pool-200 order-2 flex flex-col gap-4 border-t bg-white p-4 lg:col-start-2 lg:row-start-1 lg:border-t-0 lg:border-l"
@@ -1318,7 +1399,7 @@ export function FastPropertyView({
                   Choose a pool layout
                 </h3>
                 <p className="text-pool-600 mt-1 text-sm">
-                  Drag your pool to move it. Drag the rotate handle to turn it.
+                  Drag your pool to move it.
                 </p>
               </div>
               <div
@@ -1332,8 +1413,9 @@ export function FastPropertyView({
                     type="button"
                     aria-pressed={selectedPoolId === pool.id}
                     aria-label={`${pool.label} (${pool.lengthMetres} × ${pool.widthMetres} m)`}
+                    disabled={placementConfirmed}
                     onClick={() => choosePool(pool.id)}
-                    className="group grid min-h-16 grid-cols-[3rem_1fr_auto_1rem] items-center gap-3 border-b border-[#c8dce8] bg-white px-3 py-3 text-left text-sm text-[#0d3050] transition-colors hover:bg-[#edf8fd] focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd] aria-pressed:bg-[#03a9ee]"
+                    className="group grid min-h-16 grid-cols-[3rem_1fr_auto_1rem] items-center gap-3 border-b border-[#c8dce8] bg-white px-3 py-3 text-left text-sm text-[#0d3050] transition-colors hover:bg-[#edf8fd] focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd] disabled:cursor-default disabled:opacity-70 aria-pressed:bg-[#03a9ee]"
                   >
                     <svg
                       aria-hidden="true"
@@ -1371,6 +1453,7 @@ export function FastPropertyView({
                   <DimensionInput
                     label="Custom length (m)"
                     value={customLength}
+                    disabled={placementConfirmed}
                     min={2}
                     max={20}
                     onChange={setCustomLength}
@@ -1384,6 +1467,7 @@ export function FastPropertyView({
                   <DimensionInput
                     label="Custom width (m)"
                     value={customWidth}
+                    disabled={placementConfirmed}
                     min={1.5}
                     max={10}
                     onChange={setCustomWidth}
@@ -1402,66 +1486,62 @@ export function FastPropertyView({
                   increments.
                 </FieldValidationMessage>
               )}
-              {estimatedDepth !== undefined && onEstimatedDepthChange && (
-                <EstimatedPoolDepth
-                  value={estimatedDepth}
-                  locked={depthLocked}
-                  onChange={onEstimatedDepthChange}
-                  onEdit={onEditEstimatedDepth}
-                />
-              )}
-              <div className="border-pool-200 mt-auto space-y-3 border-t pt-4">
-                <p
-                  className="text-pool-700 text-sm leading-6"
-                  aria-live="polite"
-                >
-                  {detailedConstraintStatus === "complete" ? (
-                    "All available constraints are loaded. You can still adjust your pool before creating your report."
-                  ) : detailedConstraintStatus === "retryable" ? (
-                    "Some constraints were temporarily unavailable. Retry to check those layers again."
-                  ) : (
-                    <>
-                      <strong className="text-pool-950 block font-semibold">
-                        Happy with your pool position?
-                      </strong>
-                      Check for potential site constraints, or start again with
-                      another property.
-                    </>
-                  )}
-                </p>
-                <div className="grid gap-2">
-                  {onLoadDetailed && (
-                    <button
-                      type="button"
-                      onClick={onLoadDetailed}
-                      disabled={detailedActionDisabled}
-                      className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed"
-                    >
-                      {isLoadingDetailed
-                        ? "Checking constraints…"
-                        : detailedConstraintStatus === "complete"
-                          ? "All available constraints loaded"
-                          : detailedConstraintStatus === "retryable"
-                            ? "Retry unavailable constraints"
-                            : "Check for constraints"}
-                    </button>
-                  )}
-                  {onStartAgain && (
-                    <button
-                      type="button"
-                      onClick={onStartAgain}
-                      disabled={isLoadingDetailed}
-                      className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                    >
-                      Start again
-                    </button>
-                  )}
-                </div>
-              </div>
             </div>
           )}
         </div>
+        {dimensions && constructionEnvelopeWithinMappedArea && (
+          <div
+            hidden={routeAdjustmentMode}
+            className="border-pool-200 grid gap-4 border-t bg-white p-4 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:p-5"
+          >
+            <p className="text-pool-700 text-sm leading-6" aria-live="polite">
+              {!planningEnabled ? (
+                "Choose who you are checking this property for to continue."
+              ) : placementConfirmed ? (
+                <>
+                  <strong className="text-pool-950 block font-semibold">
+                    Pool position confirmed
+                  </strong>
+                  Review the property constraints below, then continue to your
+                  details.
+                </>
+              ) : (
+                <>
+                  <strong className="text-pool-950 block font-semibold">
+                    Happy with your pool position?
+                  </strong>
+                  Check for potential site constraints, or start again with
+                  another property.
+                </>
+              )}
+            </p>
+            {!placementConfirmed && (
+              <div className="grid gap-2 sm:min-w-56">
+                {onConfirmPlacement && planningEnabled && (
+                  <button
+                    type="button"
+                    onClick={onConfirmPlacement}
+                    className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+                  >
+                    Check for constraints
+                  </button>
+                )}
+                {onStartAgain && (
+                  <button
+                    type="button"
+                    onClick={onStartAgain}
+                    disabled={isLoadingDetailed}
+                    className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Start again
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
         <section
+          hidden={routeAdjustmentMode}
           aria-label="Map layers"
           className="border-pool-200 border-t bg-white"
         >
@@ -1693,7 +1773,10 @@ export function FastPropertyView({
           </div>
         </section>
         {!isInitialAddressLoad && (
-          <div className="flex justify-end bg-white px-4 py-3 text-sm">
+          <div
+            hidden={routeAdjustmentMode}
+            className="flex justify-end bg-white px-4 py-3 text-sm"
+          >
             <p className="text-pool-600">
               Default pool: {result.defaultPool.label} (
               {result.defaultPool.lengthMetres} ×{" "}
@@ -1702,7 +1785,7 @@ export function FastPropertyView({
           </div>
         )}
       </div>
-      {result.detailedChecks?.terrain ? (
+      {!routeAdjustmentMode && result.detailedChecks?.terrain ? (
         <TerrainSlopeResult
           terrain={result.detailedChecks.terrain}
           contoursAvailable={Boolean(mappedContours)}
@@ -1879,18 +1962,6 @@ function TerrainSlopeResult({
           </p>
         )}
       </div>
-      {terrain.source.attribution ? (
-        <p className="text-pool-600 border-pool-blue-200 mt-4 border-t pt-3 text-xs leading-5">
-          <a
-            className="underline underline-offset-2"
-            href={terrain.source.attribution.url}
-            rel="noreferrer"
-            target="_blank"
-          >
-            {terrain.source.attribution.text}
-          </a>
-        </p>
-      ) : null}
     </section>
   );
 }
@@ -2174,7 +2245,7 @@ function rotationHandleGeometry(
     const edge = map.project(handle);
     const distance = Math.hypot(edge.x - centre.x, edge.y - centre.y);
     if (distance > 0) {
-      // 22px button radius, 8px gap, plus clearance for the orange stroke.
+      // 22px icon radius, 8px gap, plus clearance for the orange stroke.
       handle = map
         .unproject([
           edge.x + ((edge.x - centre.x) / distance) * 32,
@@ -2206,6 +2277,7 @@ function rotationHandleGeometry(
 function DimensionInput({
   label,
   value,
+  disabled = false,
   min,
   max,
   invalid,
@@ -2213,6 +2285,7 @@ function DimensionInput({
 }: {
   label: string;
   value: string;
+  disabled?: boolean;
   min: number;
   max: number;
   invalid: boolean;
@@ -2230,8 +2303,9 @@ function DimensionInput({
         max={max}
         step="0.1"
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="border-pool-300 focus:border-pool-blue-700 focus:outline-pool-blue-700 mt-1 block min-h-11 w-full rounded-sm border bg-white px-3 focus:outline-2 aria-[invalid=true]:border-red-500"
+        className="border-pool-300 focus:border-pool-blue-700 focus:outline-pool-blue-700 mt-1 block min-h-11 w-full rounded-sm border bg-white px-3 focus:outline-2 disabled:cursor-default disabled:bg-slate-50 aria-[invalid=true]:border-red-500"
       />
     </label>
   );

@@ -3,7 +3,13 @@ import {
   splitDataAccessGateway,
 } from "../fixtures/normalized-data-access";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { PropertyCheckJourney } from "@/components/property-check-journey";
 import { runDataAccessSpike } from "@/modules/data-access-spike/run-data-access-spike";
@@ -33,7 +39,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
 
     const input = screen.getByLabelText("Auckland property address");
     await user.click(input);
@@ -59,7 +65,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
         : Promise.resolve(Response.json({ suggestions: [] }, { status: 200 })),
     );
     vi.stubGlobal("fetch", fetchMock);
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
 
     const input = screen.getByLabelText("Auckland property address");
     expect(input).toHaveValue("");
@@ -131,7 +137,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
           ),
         ),
       );
-      render(<PropertyCheckJourney />);
+      renderJourneyAtAddress();
 
       await user.type(
         screen.getByLabelText("Auckland property address"),
@@ -159,7 +165,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data: result }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -200,7 +206,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       .spyOn(HTMLAnchorElement.prototype, "click")
       .mockImplementation(() => undefined);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -267,7 +273,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data: result }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -300,7 +306,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
         vi.fn(async () => Response.json({ data: result }, { status: 200 })),
       );
 
-      render(<PropertyCheckJourney />);
+      renderJourneyAtAddress();
       await user.type(
         screen.getByLabelText("Auckland property address"),
         requestedAddress,
@@ -359,7 +365,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       });
       vi.stubGlobal("fetch", fetchMock);
 
-      render(<PropertyCheckJourney />);
+      renderJourneyAtAddress();
       await user.type(
         screen.getByLabelText("Auckland property address"),
         requestedAddress,
@@ -405,7 +411,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ suggestions: [] }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       "42A Bahari",
@@ -427,7 +433,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       }),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       "42A Bahari",
@@ -465,7 +471,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       }),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       "Bahari Drive, Ranui, Auckland",
@@ -502,7 +508,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -545,7 +551,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -573,7 +579,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     expect(
       screen.queryByLabelText("Preferred pool size"),
     ).not.toBeInTheDocument();
@@ -616,7 +622,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data: result }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -697,7 +703,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       vi.fn(async () => Response.json({ data: result }, { status: 200 })),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -753,7 +759,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       "Bahari Drive, Ranui, Auckland",
@@ -798,7 +804,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       .mockResolvedValueOnce(Response.json({ data: result }, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     const input = screen.getByLabelText("Auckland property address");
     await user.type(input, "42A Bahari");
 
@@ -852,7 +858,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       .mockResolvedValueOnce(Response.json({ data: result }, { status: 200 }));
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -895,7 +901,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     });
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -976,7 +982,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1003,10 +1009,8 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       )
       .map(([, init]) => JSON.parse(String(init?.body ?? "{}")))
       .find((body) => body.mode === "detailed");
-    expect(detailedRequest).toMatchObject({
-      mode: "detailed",
-      estimatedDepthMetres: 1.5,
-    });
+    expect(detailedRequest).toMatchObject({ mode: "detailed" });
+    expect(detailedRequest).not.toHaveProperty("estimatedDepthMetres");
   });
 
   it("requests parcel-wide detailed checks without sending the pool envelope", async () => {
@@ -1042,7 +1046,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1103,7 +1107,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       }),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1123,7 +1127,13 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       screen.getByText("Please try again in 1 minute 15 seconds."),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Check for constraints" }),
+      screen.queryByRole("button", { name: "Check for constraints" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
+    ).toBeDisabled();
+    expect(
+      screen.getByRole("button", { name: /Find the property.*Completed/ }),
     ).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Retry property check" }),
@@ -1136,7 +1146,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps parcel slope loaded without rerunning checks when the pool changes", async () => {
+  it("keeps parcel slope loaded and locks pool controls after constraint checking", async () => {
     const user = userEvent.setup();
     const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
@@ -1197,7 +1207,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1207,32 +1217,28 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       await screen.findByRole("button", { name: "Check for constraints" }),
     );
     expect(
+      await screen.findByRole("heading", { name: "Property details checked" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /Plan your pool.*Current/ }),
+    ).toHaveAttribute("aria-current", "step");
+    expect(
+      screen.getByRole("button", { name: /Your details.*Locked/ }),
+    ).toBeDisabled();
+    expect(
       await screen.findByRole("heading", { name: "Indicative property slope" }),
     ).toBeVisible();
     expect(screen.getByText("2.4°")).toBeVisible();
     expect(
-      screen.getByRole("button", {
-        name: "All available constraints loaded",
-      }),
-    ).toBeDisabled();
-
-    await user.click(
       screen.getByRole("button", { name: /Plunge \(4 × 2.4 m\)/ }),
-    );
-
-    await user.click(
-      screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
-    );
-    await waitFor(() => expect(detailedRequestCount).toBe(1));
-    expect(screen.getByText("2.4°")).toBeVisible();
-    expect(
-      screen.getByRole("button", {
-        name: "All available constraints loaded",
-      }),
     ).toBeDisabled();
     expect(
-      screen.queryByText(/The pool position changed\./i),
+      screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Check for constraints" }),
     ).not.toBeInTheDocument();
+    await waitFor(() => expect(detailedRequestCount).toBe(1));
   });
 
   it("keeps completed constraints disabled when parcel slope needs checking", async () => {
@@ -1286,7 +1292,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       }),
     );
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1295,7 +1301,6 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     await user.click(
       await screen.findByRole("button", { name: "Check for constraints" }),
     );
-
     expect(
       await screen.findByRole("heading", { name: "Indicative property slope" }),
     ).toBeVisible();
@@ -1303,28 +1308,12 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       screen.getByText(/No valid elevation data covers this property\./),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", {
-        name: "All available constraints loaded",
-      }),
-    ).toBeDisabled();
-
-    await user.click(
       screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }),
-    );
-    await user.clear(screen.getByLabelText("Custom length (m)"));
-    await user.type(screen.getByLabelText("Custom length (m)"), "7.2");
-    await user.clear(screen.getByLabelText("Custom width (m)"));
-    await user.type(screen.getByLabelText("Custom width (m)"), "3.4");
-
+    ).toBeDisabled();
     await waitFor(() => expect(detailedRequestCount).toBe(1));
     expect(
-      screen.getByRole("button", {
-        name: "All available constraints loaded",
-      }),
-    ).toBeDisabled();
+      screen.queryByRole("button", { name: "Check for constraints" }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides the address search after a fast view opens and restores it from Start again", async () => {
@@ -1361,6 +1350,8 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
         <PropertyCheckJourney />
       </>,
     );
+    fireEvent.click(screen.getByRole("radio", { name: "My property" }));
+    fireEvent.click(screen.getByRole("button", { name: "Continue" }));
     expect(
       screen.getByRole("heading", {
         name: "Begin with a practical property check",
@@ -1395,6 +1386,43 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     expect(screen.queryByText("Fast property view")).not.toBeInTheDocument();
   });
 
+  it("keeps a fast property view usable when a successful response omits its snapshot", async () => {
+    const user = userEvent.setup();
+    const gateway = createDataAccessGateway();
+    const fastResult = await runFastPropertyView({
+      requestedAddress,
+      ...splitDataAccessGateway(gateway),
+      basemapApiKey: "test-key",
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) =>
+        String(input).includes("/api/public/property-check/stages")
+          ? Response.json(
+              {
+                error: { code: "INVALID_REQUEST", message: "Invalid snapshot" },
+              },
+              { status: 400 },
+            )
+          : Response.json({ data: fastResult }, { status: 200 }),
+      ),
+    );
+
+    renderJourneyAtAddress();
+    await user.type(
+      screen.getByLabelText("Auckland property address"),
+      requestedAddress,
+    );
+    await user.keyboard("{Enter}");
+
+    expect(
+      await screen.findByRole("group", { name: "Pool catalogue" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("heading", { name: requestedAddress }),
+    ).toBeVisible();
+  });
+
   it("explains a stage validation error on the open property view", async () => {
     const user = userEvent.setup();
     const gateway = createDataAccessGateway();
@@ -1421,7 +1449,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       );
     vi.stubGlobal("fetch", fetchMock);
 
-    render(<PropertyCheckJourney />);
+    renderJourneyAtAddress();
     await user.type(
       screen.getByLabelText("Auckland property address"),
       requestedAddress,
@@ -1453,4 +1481,11 @@ async function createResult() {
     gateway: createDataAccessGateway(),
     now: () => new Date("2026-07-16T00:00:00.000Z"),
   });
+}
+
+function renderJourneyAtAddress() {
+  const view = render(<PropertyCheckJourney />);
+  fireEvent.click(screen.getByRole("radio", { name: "My property" }));
+  fireEvent.click(screen.getByRole("button", { name: "Continue" }));
+  return view;
 }

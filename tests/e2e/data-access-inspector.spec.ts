@@ -78,6 +78,9 @@ test("selecting an address suggestion opens the fast property view without a fet
   });
 
   await page.goto("/");
+  await page.getByRole("button", { name: "Reject analytics" }).click();
+  await page.getByRole("radio", { name: "My property" }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page
     .getByLabel("Auckland property address")
     .fill("Bahari Drive, Ranui, Auckland");
@@ -192,43 +195,30 @@ test("one signed session separates automatic stages and constraints, then respec
       return;
     }
     await route.fulfill({
-      status: 200,
+      status: 503,
       contentType: "application/json",
       body: JSON.stringify({
-        assessmentSnapshot: "signed-retryable-snapshot",
-        data: {
-          status: "partial",
-          constraints: {
-            status: "retryable",
-            retryableLayerKeys: ["stormwater_pipes"],
-            unavailableLayerKeys: ["stormwater_pipes"],
-          },
-          layers: [],
-          retrievedAt: "2026-09-15T00:00:00.000Z",
-          durationMs: 20,
-          region: "Auckland",
-          limitations: [],
-          terrain: { status: "needs_checking", reasons: ["No DEM coverage."] },
+        error: {
+          code: "PROVIDER_UNAVAILABLE",
+          message: "Please try the property check again.",
         },
       }),
     });
   });
 
   await page.goto("/");
+  await page.getByRole("button", { name: "Reject analytics" }).click();
+  await page.getByRole("radio", { name: "My property" }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("option", { name: address }).click();
   await page.getByRole("button", { name: "Check for constraints" }).click();
-  await expect(
-    page.getByRole("button", { name: "Retry unavailable constraints" }),
-  ).toBeVisible();
-  await page
-    .getByRole("button", { name: "Retry unavailable constraints" })
-    .click();
+  await page.getByRole("button", { name: "Retry property check" }).click();
   await expect(
     page.getByText("Please try again in 1 minute 15 seconds."),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Retry unavailable constraints" }),
+    page.getByRole("button", { name: "Retry property check" }),
   ).toBeDisabled();
   await expect(
     page.getByRole("button", { name: "Search a different address" }),

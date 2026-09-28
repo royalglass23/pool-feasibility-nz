@@ -51,9 +51,9 @@ The existing report structure remains intact. The bounded remediation may change
 
 ## Draft Site questions
 
-1. Show the Suggested access route and ask the user to confirm it, adjust it or select “I’m not sure.”
-2. Ask: **“Are there any visible conditions that could affect construction access or excavation?”** Choices are gate or narrow passage; steps or a steep level change; overhead wires, branches, roof or carport; fence, landscaping or structure that may need removal; possible access through another property; retaining wall near the pool; apparently rocky ground; apparently wet or soft ground; `None of these`; and `I’m not sure`.
-3. Ask: **“Which existing features are close to the proposed pool area?”** Choices are fences; walls; gates; doors or windows; decks; raised areas; trees or structures; `None of these`; and `I’m not sure`.
+1. Show the **Proposed construction access route** when mapped evidence supports one. Ask the builder to use it, adjust it to reflect likely plant access, or record the route as unconfirmed pending an onsite check.
+2. Ask: **“Which visible site conditions could affect plant access or excavation?”** Choices use concise builder terminology: restricted gate or narrow access; steps or steep level change; overhead wires, branches, eaves or carport; fence, landscaping or structure that may require removal; access through neighbouring property; retaining wall near the proposed pool area; rocky ground; wet or soft ground; `None of these`; and `I’m not sure`.
+3. Ask: **“Which existing features are close to the proposed pool area?”** Choices are fences; walls; gates; doors or windows; decks; raised areas or level changes; trees or structures; `None of these`; and `I’m not sure`.
 
 Both questions permit multiple selections except that `None of these` and `I’m not sure` are exclusive. Selections do not trigger follow-up questions in version one.
 
@@ -65,7 +65,7 @@ Suggested access routing follows [ADR-0007](./adr/0007-deterministic-constructio
 
 The first version adds no road-edge or vehicle-crossing API. It proposes a route only when the existing parcel, address, aerial, building and terrain evidence supports an obvious corridor; otherwise it records “I’m not sure.” Additional access datasets are deferred until observed outcomes demonstrate that they are needed.
 
-When a user adjusts the Suggested access route, it becomes a **User-supplied access route** labelled **“Route supplied by user — confirm onsite.”** PoolReady may calculate terrain and mapped intersections along it, but must preserve its user-declared provenance.
+When a user adjusts the Suggested access route, it becomes a **User-supplied access route** labelled **“User-adjusted route — confirm onsite.”** PoolReady may calculate terrain and mapped intersections along it, but must preserve its user-declared provenance.
 
 Route adjustment uses the fixed start and pool-area endpoints plus at most two user-movable turning points. The visible line may update during interaction, but terrain and mapped-intersection analysis runs only after adjustment finishes or the user confirms the route.
 
@@ -89,7 +89,7 @@ PoolReady may calculate preliminary **geometry scenarios** from the selected poo
 - The pool-outline scenario is selected length × width × Estimated pool depth.
 - The 300 mm side-allowance scenario is `(length + 0.6 m) × (width + 0.6 m) × depth`. It uses the Firth masonry specification's side allowance as a proxy around PoolReady's generic selected outline; Firth's actual reference is the outside masonry wall.
 - Report text must state that base depth, wall/footing dimensions, floor profile, drainage, terrain cut and excavation method are not included. It must not call the larger scenario an upper bound.
-- A later builder-specific setting and full working/base/terrain model remain [RG-346](https://linear.app/royalglass/issue/RG-346) work. The existing map construction envelope is not treated as a full-depth excavation footprint.
+- [RG-346](https://linear.app/royalglass/issue/RG-346) adds a versioned user-selected 200–600 mm side-clearance planning scenario, starting at 300 mm. A verified construction preset and the full working/base/terrain model remain future work. The existing map construction envelope is not treated as a full-depth excavation footprint.
 
 Spare-material expansion, loose spoil quantity, onsite reuse, truckloads, offsite disposal and dollar-cost estimation are outside this feature. They remain discussion topics between the homeowner and pool professional after they review the preliminary excavation volume and site considerations.
 
@@ -110,6 +110,6 @@ Use `potential consideration` or `condition that could affect` in homeowner-faci
 
 ## Open decisions
 
-- **Later full-model gate:** obtain pool-builder confirmation of construction-specific working-clearance and base-allowance values under RG-346. The provisional 300 mm side-only geometry scenario is separately authorized under RG-337 and must be disclosed as a proxy.
+- **Later full-model gate:** obtain a verified construction-system, manufacturer/model, or project-specific rule for working clearance and base allowance. RG-346's adjustable side-only scenario remains a disclosed planning proxy and does not satisfy that gate.
 - The deterministic confidence rules that decide whether PoolReady may display a Suggested access route.
 - Detailed report layout and copy, which are intentionally deferred while separate report work is in progress.

@@ -59,12 +59,13 @@ test("shows an authenticated staff member the saved constructability snapshot as
   );
   submission.homeowner = {
     ...submission.homeowner,
-    name: "RG-345 Synthetic Pool Builder",
+    name: "Synthetic Pool Builder",
     phone: "021 000 0345",
     email: "rg345-staff-e2e@example.test",
     address: "345 Release Evidence Road, Auckland",
     visitorType: "pool_builder",
   };
+  submission.report.reportData.reportAudience = "pool_builder";
   submission.report.reportData.constructability = savedConstructabilitySnapshot;
 
   let assessmentId: string | undefined;
@@ -99,9 +100,70 @@ test("shows an authenticated staff member the saved constructability snapshot as
         url: "http://127.0.0.1:3100",
       },
     ]);
+    const detailResponse = page.waitForResponse(
+      (response) =>
+        response.url().endsWith(`/api/internal/assessments/${assessmentId}`) &&
+        response.request().method() === "GET",
+      { timeout: 30_000 },
+    );
     await page.goto(`/staff/${assessmentId}`);
 
     await expect(page).toHaveURL(new RegExp(`/staff/${assessmentId}$`));
+    const response = await detailResponse;
+    expect(response.status(), await response.text()).toBe(200);
+    const reportAudience = page.getByText("Report audience").locator("..");
+    await expect(reportAudience).toBeVisible({
+      timeout: 30_000,
+    });
+    await expect(
+      reportAudience.getByText("Pool Builder", { exact: true }),
+    ).toBeVisible();
+    const poolLayout = page.getByText("Pool layout").locator("..");
+    await expect(poolLayout).toContainText("Compact — 6.5 x 3 m");
+    const report = page.getByRole("article", {
+      name: "Preliminary Pool Feasibility Report",
+    });
+    await expect(report).toContainText("Proposed pool: Compact — 6.5 x 3 m");
+    const reportTabs = report.getByRole("tab");
+    await expect(reportTabs).toHaveCount(3);
+    await expect(reportTabs).toHaveText([
+      "Overview",
+      "Property findings",
+      "What happens next",
+    ]);
+    await expect(
+      report.getByRole("tabpanel", { name: "Overview" }),
+    ).toContainText("Safety summary");
+
+    await reportTabs.first().focus();
+    await page.keyboard.press("ArrowRight");
+    await expect(reportTabs.nth(1)).toBeFocused();
+    await expect(reportTabs.nth(1)).toHaveAttribute("aria-selected", "true");
+    await expect(
+      report.getByRole("tabpanel", { name: "Property findings" }),
+    ).toContainText("Site constructability");
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.evaluate(() => {
+      document.documentElement.style.zoom = "200%";
+    });
+    await expect(reportTabs.nth(0)).toBeVisible();
+    await expect(reportTabs.nth(1)).toBeVisible();
+    await expect(reportTabs.nth(2)).toBeVisible();
+    expect(
+      await report
+        .getByRole("tablist", { name: "Saved report views" })
+        .evaluate((tablist) => tablist.scrollWidth <= tablist.clientWidth),
+    ).toBe(true);
+    await reportTabs.first().click();
+    await expect(
+      report.getByRole("tabpanel", { name: "Overview" }),
+    ).toContainText("Safety summary");
+    await page.evaluate(() => {
+      document.documentElement.style.zoom = "";
+    });
+    await page.setViewportSize({ width: 1280, height: 720 });
+
     const evidence = page.getByRole("region", {
       name: "Saved constructability evidence",
     });

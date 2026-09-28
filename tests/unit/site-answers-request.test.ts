@@ -46,15 +46,20 @@ describe("public Site answers boundary", () => {
       request({
         assessmentSnapshot: locked,
         ...answers,
+        sideClearanceMillimetres: 200,
       }),
     );
     expect(response.status).toBe(200);
     const body = await response.json();
     expect(body.answers.estimatedDepthMetres).toBe(1.9);
+    expect(body.answers.excavationSideAllowanceMetres).toBe(0.2);
     expect(
       verifyAssessmentSnapshot(body.assessmentSnapshot).constructability
-        ?.answers.estimatedDepthMetres,
-    ).toBe(1.9);
+        ?.answers,
+    ).toMatchObject({
+      estimatedDepthMetres: 1.9,
+      excavationSideAllowanceMetres: 0.2,
+    });
   });
 
   it("rejects a pool position that the final assessment cannot save", async () => {
@@ -113,11 +118,30 @@ describe("public Site answers boundary", () => {
       },
     } as FastPropertyViewResult;
     const poolLayout = {
+      layoutId: "plunge" as const,
+      layoutName: "Plunge" as const,
       position: [174.76015, -36.8499],
       lengthMetres: 4,
       widthMetres: 2.4,
       rotationDegrees: 0,
     };
+    const suggestedResponse = await handleSiteAnswersRequest(
+      request({
+        assessmentSnapshot: issueAssessmentSnapshot(property),
+        ...answers,
+        routeResponse: "suggested",
+        poolLayout,
+      }),
+    );
+    expect(suggestedResponse.status).toBe(200);
+    const suggested = verifyAssessmentSnapshot(
+      (await suggestedResponse.json()).assessmentSnapshot,
+    );
+    expect(suggested.constructability?.answers.route).toMatchObject({
+      provenance: "suggested",
+      geometry: { type: "LineString" },
+    });
+
     const response = await handleSiteAnswersRequest(
       request({
         assessmentSnapshot: issueAssessmentSnapshot(property),
@@ -204,6 +228,8 @@ describe("public Site answers boundary", () => {
 
   it("keeps the Site journey completable with uncertain provenance when route evidence is unavailable", async () => {
     const poolLayout = {
+      layoutId: "plunge" as const,
+      layoutName: "Plunge" as const,
       position: [174.76015, -36.8499],
       lengthMetres: 4,
       widthMetres: 2.4,

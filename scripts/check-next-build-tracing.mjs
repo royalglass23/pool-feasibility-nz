@@ -6,6 +6,16 @@ const chromiumBinaryPattern = /@sparticuz[\\/]chromium[\\/]bin[\\/]/;
 
 const routeExpectations = [
   {
+    route: "/api/internal/assessments/[id]/report",
+    trace: "server/app/api/internal/assessments/[id]/report/route.js.nft.json",
+    includesChromium: true,
+  },
+  {
+    route: "/api/public/assessments",
+    trace: "server/app/api/public/assessments/route.js.nft.json",
+    includesChromium: true,
+  },
+  {
     route: "/api/public/assessments/report/delivery/status",
     trace:
       "server/app/api/public/assessments/report/delivery/status/route.js.nft.json",

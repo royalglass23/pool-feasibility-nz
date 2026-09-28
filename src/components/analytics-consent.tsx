@@ -1,5 +1,6 @@
 "use client";
 
+import { GoogleTagManager } from "@next/third-parties/google";
 import Script from "next/script";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import { useEffect, useState, useSyncExternalStore } from "react";
@@ -22,12 +23,15 @@ const CONSENT_CHANGE_EVENT = "rg-analytics-consent-change";
 const POSTHOG_PROJECT_KEY = "phc_BCgxNofbcnuCzPePiYFdqzHKRaB6ectcYCRXJzjhDUPd";
 
 export function AnalyticsConsent({
+  gtmId,
   measurementId,
   hotjarSiteId,
 }: {
+  gtmId?: string;
   measurementId?: string;
   hotjarSiteId?: string;
 }) {
+  const safeGtmId = isGtmId(gtmId) ? gtmId : undefined;
   const safeMeasurementId = isMeasurementId(measurementId)
     ? measurementId
     : undefined;
@@ -46,13 +50,16 @@ export function AnalyticsConsent({
 
   useEffect(() => {
     if (choice === "denied") {
-      if (safeMeasurementId) disableAnalytics(safeMeasurementId);
+      if (safeGtmId || safeMeasurementId) {
+        disableGoogleAnalytics(safeMeasurementId);
+      }
       if (safeHotjarSiteId) disableHotjar(safeHotjarSiteId);
       (window as unknown as AnalyticsWindow).posthog?.opt_out_capturing();
     } else if (choice === "granted") {
+      if (safeGtmId) updateGoogleConsent("granted");
       (window as unknown as AnalyticsWindow).posthog?.opt_in_capturing();
     }
-  }, [choice, safeHotjarSiteId, safeMeasurementId]);
+  }, [choice, safeGtmId, safeHotjarSiteId, safeMeasurementId]);
 
   function choose(nextChoice: Exclude<ConsentChoice, null>) {
     try {
@@ -65,10 +72,13 @@ export function AnalyticsConsent({
     window.dispatchEvent(new Event(CONSENT_CHANGE_EVENT));
     setSettingsOverride(false);
     if (nextChoice === "denied") {
-      if (safeMeasurementId) disableAnalytics(safeMeasurementId);
+      if (safeGtmId || safeMeasurementId) {
+        disableGoogleAnalytics(safeMeasurementId);
+      }
       if (safeHotjarSiteId) disableHotjar(safeHotjarSiteId);
       (window as unknown as AnalyticsWindow).posthog?.opt_out_capturing();
     } else {
+      if (safeGtmId) updateGoogleConsent("granted");
       (window as unknown as AnalyticsWindow).posthog?.opt_in_capturing();
       if (safeMeasurementId) {
         (window as unknown as AnalyticsWindow)[
@@ -80,7 +90,9 @@ export function AnalyticsConsent({
 
   const analyticsEnabled =
     choice === "granted" &&
-    (safeMeasurementId !== undefined || safeHotjarSiteId !== undefined);
+    (safeGtmId !== undefined ||
+      safeMeasurementId !== undefined ||
+      safeHotjarSiteId !== undefined);
 
   return (
     <>
@@ -102,6 +114,7 @@ export function AnalyticsConsent({
       )}
       {analyticsEnabled && (
         <>
+          {safeGtmId && <GoogleTagManager gtmId={safeGtmId} />}
           {safeMeasurementId && (
             <>
               <Script
@@ -220,6 +233,10 @@ function isMeasurementId(value: string | undefined): value is string {
   return typeof value === "string" && /^G-[A-Z0-9]+$/i.test(value);
 }
 
+function isGtmId(value: string | undefined): value is string {
+  return typeof value === "string" && /^GTM-[A-Z0-9]+$/i.test(value);
+}
+
 function isHotjarSiteId(value: string | undefined): value is string {
   return typeof value === "string" && /^\d+$/.test(value);
 }
@@ -229,12 +246,10 @@ function ga4Configuration(measurementId: string): string {
   return `window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}window.gtag=gtag;gtag('js',new Date());gtag('config',${id},{send_page_view:false,anonymize_ip:true,allow_google_signals:false,allow_ad_personalization_signals:false});`;
 }
 
-function disableAnalytics(measurementId: string) {
+function disableGoogleAnalytics(measurementId?: string) {
   const analyticsWindow = window as unknown as AnalyticsWindow;
-  analyticsWindow[`ga-disable-${measurementId}`] = true;
-  analyticsWindow.gtag?.("consent", "update", {
-    analytics_storage: "denied",
-  });
+  if (measurementId) analyticsWindow[`ga-disable-${measurementId}`] = true;
+  updateGoogleConsent("denied");
 
   for (const cookie of document.cookie.split(";")) {
     const name = cookie.split("=", 1)[0]?.trim();
@@ -242,6 +257,21 @@ function disableAnalytics(measurementId: string) {
       document.cookie = `${name}=; Max-Age=0; Path=/; SameSite=Lax`;
     }
   }
+}
+
+function updateGoogleConsent(analyticsStorage: "granted" | "denied") {
+  const analyticsWindow = window as unknown as AnalyticsWindow;
+  analyticsWindow.dataLayer ??= [];
+  analyticsWindow.dataLayer.push([
+    "consent",
+    "update",
+    {
+      analytics_storage: analyticsStorage,
+      ad_storage: "denied",
+      ad_user_data: "denied",
+      ad_personalization: "denied",
+    },
+  ]);
 }
 
 function hotjarConfiguration(siteId: string) {

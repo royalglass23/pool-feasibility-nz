@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { PersistedAssessmentSubmission } from "@/modules/assessment/persisted-assessment";
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
+import type { ReportAudience } from "@/modules/assessment/report-audience";
 
 export type StaffFeasibilityState =
   PersistedAssessmentSubmission["report"]["feasibilityState"];
@@ -38,7 +39,11 @@ export type StaffAssessmentSummary = {
   createdAt: Date;
   poolLayout: Pick<
     PersistedAssessmentSubmission["poolLayout"],
-    "lengthMetres" | "widthMetres" | "rotationDegrees"
+    | "layoutId"
+    | "layoutName"
+    | "lengthMetres"
+    | "widthMetres"
+    | "rotationDegrees"
   >;
   evidenceCount: number;
 };
@@ -51,12 +56,18 @@ export type StaffAssessmentRecord = {
   homeownerPhone: string;
   homeownerEmail: string;
   homeownerAddress: string;
+  builderCompanyName: string | null;
   visitorType: PersistedAssessmentSubmission["homeowner"]["visitorType"] | null;
   visitorTypeOtherDetail: string | null;
+  reportAudience: ReportAudience;
   desiredTiming: PersistedAssessmentSubmission["homeowner"]["desiredTiming"];
   desiredTimingOtherDetail: string | null;
   additionalInfo: string | null;
   boundaryStatus: PersistedAssessmentSubmission["addressEvidence"]["boundaryStatus"];
+  poolLayout: Pick<
+    PersistedAssessmentSubmission["poolLayout"],
+    "layoutId" | "layoutName" | "lengthMetres" | "widthMetres"
+  >;
   feasibilityState: StaffFeasibilityState;
   emailDeliveryState: StaffDeliveryState;
   forwardingState: StaffDeliveryState;
@@ -170,6 +181,9 @@ export function projectStaffConstructabilityEvidence(
   }
 
   const excavation = snapshot.excavationGeometry;
+  const sideAllowanceMillimetres = excavation
+    ? Math.round(excavation.sideAllowanceMetres * 1_000)
+    : null;
   return {
     status: "captured",
     estimatedDepth: `${snapshot.estimatedDepthMetres.toFixed(2)} m`,
@@ -198,7 +212,10 @@ export function projectStaffConstructabilityEvidence(
               value: `${excavation.poolOutlineCubicMetres.toFixed(excavation.rounding.decimalPlaces)} m³`,
             },
             {
-              label: "300 mm side-allowance scenario",
+              label:
+                excavation.version === 1
+                  ? "300 mm side-allowance scenario"
+                  : `${sideAllowanceMillimetres} mm selected side-clearance scenario`,
               value: `${excavation.sideAllowanceCubicMetres.toFixed(excavation.rounding.decimalPlaces)} m³`,
             },
           ],
