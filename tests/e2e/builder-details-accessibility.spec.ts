@@ -55,12 +55,34 @@ test("operates the compact builder details controls by keyboard with accessible 
     .getByLabel("Auckland property address")
     .fill("1 Test Street, Auckland");
   await page.keyboard.press("Enter");
-  await page.getByRole("button", { name: "Use this pool position" }).click();
+  await page.getByRole("button", { name: "Check for constraints" }).click();
 
   const depth = page.getByRole("slider", {
     name: "Estimated pool depth (m)",
   });
   await expect(depth).toHaveValue("1.5");
+  const depthPlanning = page.getByTestId("estimated-depth-planning");
+  const excavationPlanning = page.getByTestId("excavation-planning");
+  const [desktopDepth, desktopExcavation] = await Promise.all([
+    depthPlanning.boundingBox(),
+    excavationPlanning.boundingBox(),
+  ]);
+  expect(desktopDepth).not.toBeNull();
+  expect(desktopExcavation).not.toBeNull();
+  expect(Math.abs(desktopDepth!.y - desktopExcavation!.y)).toBeLessThanOrEqual(
+    1,
+  );
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  const [mobileDepth, mobileExcavation] = await Promise.all([
+    depthPlanning.boundingBox(),
+    excavationPlanning.boundingBox(),
+  ]);
+  expect(mobileExcavation!.y).toBeGreaterThanOrEqual(
+    mobileDepth!.y + mobileDepth!.height,
+  );
+  await page.setViewportSize({ width: 1280, height: 720 });
+
   await depth.focus();
   await page.keyboard.press("ArrowRight");
   await expect(depth).toHaveValue("1.6");

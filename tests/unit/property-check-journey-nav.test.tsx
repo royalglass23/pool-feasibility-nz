@@ -6,7 +6,7 @@ import { PropertyCheckJourneyNav } from "@/components/property-check-journey-nav
 afterEach(cleanup);
 
 describe("Property Check journey navigation", () => {
-  it("shows one six-stage journey with accessible current, completed, and locked states", async () => {
+  it("shows one five-stage journey with accessible current, completed, and locked states", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
 
@@ -27,16 +27,15 @@ describe("Property Check journey navigation", () => {
     expect(buttons.map((button) => button.textContent)).toEqual([
       "Who is this for?Completed",
       "Find the propertyCompleted",
-      "Place your poolCurrent",
-      "Check the detailsLocked",
+      "Plan your poolCurrent",
       "Your detailsLocked",
       "Your property reportLocked",
     ]);
     expect(
-      screen.getByRole("button", { name: /Place your pool.*Current/ }),
+      screen.getByRole("button", { name: /Plan your pool.*Current/ }),
     ).toHaveAttribute("aria-current", "step");
     expect(
-      screen.getByRole("button", { name: /Check the details.*Locked/ }),
+      screen.getByRole("button", { name: /Your details.*Locked/ }),
     ).toBeDisabled();
 
     const property = screen.getByRole("button", {
@@ -45,5 +44,31 @@ describe("Property Check journey navigation", () => {
     property.focus();
     await user.keyboard("{Enter}");
     expect(onNavigate).toHaveBeenCalledWith("property");
+  });
+
+  it("locks completed earlier stages after constraint checking starts", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+
+    render(
+      <PropertyCheckJourneyNav
+        currentStage="placement"
+        completedStages={["audience", "property"]}
+        onNavigate={onNavigate}
+        lockCompletedStages
+      />,
+    );
+
+    const audience = screen.getByRole("button", {
+      name: /Who is this for?.*Completed/,
+    });
+    const property = screen.getByRole("button", {
+      name: /Find the property.*Completed/,
+    });
+
+    expect(audience).toBeDisabled();
+    expect(property).toBeDisabled();
+    await user.click(property);
+    expect(onNavigate).not.toHaveBeenCalled();
   });
 });

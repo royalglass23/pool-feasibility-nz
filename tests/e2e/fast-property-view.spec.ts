@@ -40,7 +40,7 @@ test("keeps the builder entry URL through browser back and forward navigation", 
   await expect(page).toHaveURL(/audience=pool_builder/);
 });
 
-test("preserves a no-change revisit and invalidates move, layout, and Custom-size edits", async ({
+test("locks earlier steps and pool placement after checking constraints", async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -136,80 +136,35 @@ test("preserves a no-change revisit and invalidates move, layout, and Custom-siz
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByLabel("Auckland property address").fill(address);
   await page.keyboard.press("Enter");
-  await page.getByRole("button", { name: "Use this pool position" }).click();
+  await page.getByRole("button", { name: "Check for constraints" }).click();
 
-  const summary = page.getByRole("region", {
-    name: "Current property and pool",
-  });
-  await expect(summary.getByText(address, { exact: true })).toBeVisible();
-  await expect(summary.getByText("Compact — 6.5 × 3 m")).toBeVisible();
-  await page.getByRole("button", { name: "Check this property" }).click();
   await expect(
     page.getByRole("heading", { name: "Property details checked" }),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: /Check the details.*Current/ }),
+    page.getByRole("button", { name: /Plan your pool.*Current/ }),
   ).toHaveAttribute("aria-current", "step");
+  await expect(
+    page.getByRole("button", { name: /Who is this for?.*Completed/ }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: /Find the property.*Completed/ }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Start again", exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+  ).toBeDisabled();
+
   await page.getByRole("button", { name: "Continue to your details" }).click();
   const contactForm = page.locator(
     'form[aria-labelledby="homeowner-details-heading"]',
   );
   await expect(contactForm.getByLabel("Name")).toBeVisible();
-  await contactForm.getByLabel("Name").fill("Jane Example");
-
-  await page
-    .getByRole("button", { name: "Edit pool size or position" })
-    .click();
-  await page
-    .getByRole("button", { name: /Check the details.*Completed/ })
-    .click();
-  await page.getByRole("button", { name: "Continue to your details" }).click();
-  await expect(contactForm.getByLabel("Name")).toHaveValue("Jane Example");
-
-  await page
-    .getByRole("button", { name: "Edit pool size or position" })
-    .click();
-  await page.getByRole("button", { name: /Family \(8 × 4 m\)/ }).click();
   await expect(
-    page.getByRole("button", { name: /Check the details.*Locked/ }),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "Use this pool position" }).click();
-  await expect(page.getByText("Family — 8 × 4 m")).toBeVisible();
-
-  await page
-    .getByRole("button", { name: "Edit pool size or position" })
-    .click();
-  await page.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }).click();
-  await page.getByLabel("Custom length (m)").fill("7.2");
-  await page.getByLabel("Custom width (m)").fill("3.4");
-  await expect(
-    page.getByRole("button", { name: /Check the details.*Locked/ }),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "Use this pool position" }).click();
-  await expect(page.getByText("Custom — 7.2 × 3.4 m")).toBeVisible();
-
-  await page
-    .getByRole("button", { name: "Edit pool size or position" })
-    .click();
-  const canvas = page.locator("canvas.maplibregl-canvas");
-  const bounds = (await canvas.boundingBox())!;
-  await canvas.hover({
-    position: { x: bounds.width / 2, y: bounds.height / 2 },
-  });
-  await expect(canvas).toHaveCSS("cursor", "move");
-  await page.mouse.down();
-  await page.mouse.move(
-    bounds.x + bounds.width / 2 + 18,
-    bounds.y + bounds.height / 2 + 12,
-    { steps: 4 },
-  );
-  await page.mouse.up();
-  await expect(
-    page.getByRole("button", { name: /Check the details.*Locked/ }),
-  ).toBeDisabled();
-  await expect(
-    page.getByRole("button", { name: "Use this pool position" }),
-  ).toBeEnabled();
+    page.getByRole("button", { name: "Edit pool size or position" }),
+  ).toHaveCount(0);
 });
 
 for (const initialOutcome of ["complete", "retryable", "error"] as const) {
@@ -404,30 +359,23 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     await mapLayersToggle.click();
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "true");
     await expect(
-      page.getByRole("button", { name: "Use this pool position" }),
+      page.getByRole("button", { name: "Check for constraints" }),
     ).toBeVisible();
     const detailedChecksPanel = page
       .locator("details")
       .filter({ hasText: "Detailed official checks" });
     await expect(detailedChecksPanel).toHaveCount(0);
-    await page.getByRole("button", { name: "Use this pool position" }).click();
-    await page.getByRole("button", { name: "Check this property" }).click();
-    await expect(
-      page.getByRole("button", { name: "Checking this property…" }),
-    ).toBeDisabled();
+    await page.getByRole("button", { name: "Check for constraints" }).click();
     await expect.poll(() => detailedStageRequests).toBe(1);
     if (initialOutcome === "error") {
       const retry = page.getByRole("button", {
-        name: "Check this property",
+        name: "Retry property check",
         exact: true,
       });
       await expect(retry).toBeEnabled();
       await retry.click();
       await expect.poll(() => detailedStageRequests).toBe(2);
     }
-    await page
-      .getByRole("button", { name: /Place your pool.*Completed/ })
-      .click();
     await expect(
       page.getByText(/No valid elevation data covers this property\./),
     ).toBeVisible();
@@ -495,28 +443,13 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     ).toBeVisible();
     if (initialOutcome === "complete") {
       const requestCountBeforePlacementChanges = detailedStageRequests;
-      await page.getByRole("button", { name: /Family \(8 × 4 m\)/ }).click();
-      await page.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }).click();
-      await page.getByLabel("Custom length (m)").fill("7.2");
-      await page.getByLabel("Custom width (m)").fill("3.4");
-
-      const canvas = page.locator("canvas.maplibregl-canvas");
-      const canvasBounds = (await canvas.boundingBox())!;
-      await page.mouse.move(
-        canvasBounds.x + canvasBounds.width / 2,
-        canvasBounds.y + canvasBounds.height / 2,
-      );
-      await page.mouse.down();
-      await page.mouse.move(
-        canvasBounds.x + canvasBounds.width / 2 + 15,
-        canvasBounds.y + canvasBounds.height / 2 + 10,
-        { steps: 4 },
-      );
-      await page.mouse.up();
-      await expect(page.getByTestId("pool-rotate-control")).toBeVisible();
       await expect(
-        page.getByText(/move and rotate|drag the rotate/i),
-      ).toHaveCount(0);
+        page.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+      ).toBeDisabled();
+      await expect(
+        page.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }),
+      ).toBeDisabled();
+      await expect(page.getByTestId("pool-rotate-control")).toBeHidden();
 
       await expect
         .poll(() => detailedStageRequests)
@@ -531,17 +464,13 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
 
     await expect(
       page.getByRole("button", { name: "Start again", exact: true }),
-    ).toBeEnabled();
+    ).toHaveCount(0);
     const poolLayout = page.getByLabel("Pool catalogue and placement controls");
-    const placementAction = page.getByRole("button", {
-      name: /Use this pool position|Position confirmed/,
-    });
     await expect(
       page
         .getByLabel("Property check notices")
         .getByRole("heading", { name: /Needs Checking|No Warning/ }),
     ).toBeVisible();
-    await expect(placementAction).toBeVisible();
     const mapBounds = await page
       .getByLabel("Fast aerial map for 42A Bahari Drive, Ranui, Auckland")
       .boundingBox();
@@ -549,16 +478,12 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       .getByLabel("Property check notices")
       .boundingBox();
     const poolLayoutBounds = await poolLayout.boundingBox();
-    const actionBounds = await placementAction.boundingBox();
     expect(noticeBounds!.y + noticeBounds!.height).toBeLessThanOrEqual(
       mapBounds!.y,
     );
     expect(noticeBounds!.x).toBeLessThanOrEqual(mapBounds!.x);
     expect(noticeBounds!.x + noticeBounds!.width).toBeGreaterThanOrEqual(
       poolLayoutBounds!.x + poolLayoutBounds!.width,
-    );
-    expect(actionBounds!.y).toBeGreaterThanOrEqual(
-      mapBounds!.y + mapBounds!.height,
     );
     const wastewaterLayer = legend.getByRole("checkbox", {
       name: "Wastewater",

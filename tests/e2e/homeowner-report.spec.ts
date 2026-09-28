@@ -419,7 +419,7 @@ async function startJourney(
     .fill("42A Bahari Drive, Ranui, Auckland");
   await page.keyboard.press("Enter");
   await expect(
-    page.getByRole("button", { name: "Use this pool position" }),
+    page.getByRole("button", { name: "Check for constraints" }),
   ).toBeVisible();
   if (options.evidencePrefix) {
     await captureVisualEvidence(
@@ -430,7 +430,7 @@ async function startJourney(
   const depthInput = page.getByRole("slider", {
     name: "Estimated pool depth (m)",
   });
-  await page.getByRole("button", { name: "Use this pool position" }).click();
+  await page.getByRole("button", { name: "Check for constraints" }).click();
   if (visitorType === "homeowner") {
     if (options.evidencePrefix) {
       await captureVisualEvidence(
@@ -439,7 +439,12 @@ async function startJourney(
       );
     }
     await expect(depthInput).toHaveCount(0);
-    await page.getByRole("button", { name: "Check this property" }).click();
+    await expect(
+      page.getByRole("heading", { name: "Property details checked" }),
+    ).toBeVisible();
+    await page
+      .getByRole("button", { name: "Continue to your details" })
+      .click();
     await expect(
       page.getByRole("heading", { name: "Pool builder site questions" }),
     ).toHaveCount(0);

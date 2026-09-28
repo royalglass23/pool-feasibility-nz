@@ -212,22 +212,17 @@ test("one signed session separates automatic stages and constraints, then respec
   await page.getByRole("button", { name: "Continue" }).click();
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("option", { name: address }).click();
-  await page.getByRole("button", { name: "Use this pool position" }).click();
-  await page.getByRole("button", { name: "Check this property" }).click();
-  await page.getByRole("button", { name: "Check this property" }).click();
+  await page.getByRole("button", { name: "Check for constraints" }).click();
+  await page.getByRole("button", { name: "Retry property check" }).click();
   await expect(
     page.getByText("Please try again in 1 minute 15 seconds."),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Check this property" }),
+    page.getByRole("button", { name: "Retry property check" }),
   ).toBeDisabled();
   await expect(
     page.getByRole("button", { name: "Search a different address" }),
   ).toHaveCount(0);
-  await expect(
-    page
-      .getByRole("region", { name: "Current property and pool" })
-      .getByText(address, { exact: true }),
-  ).toBeVisible();
+  await expect(page.getByRole("heading", { name: address })).toBeVisible();
   expect(stageModes).toEqual([undefined, "detailed", "detailed"]);
 });

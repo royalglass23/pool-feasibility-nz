@@ -201,6 +201,7 @@ export function FastPropertyView({
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const rotationControlVisibleRef = useRef(false);
+  const placementConfirmedRef = useRef(placementConfirmed);
   const syncRotationControlRef = useRef<() => void>(() => {});
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
   const suggestedRouteRef = useRef(suggestedRoute);
@@ -256,6 +257,10 @@ export function FastPropertyView({
   useEffect(() => {
     snapshotHandlerRef.current = onSnapshotReady;
   }, [onSnapshotReady]);
+  useEffect(() => {
+    placementConfirmedRef.current = placementConfirmed;
+    syncRotationControlRef.current();
+  }, [placementConfirmed]);
   const selectedPool = useMemo(
     () => FAST_POOL_CATALOGUE.find((pool) => pool.id === selectedPoolId)!,
     [selectedPoolId],
@@ -498,7 +503,7 @@ export function FastPropertyView({
   ]);
 
   const setCandidatePosition = (candidate: [number, number]) => {
-    if (isInitialAddressLoad) return;
+    if (isInitialAddressLoad || placementConfirmed) return;
     if (
       constructionEnvelopeDimensions &&
       result.boundary.geometry &&
@@ -516,7 +521,7 @@ export function FastPropertyView({
   };
 
   const setCandidateRotation = (candidate: number) => {
-    if (isInitialAddressLoad) return;
+    if (isInitialAddressLoad || placementConfirmed) return;
     const normalized = ((candidate % 360) + 360) % 360;
     if (
       constructionEnvelopeDimensions &&
@@ -540,7 +545,7 @@ export function FastPropertyView({
   });
 
   const choosePool = (poolId: FastPoolId) => {
-    if (isInitialAddressLoad) return;
+    if (isInitialAddressLoad || placementConfirmed) return;
     setSelectedPoolId(poolId);
     const pool = FAST_POOL_CATALOGUE.find((item) => item.id === poolId)!;
     const nextDimensions =
@@ -840,7 +845,8 @@ export function FastPropertyView({
           const handle = geometry.features.find(
             (entry) => entry.geometry.type === "Point",
           );
-          control.style.display = handle ? "grid" : "none";
+          control.style.display =
+            handle && !placementConfirmedRef.current ? "grid" : "none";
           if (handle?.geometry.type === "Point")
             rotationMarker?.setLngLat(
               handle.geometry.coordinates as [number, number],
@@ -921,6 +927,7 @@ export function FastPropertyView({
           | import("maplibre-gl").MapMouseEvent
           | import("maplibre-gl").MapTouchEvent;
         const updateRotationFromCursor = (cursor: [number, number]) => {
+          if (placementConfirmedRef.current) return;
           const active = placementRef.current;
           if (!active) return;
           rotationHandlerRef.current(
@@ -928,6 +935,7 @@ export function FastPropertyView({
           );
         };
         const updateInteraction = (event: PoolInteractionEvent) => {
+          if (placementConfirmedRef.current) return;
           if (!interaction && event.type === "mousemove" && map) {
             // Pointer events can arrive before the style's layers are ready.
             // Querying a missing layer emits a MapLibre error even when the
@@ -956,6 +964,7 @@ export function FastPropertyView({
           event: PoolInteractionEvent,
           cursor: "grabbing" | null,
         ) => {
+          if (placementConfirmedRef.current) return;
           interaction = nextInteraction;
           map?.dragPan.disable();
           if (cursor) map?.getCanvas().style.setProperty("cursor", cursor);
@@ -968,6 +977,7 @@ export function FastPropertyView({
           map?.getCanvas().style.setProperty("cursor", "");
         };
         control.addEventListener("pointerdown", (event) => {
+          if (placementConfirmedRef.current) return;
           event.preventDefault();
           event.stopPropagation();
           interaction = "rotate";
@@ -995,6 +1005,7 @@ export function FastPropertyView({
         control.addEventListener("pointerup", releaseRotation);
         control.addEventListener("pointercancel", releaseRotation);
         control.addEventListener("keydown", (event) => {
+          if (placementConfirmedRef.current) return;
           const active = placementRef.current;
           if (!active) return;
           const candidate =
@@ -1402,8 +1413,9 @@ export function FastPropertyView({
                     type="button"
                     aria-pressed={selectedPoolId === pool.id}
                     aria-label={`${pool.label} (${pool.lengthMetres} × ${pool.widthMetres} m)`}
+                    disabled={placementConfirmed}
                     onClick={() => choosePool(pool.id)}
-                    className="group grid min-h-16 grid-cols-[3rem_1fr_auto_1rem] items-center gap-3 border-b border-[#c8dce8] bg-white px-3 py-3 text-left text-sm text-[#0d3050] transition-colors hover:bg-[#edf8fd] focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd] aria-pressed:bg-[#03a9ee]"
+                    className="group grid min-h-16 grid-cols-[3rem_1fr_auto_1rem] items-center gap-3 border-b border-[#c8dce8] bg-white px-3 py-3 text-left text-sm text-[#0d3050] transition-colors hover:bg-[#edf8fd] focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd] disabled:cursor-default disabled:opacity-70 aria-pressed:bg-[#03a9ee]"
                   >
                     <svg
                       aria-hidden="true"
@@ -1441,6 +1453,7 @@ export function FastPropertyView({
                   <DimensionInput
                     label="Custom length (m)"
                     value={customLength}
+                    disabled={placementConfirmed}
                     min={2}
                     max={20}
                     onChange={setCustomLength}
@@ -1454,6 +1467,7 @@ export function FastPropertyView({
                   <DimensionInput
                     label="Custom width (m)"
                     value={customWidth}
+                    disabled={placementConfirmed}
                     min={1.5}
                     max={10}
                     onChange={setCustomWidth}
@@ -1488,41 +1502,42 @@ export function FastPropertyView({
                   <strong className="text-pool-950 block font-semibold">
                     Pool position confirmed
                   </strong>
-                  Continue below to complete this property check.
+                  Review the property constraints below, then continue to your
+                  details.
                 </>
               ) : (
                 <>
                   <strong className="text-pool-950 block font-semibold">
                     Happy with your pool position?
                   </strong>
-                  Confirm the layout shown on the map before continuing.
+                  Check for potential site constraints, or start again with
+                  another property.
                 </>
               )}
             </p>
-            <div className="grid gap-2 sm:min-w-56">
-              {onConfirmPlacement && planningEnabled && (
-                <button
-                  type="button"
-                  onClick={onConfirmPlacement}
-                  disabled={placementConfirmed}
-                  className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 disabled:bg-pool-100 disabled:text-pool-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-default"
-                >
-                  {placementConfirmed
-                    ? "Position confirmed"
-                    : "Use this pool position"}
-                </button>
-              )}
-              {onStartAgain && (
-                <button
-                  type="button"
-                  onClick={onStartAgain}
-                  disabled={isLoadingDetailed}
-                  className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Start again
-                </button>
-              )}
-            </div>
+            {!placementConfirmed && (
+              <div className="grid gap-2 sm:min-w-56">
+                {onConfirmPlacement && planningEnabled && (
+                  <button
+                    type="button"
+                    onClick={onConfirmPlacement}
+                    className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+                  >
+                    Check for constraints
+                  </button>
+                )}
+                {onStartAgain && (
+                  <button
+                    type="button"
+                    onClick={onStartAgain}
+                    disabled={isLoadingDetailed}
+                    className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm border bg-white px-4 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    Start again
+                  </button>
+                )}
+              </div>
+            )}
           </div>
         )}
         <section
@@ -2262,6 +2277,7 @@ function rotationHandleGeometry(
 function DimensionInput({
   label,
   value,
+  disabled = false,
   min,
   max,
   invalid,
@@ -2269,6 +2285,7 @@ function DimensionInput({
 }: {
   label: string;
   value: string;
+  disabled?: boolean;
   min: number;
   max: number;
   invalid: boolean;
@@ -2286,8 +2303,9 @@ function DimensionInput({
         max={max}
         step="0.1"
         value={value}
+        disabled={disabled}
         onChange={(event) => onChange(event.target.value)}
-        className="border-pool-300 focus:border-pool-blue-700 focus:outline-pool-blue-700 mt-1 block min-h-11 w-full rounded-sm border bg-white px-3 focus:outline-2 aria-[invalid=true]:border-red-500"
+        className="border-pool-300 focus:border-pool-blue-700 focus:outline-pool-blue-700 mt-1 block min-h-11 w-full rounded-sm border bg-white px-3 focus:outline-2 disabled:cursor-default disabled:bg-slate-50 aria-[invalid=true]:border-red-500"
       />
     </label>
   );

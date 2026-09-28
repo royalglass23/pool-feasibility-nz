@@ -316,13 +316,75 @@ export function SiteQuestions({
             onsite before design or pricing.
           </p>
         </div>
-        <div className="border-pool-200 border-t pt-6">
-          <EstimatedPoolDepth
-            value={estimatedDepth}
-            locked={depthLocked}
-            onChange={onEstimatedDepthChange}
-            onEdit={onEditEstimatedDepth}
-          />
+        <div
+          data-testid="builder-planning-row"
+          className="grid gap-4 lg:grid-cols-2"
+        >
+          <div
+            data-testid="estimated-depth-planning"
+            className="border-pool-200 rounded-[3px] border p-4 sm:p-5"
+          >
+            <EstimatedPoolDepth
+              value={estimatedDepth}
+              locked={depthLocked}
+              onChange={onEstimatedDepthChange}
+              onEdit={onEditEstimatedDepth}
+            />
+          </div>
+          <section
+            data-testid="excavation-planning"
+            aria-labelledby="excavation-planning-heading"
+            aria-describedby="excavation-side-clearance-help"
+            className="border-pool-200 space-y-3 rounded-[3px] border p-4 sm:p-5"
+          >
+            <h3
+              id="excavation-planning-heading"
+              className="text-pool-950 text-lg font-semibold"
+            >
+              Excavation planning
+            </h3>
+            <p
+              id="excavation-side-clearance-help"
+              className="text-pool-700 text-sm leading-6"
+            >
+              Choose a planning allowance from 200–600 mm. This is added on each
+              side of the selected pool outline; it is not an installation
+              requirement.
+            </p>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+              <input
+                type="range"
+                aria-label="Indicative excavation side clearance"
+                aria-valuetext={`${sideClearanceMillimetres} mm each side`}
+                min="200"
+                max="600"
+                step="50"
+                value={sideClearanceMillimetres}
+                onChange={(event) => {
+                  requestGenerationRef.current += 1;
+                  setSaving(false);
+                  onDraftChange();
+                  setSideClearanceMillimetres(Number(event.target.value));
+                }}
+                className="accent-pool-blue-800 min-h-11 w-full"
+              />
+              <output className="text-pool-950 min-w-28 text-sm font-semibold">
+                {sideClearanceMillimetres} mm each side
+              </output>
+            </div>
+            {sideClearanceMillimetres < 300 && (
+              <p role="status" className="text-sm font-semibold text-amber-800">
+                Confirm this allowance — it is below the provisional 300 mm
+                starting point. Check it against the selected pool installation
+                instructions.
+              </p>
+            )}
+            <p className="text-pool-600 text-xs leading-5">
+              Additional base preparation, drainage, ground slope, retaining and
+              installation method are not included and still need professional
+              confirmation.
+            </p>
+          </section>
         </div>
         <MultiSelectDropdown
           id="site-access"
@@ -362,58 +424,6 @@ export function SiteQuestions({
             setErrors((current) => ({ ...current, nearby: false }));
           }}
         />
-      </section>
-      <section
-        aria-labelledby="excavation-planning-heading"
-        aria-describedby="excavation-side-clearance-help"
-        className="border-pool-200 space-y-3 rounded-[3px] border bg-white p-5 sm:p-7"
-      >
-        <h3
-          id="excavation-planning-heading"
-          className="text-pool-950 text-xl font-semibold"
-        >
-          Excavation planning
-        </h3>
-        <p
-          id="excavation-side-clearance-help"
-          className="text-pool-700 text-sm"
-        >
-          Choose a planning allowance from 200–600 mm. This is added on each
-          side of the selected pool outline; it is not an installation
-          requirement.
-        </p>
-        <div className="flex items-center gap-4">
-          <input
-            type="range"
-            aria-label="Indicative excavation side clearance"
-            aria-valuetext={`${sideClearanceMillimetres} mm each side`}
-            min="200"
-            max="600"
-            step="50"
-            value={sideClearanceMillimetres}
-            onChange={(event) => {
-              requestGenerationRef.current += 1;
-              setSaving(false);
-              onDraftChange();
-              setSideClearanceMillimetres(Number(event.target.value));
-            }}
-            className="accent-pool-blue-800 min-h-11 w-full max-w-sm"
-          />
-          <output className="text-pool-950 min-w-28 text-sm font-semibold">
-            {sideClearanceMillimetres} mm each side
-          </output>
-        </div>
-        {sideClearanceMillimetres < 300 && (
-          <p role="status" className="text-sm font-semibold text-amber-800">
-            Confirm this allowance — it is below the provisional 300 mm starting
-            point. Check it against the selected pool installation instructions.
-          </p>
-        )}
-        <p className="text-pool-600 text-xs leading-5">
-          Additional base preparation, drainage, ground slope, retaining and
-          installation method are not included and still need professional
-          confirmation.
-        </p>
       </section>
       {hasCompletedCheck && (
         <section

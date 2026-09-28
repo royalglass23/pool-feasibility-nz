@@ -247,7 +247,7 @@ it("keeps map layers collapsed until the user asks to see them", async () => {
 });
 
 it("keeps live notices above the workspace and placement confirmation below it", async () => {
-  render(
+  const { rerender } = render(
     <FastPropertyView
       result={{
         ...fastResult,
@@ -281,12 +281,37 @@ it("keeps live notices above the workspace and placement confirmation below it",
     screen.getByRole("heading", { name: "Needs Checking" }),
   );
   expect(poolLayout).not.toContainElement(
-    screen.getByRole("button", { name: "Use this pool position" }),
+    screen.getByRole("button", { name: "Check for constraints" }),
   );
   expect(
-    screen.getByRole("button", { name: "Use this pool position" }),
+    screen.getByRole("button", { name: "Check for constraints" }),
   ).toBeVisible();
+  expect(screen.getByText(/potential site constraints/i)).toBeVisible();
   expect(screen.getByRole("button", { name: "Start again" })).toBeVisible();
+
+  rerender(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        progress: { ...fastResult.progress, detailedChecks: "not_loaded" },
+        detailedChecks: undefined,
+      }}
+      onRetry={() => {}}
+      onConfirmPlacement={() => {}}
+      onStartAgain={() => {}}
+      placementConfirmed
+    />,
+  );
+
+  expect(
+    screen.queryByRole("button", { name: "Check for constraints" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.queryByRole("button", { name: "Start again" }),
+  ).not.toBeInTheDocument();
+  expect(
+    screen.getByRole("button", { name: "Compact (6.5 × 3 m)" }),
+  ).toBeDisabled();
 });
 
 it("keeps Builder planning content from stretching the map capture frame", async () => {

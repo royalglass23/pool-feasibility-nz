@@ -374,7 +374,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       await user.keyboard("{Enter}");
 
       expect(
-        await screen.findByRole("button", { name: "Use this pool position" }),
+        await screen.findByRole("button", { name: "Check for constraints" }),
       ).toBeEnabled();
       expect(
         screen.getByRole("heading", { name: requestedAddress }),
@@ -1053,10 +1053,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     await user.keyboard("{Enter}");
     await user.click(
-      await screen.findByRole("button", { name: "Use this pool position" }),
-    );
-    await user.click(
-      await screen.findByRole("button", { name: "Check this property" }),
+      await screen.findByRole("button", { name: "Check for constraints" }),
     );
 
     await waitFor(() => {
@@ -1117,10 +1114,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     await user.keyboard("{Enter}");
     await user.click(
-      await screen.findByRole("button", { name: "Use this pool position" }),
-    );
-    await user.click(
-      await screen.findByRole("button", { name: "Check this property" }),
+      await screen.findByRole("button", { name: "Check for constraints" }),
     );
 
     expect(
@@ -1133,11 +1127,14 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       screen.getByText("Please try again in 1 minute 15 seconds."),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Check this property" }),
+      screen.queryByRole("button", { name: "Check for constraints" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
     ).toBeDisabled();
-    await user.click(
-      screen.getByRole("button", { name: /Place your pool.*Completed/ }),
-    );
+    expect(
+      screen.getByRole("button", { name: /Find the property.*Completed/ }),
+    ).toBeDisabled();
     expect(
       screen.getByRole("button", { name: "Retry property check" }),
     ).toBeDisabled();
@@ -1149,7 +1146,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps parcel slope loaded without rerunning checks when the pool changes", async () => {
+  it("keeps parcel slope loaded and locks pool controls after constraint checking", async () => {
     const user = userEvent.setup();
     const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
@@ -1217,46 +1214,31 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     await user.keyboard("{Enter}");
     await user.click(
-      await screen.findByRole("button", { name: "Use this pool position" }),
-    );
-    await user.click(
-      await screen.findByRole("button", { name: "Check this property" }),
+      await screen.findByRole("button", { name: "Check for constraints" }),
     );
     expect(
       await screen.findByRole("heading", { name: "Property details checked" }),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: /Check the details.*Current/ }),
+      screen.getByRole("button", { name: /Plan your pool.*Current/ }),
     ).toHaveAttribute("aria-current", "step");
     expect(
       screen.getByRole("button", { name: /Your details.*Locked/ }),
     ).toBeDisabled();
-    await user.click(
-      screen.getByRole("button", { name: /Place your pool.*Completed/ }),
-    );
     expect(
       await screen.findByRole("heading", { name: "Indicative property slope" }),
     ).toBeVisible();
     expect(screen.getByText("2.4°")).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Position confirmed" }),
-    ).toBeDisabled();
-
-    await user.click(
       screen.getByRole("button", { name: /Plunge \(4 × 2.4 m\)/ }),
-    );
-
-    await user.click(
+    ).toBeDisabled();
+    expect(
       screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
-    );
-    await waitFor(() => expect(detailedRequestCount).toBe(1));
-    expect(screen.getByText("2.4°")).toBeVisible();
+    ).toBeDisabled();
     expect(
-      screen.getByRole("button", { name: "Use this pool position" }),
-    ).toBeEnabled();
-    expect(
-      screen.queryByText(/The pool position changed\./i),
+      screen.queryByRole("button", { name: "Check for constraints" }),
     ).not.toBeInTheDocument();
+    await waitFor(() => expect(detailedRequestCount).toBe(1));
   });
 
   it("keeps completed constraints disabled when parcel slope needs checking", async () => {
@@ -1317,15 +1299,8 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     );
     await user.keyboard("{Enter}");
     await user.click(
-      await screen.findByRole("button", { name: "Use this pool position" }),
+      await screen.findByRole("button", { name: "Check for constraints" }),
     );
-    await user.click(
-      await screen.findByRole("button", { name: "Check this property" }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: /Place your pool.*Completed/ }),
-    );
-
     expect(
       await screen.findByRole("heading", { name: "Indicative property slope" }),
     ).toBeVisible();
@@ -1333,24 +1308,12 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       screen.getByText(/No valid elevation data covers this property\./),
     ).toBeVisible();
     expect(
-      screen.getByRole("button", { name: "Position confirmed" }),
-    ).toBeDisabled();
-
-    await user.click(
       screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
-    );
-    await user.click(
-      screen.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }),
-    );
-    await user.clear(screen.getByLabelText("Custom length (m)"));
-    await user.type(screen.getByLabelText("Custom length (m)"), "7.2");
-    await user.clear(screen.getByLabelText("Custom width (m)"));
-    await user.type(screen.getByLabelText("Custom width (m)"), "3.4");
-
+    ).toBeDisabled();
     await waitFor(() => expect(detailedRequestCount).toBe(1));
     expect(
-      screen.getByRole("button", { name: "Use this pool position" }),
-    ).toBeEnabled();
+      screen.queryByRole("button", { name: "Check for constraints" }),
+    ).not.toBeInTheDocument();
   });
 
   it("hides the address search after a fast view opens and restores it from Start again", async () => {

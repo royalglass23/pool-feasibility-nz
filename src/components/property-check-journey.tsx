@@ -211,8 +211,11 @@ export function PropertyCheckJourney({
   const placementKey = fastPlacementSnapshot
     ? placementIdentity(fastPlacementSnapshot)
     : null;
+  const isPlacementLocked = Boolean(
+    placementKey && confirmedPlacementKey === placementKey,
+  );
   const isAdjustingBuilderRoute =
-    currentStage === "details" &&
+    currentStage === "placement" &&
     reportAudience === "pool_builder" &&
     routeDraft?.placementKey === placementKey &&
     routeDraft.geometry.coordinates.length > 2;
@@ -336,7 +339,12 @@ export function PropertyCheckJourney({
       heading.focus();
       focusedPlanningForRef.current = focusKey;
     }
-  }, [confirmedPlacementKey, placementKey, reportAudience]);
+  }, [
+    confirmedPlacementKey,
+    fastResult?.detailedChecks,
+    placementKey,
+    reportAudience,
+  ]);
 
   useEffect(() => {
     if (currentStage !== "contact") {
@@ -894,33 +902,18 @@ export function PropertyCheckJourney({
     if (placementComplete) {
       completed.push("placement");
     }
-    const builderDetailsComplete = Boolean(
-      reportAudience === "pool_builder" &&
-      signedSiteAnswers?.sourceSnapshot === fastAssessmentSnapshot &&
-      signedSiteAnswers?.placementKey === placementKey,
-    );
-    if (
-      placementComplete &&
-      ((reportAudience === "homeowner" &&
-        Boolean(fastResult?.detailedChecks)) ||
-        builderDetailsComplete)
-    ) {
-      completed.push("details");
-    }
     if (fastSavedReport.assessment) {
       completed.push("contact", "report");
     }
     return completed;
   }, [
     confirmedPlacementKey,
-    fastAssessmentSnapshot,
     fastPlacementSnapshot?.constructionEnvelopeWithinMappedArea,
     fastResult,
     fastSavedReport.assessment,
     placementKey,
     reportAudience,
     result,
-    signedSiteAnswers,
   ]);
 
   return (
@@ -940,6 +933,7 @@ export function PropertyCheckJourney({
         completedStages={completedStages}
         onNavigate={setCurrentStage}
         disabled={isSavingReport}
+        lockCompletedStages={isPlacementLocked}
       />
 
       {currentStage === "audience" && (
@@ -982,13 +976,7 @@ export function PropertyCheckJourney({
             type="button"
             disabled={!reportAudience}
             onClick={() =>
-              setCurrentStage(
-                fastResult || result
-                  ? placementKey && confirmedPlacementKey === placementKey
-                    ? "details"
-                    : "placement"
-                  : "property",
-              )
+              setCurrentStage(fastResult || result ? "placement" : "property")
             }
             className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 mt-5 min-h-11 rounded-[3px] px-5 font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
           >
@@ -1189,13 +1177,17 @@ export function PropertyCheckJourney({
                 {canRetry && (
                   <button
                     type="button"
-                    onClick={() => void requestPropertyData()}
+                    onClick={() =>
+                      void (isPlacementLocked
+                        ? requestDetailedPropertyData()
+                        : requestPropertyData())
+                    }
                     className="min-h-11 font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
                   >
                     Try property check again
                   </button>
                 )}
-                {error.allowAddressChange !== false && (
+                {error.allowAddressChange !== false && !isPlacementLocked && (
                   <button
                     type="button"
                     onClick={startAgain}
@@ -1233,7 +1225,9 @@ export function PropertyCheckJourney({
               onConfirmPlacement={() => {
                 if (placementKey) {
                   setConfirmedPlacementKey(placementKey);
-                  setCurrentStage("details");
+                  if (reportAudience === "homeowner") {
+                    void requestDetailedPropertyData();
+                  }
                 }
               }}
               onRetry={() => void requestDetailedPropertyData()}
@@ -1243,13 +1237,13 @@ export function PropertyCheckJourney({
               onSnapshotReady={(snapshot) => {
                 if (!isSavingReport) setFastMapSnapshot(snapshot);
               }}
-              placementConfirmed={confirmedPlacementKey === placementKey}
+              placementConfirmed={isPlacementLocked}
               isDetailedRateLimited={detailedRetryAfterSeconds !== null}
               planningEnabled
               routeAdjustmentMode={isAdjustingBuilderRoute}
             />
           </div>
-          {(currentStage === "details" || currentStage === "contact") &&
+          {(currentStage === "placement" || currentStage === "contact") &&
           fastPlacementSnapshot?.dimensions &&
           fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
           fastAssessmentSnapshot &&
@@ -1257,17 +1251,21 @@ export function PropertyCheckJourney({
           confirmedPlacementKey === placementKey &&
           placementKey ? (
             <>
-              <JourneyEvidenceSummary
-                address={fastResult.resolvedAddress.fullAddress}
-                placement={fastPlacementSnapshot}
-                onEdit={() => setCurrentStage("placement")}
-                disabled={isSavingReport}
-              />
-              <div hidden={currentStage !== "details"}>
+              {currentStage === "contact" && (
+                <JourneyEvidenceSummary
+                  address={fastResult.resolvedAddress.fullAddress}
+                  placement={fastPlacementSnapshot}
+                />
+              )}
+              <div hidden={currentStage !== "placement"}>
                 {reportAudience === "homeowner" ? (
                   fastResult.detailedChecks ? (
                     <section className="border-pool-200 rounded-[3px] border bg-white p-5 sm:p-7">
-                      <h3 className="text-pool-950 text-xl font-semibold">
+                      <h3
+                        id="homeowner-check-heading"
+                        tabIndex={-1}
+                        className="text-pool-950 text-xl font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+                      >
                         Property details checked
                       </h3>
                       <p className="text-pool-700 mt-2 text-sm leading-6">
@@ -1282,34 +1280,7 @@ export function PropertyCheckJourney({
                         Continue to your details
                       </button>
                     </section>
-                  ) : (
-                    <section className="border-pool-200 rounded-2xl border bg-white p-5 sm:p-7">
-                      <h3
-                        id="homeowner-check-heading"
-                        tabIndex={-1}
-                        className="text-pool-950 text-xl font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
-                      >
-                        Ready to check this property
-                      </h3>
-                      <p className="text-pool-700 mt-2 max-w-3xl text-sm leading-6">
-                        We’ll check the available mapped property information
-                        for the pool position you confirmed.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => void requestDetailedPropertyData()}
-                        disabled={
-                          isLoadingDetailed ||
-                          detailedRetryAfterSeconds !== null
-                        }
-                        className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 mt-5 min-h-11 rounded-xl px-5 font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60"
-                      >
-                        {isLoadingDetailed
-                          ? "Checking this property…"
-                          : "Check this property"}
-                      </button>
-                    </section>
-                  )
+                  ) : null
                 ) : (
                   <>
                     <SiteQuestions
@@ -1435,13 +1406,9 @@ export function PropertyCheckJourney({
 function JourneyEvidenceSummary({
   address,
   placement,
-  onEdit,
-  disabled = false,
 }: {
   address: string;
   placement: FastPoolPlacementSnapshot;
-  onEdit: () => void;
-  disabled?: boolean;
 }) {
   const dimensions = placement.dimensions;
   if (!dimensions) return null;
@@ -1466,14 +1433,6 @@ function JourneyEvidenceSummary({
           </dd>
         </div>
       </dl>
-      <button
-        type="button"
-        onClick={onEdit}
-        disabled={disabled}
-        className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 shrink-0 rounded-[3px] border bg-white px-4 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
-      >
-        Edit pool size or position
-      </button>
     </section>
   );
 }

@@ -86,6 +86,21 @@ async function chooseNone(user: ReturnType<typeof userEvent.setup>) {
 }
 
 describe("Pool builder site questions", () => {
+  it("places depth and excavation planning side by side on wide screens", () => {
+    renderQuestions();
+
+    const planningRow = screen.getByTestId("builder-planning-row");
+    expect(planningRow).toHaveClass("lg:grid-cols-2");
+    expect(planningRow).toContainElement(
+      screen.getByRole("slider", { name: "Estimated pool depth (m)" }),
+    );
+    expect(planningRow).toContainElement(
+      screen.getByRole("slider", {
+        name: "Indicative excavation side clearance",
+      }),
+    );
+  });
+
   it("uses the shared 3px treatment for rectangular builder controls", () => {
     const { container } = renderQuestions({
       hasCompletedCheck: true,
