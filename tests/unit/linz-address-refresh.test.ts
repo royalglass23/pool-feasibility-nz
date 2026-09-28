@@ -45,6 +45,154 @@ function store(overrides: Partial<LinzAddressRefreshStore> = {}) {
 }
 
 describe("LINZ address refresh", () => {
+  it("checkpoints address batches and resumes within the runtime budget", async () => {
+    let running: {
+      runId: string;
+      from: Date;
+      to: Date;
+      nextOffset: number;
+    } | null = null;
+    let elapsedMs = 0;
+    const appliedOffsets: number[] = [];
+    const requestedOffsets: number[] = [];
+    const requestedAddressBatches: number[] = [];
+    const changes = Array.from({ length: 30 }, (_, index) => ({
+      action: "UPDATE" as const,
+      addressId: String(index + 1),
+    }));
+    const refreshStore = {
+      findRunningRefresh: vi.fn(async () => running),
+      hasOtherRunningImport: vi.fn(async () => false),
+      latestCompletedCursor: vi.fn(async () => cursor),
+      startRefresh: vi.fn(async (run) => {
+        running = { ...run };
+      }),
+      applyPage: vi.fn(async ({ nextOffset }) => {
+        appliedOffsets.push(nextOffset);
+        running = running ? { ...running, nextOffset } : null;
+      }),
+      completeRefresh: vi.fn(async () => {
+        running = null;
+      }),
+      recordRefreshFailure: vi.fn(async () => undefined),
+    } as unknown as LinzAddressRefreshStore;
+    const source = {
+      fetchChangesPage: vi.fn(async ({ startIndex }) => {
+        requestedOffsets.push(startIndex);
+        return changes.slice(startIndex);
+      }),
+      fetchCurrentAddresses: vi.fn(async (addressIds: string[]) => {
+        requestedAddressBatches.push(addressIds.length);
+        elapsedMs += 60;
+        return addressIds.map(address);
+      }),
+    };
+
+    await expect(
+      refreshLinzAddresses({
+        store: refreshStore,
+        source,
+        createRunId: () => "runtime-bounded-run",
+        now: () => now,
+        monotonicNow: () => elapsedMs,
+        maxRuntimeMs: 100,
+      }),
+    ).resolves.toEqual({
+      changedCount: 20,
+      refreshedThrough: now,
+      status: "pending",
+    });
+
+    elapsedMs = 0;
+    await expect(
+      refreshLinzAddresses({
+        store: refreshStore,
+        source,
+        createRunId: () => "must-not-start-another-run",
+        now: () => new Date("2026-09-12T00:00:00.000Z"),
+        monotonicNow: () => elapsedMs,
+        maxRuntimeMs: 100,
+      }),
+    ).resolves.toEqual({
+      changedCount: 30,
+      refreshedThrough: now,
+      status: "completed",
+    });
+
+    expect(requestedOffsets).toEqual([0, 20]);
+    expect(requestedAddressBatches).toEqual([10, 10, 10]);
+    expect(appliedOffsets).toEqual([10, 20, 30]);
+    expect(refreshStore.startRefresh).toHaveBeenCalledOnce();
+  });
+
+  it("keeps current-address provider requests within the proven safe batch size", async () => {
+    const refreshStore = store();
+    const changes = Array.from({ length: 11 }, (_, index) => ({
+      action: "UPDATE" as const,
+      addressId: String(index + 1),
+    }));
+    const requestedAddressBatches: number[] = [];
+
+    await expect(
+      refreshLinzAddresses({
+        store: refreshStore,
+        source: {
+          fetchChangesPage: vi.fn(async () => changes),
+          fetchCurrentAddresses: vi.fn(async (addressIds) => {
+            requestedAddressBatches.push(addressIds.length);
+            if (addressIds.length > 10) {
+              throw new Error("PROVIDER_TIMEOUT");
+            }
+            return addressIds.map(address);
+          }),
+        },
+        createRunId: () => "safe-batch-run",
+        now: () => now,
+      }),
+    ).resolves.toEqual({
+      changedCount: 11,
+      refreshedThrough: now,
+      status: "completed",
+    });
+
+    expect(requestedAddressBatches).toEqual([10, 1]);
+    expect(refreshStore.applyPage).toHaveBeenCalledWith(
+      expect.objectContaining({ nextOffset: 11 }),
+    );
+  });
+
+  it("stops current-address batches after a provider failure without advancing the page checkpoint", async () => {
+    const refreshStore = store();
+    const changes = Array.from({ length: 11 }, (_, index) => ({
+      action: "UPDATE" as const,
+      addressId: String(index + 1),
+    }));
+    const requestedAddressBatches: number[] = [];
+
+    await expect(
+      refreshLinzAddresses({
+        store: refreshStore,
+        source: {
+          fetchChangesPage: vi.fn(async () => changes),
+          fetchCurrentAddresses: vi.fn(async (addressIds) => {
+            requestedAddressBatches.push(addressIds.length);
+            throw new Error("PROVIDER_TIMEOUT");
+          }),
+        },
+        createRunId: () => "failed-current-address-run",
+        now: () => now,
+      }),
+    ).rejects.toThrow("PROVIDER_TIMEOUT");
+
+    expect(requestedAddressBatches).toEqual([10]);
+    expect(refreshStore.applyPage).not.toHaveBeenCalled();
+    expect(refreshStore.completeRefresh).not.toHaveBeenCalled();
+    expect(refreshStore.recordRefreshFailure).toHaveBeenCalledWith({
+      runId: "failed-current-address-run",
+      errorCode: "PROVIDER_TIMEOUT",
+    });
+  });
+
   it("preserves a completed page checkpoint after failure and resumes from it", async () => {
     let running: {
       runId: string;
@@ -143,7 +291,7 @@ describe("LINZ address refresh", () => {
     });
 
     expect(fetchChangesPage).toHaveBeenCalledOnce();
-    expect(requestedAddressBatches).toEqual(Array(10).fill(100));
+    expect(requestedAddressBatches).toEqual(Array(100).fill(10));
     expect(refreshStore.applyPage).toHaveBeenCalledWith(
       expect.objectContaining({ nextOffset: 1_000 }),
     );

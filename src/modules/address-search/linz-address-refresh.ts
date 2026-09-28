@@ -9,6 +9,7 @@ import {
 
 const OVERLAP_MS = 24 * 60 * 60 * 1_000;
 const DEFAULT_MAX_PAGES_PER_INVOCATION = 4;
+const DEFAULT_MAX_RUNTIME_MS = 240_000;
 
 export type LinzAddressRefreshRun = {
   runId: string;
@@ -49,7 +50,9 @@ export async function refreshLinzAddresses(input: {
   source: LinzAddressRefreshSource;
   createRunId: () => string;
   now?: () => Date;
+  monotonicNow?: () => number;
   maxPagesPerInvocation?: number;
+  maxRuntimeMs?: number;
 }): Promise<{
   changedCount: number;
   refreshedThrough: Date;
@@ -77,6 +80,9 @@ export async function refreshLinzAddresses(input: {
   let changedCount = run.nextOffset;
   const maxPages =
     input.maxPagesPerInvocation ?? DEFAULT_MAX_PAGES_PER_INVOCATION;
+  const monotonicNow = input.monotonicNow ?? (() => performance.now());
+  const startedAt = monotonicNow();
+  const maxRuntimeMs = input.maxRuntimeMs ?? DEFAULT_MAX_RUNTIME_MS;
   try {
     for (let page = 0; page < maxPages; page += 1) {
       const changes = await input.source.fetchChangesPage({
@@ -84,20 +90,37 @@ export async function refreshLinzAddresses(input: {
         to: run.to,
         startIndex: changedCount,
       });
-      const activeIds = changes
-        .filter((change) => change.action !== "DELETE")
-        .map((change) => change.addressId);
-      const currentAddresses = await fetchCurrentAddressesInBatches(
-        activeIds,
-        input.source,
-      );
-      changedCount += changes.length;
-      await input.store.applyPage({
-        runId: run.runId,
-        changes,
-        currentAddresses,
-        nextOffset: changedCount,
-      });
+      for (
+        let index = 0;
+        index < changes.length;
+        index += LINZ_CURRENT_ADDRESS_BATCH_SIZE
+      ) {
+        if (monotonicNow() - startedAt >= maxRuntimeMs) {
+          return {
+            changedCount,
+            refreshedThrough: run.to,
+            status: "pending",
+          };
+        }
+        const changeBatch = changes.slice(
+          index,
+          index + LINZ_CURRENT_ADDRESS_BATCH_SIZE,
+        );
+        const activeIds = changeBatch
+          .filter((change) => change.action !== "DELETE")
+          .map((change) => change.addressId);
+        const currentAddresses =
+          activeIds.length > 0
+            ? await input.source.fetchCurrentAddresses(activeIds)
+            : [];
+        changedCount += changeBatch.length;
+        await input.store.applyPage({
+          runId: run.runId,
+          changes: changeBatch,
+          currentAddresses,
+          nextOffset: changedCount,
+        });
+      }
       if (changes.length < LINZ_CHANGESET_PAGE_SIZE) {
         await input.store.completeRefresh({
           runId: run.runId,
@@ -123,23 +146,4 @@ export async function refreshLinzAddresses(input: {
     });
     throw error;
   }
-}
-
-async function fetchCurrentAddressesInBatches(
-  addressIds: string[],
-  source: LinzAddressRefreshSource,
-): Promise<IndexedLinzAddress[]> {
-  const addresses: IndexedLinzAddress[] = [];
-  for (
-    let index = 0;
-    index < addressIds.length;
-    index += LINZ_CURRENT_ADDRESS_BATCH_SIZE
-  ) {
-    addresses.push(
-      ...(await source.fetchCurrentAddresses(
-        addressIds.slice(index, index + LINZ_CURRENT_ADDRESS_BATCH_SIZE),
-      )),
-    );
-  }
-  return addresses;
 }

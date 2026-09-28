@@ -27,11 +27,23 @@ const chromiumRouteFiles = [
   "src/app/api/public/assessments/report/pdf/route.ts",
   "src/app/api/public/report/pdf/route.ts",
 ];
+const linzRefreshRoutePattern =
+  "src/app/api/cron/linz-address-refresh/route.ts";
 
 describe("Vercel function grouping", () => {
-  it("matches exactly the Chromium-dependent handlers with one shared configuration", () => {
-    const configuredPatterns = Object.keys(vercelConfig.functions ?? {});
-    const matchedRouteFiles = configuredPatterns.map((pattern) => {
+  it("gives the LINZ refresh cron an explicit runtime budget", () => {
+    expect(vercelConfig.functions?.[linzRefreshRoutePattern]).toEqual({
+      maxDuration: 300,
+    });
+  });
+
+  it("matches the Chromium-dependent handlers with one shared configuration", () => {
+    expect(Object.keys(vercelConfig.functions ?? {})).toEqual([
+      ...chromiumRoutePatterns,
+      linzRefreshRoutePattern,
+    ]);
+    const matchedRouteFiles = chromiumRoutePatterns.map((pattern) => {
+      expect(vercelConfig.functions?.[pattern]).toEqual({ maxDuration: 300 });
       const unmatchedPattern = pattern
         .replaceAll("[[]", "")
         .replaceAll("[]]", "");
@@ -42,15 +54,9 @@ describe("Vercel function grouping", () => {
       return routeFile;
     });
 
-    expect(configuredPatterns).toEqual(chromiumRoutePatterns);
     expect([...new Set(matchedRouteFiles)].sort()).toEqual(
       [...chromiumRouteFiles].sort(),
     );
-    expect(
-      Object.values(vercelConfig.functions ?? {}).map(
-        ({ maxDuration }) => maxDuration,
-      ),
-    ).toEqual(chromiumRoutePatterns.map(() => 300));
     expect(matchedRouteFiles).not.toContain(
       "src/app/api/public/assessments/report/delivery/status/route.ts",
     );

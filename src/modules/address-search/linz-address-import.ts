@@ -8,7 +8,7 @@ import {
 
 export const linzAddressQueryUrl =
   "https://services.arcgis.com/xdsHIIxuCWByZiCB/arcgis/rest/services/LINZ_NZ_Addresses/FeatureServer/0/query";
-export const LINZ_CURRENT_ADDRESS_BATCH_SIZE = 100;
+export const LINZ_CURRENT_ADDRESS_BATCH_SIZE = 10;
 const MAX_LINZ_ADDRESS_PAGE_BYTES = 8_000_000;
 
 const pageSchema = z.object({
