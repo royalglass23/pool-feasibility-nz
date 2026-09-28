@@ -35,15 +35,16 @@ export const handleLinzAddressRefreshRequest = createLinzAddressRefreshHandler({
     return refreshLinzAddresses({
       store: createRefreshStore(db),
       source: {
-        fetchChangesPage: ({ from, to, startIndex }) =>
+        fetchChangesPage: ({ from, to, startIndex, signal }) =>
           fetchAucklandAddressChangesPage({
             apiKey: env.LINZ_DATA_SERVICE_API_KEY!,
             from,
             to,
             startIndex,
+            signal,
           }),
-        fetchCurrentAddresses: (addressIds) =>
-          fetchCurrentAucklandAddressesByIds({ addressIds }),
+        fetchCurrentAddresses: (addressIds, signal) =>
+          fetchCurrentAucklandAddressesByIds({ addressIds, signal }),
       },
       createRunId: randomUUID,
     });

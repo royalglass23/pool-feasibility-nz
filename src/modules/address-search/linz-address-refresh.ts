@@ -41,9 +41,16 @@ export type LinzAddressRefreshSource = {
     from: Date;
     to: Date;
     startIndex: number;
+    signal: AbortSignal;
   }): Promise<LinzAddressChange[]>;
-  fetchCurrentAddresses(addressIds: string[]): Promise<IndexedLinzAddress[]>;
+  fetchCurrentAddresses(
+    addressIds: string[],
+    signal: AbortSignal,
+  ): Promise<IndexedLinzAddress[]>;
 };
+
+type RuntimeBoundResult<T> =
+  { status: "completed"; value: T } | { status: "expired" };
 
 export async function refreshLinzAddresses(input: {
   store: LinzAddressRefreshStore;
@@ -83,25 +90,50 @@ export async function refreshLinzAddresses(input: {
   const monotonicNow = input.monotonicNow ?? (() => performance.now());
   const startedAt = monotonicNow();
   const maxRuntimeMs = input.maxRuntimeMs ?? DEFAULT_MAX_RUNTIME_MS;
+  const runtimeExpired = () => monotonicNow() - startedAt >= maxRuntimeMs;
+  const pendingResult = () => ({
+    changedCount,
+    refreshedThrough: run.to,
+    status: "pending" as const,
+  });
+  const runProviderWithinRuntime = async <T>(
+    operation: (signal: AbortSignal) => Promise<T>,
+  ): Promise<RuntimeBoundResult<T>> => {
+    const remainingMs = maxRuntimeMs - (monotonicNow() - startedAt);
+    if (remainingMs <= 0) return { status: "expired" };
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), remainingMs);
+    try {
+      return {
+        status: "completed",
+        value: await operation(controller.signal),
+      };
+    } catch (error) {
+      if (controller.signal.aborted) return { status: "expired" };
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+    }
+  };
   try {
     for (let page = 0; page < maxPages; page += 1) {
-      const changes = await input.source.fetchChangesPage({
-        from: run.from,
-        to: run.to,
-        startIndex: changedCount,
-      });
+      const changesResult = await runProviderWithinRuntime((signal) =>
+        input.source.fetchChangesPage({
+          from: run.from,
+          to: run.to,
+          startIndex: changedCount,
+          signal,
+        }),
+      );
+      if (changesResult.status === "expired") return pendingResult();
+      const changes = changesResult.value;
       for (
         let index = 0;
         index < changes.length;
         index += LINZ_CURRENT_ADDRESS_BATCH_SIZE
       ) {
-        if (monotonicNow() - startedAt >= maxRuntimeMs) {
-          return {
-            changedCount,
-            refreshedThrough: run.to,
-            status: "pending",
-          };
-        }
+        if (runtimeExpired()) return pendingResult();
         const changeBatch = changes.slice(
           index,
           index + LINZ_CURRENT_ADDRESS_BATCH_SIZE,
@@ -109,10 +141,17 @@ export async function refreshLinzAddresses(input: {
         const activeIds = changeBatch
           .filter((change) => change.action !== "DELETE")
           .map((change) => change.addressId);
-        const currentAddresses =
-          activeIds.length > 0
-            ? await input.source.fetchCurrentAddresses(activeIds)
-            : [];
+        let currentAddresses: IndexedLinzAddress[] = [];
+        if (activeIds.length > 0) {
+          const currentAddressesResult = await runProviderWithinRuntime(
+            (signal) => input.source.fetchCurrentAddresses(activeIds, signal),
+          );
+          if (currentAddressesResult.status === "expired") {
+            return pendingResult();
+          }
+          currentAddresses = currentAddressesResult.value;
+        }
+        if (runtimeExpired()) return pendingResult();
         changedCount += changeBatch.length;
         await input.store.applyPage({
           runId: run.runId,
@@ -122,6 +161,7 @@ export async function refreshLinzAddresses(input: {
         });
       }
       if (changes.length < LINZ_CHANGESET_PAGE_SIZE) {
+        if (runtimeExpired()) return pendingResult();
         await input.store.completeRefresh({
           runId: run.runId,
           cursor: run.to,

@@ -33,6 +33,7 @@ export async function fetchAucklandAddressChangesPage(input: {
   to: Date;
   startIndex: number;
   fetch?: typeof fetch;
+  signal?: AbortSignal;
 }): Promise<LinzAddressChange[]> {
   if (!(input.from < input.to)) {
     throw new Error("LINZ_ADDRESS_REFRESH_INVALID_WINDOW");
@@ -64,6 +65,7 @@ export async function fetchAucklandAddressChangesPage(input: {
       init: { headers: { Accept: "application/json" } },
       timeoutMs: providerTimeoutMs(),
       maxBytes: MAX_LINZ_CHANGESET_BYTES,
+      signal: input.signal,
     });
     if (!result.response.ok || !result.bytes) {
       throw new Error("LINZ_ADDRESS_REFRESH_HTTP_ERROR");

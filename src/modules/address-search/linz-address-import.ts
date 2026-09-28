@@ -105,6 +105,7 @@ async function fetchAddressPage(input: {
 export async function fetchCurrentAucklandAddressesByIds(input: {
   addressIds: string[];
   fetch?: typeof fetch;
+  signal?: AbortSignal;
 }): Promise<IndexedLinzAddress[]> {
   if (input.addressIds.length === 0) return [];
   if (
@@ -133,6 +134,7 @@ export async function fetchCurrentAucklandAddressesByIds(input: {
       url,
       input.fetch ?? fetch,
       "application/geo+json",
+      input.signal,
     ),
     "LINZ_ADDRESS_REFRESH_INVALID_RESPONSE",
   );
@@ -190,6 +192,7 @@ async function fetchLinzAddressJson(
   url: URL,
   fetcher: typeof fetch,
   accept: string,
+  signal?: AbortSignal,
 ): Promise<unknown> {
   try {
     const result = await fetchProviderBody({
@@ -199,6 +202,7 @@ async function fetchLinzAddressJson(
       init: { headers: { Accept: accept } },
       timeoutMs: providerTimeoutMs(),
       maxBytes: MAX_LINZ_ADDRESS_PAGE_BYTES,
+      signal,
     });
     if (!result.response.ok || !result.bytes) {
       throw new Error("LINZ_ADDRESS_IMPORT_HTTP_ERROR");
