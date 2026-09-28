@@ -4,7 +4,10 @@ import {
 } from "@/modules/reporting/report-errors";
 import type { SessionReportRequest } from "@/modules/reporting/report-request";
 import type { SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
-import { renderCanonicalPreliminaryReportHtml } from "@/modules/reporting/preliminary-report-html";
+import {
+  renderCanonicalPreliminaryReportHtml,
+  type PreliminaryReportRenderContext,
+} from "@/modules/reporting/preliminary-report-html";
 import { renderSessionReportHtml } from "@/modules/reporting/session-report";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
@@ -32,12 +35,27 @@ export async function generateSessionReportPdf(
 export async function generatePreliminaryReportPdf(
   report: SavedPreliminaryReport,
   renderer: PdfRenderer = defaultPdfRenderer(),
+  context: PreliminaryReportRenderContext = {},
 ): Promise<Buffer> {
   const pdf = await generateReportHtmlPdf(
-    renderCanonicalPreliminaryReportHtml(report),
+    renderCanonicalPreliminaryReportHtml(report, context),
     renderer,
   );
   return canonicalizePdfMetadata(pdf, report.generatedAt);
+}
+
+export async function generateSavedPreliminaryReportPdf(
+  projection: {
+    report: SavedPreliminaryReport;
+    context: PreliminaryReportRenderContext;
+  },
+  renderer?: PdfRenderer,
+): Promise<Buffer> {
+  return generatePreliminaryReportPdf(
+    projection.report,
+    renderer,
+    projection.context,
+  );
 }
 
 async function generateReportHtmlPdf(
@@ -113,7 +131,59 @@ const puppeteerRenderer: PdfRenderer = {
         );
       });
       await page.emulateMediaType("print");
+      const builderLayoutFits = await page.evaluate(() => {
+        if (!document.body.classList.contains("builder-report")) return true;
+        const pages = Array.from(
+          document.querySelectorAll<HTMLElement>(".page"),
+        );
+        const firstPage = pages[0];
+        if (!firstPage || pages.length !== 3) return false;
+        const printableHeight =
+          (firstPage.getBoundingClientRect().width / 210) * 267;
+        const atomicContent = Array.from(
+          document.querySelectorAll<HTMLElement>(
+            ".assessment-card,.constructability-card,.source-item,.plain-section li,.disclaimer",
+          ),
+        );
+        const headings = Array.from(
+          document.querySelectorAll<HTMLElement>("h1,h2,h3,h4"),
+        );
+        return (
+          pages.every((reportPage) => {
+            const footer = reportPage.querySelector<HTMLElement>("footer");
+            if (
+              !footer ||
+              getComputedStyle(reportPage).overflow !== "visible"
+            ) {
+              return false;
+            }
+            const footerBoundary = footer.getBoundingClientRect().top - 8;
+            return (
+              reportPage.scrollHeight <= reportPage.clientHeight + 1 &&
+              Array.from(reportPage.children).every(
+                (child) =>
+                  child === footer ||
+                  child.getBoundingClientRect().bottom <= footerBoundary,
+              )
+            );
+          }) &&
+          atomicContent.every(
+            (item) =>
+              item.getBoundingClientRect().height <= printableHeight &&
+              getComputedStyle(item).breakInside === "avoid",
+          ) &&
+          headings.every(
+            (heading) => getComputedStyle(heading).breakAfter === "avoid",
+          )
+        );
+      });
+      if (!builderLayoutFits) {
+        throw new Error(
+          "REPORT_GENERATION_FAILED: builder content cannot paginate cleanly",
+        );
+      }
       const attributionFits = await page.evaluate(() => {
+        if (document.body.classList.contains("builder-report")) return true;
         const list = document.querySelector<HTMLElement>(".source-list");
         if (!list) return true;
         const page = list.closest<HTMLElement>(".page");
@@ -134,6 +204,7 @@ const puppeteerRenderer: PdfRenderer = {
         );
       }
       const contentFits = await page.evaluate(() => {
+        if (document.body.classList.contains("builder-report")) return true;
         const pages = document.querySelectorAll<HTMLElement>(".page");
         const pageThree = pages[2];
         const footer = pageThree?.querySelector<HTMLElement>("footer");

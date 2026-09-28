@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   fetchAucklandAddressPage,
   fetchBrownsBayAddressPage,
+  fetchCurrentAucklandAddressesByIds,
 } from "@/modules/address-search/linz-address-import";
 
 describe("Auckland LINZ address import", () => {
@@ -53,5 +54,15 @@ describe("Auckland LINZ address import", () => {
     );
     expect(requested.searchParams.get("resultOffset")).toBe("2000");
     expect(requested.searchParams.get("resultRecordCount")).toBe("2000");
+  });
+
+  it("rejects current-address batches that would exceed the ArcGIS URL limit", async () => {
+    await expect(
+      fetchCurrentAucklandAddressesByIds({
+        addressIds: Array.from({ length: 101 }, (_, index) =>
+          String(index + 1),
+        ),
+      }),
+    ).rejects.toThrow("LINZ_ADDRESS_REFRESH_INVALID_IDS");
   });
 });

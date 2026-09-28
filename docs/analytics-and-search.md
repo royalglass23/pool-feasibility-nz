@@ -2,17 +2,26 @@
 
 ## Analytics
 
-PostHog uses the PoolReady EU project key in the public Property Check. GA4 and
-Hotjar are optional. Set `NEXT_PUBLIC_GA4_MEASUREMENT_ID` to a valid
-`G-...` measurement ID and/or `NEXT_PUBLIC_HOTJAR_SITE_ID` to the numeric Site
-ID from Hotjar. With neither configured, PostHog is still available after consent.
+Google Tag Manager uses PoolReady container `GTM-WC3QDMX6` in the public
+Property Check. The container ID defaults in application configuration and can
+be overridden with `NEXT_PUBLIC_GTM_CONTAINER_ID`. GA4 and Hotjar are optional.
+Set `NEXT_PUBLIC_GA4_MEASUREMENT_ID` to a valid `G-...` measurement ID and/or
+`NEXT_PUBLIC_HOTJAR_SITE_ID` to the numeric Site ID from Hotjar. PostHog uses
+the PoolReady EU project key and remains available after consent.
 
-The visitor must select **Allow analytics** before any analytics script is loaded.
+The visitor must select **Allow analytics** before GTM or any other analytics
+script is loaded.
 **Reject analytics** and **Not now** leave them unloaded. The persistent
 **Analytics settings** control lets the visitor change the choice later;
 turning analytics off disables collection and removes first-party `_ga` and
 `_hj` cookies that are accessible to the site. PostHog uses no persistent
 browser storage here and is opted out again when consent is withdrawn.
+
+GTM is mounted through Next.js's `GoogleTagManager` component rather than raw
+snippets in the root layout, so it remains inside this consent boundary. Every
+tag configured in the GTM container must also require the appropriate consent
+and must not collect the sensitive fields listed below. Do not add a second GA4
+tag in GTM while direct GA4 is configured, or page events may be counted twice.
 
 Hotjar runs only on the public Property Check, never on `/staff` routes. The
 Property Check component is marked `data-hj-suppress`, so Hotjar does not

@@ -16,6 +16,7 @@ export function buildTestPreliminaryReport(
   overrides: ReportOverrides = {},
 ): SavedPreliminaryReport {
   const base: SavedPreliminaryReport = {
+    reportAudience: "homeowner",
     reference: "GF-2026-000123",
     generatedAt: "2026-07-29T02:03:04.000Z",
     title: "Preliminary pool feasibility assessment",
@@ -41,6 +42,8 @@ export function buildTestPreliminaryReport(
       },
     },
     pool: {
+      layoutId: "compact",
+      layoutName: "Compact",
       lengthMetres: 6.5,
       widthMetres: 3,
       rotationDegrees: 12,
@@ -261,10 +264,11 @@ export function buildTestPersistedAssessmentSubmission(
   return {
     idempotencyKey,
     homeowner: {
-      name: "MT-249 Integration Homeowner",
+      name: "Integration Homeowner",
       phone: "021 555 0249",
       email: "mt-249-integration@example.test",
       address: "1 MT-249 Test Street, Auckland",
+      builderCompanyName: null,
       visitorType: "homeowner",
       desiredTiming: "3_months",
       consentGiven: true,
@@ -291,6 +295,8 @@ export function buildTestPersistedAssessmentSubmission(
       },
     },
     poolLayout: {
+      layoutId: "compact",
+      layoutName: "Compact",
       lengthMetres: 6.5,
       widthMetres: 3,
       rotationDegrees: 12,
@@ -322,6 +328,12 @@ export function buildTestPersistedAssessmentSubmission(
       feasibilityState: "needs_checking",
       mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
       reportData: {
+        poolLayout: {
+          layoutId: "compact",
+          layoutName: "Compact",
+          lengthMetres: 6.5,
+          widthMetres: 3,
+        },
         recommendation: "Confirm the mapped evidence.",
         preliminaryFeasibilityWording: "Preliminary assessment only.",
         risks: [],

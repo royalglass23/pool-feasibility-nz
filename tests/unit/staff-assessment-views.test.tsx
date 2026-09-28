@@ -36,6 +36,8 @@ describe("staff assessment dashboard", () => {
       desiredTiming: "3_months",
       createdAt: new Date("2026-07-29T01:30:00.000Z"),
       poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
         lengthMetres: 6.5,
         widthMetres: 3,
         rotationDegrees: 24,
@@ -85,6 +87,7 @@ describe("staff assessment dashboard", () => {
     expect(screen.getByText("Nora Warning")).toBeVisible();
     expect(screen.getAllByText("1 Test Street, Auckland")[0]).toBeVisible();
     expect(screen.getByText("021 555 1234")).toBeVisible();
+    expect(screen.getAllByText("Compact — 6.5 x 3 m")[0]).toBeVisible();
     for (const state of ["No Warning", "Needs Checking", "Blocked"]) {
       expect(screen.getByText(state)).toBeVisible();
     }
@@ -117,7 +120,13 @@ describe("staff assessment dashboard", () => {
       desiredTiming: "3_months" as const,
       feasibilityState: "no_warning" as const,
       createdAt: new Date(`2026-07-${20 + index}T01:30:00.000Z`),
-      poolLayout: { lengthMetres: 6.5, widthMetres: 3, rotationDegrees: 24 },
+      poolLayout: {
+        layoutId: "compact" as const,
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+        rotationDegrees: 24,
+      },
       evidenceCount: 2,
     }));
 
@@ -182,7 +191,45 @@ describe("staff assessment detail", () => {
     expect(screen.getByText("Pool Builder")).toBeVisible();
   });
 
-  it("renders the complete shared saved report without assessment edit controls", () => {
+  it("identifies the trusted report audience separately from historical visitor data", () => {
+    render(
+      <StaffAssessmentDetail
+        assessment={{
+          ...staffAssessmentDetail,
+          visitorType: "other",
+          visitorTypeOtherDetail: "Landscape architect",
+          reportAudience: "homeowner",
+        }}
+        onBack={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Report audience")).toBeVisible();
+    expect(screen.getByText("Homeowner")).toBeVisible();
+    expect(screen.getByText("Landscape architect")).toBeVisible();
+    expect(screen.getByText("Pool layout")).toBeVisible();
+    expect(screen.getByText("Compact — 6.5 x 3 m")).toBeVisible();
+  });
+
+  it("shows a saved builder company without adding customer-owner details", () => {
+    render(
+      <StaffAssessmentDetail
+        assessment={{
+          ...staffAssessmentDetail,
+          visitorType: "pool_builder",
+          builderCompanyName: "North Shore Pools Ltd",
+        }}
+        onBack={() => undefined}
+      />,
+    );
+
+    expect(screen.getByText("Company / trading name")).toBeVisible();
+    expect(screen.getByText("North Shore Pools Ltd")).toBeVisible();
+    expect(screen.queryByText(/customer owner/i)).not.toBeInTheDocument();
+  });
+
+  it("renders the complete shared saved report without assessment edit controls", async () => {
+    const user = userEvent.setup();
     const homeownerView = render(
       <HomeownerFeasibilityReportView
         report={savedPreliminaryReport}
@@ -190,6 +237,7 @@ describe("staff assessment detail", () => {
         onBack={() => undefined}
       />,
     );
+    await user.click(screen.getByRole("tab", { name: "Property findings" }));
     expect(
       screen.getByAltText(
         "Saved aerial assessment map showing the mapped property and proposed pool",
@@ -205,22 +253,27 @@ describe("staff assessment detail", () => {
     );
 
     expect(
+      screen.getByText(savedPreliminaryReport.overall.summary),
+    ).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "Property findings" }));
+
+    expect(
       screen.getByRole("heading", { name: "Jane Homeowner" }),
     ).toBeVisible();
     expect(screen.getByText("I am a")).toBeVisible();
-    expect(screen.getByText("Homeowner")).toBeVisible();
-    expect(
-      screen.getByText(savedPreliminaryReport.overall.summary),
-    ).toBeVisible();
+    expect(screen.getAllByText("Homeowner")).toHaveLength(2);
     expect(
       screen.getByAltText(
         "Saved aerial assessment map showing the mapped property and proposed pool",
       ),
     ).toHaveAttribute("src", savedPreliminaryReport.mapImageDataUrl);
-    expect(screen.getByText(/Proposed pool: 6.5 x 3 m/)).toBeVisible();
+    expect(
+      screen.getByText(/Proposed pool: Compact — 6.5 x 3 m/),
+    ).toBeVisible();
     expect(
       screen.getByText("Wastewater infrastructure near the proposed pool"),
     ).toBeVisible();
+    await user.click(screen.getByRole("tab", { name: "What happens next" }));
     expect(
       screen.getByText("Verify water and wastewater infrastructure"),
     ).toBeVisible();
@@ -278,7 +331,8 @@ describe("staff assessment detail", () => {
     expect(evidence.queryByRole("checkbox")).not.toBeInTheDocument();
   });
 
-  it("shows the saved Fast Property View capture and records its visible layers", () => {
+  it("shows the saved Fast Property View capture and records its visible layers", async () => {
+    const user = userEvent.setup();
     const report = structuredClone(savedPreliminaryReport);
     report.layers = [
       {
@@ -310,10 +364,12 @@ describe("staff assessment detail", () => {
       />,
     );
 
+    await user.click(screen.getByRole("tab", { name: "Property findings" }));
+
     expect(
       screen.getByRole("region", { name: "Saved assessment map" }),
     ).toBeVisible();
-    expect(screen.getByText("Captured map layers")).toBeVisible();
+    expect(screen.getByText("Map layers")).toBeVisible();
     expect(screen.getByText(/Saved Fast Property View capture/)).toBeVisible();
     expect(screen.getByText("Wastewater")).toBeVisible();
     expect(screen.getByText("Mapped")).toBeVisible();

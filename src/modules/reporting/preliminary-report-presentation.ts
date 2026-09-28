@@ -330,7 +330,7 @@ export function reportConstructabilitySections(
       }));
   const assumptions = snapshot.assumptions.map((description) => ({
     provenance: "Saved assumption" as const,
-    description,
+    description: savedAssumptionLabel(description),
   }));
   const groundAnswers = snapshot.accessConditions.filter((condition) =>
     GROUND_CONDITIONS.has(condition),
@@ -408,7 +408,11 @@ export function reportConstructabilitySections(
     {
       id: "access_excavation",
       title: "Excavation and construction access",
-      ...constructabilitySectionResult(snapshot, "access_excavation"),
+      ...constructabilitySectionResult(
+        snapshot,
+        "access_excavation",
+        snapshot.accessConditions.includes("not_sure"),
+      ),
       details: [
         {
           label: "Estimated pool depth",
@@ -541,7 +545,17 @@ function routeProvenanceLabel(
   if (provenance === "user-supplied")
     return "Route supplied by user — confirm onsite";
   if (provenance === "suggested") return "Suggested route — not yet confirmed";
-  return "I’m not sure — no confirmed route";
+  return "Not confirmed route";
+}
+
+function savedAssumptionLabel(description: string): string {
+  if (!description.startsWith("Access route policy v1:")) return description;
+
+  const reason = description.slice("Access route policy v1:".length).trim();
+  if (reason === "terrain_unavailable_or_steep") {
+    return "A suggested access route could not be mapped because terrain information was unavailable or the ground may be too steep.";
+  }
+  return "A suggested access route could not be confirmed from the saved mapped evidence.";
 }
 
 function routeFactDetails(
@@ -624,6 +638,11 @@ export function reportExcavationGeometry(report: SavedPreliminaryReport) {
   }
   const geometry = report.constructability.excavationGeometry;
   const terrainUnavailable = geometry.terrainAdjustment === "unavailable";
+  const sideAllowanceMillimetres = Math.round(
+    geometry.sideAllowanceMetres * 1_000,
+  );
+  const isLegacy = geometry.version === 1;
+  const isDefault = sideAllowanceMillimetres === 300;
   return {
     heading: "Illustrative excavation geometry",
     scenarios: [
@@ -634,18 +653,30 @@ export function reportExcavationGeometry(report: SavedPreliminaryReport) {
         formattedValue: `${geometry.poolOutlineCubicMetres.toFixed(geometry.rounding.decimalPlaces)} m³`,
       },
       {
-        id: "300mm-side-allowance" as const,
-        label: "300 mm side-allowance scenario",
+        id: isLegacy
+          ? ("300mm-side-allowance" as const)
+          : ("selected-side-clearance" as const),
+        label: isLegacy
+          ? "300 mm side-allowance scenario"
+          : `${sideAllowanceMillimetres} mm selected side-clearance scenario`,
         valueCubicMetres: geometry.sideAllowanceCubicMetres,
         formattedValue: `${geometry.sideAllowanceCubicMetres.toFixed(geometry.rounding.decimalPlaces)} m³`,
       },
     ],
     assumptionId: geometry.assumptionId,
     sourceUrl: FIRTH_MASONRY_POOL_GUIDANCE_URL,
+    clearanceDisclosure:
+      isLegacy || isDefault
+        ? "300 mm is PoolReady’s provisional Firth-derived starting point. It is not approved for the selected pool."
+        : `${sideAllowanceMillimetres} mm was selected for planning. It is not approved for the selected pool; PoolReady’s provisional 300 mm starting point is Firth-derived.`,
     assumptionDisclosure:
-      "300 mm added on each side of the selected pool outline. This assumption is adapted from Firth's masonry-pool guidance, which measures from the outside masonry wall; applying it to the generic selected outline is a temporary PoolReady proxy, not a builder-approved construction specification.",
+      isLegacy || isDefault
+        ? "300 mm added on each side of the selected pool outline. The provisional starting point is adapted from Firth's masonry-pool guidance, which measures from the outside masonry wall; applying it to the generic selected outline is a temporary PoolReady planning proxy, not a builder-approved construction specification."
+        : `${sideAllowanceMillimetres} mm added on each side of the selected pool outline. This value was selected by the user for planning. It is not sourced from Firth or approved for the chosen pool; PoolReady's 300 mm starting point is adapted from Firth's masonry-pool guidance and must also be confirmed against the selected pool installation instructions.`,
     rangeDisclosure:
       "These are illustrative geometry scenarios, not minimum and maximum excavation quantities. The larger figure is not an upper bound, and the actual excavation may fall outside these two numbers.",
+    publicDisclosure:
+      "Indicative planning volumes only — not a quote, specification or upper bound. These figures use your selected side clearance but exclude base preparation, drainage, terrain, services and installation method. Confirm final excavation requirements onsite.",
     exclusions:
       "Extra base depth, masonry wall and footing dimensions, floor falls, drainage, terrain cut, battering or support, services, and installation method are not modelled.",
     terrainStatus: terrainUnavailable

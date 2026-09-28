@@ -12,6 +12,15 @@ The `idempotencyKey` is required and unique. A retry returns the original assess
 reference rather than creating a second record. Assessments start in `new_enquiry` and remain
 retained until a later archive/delete workflow exists.
 
+RG-348 stores the canonical `homeowner` or `pool_builder` report audience inside the versioned
+`report_data` JSONB aggregate. Before save, the server binds the selected canonical audience to the
+signed assessment snapshot; the final contact payload must resolve to the same audience. Reissuing
+the same audience preserves the snapshot submission ID, so submission and delivery retries keep
+their existing idempotency guarantees. No schema migration is required. Historical rows resolve an
+explicit `homeowner` or `pool_builder` visitor type to the matching audience. Historical `other`,
+null, missing, or unrecognised audience data uses the conservative `homeowner` presentation and
+does not manufacture technical Builder answers.
+
 MT-249 adds the bounded PNG map capture needed to reproduce the saved browser report and PDF
 without calling live GIS providers. New submissions require a validated PNG data URL. The database
 column remains nullable only so pre-MT-249 development rows are not backfilled with a fictional

@@ -1,7 +1,13 @@
 import { runInNewContext } from "node:vm";
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  cleanup,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { AnalyticsConsent } from "@/components/analytics-consent";
 import { ANALYTICS_CONSENT_STORAGE_KEY } from "@/modules/anonymous-funnel-analytics";
 
@@ -16,6 +22,14 @@ vi.mock("@vercel/speed-insights/next", () => ({
 }));
 
 describe("analytics consent", () => {
+  afterEach(() => {
+    cleanup();
+    document
+      .querySelectorAll('#_next-gtm, #_next-gtm-init, script[src*="/gtm.js"]')
+      .forEach((element) => element.remove());
+    delete (window as Window & { dataLayer?: unknown[] }).dataLayer;
+  });
+
   beforeEach(() => {
     localStorage.clear();
     sessionStorage.clear();
@@ -70,6 +84,59 @@ describe("analytics consent", () => {
     expect(
       (window as unknown as Record<string, unknown>)["ga-disable-G-TEST123"],
     ).toBe(true);
+  });
+
+  it("loads the configured GTM container only after consent", async () => {
+    const user = userEvent.setup();
+    render(<AnalyticsConsent gtmId="GTM-WC3QDMX6" />);
+
+    expect(document.querySelector('script[src*="/gtm.js"]')).toBeNull();
+
+    await user.click(
+      await screen.findByRole("button", { name: "Allow analytics" }),
+    );
+
+    await waitFor(() =>
+      expect(document.querySelector('script[src*="/gtm.js"]')).toHaveAttribute(
+        "src",
+        expect.stringContaining("id=GTM-WC3QDMX6"),
+      ),
+    );
+    expect(document.querySelector("#_next-gtm-init")?.textContent).toContain(
+      "gtm.start",
+    );
+  });
+
+  it("withdraws Google consent when GTM is configured without direct GA", async () => {
+    const user = userEvent.setup();
+    const analyticsWindow = window as Window & { dataLayer?: unknown[] };
+    analyticsWindow.dataLayer = [];
+    document.cookie = "_ga=synthetic; Path=/";
+    document.cookie = "_ga_CONTAINER=synthetic; Path=/";
+    render(<AnalyticsConsent gtmId="GTM-WC3QDMX6" />);
+
+    await user.click(
+      await screen.findByRole("button", { name: "Allow analytics" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Analytics settings" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Turn analytics off" }),
+    );
+
+    expect(analyticsWindow.dataLayer).toContainEqual([
+      "consent",
+      "update",
+      {
+        analytics_storage: "denied",
+        ad_storage: "denied",
+        ad_user_data: "denied",
+        ad_personalization: "denied",
+      },
+    ]);
+    expect(document.cookie).not.toContain("_ga=");
+    expect(document.cookie).not.toContain("_ga_CONTAINER=");
   });
 
   it("gates Metricool and PostHog on consent even without GA4 or Hotjar", async () => {

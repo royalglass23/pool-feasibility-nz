@@ -9,13 +9,17 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
       report={buildTestPreliminaryReport({
         pool: { clearancesVisible: true },
       })}
-      attribution="Test map attribution"
     />,
   );
 
   expect(
     screen.getByRole("region", { name: "Saved pool-shell clearances" }),
   ).toHaveTextContent("Indicative mapped pool-shell clearances");
+  expect(screen.getByRole("heading", { name: "Map layers" })).toBeVisible();
+  expect(
+    screen.getByRole("region", { name: "Saved assessment overlays" }),
+  ).toBeVisible();
+  expect(screen.getByRole("region", { name: "Saved contours" })).toBeVisible();
   expect(screen.getAllByText(/m$/)).toHaveLength(4);
   expect(
     screen
@@ -24,6 +28,14 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
       )
       .closest("figure")?.parentElement,
   ).toHaveClass("items-start");
+  expect(
+    screen.getByAltText(
+      "Saved aerial assessment map showing the mapped property and proposed pool",
+    ),
+  ).toHaveClass("h-auto", "w-full", "object-contain");
+  expect(
+    screen.getByRole("list", { name: "Saved mapped services" }),
+  ).toHaveClass("lg:grid-cols-5");
   expect(
     screen
       .getByRole("region", { name: "Saved pool-shell clearances" })
@@ -37,13 +49,12 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
       report={buildTestPreliminaryReport({
         pool: { clearancesVisible: false },
       })}
-      attribution="Test map attribution"
     />,
   );
 
   expect(
     screen.queryByRole("region", { name: "Saved pool-shell clearances" }),
-  ).not.toBeInTheDocument();
+  ).toHaveTextContent("Not shown in saved capture");
 
   rerender(
     <SavedReportInteractiveMap
@@ -56,11 +67,10 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
           } as never,
         },
       })}
-      attribution="Test map attribution"
     />,
   );
 
   expect(
     screen.queryByRole("region", { name: "Saved pool-shell clearances" }),
-  ).not.toBeInTheDocument();
+  ).toHaveTextContent("Measurements unavailable");
 });

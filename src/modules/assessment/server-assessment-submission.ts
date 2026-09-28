@@ -29,10 +29,13 @@ import type { TrustedAssessmentSnapshot } from "./assessment-snapshot";
 import { suggestAccessRouteFromProperty } from "@/modules/spatial/suggest-access-route";
 import { analyseAccessRouteFromProperty } from "@/modules/spatial/analyse-access-route";
 import { poolLayoutSchema } from "./pool-layout-schema";
+import { namedPoolLayoutSchema } from "./pool-layout-schema";
 import {
   parsePersistedAssessmentSubmission,
   type PersistedAssessmentSubmission,
 } from "./persisted-assessment";
+import { resolveLegacyReportAudience } from "./report-audience";
+import { AssessmentSnapshotValidationError } from "./assessment-snapshot";
 
 const browserSubmissionSchema = z
   .object({
@@ -70,8 +73,9 @@ export function assertConstructabilityMatchesSnapshot(
 ): void {
   if (
     Boolean(request.constructability) !== Boolean(snapshot.constructability) ||
-    (snapshot.lockedEstimatedDepthMetres !== undefined &&
-      snapshot.constructability?.answers.estimatedDepthMetres !==
+    (snapshot.constructability &&
+      snapshot.lockedEstimatedDepthMetres !== undefined &&
+      snapshot.constructability.answers.estimatedDepthMetres !==
         snapshot.lockedEstimatedDepthMetres) ||
     (request.constructability &&
       !isDeepStrictEqual(
@@ -83,6 +87,41 @@ export function assertConstructabilityMatchesSnapshot(
   }
 }
 
+export function assertReportAudienceMatchesSnapshot(
+  request: BrowserAssessmentSaveRequest,
+  snapshot: TrustedAssessmentSnapshot,
+): asserts snapshot is TrustedAssessmentSnapshot & {
+  reportAudience: NonNullable<TrustedAssessmentSnapshot["reportAudience"]>;
+} {
+  if (
+    snapshot.reportAudience === undefined ||
+    snapshot.reportAudience !==
+      resolveLegacyReportAudience(request.homeowner.visitorType)
+  ) {
+    throw new AssessmentSnapshotValidationError();
+  }
+}
+
+export function assertPoolLayoutMatchesSnapshot(
+  request: BrowserAssessmentSaveRequest,
+  snapshot: TrustedAssessmentSnapshot,
+): asserts snapshot is TrustedAssessmentSnapshot & {
+  poolLayout: NonNullable<TrustedAssessmentSnapshot["poolLayout"]>;
+} {
+  const requestedLayout = namedPoolLayoutSchema.parse({
+    layoutId: request.poolLayout.layoutId,
+    layoutName: request.poolLayout.layoutName,
+    lengthMetres: request.poolLayout.lengthMetres,
+    widthMetres: request.poolLayout.widthMetres,
+  });
+  if (
+    snapshot.poolLayout === undefined ||
+    !isDeepStrictEqual(snapshot.poolLayout, requestedLayout)
+  ) {
+    throw new AssessmentSnapshotValidationError();
+  }
+}
+
 export async function buildServerAssessmentSubmission(input: {
   request: BrowserAssessmentSaveRequest;
   snapshot: TrustedAssessmentSnapshot;
@@ -90,6 +129,9 @@ export async function buildServerAssessmentSubmission(input: {
   now?: () => Date;
 }): Promise<PersistedAssessmentSubmission> {
   const { request, snapshot } = input;
+  assertReportAudienceMatchesSnapshot(request, snapshot);
+  assertPoolLayoutMatchesSnapshot(request, snapshot);
+  const reportAudience = snapshot.reportAudience;
   const dimensions = validateFastCustomDimensions(
     request.poolLayout.lengthMetres,
     request.poolLayout.widthMetres,
@@ -254,6 +296,8 @@ export async function buildServerAssessmentSubmission(input: {
       feasibilityState: warning.status,
       mapImageDataUrl: request.mapImageDataUrl,
       reportData: {
+        reportAudience,
+        poolLayout: snapshot.poolLayout,
         mapImageSource: "fast_property_view_capture",
         mapVisibleLayerKeys: request.mapVisibleLayerKeys,
         recommendation:

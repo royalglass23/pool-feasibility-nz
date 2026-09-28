@@ -27,6 +27,7 @@ export const env = createEnv({
     INTERNAL_ACCESS_USERNAME: z.string().min(1).optional(),
     INTERNAL_ACCESS_PASSWORD: z.string().min(12).optional(),
     DATABASE_URL: z.url().optional(),
+    DATABASE_STORAGE_LIMIT_MIB: z.coerce.number().int().positive().optional(),
     LINZ_DATA_SERVICE_API_KEY: z.string().min(1).optional(),
     LINZ_BASEMAPS_API_KEY: z.string().min(1).optional(),
     AUCKLAND_COUNCIL_API_KEY: z.string().min(1).optional(),
@@ -43,6 +44,10 @@ export const env = createEnv({
     OPENAI_MODEL: z.string().min(1).default("gpt-5.6-luna"),
   },
   client: {
+    NEXT_PUBLIC_GTM_CONTAINER_ID: z
+      .string()
+      .regex(/^GTM-[A-Z0-9]+$/i)
+      .default("GTM-WC3QDMX6"),
     NEXT_PUBLIC_GA4_MEASUREMENT_ID: z
       .string()
       .regex(/^G-[A-Z0-9]+$/i)
@@ -58,6 +63,7 @@ export const env = createEnv({
     INTERNAL_ACCESS_USERNAME: process.env.INTERNAL_ACCESS_USERNAME,
     INTERNAL_ACCESS_PASSWORD: process.env.INTERNAL_ACCESS_PASSWORD,
     DATABASE_URL: process.env.DATABASE_URL,
+    DATABASE_STORAGE_LIMIT_MIB: process.env.DATABASE_STORAGE_LIMIT_MIB,
     LINZ_DATA_SERVICE_API_KEY: process.env.LINZ_DATA_SERVICE_API_KEY,
     LINZ_BASEMAPS_API_KEY: process.env.LINZ_BASEMAPS_API_KEY,
     AUCKLAND_COUNCIL_API_KEY: process.env.AUCKLAND_COUNCIL_API_KEY,
@@ -72,6 +78,7 @@ export const env = createEnv({
     AI_PROVIDER: process.env.AI_PROVIDER,
     OPENAI_API_KEY: process.env.OPENAI_API_KEY,
     OPENAI_MODEL: process.env.OPENAI_MODEL,
+    NEXT_PUBLIC_GTM_CONTAINER_ID: process.env.NEXT_PUBLIC_GTM_CONTAINER_ID,
     NEXT_PUBLIC_GA4_MEASUREMENT_ID: process.env.NEXT_PUBLIC_GA4_MEASUREMENT_ID,
     NEXT_PUBLIC_HOTJAR_SITE_ID: process.env.NEXT_PUBLIC_HOTJAR_SITE_ID,
   },

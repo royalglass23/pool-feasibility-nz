@@ -1,8 +1,8 @@
 import "server-only";
 
 import { getDb } from "@/db/client";
-import { getSavedPreliminaryReportById } from "@/db/repositories/homeowner-assessment-repository";
-import { generatePreliminaryReportPdf } from "@/modules/reporting/report-renderer";
+import { getSavedPreliminaryReportRenderById } from "@/db/repositories/homeowner-assessment-repository";
+import { generateSavedPreliminaryReportPdf } from "@/modules/reporting/report-renderer";
 import { preliminaryReportFilename } from "@/modules/reporting/preliminary-report";
 import { staffSessionDeniedResponse } from "@/modules/staff/staff-session";
 import {
@@ -33,8 +33,11 @@ export async function GET(
       { "Cache-Control": "no-store" },
     );
   }
-  const report = await getSavedPreliminaryReportById(getDb(), id);
-  if (!report) {
+  const renderProjection = await getSavedPreliminaryReportRenderById(
+    getDb(),
+    id,
+  );
+  if (!renderProjection) {
     return apiErrorResponse(
       {
         code: "ASSESSMENT_NOT_FOUND",
@@ -47,7 +50,8 @@ export async function GET(
   }
 
   try {
-    const pdf = await generatePreliminaryReportPdf(report);
+    const { report } = renderProjection;
+    const pdf = await generateSavedPreliminaryReportPdf(renderProjection);
     return new Response(new Uint8Array(pdf), {
       status: 200,
       headers: {

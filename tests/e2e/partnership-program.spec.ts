@@ -76,6 +76,11 @@ test("mobile public pages retain the brand and programme links without horizonta
         .getByRole("navigation", { name: "Footer navigation" })
         .getByRole("link", { name: "Partnership Program" }),
     ).toHaveAttribute("href", "/partners");
+    await expect(
+      page
+        .getByRole("navigation", { name: "Footer navigation" })
+        .getByRole("link", { name: "Can my property suit a pool?" }),
+    ).toHaveAttribute("href", "/can-my-auckland-property-suit-a-pool");
     expect(
       await page.evaluate(
         () => document.documentElement.scrollWidth <= window.innerWidth,

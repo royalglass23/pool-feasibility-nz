@@ -29,7 +29,7 @@ The current codebase contains:
 - interactive pool-size, placement, and rotation controls;
 - an opt-in detailed constraint check with deterministic overlap reporting and
   indicative Auckland DEM terrain measurements when eligible evidence exists;
-- preliminary web reports and three-page server-rendered PDF email attachments;
+- preliminary web reports, fixed three-page Homeowner PDF attachments, and expandable Pool Builder PDF attachments;
 - persisted assessment requests backed by PostgreSQL/Neon;
 - an Admin-only Staff Workspace at `/staff` for saved assessments;
 - privacy controls, scheduled retention, shared public rate limits, and

@@ -24,6 +24,7 @@ import {
   type StaffAssessmentRecord,
   type StaffAssessmentSummary,
 } from "@/modules/staff/staff-assessment-read-model";
+import { resolveLegacyReportAudience } from "@/modules/assessment/report-audience";
 
 type Database = NeonHttpDatabase<typeof schema>;
 const DELIVERY_CLAIM_STALE_MS = 5 * 60 * 1_000;
@@ -74,6 +75,8 @@ export async function listHomeownerAssessments(
         ),
       createdAt: assessment.createdAt,
       poolLayout: {
+        layoutId: parsedLayout.layoutId,
+        layoutName: parsedLayout.layoutName,
         lengthMetres: parsedLayout.lengthMetres,
         widthMetres: parsedLayout.widthMetres,
         rotationDegrees: parsedLayout.rotationDegrees,
@@ -96,12 +99,15 @@ export async function getHomeownerAssessmentById(
       homeownerPhone: true,
       homeownerEmail: true,
       homeownerAddress: true,
+      builderCompanyName: true,
       visitorType: true,
       visitorTypeOtherDetail: true,
+      reportData: true,
       desiredTiming: true,
       desiredTimingOtherDetail: true,
       additionalInfo: true,
       boundaryStatus: true,
+      poolLayout: true,
       feasibilityState: true,
       emailDeliveryState: true,
       forwardingState: true,
@@ -116,6 +122,11 @@ export async function getHomeownerAssessmentById(
 
   if (!assessment || assessment.archivedAt !== null) return null;
 
+  const parsedLayout =
+    persistedAssessmentSubmissionSchema.shape.poolLayout.parse(
+      assessment.poolLayout,
+    );
+
   return {
     id: assessment.id,
     reference: assessment.reference,
@@ -124,6 +135,7 @@ export async function getHomeownerAssessmentById(
     homeownerPhone: assessment.homeownerPhone,
     homeownerEmail: assessment.homeownerEmail,
     homeownerAddress: assessment.homeownerAddress,
+    builderCompanyName: assessment.builderCompanyName,
     visitorType:
       assessment.visitorType === null
         ? null
@@ -131,6 +143,13 @@ export async function getHomeownerAssessmentById(
             assessment.visitorType,
           ),
     visitorTypeOtherDetail: assessment.visitorTypeOtherDetail,
+    reportAudience:
+      persistedAssessmentSubmissionSchema.shape.report.shape.reportData.parse(
+        assessment.reportData,
+      ).reportAudience ??
+      resolveLegacyReportAudience(
+        assessment.visitorType as "homeowner" | "pool_builder" | "other" | null,
+      ),
     desiredTiming:
       persistedAssessmentSubmissionSchema.shape.homeowner.shape.desiredTiming.parse(
         assessment.desiredTiming,
@@ -141,6 +160,12 @@ export async function getHomeownerAssessmentById(
       persistedAssessmentSubmissionSchema.shape.addressEvidence.shape.boundaryStatus.parse(
         assessment.boundaryStatus,
       ),
+    poolLayout: {
+      layoutId: parsedLayout.layoutId,
+      layoutName: parsedLayout.layoutName,
+      lengthMetres: parsedLayout.lengthMetres,
+      widthMetres: parsedLayout.widthMetres,
+    },
     feasibilityState:
       persistedAssessmentSubmissionSchema.shape.report.shape.feasibilityState.parse(
         assessment.feasibilityState,
@@ -152,6 +177,13 @@ export async function getHomeownerAssessmentById(
 }
 
 export async function getSavedPreliminaryReportById(db: Database, id: string) {
+  return (await getSavedPreliminaryReportRenderById(db, id))?.report ?? null;
+}
+
+export async function getSavedPreliminaryReportRenderById(
+  db: Database,
+  id: string,
+) {
   const assessment = await db.query.homeownerAssessments.findFirst({
     where: and(
       eq(schema.homeownerAssessments.id, id),
@@ -165,11 +197,22 @@ export async function getSavedPreliminaryReportById(db: Database, id: string) {
   ) {
     return null;
   }
-  return buildSavedPreliminaryReport({
+  const report = buildSavedPreliminaryReport({
     reference: assessment.reference,
     createdAt: assessment.createdAt.toISOString(),
     submission: submissionFromRow(assessment, assessment.reportMapImageDataUrl),
+    legacyVisitorType: assessment.visitorType as
+      "homeowner" | "pool_builder" | "other" | null,
   });
+  return {
+    report,
+    context: {
+      builderCompanyName:
+        report.reportAudience === "pool_builder"
+          ? assessment.builderCompanyName
+          : null,
+    },
+  };
 }
 
 export async function getAssessmentDeliveryStateById(db: Database, id: string) {
@@ -197,8 +240,9 @@ export async function getAssessmentDeliveryStateById(db: Database, id: string) {
 
 export async function saveHomeownerAssessment(
   db: Database,
-  submission: PersistedAssessmentSubmission,
+  input: PersistedAssessmentSubmission,
 ) {
+  const submission = persistedAssessmentSubmissionSchema.parse(input);
   const existing = await getHomeownerAssessmentByIdempotencyKey(
     db,
     submission.idempotencyKey,
@@ -225,6 +269,7 @@ export async function saveHomeownerAssessment(
       homeownerPhone: submission.homeowner.phone,
       homeownerEmail: submission.homeowner.email,
       homeownerAddress: submission.homeowner.address,
+      builderCompanyName: submission.homeowner.builderCompanyName,
       visitorType: submission.homeowner.visitorType,
       visitorTypeOtherDetail: submission.homeowner.visitorTypeOtherDetail,
       desiredTiming: submission.homeowner.desiredTiming,
@@ -457,6 +502,13 @@ async function claimAssessmentDelivery(
     );
     return null;
   }
+  const report = buildSavedPreliminaryReport({
+    reference: assessment.reference,
+    createdAt: assessment.createdAt.toISOString(),
+    submission: submissionFromRow(assessment, assessment.reportMapImageDataUrl),
+    legacyVisitorType: assessment.visitorType as
+      "homeowner" | "pool_builder" | "other" | null,
+  });
 
   return {
     channel,
@@ -464,6 +516,7 @@ async function claimAssessmentDelivery(
     homeownerName: assessment.homeownerName,
     homeownerPhone: assessment.homeownerPhone,
     homeownerEmail: assessment.homeownerEmail,
+    builderCompanyName: assessment.builderCompanyName,
     visitorType:
       assessment.visitorType === null
         ? null
@@ -477,14 +530,7 @@ async function claimAssessmentDelivery(
       ),
     desiredTimingOtherDetail: assessment.desiredTimingOtherDetail,
     additionalInfo: assessment.additionalInfo,
-    report: buildSavedPreliminaryReport({
-      reference: assessment.reference,
-      createdAt: assessment.createdAt.toISOString(),
-      submission: submissionFromRow(
-        assessment,
-        assessment.reportMapImageDataUrl,
-      ),
-    }),
+    report,
   };
 }
 

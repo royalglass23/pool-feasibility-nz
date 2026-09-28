@@ -112,6 +112,7 @@ describe("reportExcavationGeometry", () => {
         answers: {
           version: 1,
           estimatedDepthMetres: 1.5,
+          excavationSideAllowanceMetres: 0.2,
           route: { provenance: "uncertain", geometry: null },
           accessConditions: ["none_of_these"],
           nearbyFeatures: ["none_of_these"],
@@ -133,21 +134,25 @@ describe("reportExcavationGeometry", () => {
           formattedValue: "27.00 m³",
         },
         {
-          id: "300mm-side-allowance",
-          label: "300 mm side-allowance scenario",
-          valueCubicMetres: 35.64,
-          formattedValue: "35.64 m³",
+          id: "selected-side-clearance",
+          label: "200 mm selected side-clearance scenario",
+          valueCubicMetres: 32.64,
+          formattedValue: "32.64 m³",
         },
       ],
-      assumptionId: "firth-masonry-side-300mm-v1",
+      assumptionId: "user-selected-side-clearance-v1",
       sourceUrl:
         "https://www.firth.co.nz/assets/Uploads/Resources/Documents/FIR0744-Masonry-Swimming-Pools.pdf",
+      clearanceDisclosure:
+        "200 mm was selected for planning. It is not approved for the selected pool; PoolReady’s provisional 300 mm starting point is Firth-derived.",
       assumptionDisclosure: expect.stringMatching(
-        /300 mm added on each side.*outside masonry wall.*temporary PoolReady proxy/i,
+        /200 mm added on each side.*selected by the user.*not sourced from Firth.*300 mm starting point/i,
       ),
       rangeDisclosure: expect.stringMatching(
         /geometry scenarios.*not an upper bound.*actual excavation/i,
       ),
+      publicDisclosure:
+        "Indicative planning volumes only — not a quote, specification or upper bound. These figures use your selected side clearance but exclude base preparation, drainage, terrain, services and installation method. Confirm final excavation requirements onsite.",
       exclusions: expect.stringMatching(
         /extra base depth.*masonry wall and footing dimensions.*floor falls.*drainage.*terrain cut.*battering or support.*services.*installation method.*not modelled/i,
       ),
@@ -188,6 +193,46 @@ describe("reportExcavationGeometry", () => {
 });
 
 describe("reportConstructabilitySections", () => {
+  it("keeps unanswered Builder access uncertain and needing checking", () => {
+    const report = buildTestPreliminaryReport({
+      reportAudience: "pool_builder",
+      constructability: buildConstructabilitySnapshot({
+        answers: {
+          version: 1,
+          estimatedDepthMetres: 1.5,
+          route: { provenance: "uncertain", geometry: null },
+          accessConditions: ["not_sure"],
+          nearbyFeatures: ["none_of_these"],
+        },
+        suggestedRoute: null,
+        routePolicyVersion: 1,
+        mappedEvidence: [],
+        providerAvailability: [],
+        assumptions: ["Access route policy v1: terrain_unavailable_or_steep"],
+      }),
+    });
+
+    const access = reportConstructabilitySections(report).find(
+      (section) => section.id === "access_excavation",
+    );
+
+    expect(access).toMatchObject({
+      status: "needs_checking",
+      statusLabel: "Needs checking",
+      details: expect.arrayContaining([
+        { label: "Saved route", value: "Not confirmed route" },
+      ]),
+      evidence: expect.arrayContaining([
+        { provenance: "Your Site answer", description: "I’m not sure" },
+        {
+          provenance: "Saved assumption",
+          description:
+            "A suggested access route could not be mapped because terrain information was unavailable or the ground may be too steep.",
+        },
+      ]),
+    });
+  });
+
   it("builds the three conservative sections from the saved submission evidence", () => {
     const route = {
       type: "LineString" as const,
@@ -311,7 +356,7 @@ describe("reportConstructabilitySections", () => {
         { label: "Route length", value: "18.4 m" },
       ]),
       excavation: expect.objectContaining({
-        assumptionId: "firth-masonry-side-300mm-v1",
+        assumptionId: "user-selected-side-clearance-v1",
         specialistDepthWarning:
           "Specialist depth — professional confirmation required",
         terrainLabel:

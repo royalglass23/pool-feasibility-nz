@@ -5,13 +5,28 @@ import nextConfig from "../../next.config";
 
 describe("Vercel native package tracing", () => {
   it("packages the native runtimes needed by public assessment saves and saved-report delivery", () => {
+    const internalAssessmentReportIncludes =
+      nextConfig.outputFileTracingIncludes?.[
+        "/api/internal/assessments/\\[id\\]/report/route"
+      ];
     const assessmentIncludes =
-      nextConfig.outputFileTracingIncludes?.["/api/public/assessments"];
+      nextConfig.outputFileTracingIncludes?.["/api/public/assessments/route"];
+    const deliveryIncludes =
+      nextConfig.outputFileTracingIncludes?.[
+        "/api/public/assessments/report/delivery/route"
+      ];
+    const deliveryStatusIncludes =
+      nextConfig.outputFileTracingIncludes?.[
+        "/api/public/assessments/report/delivery/status/route"
+      ];
     const savedReportIncludes =
       nextConfig.outputFileTracingIncludes?.[
-        "/api/public/assessments/report/*"
+        "/api/public/assessments/report/pdf/route"
       ];
 
+    expect(internalAssessmentReportIncludes).toEqual([
+      "./node_modules/@sparticuz/chromium/bin/**/*",
+    ]);
     expect(assessmentIncludes).toEqual([
       "./node_modules/@img/sharp-linux-x64/package.json",
       "./node_modules/@img/sharp-linux-x64/index.cjs",
@@ -22,6 +37,10 @@ describe("Vercel native package tracing", () => {
       "./node_modules/@sparticuz/chromium/bin/**/*",
     ]);
     expect(assessmentIncludes).not.toContain("./node_modules/sharp/**/*");
+    expect(deliveryIncludes).toEqual([
+      "./node_modules/@sparticuz/chromium/bin/**/*",
+    ]);
+    expect(deliveryStatusIncludes).toBeUndefined();
     expect(savedReportIncludes).toEqual([
       "./node_modules/@sparticuz/chromium/bin/**/*",
     ]);

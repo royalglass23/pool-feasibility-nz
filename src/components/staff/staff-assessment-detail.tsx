@@ -5,6 +5,7 @@ import { StaffConstructabilityEvidence } from "@/components/staff/staff-construc
 import { getProjectTimingLabel } from "@/modules/assessment/visitor-context";
 import { getVisitorTypeLabel } from "@/modules/assessment/visitor-type";
 import type { StaffAssessmentDetail as StaffAssessmentDetailModel } from "@/modules/staff/staff-assessment-read-model";
+import { formatNamedPoolLayout } from "@/modules/reporting/pool-feasibility-report";
 
 const submittedDate = new Intl.DateTimeFormat("en-NZ", {
   dateStyle: "medium",
@@ -48,6 +49,12 @@ export function StaffAssessmentDetail({
         <dl className="mt-5 grid gap-4 text-sm sm:grid-cols-2 lg:grid-cols-4">
           <Fact label="Phone" value={assessment.homeownerPhone} />
           <Fact label="Email" value={assessment.homeownerEmail} />
+          {assessment.builderCompanyName && (
+            <Fact
+              label="Company / trading name"
+              value={assessment.builderCompanyName}
+            />
+          )}
           <Fact
             label="I am a"
             value={
@@ -57,6 +64,14 @@ export function StaffAssessmentDetail({
                   ? (assessment.visitorTypeOtherDetail ?? "Other")
                   : getVisitorTypeLabel(assessment.visitorType)
             }
+          />
+          <Fact
+            label="Report audience"
+            value={getVisitorTypeLabel(assessment.reportAudience)}
+          />
+          <Fact
+            label="Pool layout"
+            value={formatNamedPoolLayout(assessment.poolLayout)}
           />
           <Fact
             label="Submitted"
@@ -95,6 +110,7 @@ export function StaffAssessmentDetail({
 
       <HomeownerFeasibilityReportView
         report={assessment.report}
+        builderCompanyName={assessment.builderCompanyName}
         delivery={{
           homeowner: assessment.emailDeliveryState,
           internal_test_report: assessment.forwardingState,

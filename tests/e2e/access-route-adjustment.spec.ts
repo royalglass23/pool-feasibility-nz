@@ -1,8 +1,25 @@
+import "dotenv/config";
+import { createHmac, randomUUID } from "node:crypto";
 import { expect, test } from "@playwright/test";
+import { neon } from "@neondatabase/serverless";
+import { eq } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/neon-http";
+import * as schema from "@/db/schema";
+import { getSavedPreliminaryReportById } from "@/db/repositories/homeowner-assessment-repository";
+import { officialDatasetEvidence } from "@/modules/providers/official-dataset-catalog";
+import { queryableDatasetKeys } from "@/modules/data-access-spike/dataset-catalog";
+
+const databaseUrl = process.env.DATABASE_URL_DEV;
+const signingKey =
+  process.env.INTERNAL_REPORT_SIGNING_SECRET ??
+  "playwright-report-signing-secret-2026-07-22-at-least-32-bytes";
 
 test("adjusts a credible access route by keyboard and signs the changed line", async ({
   page,
 }) => {
+  test.skip(!databaseUrl, "DATABASE_URL_DEV is required for persistence E2E.");
+  test.setTimeout(90_000);
+  const db = drizzle(neon(databaseUrl!), { schema });
   const parcel = {
     type: "Polygon",
     coordinates: [
@@ -32,6 +49,17 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
       parcelId: "test-parcel",
     },
     aerial: { state: "unavailable", durationMs: null, attribution: null },
+    datasets: {
+      address_resolution: officialDatasetEvidence(
+        "address_resolution",
+        "2026-09-18T00:00:00.000Z",
+      ),
+      legal_parcel: officialDatasetEvidence(
+        "legal_parcel",
+        "2026-09-18T00:00:00.000Z",
+      ),
+      aerial_imagery: null,
+    },
     defaultPool: {
       id: "compact",
       label: "Compact",
@@ -52,7 +80,7 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
       status: 200,
       contentType: "application/json",
       body: JSON.stringify({
-        assessmentSnapshot: "initial-route-token",
+        assessmentSnapshot: signedSnapshot(base),
         data: base,
       }),
     }),
@@ -65,7 +93,27 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
       body: JSON.stringify(
         request.mode === "detailed"
           ? {
-              assessmentSnapshot: "detailed-route-token",
+              assessmentSnapshot: signedSnapshot(
+                {
+                  ...base,
+                  detailedChecks: {
+                    status: "complete",
+                    layers: syntheticLayers("2026-09-18T00:00:01.000Z"),
+                    terrain: {
+                      status: "measured",
+                      upperSlopeDegrees: 2,
+                      averageSlopeDegrees: 1,
+                      estimatedFallMetres: 0.1,
+                      source: { evidenceUse: "report_allowed" },
+                    },
+                    retrievedAt: "2026-09-18T00:00:01.000Z",
+                    durationMs: 1,
+                    region: "Auckland",
+                    limitations: [],
+                  },
+                },
+                1.5,
+              ),
               data: {
                 status: "complete",
                 layers: [
@@ -89,7 +137,7 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
               },
             }
           : {
-              assessmentSnapshot: "boundary-route-token",
+              assessmentSnapshot: signedSnapshot(base),
               data: {
                 boundary: base.boundary,
                 aerial: base.aerial,
@@ -102,46 +150,46 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
     });
   });
   let posted: Record<string, unknown> | null = null;
-  await page.route(
-    "**/api/public/assessment-snapshot/site-answers",
-    (route) => {
-      const body = route.request().postDataJSON() as Record<string, unknown>;
-      posted = body;
-      return route.fulfill({
-        status: 200,
-        contentType: "application/json",
-        body: JSON.stringify({
-          assessmentSnapshot: "signed-route-token",
-          answers: {
-            version: 1,
-            estimatedDepthMetres: 1.5,
-            route: {
-              provenance: "user-supplied",
-              geometry: body.adjustedRoute,
-            },
-            accessConditions: body.accessConditions,
-            nearbyFeatures: body.nearbyFeatures,
-          },
-        }),
-      });
-    },
-  );
+  page.on("request", (request) => {
+    if (
+      request.url().endsWith("/api/public/assessment-snapshot/site-answers")
+    ) {
+      posted = request.postDataJSON() as Record<string, unknown>;
+    }
+  });
 
   await page.goto("/");
   await page.getByRole("button", { name: "Reject analytics" }).click();
+  await page.getByRole("radio", { name: "A customer property" }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page
     .getByLabel("Auckland property address")
     .fill("1 Test Street, Auckland");
   await page.keyboard.press("Enter");
   await page.getByRole("button", { name: "Check for constraints" }).click();
-  const routeQuestion = page.getByRole("group", {
-    name: "Suggested access route",
+  await page
+    .getByRole("button", { name: "Access and excavation conditions" })
+    .click();
+  await page
+    .getByRole("group", {
+      name: "Which visible site conditions could affect plant access or excavation?",
+    })
+    .getByRole("checkbox", { name: "None of these" })
+    .check();
+  await page.getByRole("button", { name: "Nearby features" }).click();
+  await page
+    .getByRole("group", {
+      name: "Which existing features are close to the proposed pool area?",
+    })
+    .getByRole("checkbox", { name: "None of these" })
+    .check();
+  await page.getByRole("button", { name: "Check this property" }).click();
+  const routeResult = page.getByRole("region", {
+    name: "Access route result",
   });
-  await expect(
-    routeQuestion.getByRole("radio", { name: "Confirm route" }),
-  ).toBeVisible();
-  await routeQuestion
-    .getByRole("button", { name: "Add turning point" })
+  await expect(routeResult).toBeVisible();
+  await routeResult
+    .getByRole("button", { name: "Adjust suggested route" })
     .click();
   const marker = page.getByRole("button", {
     name: /Access route turning point 1/,
@@ -162,27 +210,15 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
     { steps: 5 },
   );
   await page.mouse.up();
-  await expect(routeQuestion.getByText("Approximate length")).toBeVisible();
-  await routeQuestion
-    .getByRole("button", { name: "Add turning point" })
+  await expect(routeResult.getByText("Approximate length")).toBeVisible();
+  await routeResult
+    .getByRole("button", { name: "Adjust suggested route" })
     .click();
   await expect(
-    routeQuestion.getByRole("button", { name: "Add turning point" }),
+    routeResult.getByRole("button", { name: "Adjust suggested route" }),
   ).toBeDisabled();
-  await page
-    .getByRole("group", {
-      name: "Are there any visible conditions that could affect construction access or excavation?",
-    })
-    .getByRole("checkbox", { name: "None of these" })
-    .check();
-  await page
-    .getByRole("group", {
-      name: "Which existing features are close to the proposed pool area?",
-    })
-    .getByRole("checkbox", { name: "None of these" })
-    .check();
-  await page.getByRole("button", { name: "Continue to your details" }).click();
-  await expect.poll(() => posted).not.toBeNull();
+  await page.getByRole("button", { name: "Save route adjustment" }).click();
+  await expect.poll(() => posted?.routeResponse).toBe("adjust");
   expect(posted).toMatchObject({
     routeResponse: "adjust",
     adjustedRoute: { type: "LineString", coordinates: expect.any(Array) },
@@ -190,4 +226,93 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
   expect(
     (posted!.adjustedRoute as { coordinates: unknown[] }).coordinates,
   ).toHaveLength(4);
+
+  const form = page.locator(
+    'form[aria-labelledby="homeowner-details-heading"]',
+  );
+  await form
+    .getByLabel("Name", { exact: true })
+    .fill("Synthetic Route Evidence");
+  await form.getByLabel("Phone").fill("021 555 0345");
+  await form.getByLabel("Email").fill("rg345-route@example.test");
+  await form.getByRole("checkbox", { name: /I consent to PoolReady/i }).check();
+  const responsePromise = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/public/assessments") &&
+      response.request().method() === "POST",
+  );
+  await form.getByRole("button", { name: "Save and show my report" }).click();
+  const response = await responsePromise;
+  const body = await response.json();
+  expect(response.status(), JSON.stringify(body)).toBe(201);
+  const assessmentId = body.assessment.id as string;
+  try {
+    const persisted = await getSavedPreliminaryReportById(db, assessmentId);
+    expect(persisted?.constructability).toMatchObject({
+      version: 1,
+      route: {
+        provenance: "user-supplied",
+        geometry: { type: "LineString", coordinates: expect.any(Array) },
+      },
+      routeFacts: expect.objectContaining({ valid: true }),
+    });
+    expect(
+      (
+        persisted!.constructability as {
+          route: { geometry: { coordinates: unknown[] } };
+        }
+      ).route.geometry.coordinates,
+    ).toHaveLength(4);
+  } finally {
+    await db
+      .delete(schema.homeownerAssessments)
+      .where(eq(schema.homeownerAssessments.id, assessmentId));
+  }
 });
+
+function signedSnapshot(
+  fastResult: unknown,
+  lockedEstimatedDepthMetres?: number,
+) {
+  const snapshot = {
+    submissionId: randomUUID(),
+    fastResult,
+    expiresAt: Date.now() + 15 * 60_000,
+    ...(lockedEstimatedDepthMetres === undefined
+      ? {}
+      : { lockedEstimatedDepthMetres }),
+  };
+  const payload = Buffer.from(JSON.stringify(snapshot), "utf8").toString(
+    "base64url",
+  );
+  const signature = createHmac("sha256", signingKey)
+    .update(payload)
+    .digest("base64url");
+  return `${payload}.${signature}`;
+}
+
+function syntheticLayers(retrievedAt: string) {
+  return [...queryableDatasetKeys, "culverts"].map((key) => ({
+    key,
+    state: "verified_empty",
+    geometry: null,
+    message: "Synthetic empty result",
+    evidence: {
+      provider: "Synthetic Council GIS",
+      dataset: key,
+      datasetIdentifier: key,
+      status: "success",
+      licenceStatus: "permitted",
+      evidenceUse: "report_allowed",
+      retrievedAt,
+      datasetDate: null,
+      licence: "Synthetic test licence",
+      attribution: null,
+      geometryUsed: "bounded query",
+      attributesUsed: [],
+      evidenceType: "vector",
+      confidence: "limited",
+      featureCount: 0,
+    },
+  }));
+}

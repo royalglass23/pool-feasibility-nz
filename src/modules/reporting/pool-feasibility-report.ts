@@ -352,7 +352,7 @@ function buildAssessments(
       details: [
         {
           label: "Selected pool",
-          value: `${formatNumber(submission.poolLayout.lengthMetres)} m x ${formatNumber(submission.poolLayout.widthMetres)} m`,
+          value: formatNamedPoolLayout(submission.poolLayout),
         },
         ...(submission.addressEvidence.boundaryAreaSquareMetres
           ? [
@@ -799,6 +799,14 @@ export function reportShortStatus(status: AssessmentStatus): string {
 
 export function formatReportNumber(value: number): string {
   return value.toLocaleString("en-NZ", { maximumFractionDigits: 1 });
+}
+
+export function formatNamedPoolLayout(layout: {
+  layoutName: string;
+  lengthMetres: number;
+  widthMetres: number;
+}): string {
+  return `${layout.layoutName} — ${formatReportNumber(layout.lengthMetres)} x ${formatReportNumber(layout.widthMetres)} m`;
 }
 
 export function reportAddressSlug(address: string): string {

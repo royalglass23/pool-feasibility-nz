@@ -113,6 +113,9 @@ async function openFastView(page: import("@playwright/test").Page) {
     });
   });
   await page.goto("/");
+  await page.getByRole("button", { name: "Reject analytics" }).click();
+  await page.getByRole("radio", { name: "My property" }).check();
+  await page.getByRole("button", { name: "Continue" }).click();
   await page
     .getByLabel("Auckland property address")
     .fill(baseResult.requestedAddress);
@@ -163,7 +166,6 @@ test("keeps the mobile workspace anchored when the live result changes", async (
 }) => {
   await page.setViewportSize({ width: 320, height: 720 });
   await openFastView(page);
-  await page.getByRole("button", { name: "Reject analytics" }).click();
   const aerialMap = page.getByLabel(
     `Fast aerial map for ${baseResult.resolvedAddress.fullAddress}`,
   );
@@ -187,7 +189,7 @@ test("keeps the mobile workspace anchored when the live result changes", async (
   expect(await documentTop(aerialMap)).toBeCloseTo(mapTopBeforeCheck, 0);
 });
 
-test("shows friendly position-review guidance while leaving the pool controls available", async ({
+test("shows friendly position-review guidance while locking the checked pool position", async ({
   page,
 }) => {
   await openFastView(page);

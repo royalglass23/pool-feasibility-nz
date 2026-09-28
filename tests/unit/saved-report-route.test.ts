@@ -2,17 +2,17 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 
 const getDb = vi.hoisted(() => vi.fn(() => ({}) as never));
-const getSavedPreliminaryReportById = vi.hoisted(() => vi.fn());
-const generatePreliminaryReportPdf = vi.hoisted(() => vi.fn());
+const getSavedPreliminaryReportRenderById = vi.hoisted(() => vi.fn());
+const generateSavedPreliminaryReportPdf = vi.hoisted(() => vi.fn());
 const staffSessionDeniedResponse = vi.hoisted(() => vi.fn());
 
 vi.mock("server-only", () => ({}));
 vi.mock("@/db/client", () => ({ getDb }));
 vi.mock("@/db/repositories/homeowner-assessment-repository", () => ({
-  getSavedPreliminaryReportById,
+  getSavedPreliminaryReportRenderById,
 }));
 vi.mock("@/modules/reporting/report-renderer", () => ({
-  generatePreliminaryReportPdf,
+  generateSavedPreliminaryReportPdf,
 }));
 vi.mock("@/modules/staff/staff-session", () => ({
   staffSessionDeniedResponse,
@@ -26,8 +26,8 @@ const report = buildTestPreliminaryReport({ warnings: [] });
 
 afterEach(() => {
   getDb.mockClear();
-  getSavedPreliminaryReportById.mockReset();
-  generatePreliminaryReportPdf.mockReset();
+  getSavedPreliminaryReportRenderById.mockReset();
+  generateSavedPreliminaryReportPdf.mockReset();
   staffSessionDeniedResponse.mockReset();
   vi.unstubAllEnvs();
 });
@@ -70,8 +70,11 @@ describe("GET saved preliminary report PDF", () => {
 
   it("returns the PDF generated from the persisted shared report", async () => {
     staffSessionDeniedResponse.mockResolvedValue(null);
-    getSavedPreliminaryReportById.mockResolvedValue(report);
-    generatePreliminaryReportPdf.mockResolvedValue(
+    getSavedPreliminaryReportRenderById.mockResolvedValue({
+      report,
+      context: { builderCompanyName: null },
+    });
+    generateSavedPreliminaryReportPdf.mockResolvedValue(
       Buffer.from("%PDF-persisted"),
     );
 
@@ -92,12 +95,15 @@ describe("GET saved preliminary report PDF", () => {
     expect(Buffer.from(await response.arrayBuffer()).toString()).toBe(
       "%PDF-persisted",
     );
-    expect(generatePreliminaryReportPdf).toHaveBeenCalledWith(report);
+    expect(generateSavedPreliminaryReportPdf).toHaveBeenCalledWith({
+      report,
+      context: { builderCompanyName: null },
+    });
   });
 
   it("uses the stable assessment-not-found code when no saved report exists", async () => {
     staffSessionDeniedResponse.mockResolvedValue(null);
-    getSavedPreliminaryReportById.mockResolvedValue(null);
+    getSavedPreliminaryReportRenderById.mockResolvedValue(null);
 
     const response = await GET(
       new Request(
@@ -114,8 +120,11 @@ describe("GET saved preliminary report PDF", () => {
 
   it("uses the stable report-generation code for renderer failures", async () => {
     staffSessionDeniedResponse.mockResolvedValue(null);
-    getSavedPreliminaryReportById.mockResolvedValue(report);
-    generatePreliminaryReportPdf.mockRejectedValue(
+    getSavedPreliminaryReportRenderById.mockResolvedValue({
+      report,
+      context: { builderCompanyName: null },
+    });
+    generateSavedPreliminaryReportPdf.mockRejectedValue(
       new Error("REPORT_RENDERER_TIMEOUT"),
     );
 

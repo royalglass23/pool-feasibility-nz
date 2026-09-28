@@ -15,6 +15,7 @@
     "format:check": "prettier --check .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:build-tracing": "npm run build && node ./scripts/check-next-build-tracing.mjs",
     "test:e2e": "playwright test",
     "test:e2e:contact": "playwright test --config playwright.contact.config.ts",
     "spike:data-access": "tsx scripts/data-access-spike.ts",
@@ -46,6 +47,7 @@
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
+    "@next/third-parties": "^16.3.6",
     "@sparticuz/chromium": "149.0.0",
     "@t3-oss/env-nextjs": "^0.13.11",
     "@turf/turf": "^7.3.5",

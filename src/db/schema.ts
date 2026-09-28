@@ -25,6 +25,7 @@ export const homeownerAssessments = pgTable(
     homeownerPhone: text("homeowner_phone").notNull(),
     homeownerEmail: text("homeowner_email").notNull(),
     homeownerAddress: text("homeowner_address").notNull(),
+    builderCompanyName: text("builder_company_name"),
     visitorType: text("visitor_type"),
     visitorTypeOtherDetail: text("visitor_type_other_detail"),
     desiredTiming: text("desired_timing").notNull(),

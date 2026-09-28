@@ -23,6 +23,7 @@ function createDeliveryStore(
     report?: SavedPreliminaryReport;
     homeownerName?: string;
     homeownerPhone?: string;
+    builderCompanyName?: string | null;
     visitorType?: "homeowner" | "pool_builder" | "other" | null;
     visitorTypeOtherDetail?: string | null;
     desiredTiming?: "asap" | "3_months" | "6_months" | "12_months" | "other";
@@ -44,6 +45,7 @@ function createDeliveryStore(
             homeownerName: options.homeownerName ?? "Jane Homeowner",
             homeownerPhone: options.homeownerPhone ?? "021 123 4567",
             homeownerEmail: "jane@example.com",
+            builderCompanyName: options.builderCompanyName ?? null,
             visitorType: options.visitorType ?? "homeowner",
             visitorTypeOtherDetail: options.visitorTypeOtherDetail ?? null,
             desiredTiming: options.desiredTiming ?? "3_months",
@@ -58,6 +60,7 @@ function createDeliveryStore(
           homeownerName: options.homeownerName ?? "Jane Homeowner",
           homeownerPhone: options.homeownerPhone ?? "021 123 4567",
           homeownerEmail: "jane@example.com",
+          builderCompanyName: options.builderCompanyName ?? null,
           visitorType: options.visitorType ?? "homeowner",
           visitorTypeOtherDetail: options.visitorTypeOtherDetail ?? null,
           desiredTiming: options.desiredTiming ?? "3_months",
@@ -278,8 +281,8 @@ describe("PDF assessment report delivery", () => {
       { homeowner: "sent", internal_test_report: "pending" },
       {
         homeownerPhone: "027 123 4567",
-        visitorType: "other",
-        visitorTypeOtherDetail: "Landscape designer",
+        builderCompanyName: "North Shore Pools Ltd",
+        visitorType: "pool_builder",
         desiredTiming: "other",
         desiredTimingOtherDetail: "After the new deck is complete",
         additionalInfo: "Access is through the shared driveway.",
@@ -303,6 +306,9 @@ describe("PDF assessment report delivery", () => {
     expect(supportEmail.text).toContain("Name: Jane Homeowner");
     expect(supportEmail.text).toContain("Phone: 027 123 4567");
     expect(supportEmail.text).toContain("Email: jane@example.com");
+    expect(supportEmail.text).toContain(
+      "Company / trading name: North Shore Pools Ltd",
+    );
     expect(supportEmail.text).toContain("Property address: 1 Test Street");
     expect(supportEmail.text).toContain(
       "Overall result:\nFurther investigation required",
@@ -311,7 +317,7 @@ describe("PDF assessment report delivery", () => {
       "Main finding:\nPool position requires checking: Some mapped evidence is unavailable or uncertain.",
     );
     expect(supportEmail.text).not.toContain("Recommended next step");
-    expect(supportEmail.text).toContain("I am a: Other: Landscape designer");
+    expect(supportEmail.text).toContain("I am a: Pool Builder");
     expect(supportEmail.text).toContain(
       "When do you need it?: Other: After the new deck is complete",
     );
@@ -337,6 +343,8 @@ describe("PDF assessment report delivery", () => {
 
     expect(send).toHaveBeenCalledOnce();
     expect(send.mock.calls[0]?.[0].to).toBe("jane@example.com");
+    expect(send.mock.calls[0]?.[0].html).toContain("Compact — 6.5 x 3 m");
+    expect(send.mock.calls[0]?.[0].text).toContain("Compact — 6.5 x 3 m");
     expect(result).toEqual({
       homeowner: "sent",
       internal_test_report: "unchanged",
@@ -408,6 +416,8 @@ describe("PDF assessment report delivery", () => {
       filename: "preliminary-pool-feasibility-1-test-street.pdf",
       idempotencyKey: "assessment-report/GF-2026-000123/internal_test_report",
     });
+    expect(send.mock.calls[0]?.[0].html).toContain("Compact — 6.5 x 3 m");
+    expect(send.mock.calls[0]?.[0].text).toContain("Compact — 6.5 x 3 m");
     expect(result).toEqual({
       homeowner: "unchanged",
       internal_test_report: "sent",

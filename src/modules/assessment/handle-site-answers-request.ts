@@ -25,7 +25,10 @@ const requestSchema = z
     assessmentSnapshot: z.string().min(32).max(5_500_000),
     accessConditions: constructabilityAnswersSchema.shape.accessConditions,
     nearbyFeatures: constructabilityAnswersSchema.shape.nearbyFeatures,
-    routeResponse: z.enum(["confirm", "adjust", "not_sure"]).optional(),
+    sideClearanceMillimetres: z.number().int().min(200).max(600).default(300),
+    routeResponse: z
+      .enum(["suggested", "confirm", "adjust", "not_sure"])
+      .optional(),
     adjustedRoute:
       constructabilityAnswersSchema.shape.route.shape.geometry.optional(),
     poolLayout: poolLayoutSchema.optional(),
@@ -49,7 +52,8 @@ export async function handleSiteAnswersRequest(
       ? suggestAccessRouteFromProperty(snapshot.fastResult, parsed.poolLayout)
       : null;
     if (
-      parsed.routeResponse === "confirm" &&
+      (parsed.routeResponse === "suggested" ||
+        parsed.routeResponse === "confirm") &&
       suggestion?.confidence !== "credible"
     )
       throw new AssessmentSnapshotValidationError();
@@ -75,18 +79,24 @@ export async function handleSiteAnswersRequest(
           }
         : parsed.routeResponse === "confirm" && suggestion?.geometry
           ? { provenance: "confirmed" as const, geometry: suggestion.geometry }
-          : parsed.routeResponse === "not_sure"
-            ? { provenance: "uncertain" as const, geometry: null }
-            : (previous?.answers.route ?? {
-                provenance: "uncertain" as const,
-                geometry: null,
-              });
+          : parsed.routeResponse === "suggested" && suggestion?.geometry
+            ? {
+                provenance: "suggested" as const,
+                geometry: suggestion.geometry,
+              }
+            : parsed.routeResponse === "not_sure"
+              ? { provenance: "uncertain" as const, geometry: null }
+              : (previous?.answers.route ?? {
+                  provenance: "uncertain" as const,
+                  geometry: null,
+                });
     const answers = constructabilityAnswersSchema.parse({
       version: 1,
       estimatedDepthMetres:
         snapshot.lockedEstimatedDepthMetres ??
         previous?.answers.estimatedDepthMetres ??
         DEFAULT_ESTIMATED_POOL_DEPTH_METRES,
+      excavationSideAllowanceMetres: parsed.sideClearanceMillimetres / 1_000,
       route,
       accessConditions: parsed.accessConditions,
       nearbyFeatures: parsed.nearbyFeatures,

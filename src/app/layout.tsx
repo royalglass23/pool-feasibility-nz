@@ -9,9 +9,9 @@ import "maplibre-gl/dist/maplibre-gl.css";
 const siteIndexingEnabled = isSiteIndexingEnabled();
 
 export const metadata: Metadata = {
-  title: "Pool Planning Auckland | Check your property",
+  title: "Pool Feasibility Auckland | Check Your Property | PoolReady",
   description:
-    "Get an early view of your Auckland property's pool-planning context before you take the next step.",
+    "Check your Auckland property for pool placement and planning constraints with a preliminary PoolReady site assessment before design and construction.",
   robots: siteIndexingEnabled
     ? { index: true, follow: true }
     : { index: false, follow: false, noarchive: true },

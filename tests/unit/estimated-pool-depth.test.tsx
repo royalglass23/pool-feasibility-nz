@@ -1,13 +1,11 @@
 import { afterEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen } from "@testing-library/react";
-import userEvent from "@testing-library/user-event";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { useState } from "react";
 import { EstimatedPoolDepth } from "@/components/estimated-pool-depth";
 
 afterEach(cleanup);
 
-it("starts at 1.5 m, permits keyboard edits through 2.0 m, and explains specialist depth", async () => {
-  const user = userEvent.setup();
+it("uses an exact, keyboard-operable 1.0-2.0 m slider and explains specialist depth", async () => {
   const onChange = vi.fn();
   function Editable() {
     const [value, setValue] = useState("1.5");
@@ -23,15 +21,20 @@ it("starts at 1.5 m, permits keyboard edits through 2.0 m, and explains speciali
     );
   }
   const { rerender } = render(<Editable />);
-  const input = screen.getByRole("spinbutton", {
+  const input = screen.getByRole("slider", {
     name: "Estimated pool depth (m)",
   });
-  expect(input).toHaveValue(1.5);
+  expect(input).toHaveValue("1.5");
+  expect(input).toHaveAttribute("min", "1");
   expect(input).toHaveAttribute("max", "2");
+  expect(input).toHaveAttribute("step", "0.1");
+  expect(input).toHaveAttribute("aria-valuetext", "1.5 m");
+  expect(screen.getByText("Minimum 1.0 m")).toBeVisible();
+  expect(screen.getByText("Maximum 2.0 m")).toBeVisible();
   expect(screen.getByText(/PoolReady modelling scope limit/)).toBeVisible();
-  await user.click(input);
-  await user.keyboard("{Control>}a{/Control}1.8");
-  expect(onChange).toHaveBeenLastCalledWith("1.8");
+  input.focus();
+  fireEvent.change(input, { target: { value: "1.9" } });
+  expect(onChange).toHaveBeenLastCalledWith("1.9");
   rerender(
     <EstimatedPoolDepth value="1.8" locked={false} onChange={onChange} />,
   );
@@ -44,18 +47,18 @@ it("starts at 1.5 m, permits keyboard edits through 2.0 m, and explains speciali
   ).toBeVisible();
   rerender(<EstimatedPoolDepth value="2" locked={true} onChange={onChange} />);
   expect(
-    screen.getByRole("spinbutton", { name: "Estimated pool depth (m)" }),
+    screen.getByRole("slider", { name: "Estimated pool depth (m)" }),
   ).toBeDisabled();
 });
 
-it.each(["", "0", "2.1", "Infinity", "NaN", "1e309"])(
+it.each(["", "0", "0.9", "2.1", "Infinity", "NaN", "1e309"])(
   "identifies %s as invalid",
   (value) => {
     render(
       <EstimatedPoolDepth value={value} locked={false} onChange={() => {}} />,
     );
     expect(
-      screen.getByRole("spinbutton", { name: "Estimated pool depth (m)" }),
+      screen.getByRole("slider", { name: "Estimated pool depth (m)" }),
     ).toHaveAttribute("aria-invalid", "true");
   },
 );

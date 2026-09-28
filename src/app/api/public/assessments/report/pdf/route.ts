@@ -2,11 +2,11 @@ import "server-only";
 
 import { z } from "zod";
 import { getDb } from "@/db/client";
-import { getSavedPreliminaryReportById } from "@/db/repositories/homeowner-assessment-repository";
+import { getSavedPreliminaryReportRenderById } from "@/db/repositories/homeowner-assessment-repository";
 import { createPublicRateLimitedHandler } from "@/modules/rate-limit/public-rate-limit";
 import { preliminaryReportFilename } from "@/modules/reporting/preliminary-report";
 import {
-  generatePreliminaryReportPdf,
+  generateSavedPreliminaryReportPdf,
   ReportRendererBusyError,
   ReportRendererTimeoutError,
 } from "@/modules/reporting/report-renderer";
@@ -36,11 +36,14 @@ async function handlePublicSavedReportPdf(request: Request): Promise<Response> {
       JSON.parse(new TextDecoder().decode(bytes)),
     );
     const access = verifySavedReportAccessToken(body.accessToken);
-    const report = await getSavedPreliminaryReportById(
+    const renderProjection = await getSavedPreliminaryReportRenderById(
       getDb(),
       access.assessmentId,
     );
-    if (!report || report.reference !== access.reference) {
+    if (
+      !renderProjection ||
+      renderProjection.report.reference !== access.reference
+    ) {
       return apiErrorResponse(
         {
           code: "ASSESSMENT_NOT_FOUND",
@@ -52,7 +55,8 @@ async function handlePublicSavedReportPdf(request: Request): Promise<Response> {
       );
     }
 
-    const pdf = await generatePreliminaryReportPdf(report);
+    const { report } = renderProjection;
+    const pdf = await generateSavedPreliminaryReportPdf(renderProjection);
     return new Response(new Uint8Array(pdf), {
       status: 200,
       headers: {

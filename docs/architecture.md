@@ -15,6 +15,32 @@ in `src/components/fast-property-view.tsx`; the contact and consent step is in
 | Save the assessment                  | `/api/public/assessments`                 | `src/modules/assessment/handle-assessment-requests.ts`                 |
 | Deliver the saved report             | `/api/public/assessments/report/delivery` | `src/modules/reporting/deliver-assessment-report.ts`                   |
 
+## Audience evidence and projection boundary
+
+The Property Check has one evidence engine. Address resolution, mapped layers,
+pool placement, warnings and constructability evidence are saved once; the
+Homeowner and Pool Builder paths do not recalculate those facts independently.
+The server binds the selected canonical `reportAudience` to the signed
+assessment snapshot before persistence.
+
+`src/modules/reporting/report-audience-presentation.ts` is the shared public
+projection policy. The saved web report, PDF renderer and transactional email
+read the persisted audience from the same `SavedPreliminaryReport`. Homeowner
+projection omits Builder-only constructability, depth, route, excavation and
+provenance detail. Pool Builder projection retains the applicable technical
+evidence. Staff separately sees the trusted report audience, the historical
+visitor value, and the complete read-only saved evidence so public copy removal
+does not remove audit support.
+
+Historical records without `reportData.reportAudience` resolve an explicit
+`homeowner` or `pool_builder` visitor value to that audience. Historical
+`other`, null or missing values conservatively use the Homeowner
+projection; the fallback must not manufacture technical answers or turn
+missing evidence into clearance. The audience remains in the versioned
+`report_data` aggregate, so no database migration is required. Any future
+migration or historical backfill needs separate production-data authorization;
+RG-355 does not authorize one.
+
 The `data-access-spike` directory name is historical. Its fast-property files
 still serve the public journey. The older data-access result is handled by
 `AssessmentWorkspace`; do not infer that everything under that directory is

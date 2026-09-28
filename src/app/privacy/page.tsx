@@ -26,13 +26,14 @@ export default function PrivacyNoticePage() {
         <NoticeSection title="What we collect">
           <p>
             For a report request, we collect your name, phone number, and email
-            address; your visitor type and project timing; and any optional
-            message you provide. We also save the checked property address, the
-            selected address and parcel evidence, your chosen pool layout,
-            mapped warnings and measurements, the report content, and the map
-            image used in the report. For a contact enquiry, we collect only
-            your name, email address, and message. For a Founding Partner
-            enquiry, we also collect your company name; a message is optional.
+            address; an optional company or trading name for Pool Builders; your
+            visitor type and project timing; and any optional message you
+            provide. We also save the checked property address, the selected
+            address and parcel evidence, your chosen pool layout, mapped
+            warnings and measurements, the report content, and the map image
+            used in the report. For a contact enquiry, we collect only your
+            name, email address, and message. For a Founding Partner enquiry, we
+            also collect your company name; a message is optional.
           </p>
         </NoticeSection>
 

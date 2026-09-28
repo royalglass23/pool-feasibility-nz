@@ -20,8 +20,15 @@ import {
   FastPropertyView,
   type FastPropertyViewMapSnapshot,
 } from "@/components/fast-property-view";
-import { HomeownerSubmissionForm } from "@/components/homeowner-submission-form";
-import { SiteQuestions } from "@/components/site-questions";
+import {
+  emptyHomeownerContactDraft,
+  HomeownerSubmissionForm,
+  type HomeownerContactDraft,
+} from "@/components/homeowner-submission-form";
+import {
+  SiteQuestions,
+  type BuilderSiteQuestionDraft,
+} from "@/components/site-questions";
 import type { ConstructabilityAnswers } from "@/modules/assessment/constructability-evidence";
 import {
   DEFAULT_ESTIMATED_POOL_DEPTH_METRES,
@@ -47,6 +54,17 @@ import {
   readClientApiError,
   type ClientApiError,
 } from "@/shared/http/client-api-error";
+import { ReportAudiencePathway } from "@/components/report-audience-pathway";
+import {
+  PropertyCheckJourneyNav,
+  type PropertyCheckStage,
+} from "@/components/property-check-journey-nav";
+import type { ReportAudience } from "@/modules/assessment/report-audience";
+import {
+  journeyInvalidationFor,
+  type JourneyChange,
+} from "@/modules/assessment/property-check-invalidation";
+import { useSearchParams } from "next/navigation";
 
 type DataAccessApiResult = DataAccessSpikeResult & {
   assessmentExplanation?: AssessmentExplanation;
@@ -83,6 +101,8 @@ type PropertyCheckIssue = {
 
 function placementIdentity(placement: FastPoolPlacementSnapshot): string {
   return JSON.stringify([
+    placement.layoutId,
+    placement.layoutName,
     placement.position,
     placement.dimensions,
     placement.rotationDegrees,
@@ -90,7 +110,24 @@ function placementIdentity(placement: FastPoolPlacementSnapshot): string {
   ]);
 }
 
-export function PropertyCheckJourney() {
+export function PropertyCheckJourneyEntry() {
+  const searchParams = useSearchParams();
+  const initialReportAudience =
+    searchParams.get("audience") === "pool_builder" ? "pool_builder" : null;
+
+  return (
+    <PropertyCheckJourney
+      key={initialReportAudience ?? "generic"}
+      initialReportAudience={initialReportAudience}
+    />
+  );
+}
+
+export function PropertyCheckJourney({
+  initialReportAudience = null,
+}: {
+  initialReportAudience?: ReportAudience | null;
+}) {
   const [address, setAddress] = useState("");
   const [selectedAddressId, setSelectedAddressId] = useState<string | null>(
     null,
@@ -127,9 +164,22 @@ export function PropertyCheckJourney() {
   } | null>(null);
   const [fastPlacementSnapshot, setFastPlacementSnapshot] =
     useState<FastPoolPlacementSnapshot | null>(null);
+  const [confirmedPlacementKey, setConfirmedPlacementKey] = useState<
+    string | null
+  >(null);
   const [fastMapSnapshot, setFastMapSnapshot] =
     useState<FastPropertyViewMapSnapshot | null>(null);
+  const [reportAudience, setReportAudience] = useState<ReportAudience | null>(
+    initialReportAudience,
+  );
+  const [currentStage, setCurrentStage] =
+    useState<PropertyCheckStage>("audience");
+  const [contactDraft, setContactDraft] = useState<HomeownerContactDraft>(
+    emptyHomeownerContactDraft,
+  );
+  const [isSavingReport, setIsSavingReport] = useState(false);
   const fastSavedReport = useSavedAssessmentReport();
+  const resetSavedReport = fastSavedReport.resetReport;
   const [error, setError] = useState<PropertyCheckIssue | null>(null);
   const [addressError, setAddressError] = useState<string | null>(null);
   const [addressOptions, setAddressOptions] = useState<AddressOption[]>([]);
@@ -144,6 +194,12 @@ export function PropertyCheckJourney() {
   const detailedStartedRef = useRef(false);
   const fastRequestIdRef = useRef(0);
   const focusedDetailsForRef = useRef<string | null>(null);
+  const focusedPlanningForRef = useRef<string | null>(null);
+  const builderDraftVersionRef = useRef(0);
+  const placementKeyRef = useRef<string | null>(null);
+  const placementSnapshotRef = useRef<FastPoolPlacementSnapshot | null>(null);
+  const reportAudienceRef = useRef<ReportAudience | null>(reportAudience);
+  const reportEvidenceVersionRef = useRef(0);
   const [suggestionMessage, setSuggestionMessage] = useState<string | null>(
     null,
   );
@@ -155,10 +211,21 @@ export function PropertyCheckJourney() {
   const placementKey = fastPlacementSnapshot
     ? placementIdentity(fastPlacementSnapshot)
     : null;
+  const isPlacementLocked = Boolean(
+    placementKey && confirmedPlacementKey === placementKey,
+  );
+  const isAdjustingBuilderRoute =
+    currentStage === "placement" &&
+    reportAudience === "pool_builder" &&
+    routeDraft?.placementKey === placementKey &&
+    routeDraft.geometry.coordinates.length > 2;
+  const reportEvidenceVersion = reportEvidenceVersionRef.current;
   const routePoolLayout = useMemo(
     () =>
       fastPlacementSnapshot?.dimensions
         ? {
+            layoutId: fastPlacementSnapshot.layoutId,
+            layoutName: fastPlacementSnapshot.layoutName,
             position: fastPlacementSnapshot.position,
             lengthMetres: fastPlacementSnapshot.dimensions.lengthMetres,
             widthMetres: fastPlacementSnapshot.dimensions.widthMetres,
@@ -174,26 +241,66 @@ export function PropertyCheckJourney() {
         : null,
     [fastResult, routePoolLayout],
   );
+  const invalidateJourneyEvidence = useCallback(
+    (change: JourneyChange) => {
+      const invalidation = journeyInvalidationFor(change);
+      if (invalidation.signedSiteAnswers) builderDraftVersionRef.current += 1;
+      if (invalidation.propertyEvidence) {
+        setResult(null);
+        setFastResult(null);
+        setFastAssessmentSnapshot(null);
+        setPreDetailedSnapshot(null);
+      }
+      if (invalidation.placement) {
+        placementSnapshotRef.current = null;
+        placementKeyRef.current = null;
+        setFastPlacementSnapshot(null);
+      }
+      if (invalidation.placementConfirmation) setConfirmedPlacementKey(null);
+      if (invalidation.routeResult) {
+        setRouteDraft(null);
+        setRouteFacts(null);
+      }
+      if (invalidation.signedSiteAnswers) setSignedSiteAnswers(null);
+      if (invalidation.signedPlacementSnapshot) setFastMapSnapshot(null);
+      if (invalidation.reportFacts) {
+        reportEvidenceVersionRef.current += 1;
+        resetSavedReport();
+      }
+    },
+    [resetSavedReport],
+  );
   const handleFastPlacementChange = useCallback(
     (placement: FastPoolPlacementSnapshot) => {
-      setFastPlacementSnapshot(placement);
-      setFastMapSnapshot(null);
-      setRouteDraft((current) =>
-        current?.placementKey === placementIdentity(placement) ? current : null,
-      );
-      setRouteFacts((current) =>
-        current?.placementKey === placementIdentity(placement) ? current : null,
-      );
+      if (isSavingReport) return;
       const nextKey = placementIdentity(placement);
-      setSignedSiteAnswers((current) =>
-        current?.placementKey === nextKey ? current : null,
+      const previousPlacement = placementSnapshotRef.current;
+      const placementChanged =
+        placementKeyRef.current !== null && placementKeyRef.current !== nextKey;
+      placementSnapshotRef.current = placement;
+      placementKeyRef.current = nextKey;
+      setFastPlacementSnapshot(placement);
+      if (!placementChanged) return;
+      const dimensionsChanged =
+        previousPlacement?.dimensions?.lengthMetres !==
+          placement.dimensions?.lengthMetres ||
+        previousPlacement?.dimensions?.widthMetres !==
+          placement.dimensions?.widthMetres;
+      invalidateJourneyEvidence(
+        dimensionsChanged && placement.layoutId === "custom"
+          ? "custom_dimensions"
+          : previousPlacement?.layoutId !== placement.layoutId ||
+              dimensionsChanged
+            ? "pool_layout"
+            : "pool_position",
       );
     },
-    [],
+    [invalidateJourneyEvidence, isSavingReport],
   );
   const handleRouteEdit = useCallback(
     (geometry: AccessRouteGeometry, complete: boolean) => {
-      if (!placementKey || !fastResult) return;
+      if (isSavingReport || !placementKey || !fastResult) return;
+      invalidateJourneyEvidence("route");
       setRouteDraft({ placementKey, geometry });
       setRouteFacts(
         complete
@@ -203,10 +310,8 @@ export function PropertyCheckJourney() {
             }
           : null,
       );
-      setSignedSiteAnswers(null);
-      setFastMapSnapshot(null);
     },
-    [fastResult, placementKey],
+    [fastResult, invalidateJourneyEvidence, isSavingReport, placementKey],
   );
 
   useEffect(() => {
@@ -219,17 +324,51 @@ export function PropertyCheckJourney() {
   }, [detailedRetryAfterSeconds]);
 
   useEffect(() => {
-    if (!signedSiteAnswers) {
+    if (!confirmedPlacementKey || confirmedPlacementKey !== placementKey) {
+      focusedPlanningForRef.current = null;
+      return;
+    }
+    const focusKey = `${reportAudience}:${confirmedPlacementKey}`;
+    if (focusedPlanningForRef.current === focusKey) return;
+    const heading = document.getElementById(
+      reportAudience === "pool_builder"
+        ? "site-questions-heading"
+        : "homeowner-check-heading",
+    );
+    if (heading) {
+      heading.focus();
+      focusedPlanningForRef.current = focusKey;
+    }
+  }, [
+    confirmedPlacementKey,
+    fastResult?.detailedChecks,
+    placementKey,
+    reportAudience,
+  ]);
+
+  useEffect(() => {
+    if (currentStage !== "contact") {
       focusedDetailsForRef.current = null;
       return;
     }
-    const focusKey = `${signedSiteAnswers.snapshot}:${signedSiteAnswers.placementKey}`;
-    if (
-      signedSiteAnswers.sourceSnapshot === fastAssessmentSnapshot &&
-      signedSiteAnswers.placementKey === placementKey &&
+    const focusKey =
+      reportAudience === "homeowner" &&
+      fastAssessmentSnapshot &&
+      placementKey &&
       fastMapSnapshot &&
-      focusedDetailsForRef.current !== focusKey
-    ) {
+      fastResult?.detailedChecks
+        ? `homeowner:${fastAssessmentSnapshot}:${placementKey}`
+        : signedSiteAnswers &&
+            signedSiteAnswers.sourceSnapshot === fastAssessmentSnapshot &&
+            signedSiteAnswers.placementKey === placementKey &&
+            fastMapSnapshot
+          ? `builder:${signedSiteAnswers.snapshot}:${signedSiteAnswers.placementKey}`
+          : null;
+    if (!focusKey) {
+      focusedDetailsForRef.current = null;
+      return;
+    }
+    if (focusedDetailsForRef.current !== focusKey) {
       const heading = document.getElementById("homeowner-details-heading");
       if (heading) {
         heading.focus();
@@ -241,6 +380,9 @@ export function PropertyCheckJourney() {
     fastAssessmentSnapshot,
     placementKey,
     fastMapSnapshot,
+    fastResult?.detailedChecks,
+    reportAudience,
+    currentStage,
   ]);
 
   useEffect(() => {
@@ -373,6 +515,8 @@ export function PropertyCheckJourney() {
     setRouteDraft(null);
     setRouteFacts(null);
     setFastPlacementSnapshot(null);
+    placementKeyRef.current = null;
+    setConfirmedPlacementKey(null);
     setFastMapSnapshot(null);
     setDetailedRetryAfterSeconds(null);
     fastSavedReport.resetReport();
@@ -436,6 +580,7 @@ export function PropertyCheckJourney() {
 
       if (fastRequestIdRef.current !== requestId) return;
       setFastResult(body.data);
+      setCurrentStage("placement");
       setPendingSelectedAddress(null);
       setFastAssessmentSnapshot(body.assessmentSnapshot);
       setSignedSiteAnswers(null);
@@ -512,31 +657,37 @@ export function PropertyCheckJourney() {
     }
   }
 
-  async function requestDetailedPropertyData() {
-    const depth = lockedDepth ?? parseEstimatedPoolDepth(estimatedDepth);
+  async function requestDetailedPropertyData(
+    depthOverride?: number,
+  ): Promise<{ data: FastPropertyDetails; assessmentSnapshot: string } | null> {
+    const builderDepth =
+      depthOverride ?? lockedDepth ?? parseEstimatedPoolDepth(estimatedDepth);
     if (
       !fastResult ||
       !fastAssessmentSnapshot ||
-      depth === null ||
+      (reportAudience === "pool_builder" && builderDepth === null) ||
       isLoadingDetailed ||
       detailedRequestInFlightRef.current
     )
-      return;
+      return null;
     const requestId = fastRequestIdRef.current;
+    const evidenceVersion = reportEvidenceVersionRef.current;
+    const requestedAudience = reportAudience;
     const sourceSnapshot = fastAssessmentSnapshot;
     detailedRequestInFlightRef.current = true;
     detailedStartedRef.current = true;
     if (preDetailedSnapshot === null) setPreDetailedSnapshot(sourceSnapshot);
-    setLockedDepth(depth);
+    if (reportAudience === "pool_builder") setLockedDepth(builderDepth);
     setIsLoadingDetailed(true);
-    setFastMapSnapshot(null);
     try {
       const response = await fetch("/api/public/property-check/stages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           mode: "detailed",
-          estimatedDepthMetres: depth,
+          ...(reportAudience === "pool_builder" && builderDepth !== null
+            ? { estimatedDepthMetres: builderDepth }
+            : {}),
           addressId: fastResult.resolvedAddress.addressId,
           coordinates: fastResult.resolvedAddress.coordinates,
           assessmentSnapshot: fastAssessmentSnapshot,
@@ -552,14 +703,23 @@ export function PropertyCheckJourney() {
         !response.ok ||
         !body?.data ||
         !body.assessmentSnapshot ||
-        fastRequestIdRef.current !== requestId
+        fastRequestIdRef.current !== requestId ||
+        reportEvidenceVersionRef.current !== evidenceVersion ||
+        reportAudienceRef.current !== requestedAudience
       ) {
-        setDetailedRetryAfterSeconds(responseError?.retryAfterSeconds ?? null);
-        setError(detailedChecksIssue(responseError));
-        setCanRetry(responseError?.code !== "RATE_LIMITED");
-        return;
+        if (
+          fastRequestIdRef.current === requestId &&
+          reportEvidenceVersionRef.current === evidenceVersion &&
+          reportAudienceRef.current === requestedAudience
+        ) {
+          setDetailedRetryAfterSeconds(
+            responseError?.retryAfterSeconds ?? null,
+          );
+          setError(detailedChecksIssue(responseError));
+          setCanRetry(responseError?.code !== "RATE_LIMITED");
+        }
+        return null;
       }
-      setFastMapSnapshot(null);
       setFastAssessmentSnapshot(body.assessmentSnapshot);
       setSignedSiteAnswers(null);
       setFastResult((current) =>
@@ -567,13 +727,130 @@ export function PropertyCheckJourney() {
       );
       setError(null);
       setDetailedRetryAfterSeconds(null);
+      return {
+        data: body.data,
+        assessmentSnapshot: body.assessmentSnapshot,
+      };
     } catch {
       setError(detailedChecksIssue());
       setCanRetry(true);
+      return null;
     } finally {
       detailedRequestInFlightRef.current = false;
       setIsLoadingDetailed(false);
     }
+  }
+
+  async function saveBuilderSiteAnswers({
+    assessmentSnapshot,
+    draft,
+    routeResponse,
+    adjustedRoute,
+    expectedDraftVersion,
+  }: {
+    assessmentSnapshot: string;
+    draft: BuilderSiteQuestionDraft;
+    routeResponse: "suggested" | "adjust" | "not_sure";
+    adjustedRoute?: AccessRouteGeometry;
+    expectedDraftVersion: number;
+  }): Promise<boolean> {
+    if (!placementKey || !routePoolLayout) return false;
+    try {
+      const response = await fetch(
+        "/api/public/assessment-snapshot/site-answers",
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            assessmentSnapshot,
+            poolLayout: routePoolLayout,
+            routeResponse,
+            ...(adjustedRoute ? { adjustedRoute } : {}),
+            ...draft,
+          }),
+        },
+      );
+      const body = (await response.json().catch(() => null)) as {
+        assessmentSnapshot?: string;
+        answers?: ConstructabilityAnswers;
+        routeFacts?: AccessRouteFacts | null;
+      } | null;
+      if (
+        !response.ok ||
+        typeof body?.assessmentSnapshot !== "string" ||
+        !body.answers ||
+        builderDraftVersionRef.current !== expectedDraftVersion
+      )
+        return false;
+      setSignedSiteAnswers({
+        sourceSnapshot: assessmentSnapshot,
+        placementKey,
+        snapshot: body.assessmentSnapshot,
+        answers: body.answers,
+      });
+      setRouteFacts(
+        body.routeFacts ? { placementKey, facts: body.routeFacts } : null,
+      );
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  async function checkBuilderProperty(
+    draft: BuilderSiteQuestionDraft,
+  ): Promise<boolean> {
+    const expectedDraftVersion = builderDraftVersionRef.current;
+    const depth = parseEstimatedPoolDepth(estimatedDepth);
+    if (depth === null || !fastResult || !routePoolLayout) {
+      document.getElementById("estimated-pool-depth")?.focus();
+      return false;
+    }
+    if (fastResult.detailedChecks && fastAssessmentSnapshot) {
+      return saveBuilderSiteAnswers({
+        assessmentSnapshot: fastAssessmentSnapshot,
+        draft,
+        routeResponse:
+          routeSuggestion?.confidence === "credible" ? "suggested" : "not_sure",
+        expectedDraftVersion,
+      });
+    }
+    const detailed = await requestDetailedPropertyData(depth);
+    if (!detailed) return false;
+    const checkedResult: FastPropertyViewResult = {
+      ...fastResult,
+      detailedChecks: detailed.data,
+    };
+    const suggestion = suggestAccessRouteFromProperty(
+      checkedResult,
+      routePoolLayout,
+    );
+    return saveBuilderSiteAnswers({
+      assessmentSnapshot: detailed.assessmentSnapshot,
+      draft,
+      routeResponse:
+        suggestion.confidence === "credible" ? "suggested" : "not_sure",
+      expectedDraftVersion,
+    });
+  }
+
+  async function saveBuilderRouteAdjustment(
+    draft: BuilderSiteQuestionDraft & { adjustedRoute: AccessRouteGeometry },
+  ): Promise<boolean> {
+    if (!fastAssessmentSnapshot) return false;
+    const expectedDraftVersion = builderDraftVersionRef.current;
+    return saveBuilderSiteAnswers({
+      assessmentSnapshot: fastAssessmentSnapshot,
+      draft,
+      routeResponse: "adjust",
+      adjustedRoute: draft.adjustedRoute,
+      expectedDraftVersion,
+    });
+  }
+
+  function handleBuilderDraftChange() {
+    if (isSavingReport) return;
+    invalidateJourneyEvidence("details");
   }
 
   function downloadResult() {
@@ -597,26 +874,47 @@ export function PropertyCheckJourney() {
   }
 
   function startAgain() {
+    if (isSavingReport) return;
     fastRequestIdRef.current += 1;
     detailedStartedRef.current = false;
+    invalidateJourneyEvidence("address");
     setAddress("");
     setSelectedAddressId(null);
-    setResult(null);
-    setFastResult(null);
     setPendingSelectedAddress(null);
-    setFastAssessmentSnapshot(null);
     setEstimatedDepth(String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES));
     setLockedDepth(null);
-    setPreDetailedSnapshot(null);
-    setSignedSiteAnswers(null);
-    setFastPlacementSnapshot(null);
-    setFastMapSnapshot(null);
     setError(null);
     setCanRetry(false);
     setAddressOptions([]);
     setSuggestionMessage(null);
-    fastSavedReport.resetReport();
+    setCurrentStage(reportAudience ? "property" : "audience");
   }
+
+  const completedStages = useMemo<PropertyCheckStage[]>(() => {
+    const completed: PropertyCheckStage[] = [];
+    if (reportAudience) completed.push("audience");
+    if (fastResult || result) completed.push("property");
+    const placementComplete = Boolean(
+      placementKey &&
+      confirmedPlacementKey === placementKey &&
+      fastPlacementSnapshot?.constructionEnvelopeWithinMappedArea,
+    );
+    if (placementComplete) {
+      completed.push("placement");
+    }
+    if (fastSavedReport.assessment) {
+      completed.push("contact", "report");
+    }
+    return completed;
+  }, [
+    confirmedPlacementKey,
+    fastPlacementSnapshot?.constructionEnvelopeWithinMappedArea,
+    fastResult,
+    fastSavedReport.assessment,
+    placementKey,
+    reportAudience,
+    result,
+  ]);
 
   return (
     <div className="space-y-8">
@@ -630,7 +928,64 @@ export function PropertyCheckJourney() {
         title="Running detailed official checks"
         description="Reviewing available official datasets for your preliminary report."
       />
-      {isEnteringAddress && (
+      <PropertyCheckJourneyNav
+        currentStage={currentStage}
+        completedStages={completedStages}
+        onNavigate={setCurrentStage}
+        disabled={isSavingReport}
+        lockCompletedStages={isPlacementLocked}
+      />
+
+      {currentStage === "audience" && (
+        <section className="border-pool-200 rounded-[3px] border bg-white p-5 sm:p-7">
+          <h2 className="text-pool-950 text-xl font-semibold">
+            Who is this for?
+          </h2>
+          <div className="mt-4">
+            <ReportAudiencePathway
+              value={reportAudience}
+              onChange={(nextAudience) => {
+                if (nextAudience !== reportAudience) {
+                  reportAudienceRef.current = nextAudience;
+                  invalidateJourneyEvidence("pathway");
+                  if (preDetailedSnapshot) {
+                    setFastAssessmentSnapshot(preDetailedSnapshot);
+                    setPreDetailedSnapshot(null);
+                    setFastResult((current) =>
+                      current
+                        ? { ...current, detailedChecks: undefined }
+                        : current,
+                    );
+                    setLockedDepth(null);
+                    setEstimatedDepth(
+                      String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES),
+                    );
+                  }
+                  if (nextAudience === "homeowner") {
+                    setContactDraft((current) => ({
+                      ...current,
+                      builderCompanyName: "",
+                    }));
+                  }
+                }
+                setReportAudience(nextAudience);
+              }}
+            />
+          </div>
+          <button
+            type="button"
+            disabled={!reportAudience}
+            onClick={() =>
+              setCurrentStage(fastResult || result ? "placement" : "property")
+            }
+            className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 mt-5 min-h-11 rounded-[3px] px-5 font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-60"
+          >
+            Continue
+          </button>
+        </section>
+      )}
+
+      {currentStage === "property" && isEnteringAddress && (
         <form
           onSubmit={handleSubmit}
           noValidate
@@ -765,6 +1120,33 @@ export function PropertyCheckJourney() {
         </form>
       )}
 
+      {currentStage === "property" && fastResult && (
+        <section className="border-pool-200 rounded-[3px] border bg-white p-5 sm:p-7">
+          <h2 className="text-pool-950 text-xl font-semibold">
+            Find the property
+          </h2>
+          <p className="text-pool-700 mt-2 text-sm leading-6">
+            {fastResult.resolvedAddress.fullAddress}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <button
+              type="button"
+              onClick={() => setCurrentStage("placement")}
+              className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 min-h-11 rounded-[3px] px-5 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Continue to pool placement
+            </button>
+            <button
+              type="button"
+              onClick={startAgain}
+              className="border-pool-300 text-pool-800 hover:bg-pool-50 focus-visible:outline-pool-blue-700 min-h-11 rounded-[3px] border bg-white px-5 font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+            >
+              Change address
+            </button>
+          </div>
+        </section>
+      )}
+
       {pendingSelectedAddress && !fastResult && !result && (
         <SelectedAddressPending
           address={pendingSelectedAddress.fullAddress}
@@ -795,13 +1177,17 @@ export function PropertyCheckJourney() {
                 {canRetry && (
                   <button
                     type="button"
-                    onClick={() => void requestPropertyData()}
+                    onClick={() =>
+                      void (isPlacementLocked
+                        ? requestDetailedPropertyData()
+                        : requestPropertyData())
+                    }
                     className="min-h-11 font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
                   >
                     Try property check again
                   </button>
                 )}
-                {error.allowAddressChange !== false && (
+                {error.allowAddressChange !== false && !isPlacementLocked && (
                   <button
                     type="button"
                     onClick={startAgain}
@@ -813,93 +1199,189 @@ export function PropertyCheckJourney() {
               </div>
             </div>
           )}
-          <FastPropertyView
-            result={fastResult}
-            suggestedRoute={
-              routeDraft?.placementKey === placementKey
-                ? routeDraft.geometry
-                : (routeSuggestion?.geometry ?? null)
-            }
-            editableRoute={
-              routeSuggestion?.confidence === "credible" &&
-              placementKey &&
-              fastResult.detailedChecks
-                ? routeDraft?.placementKey === placementKey
-                  ? routeDraft.geometry
-                  : routeSuggestion.geometry
-                : null
-            }
-            onRouteEdit={handleRouteEdit}
-            onLoadDetailed={() => void requestDetailedPropertyData()}
-            onRetry={() => void requestDetailedPropertyData()}
-            onStartAgain={startAgain}
-            isLoadingDetailed={isLoadingDetailed}
-            onPlacementChange={handleFastPlacementChange}
-            onSnapshotReady={setFastMapSnapshot}
-            estimatedDepth={estimatedDepth}
-            depthLocked={lockedDepth !== null}
-            onEstimatedDepthChange={setEstimatedDepth}
-            onEditEstimatedDepth={() => {
-              if (!preDetailedSnapshot || isLoadingDetailed) return;
-              setFastAssessmentSnapshot(preDetailedSnapshot);
-              setPreDetailedSnapshot(null);
-              setFastResult((current) =>
-                current ? { ...current, detailedChecks: undefined } : current,
-              );
-              setSignedSiteAnswers(null);
-              setFastMapSnapshot(null);
-              setLockedDepth(null);
-            }}
-            isDetailedRateLimited={detailedRetryAfterSeconds !== null}
-          />
-          {fastPlacementSnapshot?.dimensions &&
+          <div
+            hidden={currentStage !== "placement" && !isAdjustingBuilderRoute}
+          >
+            <FastPropertyView
+              result={fastResult}
+              suggestedRoute={
+                reportAudience === "pool_builder"
+                  ? routeDraft?.placementKey === placementKey
+                    ? routeDraft.geometry
+                    : (routeSuggestion?.geometry ?? null)
+                  : null
+              }
+              editableRoute={
+                reportAudience === "pool_builder" &&
+                routeSuggestion?.confidence === "credible" &&
+                placementKey &&
+                fastResult.detailedChecks
+                  ? routeDraft?.placementKey === placementKey
+                    ? routeDraft.geometry
+                    : routeSuggestion.geometry
+                  : null
+              }
+              onRouteEdit={handleRouteEdit}
+              onConfirmPlacement={() => {
+                if (placementKey) {
+                  setConfirmedPlacementKey(placementKey);
+                  if (reportAudience === "homeowner") {
+                    void requestDetailedPropertyData();
+                  }
+                }
+              }}
+              onRetry={() => void requestDetailedPropertyData()}
+              onStartAgain={startAgain}
+              isLoadingDetailed={isLoadingDetailed}
+              onPlacementChange={handleFastPlacementChange}
+              onSnapshotReady={(snapshot) => {
+                if (!isSavingReport) setFastMapSnapshot(snapshot);
+              }}
+              placementConfirmed={isPlacementLocked}
+              isDetailedRateLimited={detailedRetryAfterSeconds !== null}
+              planningEnabled
+              routeAdjustmentMode={isAdjustingBuilderRoute}
+            />
+          </div>
+          {(currentStage === "placement" || currentStage === "contact") &&
+          fastPlacementSnapshot?.dimensions &&
           fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
           fastAssessmentSnapshot &&
-          fastResult.detailedChecks &&
+          reportAudience &&
+          confirmedPlacementKey === placementKey &&
           placementKey ? (
             <>
-              <SiteQuestions
-                key={`${fastAssessmentSnapshot}:${placementKey}`}
-                assessmentSnapshot={fastAssessmentSnapshot}
-                placementKey={placementKey}
-                poolLayout={routePoolLayout ?? undefined}
-                routeSuggestion={routeSuggestion ?? undefined}
-                adjustedRoute={
-                  routeDraft?.placementKey === placementKey
-                    ? routeDraft.geometry
-                    : null
-                }
-                routeFacts={
-                  routeFacts?.placementKey === placementKey
-                    ? routeFacts.facts
-                    : null
-                }
-                onRouteEdit={handleRouteEdit}
-                onRouteReset={() => {
-                  setRouteDraft(null);
-                  setRouteFacts(null);
-                  setFastMapSnapshot(null);
-                }}
-                onSigned={setSignedSiteAnswers}
-              />
-              {signedSiteAnswers?.sourceSnapshot === fastAssessmentSnapshot &&
-                signedSiteAnswers.placementKey === placementKey &&
-                fastMapSnapshot && (
-                  <HomeownerSubmissionForm
-                    assessmentSnapshot={signedSiteAnswers.snapshot}
-                    constructability={signedSiteAnswers.answers}
-                    mapImageDataUrl={fastMapSnapshot.imageDataUrl}
-                    mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
-                    placement={fastPlacementSnapshot}
-                    onSaved={fastSavedReport.saveAssessment}
-                  />
+              {currentStage === "contact" && (
+                <JourneyEvidenceSummary
+                  address={fastResult.resolvedAddress.fullAddress}
+                  placement={fastPlacementSnapshot}
+                />
+              )}
+              <div hidden={currentStage !== "placement"}>
+                {reportAudience === "homeowner" ? (
+                  fastResult.detailedChecks ? (
+                    <section className="border-pool-200 rounded-[3px] border bg-white p-5 sm:p-7">
+                      <h3
+                        id="homeowner-check-heading"
+                        tabIndex={-1}
+                        className="text-pool-950 text-xl font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+                      >
+                        Property details checked
+                      </h3>
+                      <p className="text-pool-700 mt-2 text-sm leading-6">
+                        Continue to add your details and create the property
+                        report.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => setCurrentStage("contact")}
+                        className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 mt-5 min-h-11 rounded-[3px] px-5 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2"
+                      >
+                        Continue to your details
+                      </button>
+                    </section>
+                  ) : null
+                ) : (
+                  <>
+                    <SiteQuestions
+                      key={placementKey}
+                      placementKey={placementKey}
+                      estimatedDepth={estimatedDepth}
+                      depthLocked={lockedDepth !== null}
+                      onEstimatedDepthChange={setEstimatedDepth}
+                      onEditEstimatedDepth={() => {
+                        if (
+                          isSavingReport ||
+                          !preDetailedSnapshot ||
+                          isLoadingDetailed
+                        )
+                          return;
+                        invalidateJourneyEvidence("depth");
+                        setFastAssessmentSnapshot(preDetailedSnapshot);
+                        setPreDetailedSnapshot(null);
+                        setFastResult((current) =>
+                          current
+                            ? { ...current, detailedChecks: undefined }
+                            : current,
+                        );
+                        setLockedDepth(null);
+                      }}
+                      hasCompletedCheck={Boolean(fastResult.detailedChecks)}
+                      hasSavedAnswers={Boolean(
+                        signedSiteAnswers?.sourceSnapshot ===
+                          fastAssessmentSnapshot &&
+                        signedSiteAnswers.placementKey === placementKey,
+                      )}
+                      isChecking={isLoadingDetailed}
+                      routeSuggestion={routeSuggestion ?? undefined}
+                      adjustedRoute={
+                        routeDraft?.placementKey === placementKey
+                          ? routeDraft.geometry
+                          : null
+                      }
+                      routeFacts={
+                        routeFacts?.placementKey === placementKey
+                          ? routeFacts.facts
+                          : null
+                      }
+                      onRouteEdit={handleRouteEdit}
+                      onDraftChange={handleBuilderDraftChange}
+                      onCheckProperty={checkBuilderProperty}
+                      onSaveRouteAdjustment={async (draft) => {
+                        const saved = await saveBuilderRouteAdjustment(draft);
+                        if (saved) setCurrentStage("contact");
+                        return saved;
+                      }}
+                      onContinue={() => setCurrentStage("contact")}
+                    />
+                  </>
                 )}
+              </div>
             </>
+          ) : null}
+
+          {currentStage === "contact" &&
+          fastMapSnapshot &&
+          fastPlacementSnapshot?.dimensions &&
+          reportAudience &&
+          fastAssessmentSnapshot &&
+          (reportAudience === "homeowner" ||
+            (signedSiteAnswers?.sourceSnapshot === fastAssessmentSnapshot &&
+              signedSiteAnswers.placementKey === placementKey)) ? (
+            <HomeownerSubmissionForm
+              reportAudience={reportAudience}
+              assessmentSnapshot={
+                reportAudience === "pool_builder" && signedSiteAnswers
+                  ? signedSiteAnswers.snapshot
+                  : fastAssessmentSnapshot
+              }
+              constructability={
+                reportAudience === "pool_builder"
+                  ? signedSiteAnswers?.answers
+                  : undefined
+              }
+              mapImageDataUrl={fastMapSnapshot.imageDataUrl}
+              mapVisibleLayerKeys={fastMapSnapshot.visibleLayerKeys}
+              placement={fastPlacementSnapshot}
+              draft={contactDraft}
+              onDraftChange={(nextDraft) => {
+                if (isSavingReport) return;
+                setContactDraft(nextDraft);
+                invalidateJourneyEvidence("contact");
+              }}
+              onSavingChange={setIsSavingReport}
+              onSaved={(assessment) => {
+                if (reportEvidenceVersion !== reportEvidenceVersionRef.current)
+                  return;
+                fastSavedReport.saveAssessment(assessment);
+                setCurrentStage("report");
+              }}
+            />
           ) : null}
         </>
       )}
 
-      {fastSavedReport.assessment && (
+      {currentStage === "report" && fastSavedReport.assessment && (
         <SavedAssessmentReportPanel
           assessment={fastSavedReport.assessment}
           showReport={fastSavedReport.showReport}
@@ -918,6 +1400,40 @@ export function PropertyCheckJourney() {
         />
       )}
     </div>
+  );
+}
+
+function JourneyEvidenceSummary({
+  address,
+  placement,
+}: {
+  address: string;
+  placement: FastPoolPlacementSnapshot;
+}) {
+  const dimensions = placement.dimensions;
+  if (!dimensions) return null;
+
+  return (
+    <section
+      aria-label="Current property and pool"
+      className="border-pool-200 mb-4 flex flex-col gap-4 rounded-[3px] border bg-white p-4 sm:flex-row sm:items-center sm:justify-between"
+    >
+      <dl className="grid gap-2 text-sm sm:grid-cols-2 sm:gap-x-8">
+        <div>
+          <dt className="text-pool-600 font-medium">Property</dt>
+          <dd className="text-pool-950 mt-1 font-semibold">{address}</dd>
+        </div>
+        <div>
+          <dt className="text-pool-600 font-medium">Selected pool</dt>
+          <dd className="text-pool-950 mt-1 font-semibold">
+            {placement.layoutName ?? "Selected pool"} —{" "}
+            {dimensions.lengthMetres}
+            {" × "}
+            {dimensions.widthMetres} m
+          </dd>
+        </div>
+      </dl>
+    </section>
   );
 }
 

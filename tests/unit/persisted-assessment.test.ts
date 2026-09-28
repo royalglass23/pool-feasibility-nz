@@ -24,6 +24,8 @@ const validSubmission = {
     boundaryStatus: "provisional",
   },
   poolLayout: {
+    layoutId: "compact",
+    layoutName: "Compact",
     lengthMetres: 6.5,
     widthMetres: 3,
     rotationDegrees: 12,
@@ -63,6 +65,12 @@ const validSubmission = {
     feasibilityState: "needs_checking",
     mapImageDataUrl: TEST_MAP_IMAGE_DATA_URL,
     reportData: {
+      poolLayout: {
+        layoutId: "compact",
+        layoutName: "Compact",
+        lengthMetres: 6.5,
+        widthMetres: 3,
+      },
       recommendation: "Confirm the boundary.",
       preliminaryFeasibilityWording: "Preliminary only.",
       risks: [],
@@ -96,6 +104,78 @@ describe("persisted homeowner assessment contract", () => {
     expect(parsed.homeowner.consentGiven).toBe(true);
   });
 
+  it("normalizes an optional builder company while keeping omitted and blank legacy values valid", () => {
+    const populated = parsePersistedAssessmentSubmission({
+      ...validSubmission,
+      homeowner: {
+        ...validSubmission.homeowner,
+        visitorType: "pool_builder",
+        builderCompanyName: "  North Shore Pools Ltd  ",
+      },
+    });
+    const blank = parsePersistedAssessmentSubmission({
+      ...validSubmission,
+      homeowner: {
+        ...validSubmission.homeowner,
+        visitorType: "pool_builder",
+        builderCompanyName: "   ",
+      },
+    });
+    const omitted = parsePersistedAssessmentSubmission({
+      ...validSubmission,
+      homeowner: {
+        ...validSubmission.homeowner,
+        visitorType: "pool_builder",
+      },
+    });
+
+    expect(populated.homeowner.builderCompanyName).toBe(
+      "North Shore Pools Ltd",
+    );
+    expect(blank.homeowner.builderCompanyName).toBeNull();
+    expect(omitted.homeowner.builderCompanyName).toBeNull();
+    expect(() =>
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        homeowner: {
+          ...validSubmission.homeowner,
+          builderCompanyName: "Not a homeowner field",
+        },
+      }),
+    ).toThrow(/company name is only accepted/i);
+  });
+
+  it("serializes only a canonical report audience while accepting legacy records without one", () => {
+    expect(
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        report: {
+          ...validSubmission.report,
+          reportData: {
+            ...validSubmission.report.reportData,
+            reportAudience: "pool_builder",
+          },
+        },
+      }).report.reportData.reportAudience,
+    ).toBe("pool_builder");
+    expect(
+      parsePersistedAssessmentSubmission(validSubmission).report.reportData
+        .reportAudience,
+    ).toBeUndefined();
+    expect(() =>
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        report: {
+          ...validSubmission.report,
+          reportData: {
+            ...validSubmission.report.reportData,
+            reportAudience: "other",
+          },
+        },
+      }),
+    ).toThrow();
+  });
+
   it("persists the selected pool-shell clearance visibility and defaults older saved layouts to visible", () => {
     expect(
       parsePersistedAssessmentSubmission({
@@ -107,6 +187,77 @@ describe("persisted homeowner assessment contract", () => {
       parsePersistedAssessmentSubmission(validSubmission).poolLayout
         .clearancesVisible,
     ).toBe(true);
+  });
+
+  it("round-trips named layouts and gives historical layouts a neutral identity", () => {
+    expect(
+      parsePersistedAssessmentSubmission(validSubmission).poolLayout,
+    ).toMatchObject({
+      layoutId: "compact",
+      layoutName: "Compact",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    });
+    expect(
+      parsePersistedAssessmentSubmission(validSubmission).report.reportData
+        .poolLayout,
+    ).toEqual({
+      layoutId: "compact",
+      layoutName: "Compact",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    });
+
+    const legacyLayout: Record<string, unknown> = {
+      ...validSubmission.poolLayout,
+    };
+    delete legacyLayout.layoutId;
+    delete legacyLayout.layoutName;
+    const legacyReportData: Record<string, unknown> = {
+      ...validSubmission.report.reportData,
+    };
+    delete legacyReportData.poolLayout;
+    expect(
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        poolLayout: legacyLayout,
+        report: { ...validSubmission.report, reportData: legacyReportData },
+      }).poolLayout,
+    ).toMatchObject({
+      layoutId: null,
+      layoutName: "Saved pool layout",
+      lengthMetres: 6.5,
+      widthMetres: 3,
+    });
+  });
+
+  it("rejects incompatible persisted layout metadata", () => {
+    expect(() =>
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        poolLayout: {
+          ...validSubmission.poolLayout,
+          layoutName: "Custom",
+        },
+      }),
+    ).toThrow();
+    expect(() =>
+      parsePersistedAssessmentSubmission({
+        ...validSubmission,
+        report: {
+          ...validSubmission.report,
+          reportData: {
+            ...validSubmission.report.reportData,
+            poolLayout: {
+              layoutId: "custom",
+              layoutName: "Custom",
+              lengthMetres: 6.5,
+              widthMetres: 3,
+            },
+          },
+        },
+      }),
+    ).toThrow();
   });
 
   it("rejects missing consent and invalid timing", () => {
@@ -239,15 +390,18 @@ describe("persisted homeowner assessment contract", () => {
       },
     } as unknown as Parameters<typeof saveHomeownerAssessment>[0];
 
-    const first = await saveHomeownerAssessment(
-      fakeDb,
-      parsePersistedAssessmentSubmission(validSubmission),
-    );
-    const second = await saveHomeownerAssessment(
-      fakeDb,
-      parsePersistedAssessmentSubmission(validSubmission),
-    );
+    const rawBuilderSubmission = {
+      ...validSubmission,
+      homeowner: {
+        ...validSubmission.homeowner,
+        visitorType: "pool_builder",
+        builderCompanyName: "  North Shore Pools Ltd  ",
+      },
+    } as unknown as Parameters<typeof saveHomeownerAssessment>[1];
+    const first = await saveHomeownerAssessment(fakeDb, rawBuilderSubmission);
+    const second = await saveHomeownerAssessment(fakeDb, rawBuilderSubmission);
     expect(first.created).toBe(true);
+    expect(first.assessment.builderCompanyName).toBe("North Shore Pools Ltd");
     expect(second.created).toBe(false);
     expect(second.assessment.reference).toBe(first.assessment.reference);
   });
