@@ -144,6 +144,13 @@ test("preserves a no-change revisit and invalidates move, layout, and Custom-siz
   await expect(summary.getByText(address, { exact: true })).toBeVisible();
   await expect(summary.getByText("Compact — 6.5 × 3 m")).toBeVisible();
   await page.getByRole("button", { name: "Check this property" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Property details checked" }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Check the details.*Current/ }),
+  ).toHaveAttribute("aria-current", "step");
+  await page.getByRole("button", { name: "Continue to your details" }).click();
   const contactForm = page.locator(
     'form[aria-labelledby="homeowner-details-heading"]',
   );

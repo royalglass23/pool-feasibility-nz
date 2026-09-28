@@ -1222,6 +1222,15 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     await user.click(
       await screen.findByRole("button", { name: "Check this property" }),
     );
+    expect(
+      await screen.findByRole("heading", { name: "Property details checked" }),
+    ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /Check the details.*Current/ }),
+    ).toHaveAttribute("aria-current", "step");
+    expect(
+      screen.getByRole("button", { name: /Your details.*Locked/ }),
+    ).toBeDisabled();
     await user.click(
       screen.getByRole("button", { name: /Place your pool.*Completed/ }),
     );

@@ -1297,10 +1297,7 @@ export function PropertyCheckJourney({
                       </p>
                       <button
                         type="button"
-                        onClick={async () => {
-                          const detailed = await requestDetailedPropertyData();
-                          if (detailed) setCurrentStage("contact");
-                        }}
+                        onClick={() => void requestDetailedPropertyData()}
                         disabled={
                           isLoadingDetailed ||
                           detailedRetryAfterSeconds !== null
