@@ -908,9 +908,20 @@ export function FastPropertyView({
               if (!disposed) setMapApiError(error);
             });
         });
-        map.on("movestart", () => {
-          snapshotHandlerRef.current?.(null);
-        });
+        const captureSnapshot = (): FastPropertyViewMapSnapshot | null => {
+          if (!map) return null;
+          const imageDataUrl = captureFastPropertyViewMap({
+            map,
+            clearances: poolShellClearancesRef.current,
+            visible: clearancesVisibleRef.current,
+          });
+          return imageDataUrl
+            ? {
+                imageDataUrl,
+                visibleLayerKeys: [...visibleMapLayerKeysRef.current],
+              }
+            : null;
+        };
         map.on("move", () =>
           positionPoolShellClearanceLabels(
             map!,
@@ -919,21 +930,15 @@ export function FastPropertyView({
           ),
         );
         map.on("idle", () => {
-          if (disposed || !map) return;
+          if (
+            disposed ||
+            !map ||
+            !mapRef.current ||
+            mapRef.current.closest("[hidden]")
+          )
+            return;
           try {
-            const imageDataUrl = captureFastPropertyViewMap({
-              map,
-              clearances: poolShellClearancesRef.current,
-              visible: clearancesVisibleRef.current,
-            });
-            snapshotHandlerRef.current?.(
-              imageDataUrl
-                ? {
-                    imageDataUrl,
-                    visibleLayerKeys: [...visibleMapLayerKeysRef.current],
-                  }
-                : null,
-            );
+            snapshotHandlerRef.current?.(captureSnapshot());
           } catch {
             snapshotHandlerRef.current?.(null);
           }
@@ -1093,8 +1098,8 @@ export function FastPropertyView({
       return;
 
     const observer = new ResizeObserver(() => {
-      if (mapInstanceRef.current !== map) return;
-      snapshotHandlerRef.current?.(null);
+      if (mapInstanceRef.current !== map || container.closest("[hidden]"))
+        return;
       map.resize();
       if (mapBoundaryGeometry) {
         map.fitBounds(boundaryBounds(mapBoundaryGeometry), {

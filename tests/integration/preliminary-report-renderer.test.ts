@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import puppeteer from "puppeteer-core";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
+import sharp from "sharp";
 import { generatePreliminaryReportPdf } from "@/modules/reporting/report-renderer";
 import { renderCanonicalPreliminaryReportHtml } from "@/modules/reporting/preliminary-report-html";
 import { AUCKLAND_DEM_REQUIRED_METADATA } from "@/modules/providers/linz/auckland-dem-source-contract";
@@ -94,6 +95,87 @@ const report = buildTestPreliminaryReport({
 });
 
 describe("persisted preliminary report renderer", () => {
+  it("keeps the complete saved map visible in the PDF", async () => {
+    const mapImage = await sharp(
+      Buffer.from(`<svg width="800" height="600" xmlns="http://www.w3.org/2000/svg">
+        <rect width="800" height="600" fill="#16a34a" />
+        <rect width="800" height="100" fill="#dc2626" />
+        <rect y="500" width="800" height="100" fill="#2563eb" />
+      </svg>`),
+    )
+      .png()
+      .toBuffer();
+    const savedReport = buildTestPreliminaryReport({
+      mapImageDataUrl: `data:image/png;base64,${mapImage.toString("base64")}`,
+    });
+    let observation:
+      | {
+          topEdge: number[];
+          bottomEdge: number[];
+          pageCount: number;
+          mapClearOfFooter: boolean;
+        }
+      | undefined;
+
+    await generatePreliminaryReportPdf(savedReport, {
+      async render(html) {
+        const browser = await puppeteer.launch({
+          executablePath: testChromiumExecutable(),
+          headless: true,
+        });
+        try {
+          const page = await browser.newPage();
+          await page.setContent(html, { waitUntil: "load" });
+          await page.emulateMediaType("print");
+          const mapVisual = await page.$(".map-visual");
+          if (!mapVisual) throw new Error("REPORT_MAP_VISUAL_MISSING");
+          const screenshot = await mapVisual.screenshot({ type: "png" });
+          const { data, info } = await sharp(screenshot)
+            .removeAlpha()
+            .raw()
+            .toBuffer({ resolveWithObject: true });
+          const colourAt = (x: number, y: number) => {
+            const offset = (y * info.width + x) * info.channels;
+            return Array.from(data.subarray(offset, offset + 3));
+          };
+          const layout = await page.evaluate(() => {
+            const pages = Array.from(document.querySelectorAll(".page"));
+            const mapPanel =
+              document.querySelector<HTMLElement>(".summary-map");
+            const footer = mapPanel
+              ?.closest<HTMLElement>(".page")
+              ?.querySelector<HTMLElement>("footer");
+            if (!mapPanel || !footer)
+              throw new Error("REPORT_MAP_PANEL_MISSING");
+            return {
+              pageCount: pages.length,
+              mapClearOfFooter:
+                mapPanel.getBoundingClientRect().bottom <=
+                footer.getBoundingClientRect().top - 8,
+            };
+          });
+          observation = {
+            topEdge: colourAt(Math.floor(info.width / 2), 10),
+            bottomEdge: colourAt(Math.floor(info.width / 2), info.height - 11),
+            ...layout,
+          };
+          return Buffer.from(
+            await page.pdf({ format: "A4", printBackground: true }),
+          );
+        } finally {
+          await browser.close();
+        }
+      },
+    });
+
+    expect(observation).toEqual({
+      topEdge: [220, 38, 38],
+      bottomEdge: [37, 99, 235],
+      pageCount: 3,
+      mapClearOfFooter: true,
+    });
+  }, 30_000);
+
   it("projects trusted Homeowner content into PDF HTML", () => {
     const homeownerReport = buildTestPreliminaryReport({
       reportAudience: "homeowner",

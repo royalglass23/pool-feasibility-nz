@@ -185,7 +185,7 @@ export function renderCanonicalPreliminaryReportHtml(
     .status-text{font-size:8pt;color:var(--state-ink);text-align:right}
     .map-layout{display:block;height:116mm;background:#dce5e9}
     .map-visual{display:flex;min-width:0;height:80mm;min-height:0;background:#dce5e9}
-    .map{display:block;width:100%;height:100%;min-height:0;flex:1 1 auto;object-fit:cover;background:#dce5e9}
+    .map{display:block;width:100%;height:100%;min-height:0;flex:1 1 auto;object-fit:contain;background:#dce5e9}
     .map-caption{padding:1.4mm 2.8mm;background:var(--report-soft);border-top:.25mm solid var(--report-border);color:var(--report-muted);font-size:8pt;line-height:1.25}
     .map-legend{height:36mm;padding:2mm 2.8mm;background:#fff;border-top:.25mm solid var(--report-border);color:var(--report-ink);overflow:hidden;display:grid;grid-template-columns:36mm 45mm minmax(0,1fr);gap:3mm}
     .homeowner-report .map-legend{grid-template-columns:36mm minmax(0,1fr)}
