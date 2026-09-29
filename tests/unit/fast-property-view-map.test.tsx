@@ -228,8 +228,18 @@ it("keeps the route map source empty when no credible route exists", async () =>
   expect(style.sources["suggested-access-route"].data.features).toEqual([]);
 });
 
-it("keeps map layers collapsed until the user asks to see them", async () => {
-  render(<FastPropertyView result={fastResult} onRetry={() => {}} />);
+it("opens map layers when loaded constraints change the result to Needs Checking", async () => {
+  const { rerender } = render(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        progress: { ...fastResult.progress, detailedChecks: "not_loaded" },
+        detailedChecks: undefined,
+      }}
+      onRetry={() => {}}
+      autoOpenMapLayersOnNeedsChecking
+    />,
+  );
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
   const toggle = screen.getByRole("button", { name: /Map layers/ });
@@ -238,12 +248,135 @@ it("keeps map layers collapsed until the user asks to see them", async () => {
     screen.queryByRole("checkbox", { name: "Show pool-shell clearances" }),
   ).not.toBeInTheDocument();
 
-  fireEvent.click(toggle);
+  rerender(
+    <FastPropertyView
+      result={fastResult}
+      onRetry={() => {}}
+      autoOpenMapLayersOnNeedsChecking
+    />,
+  );
 
-  expect(toggle).toHaveAttribute("aria-expanded", "true");
+  expect(screen.getByRole("heading", { name: "Needs Checking" })).toBeVisible();
+  await waitFor(() => expect(toggle).toHaveAttribute("aria-expanded", "true"));
   expect(
     screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
   ).toBeVisible();
+
+  fireEvent.click(toggle);
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+});
+
+it("keeps map layers collapsed for a pool builder when loaded constraints need checking", async () => {
+  const { rerender } = render(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        progress: { ...fastResult.progress, detailedChecks: "not_loaded" },
+        detailedChecks: undefined,
+      }}
+      onRetry={() => {}}
+      autoOpenMapLayersOnNeedsChecking={false}
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const toggle = screen.getByRole("button", { name: /Map layers/ });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+  rerender(
+    <FastPropertyView
+      result={fastResult}
+      onRetry={() => {}}
+      autoOpenMapLayersOnNeedsChecking={false}
+    />,
+  );
+
+  expect(screen.getByRole("heading", { name: "Needs Checking" })).toBeVisible();
+  await waitFor(() => expect(toggle).toHaveAttribute("aria-expanded", "false"));
+});
+
+it("keeps map layers collapsed for a homeowner when loaded constraints have no warning", async () => {
+  const { rerender } = render(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        progress: { ...fastResult.progress, detailedChecks: "not_loaded" },
+        detailedChecks: undefined,
+      }}
+      onRetry={() => {}}
+      autoOpenMapLayersOnNeedsChecking
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const toggle = screen.getByRole("button", { name: /Map layers/ });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+  rerender(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        detailedChecks: {
+          ...fastResult.detailedChecks!,
+          layers: fastResult.detailedChecks!.layers.map((layer) => ({
+            ...layer,
+            state: "verified_empty" as const,
+            geometry: null,
+          })),
+        },
+      }}
+      onRetry={() => {}}
+      autoOpenMapLayersOnNeedsChecking
+    />,
+  );
+
+  expect(screen.getByRole("heading", { name: "No Warning" })).toBeVisible();
+  await waitFor(() => expect(toggle).toHaveAttribute("aria-expanded", "false"));
+});
+
+it("keeps map layers collapsed for a homeowner when loaded constraints block the position", async () => {
+  const { rerender } = render(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        progress: { ...fastResult.progress, detailedChecks: "not_loaded" },
+        detailedChecks: undefined,
+      }}
+      onRetry={() => {}}
+      autoOpenMapLayersOnNeedsChecking
+    />,
+  );
+
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
+  const toggle = screen.getByRole("button", { name: /Map layers/ });
+  expect(toggle).toHaveAttribute("aria-expanded", "false");
+
+  rerender(
+    <FastPropertyView
+      result={{
+        ...fastResult,
+        detailedChecks: {
+          ...fastResult.detailedChecks!,
+          layers: fastResult.detailedChecks!.layers.map((layer) => ({
+            ...layer,
+            evidence: {
+              ...layer.evidence,
+              status: "success" as const,
+              evidenceUse: "report_allowed" as const,
+              confidence: "limited" as const,
+            },
+          })),
+        },
+      }}
+      onRetry={() => {}}
+      autoOpenMapLayersOnNeedsChecking
+    />,
+  );
+
+  expect(
+    screen.getByRole("heading", { name: "This pool position needs review" }),
+  ).toBeVisible();
+  await waitFor(() => expect(toggle).toHaveAttribute("aria-expanded", "false"));
 });
 
 it("keeps live notices above the workspace and placement confirmation below it", async () => {
