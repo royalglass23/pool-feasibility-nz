@@ -188,6 +188,7 @@ export function renderCanonicalPreliminaryReportHtml(
     .map{display:block;width:100%;height:100%;min-height:0;flex:1 1 auto;object-fit:cover;background:#dce5e9}
     .map-caption{padding:1.4mm 2.8mm;background:var(--report-soft);border-top:.25mm solid var(--report-border);color:var(--report-muted);font-size:8pt;line-height:1.25}
     .map-legend{height:36mm;padding:2mm 2.8mm;background:#fff;border-top:.25mm solid var(--report-border);color:var(--report-ink);overflow:hidden;display:grid;grid-template-columns:36mm 45mm minmax(0,1fr);gap:3mm}
+    .homeowner-report .map-legend{grid-template-columns:36mm minmax(0,1fr)}
     .map-legend h3,.map-clearances h3{font-size:8pt;line-height:1.2}
     .map-legend-intro{margin-top:.8mm;color:var(--report-muted);font-size:8pt;line-height:1.25}
     .map-legend-list{margin:0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));column-gap:2.5mm;align-content:start}
