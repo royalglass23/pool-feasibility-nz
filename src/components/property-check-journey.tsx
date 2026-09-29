@@ -1246,6 +1246,7 @@ export function PropertyCheckJourney({
                   : "constraints"
               }
               routeAdjustmentMode={isAdjustingBuilderRoute}
+              autoOpenMapLayersOnNeedsChecking={reportAudience === "homeowner"}
             />
           </div>
           {(currentStage === "placement" || currentStage === "contact") &&

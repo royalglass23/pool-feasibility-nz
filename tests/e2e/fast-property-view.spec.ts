@@ -356,8 +356,6 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       name: /Map layers/,
     });
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "false");
-    await mapLayersToggle.click();
-    await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "true");
     await expect(
       page.getByRole("button", { name: "Check for constraints" }),
     ).toBeVisible();
@@ -369,13 +367,14 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
     await expect.poll(() => detailedStageRequests).toBe(1);
     if (initialOutcome === "error") {
       const retry = page.getByRole("button", {
-        name: "Retry property check",
+        name: "Try property check again",
         exact: true,
       });
       await expect(retry).toBeEnabled();
       await retry.click();
       await expect.poll(() => detailedStageRequests).toBe(2);
     }
+    await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "true");
     await expect(
       page.getByText(/No valid elevation data covers this property\./),
     ).toBeVisible();

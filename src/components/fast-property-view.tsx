@@ -183,6 +183,7 @@ export function FastPropertyView({
   planningEnabled = true,
   placementNextStep = "constraints",
   routeAdjustmentMode = false,
+  autoOpenMapLayersOnNeedsChecking = false,
 }: {
   result: FastPropertyViewResult;
   suggestedRoute?: LineString | null;
@@ -200,6 +201,7 @@ export function FastPropertyView({
   planningEnabled?: boolean;
   placementNextStep?: "constraints" | "site-questions";
   routeAdjustmentMode?: boolean;
+  autoOpenMapLayersOnNeedsChecking?: boolean;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const rotationControlVisibleRef = useRef(false);
@@ -246,7 +248,6 @@ export function FastPropertyView({
   const [contoursVisible, setContoursVisible] = useState(true);
   const [terrainSlopeVisible, setTerrainSlopeVisible] = useState(true);
   const [clearancesVisible, setClearancesVisible] = useState(true);
-  const [mapLayersOpen, setMapLayersOpen] = useState(false);
   const [initialPlacement] = useState(() => defaultPlacement(result));
   const [position, setPosition] = useState<[number, number]>(
     initialPlacement.position,
@@ -387,6 +388,19 @@ export function FastPropertyView({
       result.detailedChecks,
     ],
   );
+  const shouldAutoOpenMapLayers =
+    autoOpenMapLayersOnNeedsChecking &&
+    Boolean(result.detailedChecks) &&
+    poolWarning.status === "needs_checking";
+  const mapLayersStateKey = `${result.resolvedAddress.addressId}:${result.detailedChecks?.retrievedAt ?? "not-loaded"}`;
+  const [mapLayersPreference, setMapLayersPreference] = useState<{
+    key: string;
+    open: boolean;
+  } | null>(null);
+  const mapLayersOpen =
+    mapLayersPreference?.key === mapLayersStateKey
+      ? mapLayersPreference.open
+      : shouldAutoOpenMapLayers;
   const detailedLayers = result.detailedChecks?.layers;
   const detailedConstraintStatus = result.detailedChecks
     ? (result.detailedChecks.constraints?.status ??
@@ -1554,7 +1568,12 @@ export function FastPropertyView({
             type="button"
             aria-expanded={mapLayersOpen}
             aria-controls="fast-view-map-layers"
-            onClick={() => setMapLayersOpen((current) => !current)}
+            onClick={() =>
+              setMapLayersPreference({
+                key: mapLayersStateKey,
+                open: !mapLayersOpen,
+              })
+            }
             className="hover:bg-pool-50 focus-visible:outline-pool-blue-700 grid min-h-16 w-full grid-cols-[minmax(0,1fr)_auto_auto] items-center gap-3 px-4 py-3 text-left transition-colors focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-[-2px] sm:px-5"
           >
             <span>

@@ -19,6 +19,10 @@ import { FieldValidationMessage } from "@/components/field-validation-message";
 import { isValidNzPhone, NZ_PHONE_ERROR } from "@/modules/assessment/nz-phone";
 import { readClientApiError } from "@/shared/http/client-api-error";
 import type { ReportAudience } from "@/modules/assessment/report-audience";
+import {
+  AssessmentSubmissionTooLargeError,
+  serializeAssessmentSubmission,
+} from "@/modules/reporting/assessment-submission-payload";
 
 export type AssessmentSubmissionContext = Omit<
   PersistedAssessmentSubmission,
@@ -180,25 +184,26 @@ export function HomeownerSubmissionForm({
         );
         return;
       }
+      const requestBody = await serializeAssessmentSubmission({
+        assessmentSnapshot: audienceBody.assessmentSnapshot,
+        ...(constructability ? { constructability } : {}),
+        mapImageDataUrl,
+        mapVisibleLayerKeys,
+        poolLayout: {
+          layoutId: placement.layoutId,
+          layoutName: placement.layoutName,
+          lengthMetres: placement.dimensions?.lengthMetres,
+          widthMetres: placement.dimensions?.widthMetres,
+          rotationDegrees: placement.rotationDegrees,
+          position: placement.position,
+          clearancesVisible: placement.clearancesVisible ?? true,
+        },
+        homeowner: contact.data,
+      });
       const response = await fetch("/api/public/assessments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          assessmentSnapshot: audienceBody.assessmentSnapshot,
-          ...(constructability ? { constructability } : {}),
-          mapImageDataUrl,
-          mapVisibleLayerKeys,
-          poolLayout: {
-            layoutId: placement.layoutId,
-            layoutName: placement.layoutName,
-            lengthMetres: placement.dimensions?.lengthMetres,
-            widthMetres: placement.dimensions?.widthMetres,
-            rotationDegrees: placement.rotationDegrees,
-            position: placement.position,
-            clearancesVisible: placement.clearancesVisible ?? true,
-          },
-          homeowner: contact.data,
-        }),
+        body: requestBody,
       });
       const body = (await response.json().catch(() => null)) as {
         assessment?: SavedAssessmentResponse;
@@ -216,8 +221,13 @@ export function HomeownerSubmissionForm({
       }
       trackAnonymousFunnelEvent({ name: "report_request_submitted" });
       onSaved(body.assessment);
-    } catch {
-      setError(friendlyRequestError(503, "save your report"));
+    } catch (caught) {
+      setError(
+        friendlyRequestError(
+          caught instanceof AssessmentSubmissionTooLargeError ? 413 : 503,
+          "save your report",
+        ),
+      );
     } finally {
       setSaving(false);
       onSavingChange?.(false);
