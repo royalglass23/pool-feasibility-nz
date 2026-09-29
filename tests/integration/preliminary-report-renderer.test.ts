@@ -222,6 +222,73 @@ describe("persisted preliminary report renderer", () => {
     });
   }, 30_000);
 
+  it("keeps every Homeowner map legend label inside its rendered column", async () => {
+    const layerIds = [
+      "contours",
+      "public_stormwater_assets",
+      "wastewater_assets",
+      "public_water_assets",
+      "electricity_feeder_lines",
+      "gas_distribution_lines",
+    ];
+    const homeownerReport = buildTestPreliminaryReport({
+      reportAudience: "homeowner",
+      mapImageSource: "fast_property_view_capture",
+      mapVisibleLayerKeys: layerIds,
+      layers: layerIds.map((id) => ({
+        id,
+        provider: "Diagnostic provider",
+        dataset: id,
+        evidenceUse: "report_allowed",
+        state:
+          id === "electricity_feeder_lines"
+            ? ("empty" as const)
+            : id === "gas_distribution_lines"
+              ? ("unavailable" as const)
+              : ("returned" as const),
+        confidence:
+          id === "gas_distribution_lines"
+            ? ("unavailable" as const)
+            : ("limited" as const),
+        attribution: "Diagnostic provider",
+        sourceUrl: null,
+      })),
+    });
+    let collidingLegendLabels: string[] | undefined;
+
+    await generatePreliminaryReportPdf(homeownerReport, {
+      async render(html) {
+        const browser = await puppeteer.launch({
+          executablePath: testChromiumExecutable(),
+          headless: true,
+        });
+        try {
+          const page = await browser.newPage();
+          await page.setContent(html, { waitUntil: "load" });
+          await page.emulateMediaType("print");
+          collidingLegendLabels = await page.evaluate(() =>
+            Array.from(
+              document.querySelectorAll<HTMLElement>(".map-legend-copy"),
+            )
+              .filter((copy) => copy.scrollWidth > copy.clientWidth + 1)
+              .map(
+                (copy) =>
+                  copy.querySelector("strong")?.textContent?.trim() ??
+                  "Unknown legend label",
+              ),
+          );
+          return Buffer.from(
+            await page.pdf({ format: "A4", printBackground: true }),
+          );
+        } finally {
+          await browser.close();
+        }
+      },
+    });
+
+    expect(collidingLegendLabels).toEqual([]);
+  }, 30_000);
+
   it("renders the shared saved report through the real local Chromium boundary", async () => {
     const pdf = await generatePreliminaryReportPdf(report);
     const source = pdf.toString("latin1");
