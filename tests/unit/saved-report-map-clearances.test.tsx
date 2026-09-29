@@ -1,7 +1,25 @@
-import { expect, it } from "vitest";
-import { render, screen } from "@testing-library/react";
+import { afterEach, expect, it } from "vitest";
+import { cleanup, render, screen } from "@testing-library/react";
 import { SavedReportInteractiveMap } from "@/components/saved-report-interactive-map";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
+
+afterEach(cleanup);
+
+it("caps the complete saved map at 500px in Property findings", () => {
+  render(<SavedReportInteractiveMap report={buildTestPreliminaryReport()} />);
+
+  const map = screen.getByAltText(
+    "Saved aerial assessment map showing the mapped property and proposed pool",
+  );
+  expect(map).toHaveClass(
+    "h-auto",
+    "max-h-[500px]",
+    "w-auto",
+    "max-w-full",
+    "object-contain",
+  );
+  expect(map.closest("figure")).toHaveClass("flex", "flex-col", "items-center");
+});
 
 it("reproduces the selected pool-shell clearance state in the saved report", () => {
   const { rerender } = render(
@@ -28,11 +46,6 @@ it("reproduces the selected pool-shell clearance state in the saved report", () 
       )
       .closest("figure")?.parentElement,
   ).toHaveClass("items-start");
-  expect(
-    screen.getByAltText(
-      "Saved aerial assessment map showing the mapped property and proposed pool",
-    ),
-  ).toHaveClass("h-auto", "w-full", "object-contain");
   expect(
     screen.getByRole("list", { name: "Saved mapped services" }),
   ).toHaveClass("lg:grid-cols-5");

@@ -112,6 +112,7 @@ vi.mock("maplibre-gl", () => {
     }
     fitBounds(...args: unknown[]) {
       fitBounds(...args);
+      mapEventHandlers.get("movestart:map")?.({} as MapEvent);
     }
     resize() {
       resizeMap();
@@ -598,6 +599,7 @@ it.each(["layer", "camera", "clearances"])(
       />,
     );
     await waitFor(() => expect(canvasSnapshot).toHaveBeenCalled());
+    onSnapshotReady.mockClear();
     if (change === "camera")
       mapEventHandlers.get("movestart:map")?.({} as MapEvent);
     else {
@@ -609,7 +611,8 @@ it.each(["layer", "camera", "clearances"])(
         }),
       );
     }
-    expect(onSnapshotReady).toHaveBeenLastCalledWith(null);
+    if (change === "camera") expect(onSnapshotReady).not.toHaveBeenCalled();
+    else expect(onSnapshotReady).toHaveBeenLastCalledWith(null);
     canvasSnapshot.mockReturnValue("data:image/png;base64,new");
     mapEventHandlers.get("idle:map")?.({} as MapEvent);
     expect(onSnapshotReady).toHaveBeenLastCalledWith({
@@ -945,7 +948,78 @@ it("resizes and refits the parcel before recapturing after the map frame changes
     duration: 0,
     maxZoom: 20,
   });
-  expect(onSnapshotReady).toHaveBeenLastCalledWith(null);
+  expect(onSnapshotReady).not.toHaveBeenCalled();
+
+  canvasSnapshot.mockReturnValue("data:image/png;base64,resized-map");
+  mapEventHandlers.get("idle:map")?.({} as MapEvent);
+
+  expect(onSnapshotReady).toHaveBeenCalledWith({
+    imageDataUrl: "data:image/png;base64,resized-map",
+    visibleLayerKeys: ["wastewater_assets"],
+  });
+});
+
+it("keeps the completed report snapshot while resize recapture is interrupted by hiding the map", async () => {
+  const resizeCallbacks: ResizeObserverCallback[] = [];
+  vi.stubGlobal(
+    "ResizeObserver",
+    class ResizeObserver {
+      constructor(callback: ResizeObserverCallback) {
+        resizeCallbacks.push(callback);
+      }
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    },
+  );
+  const onSnapshotReady = vi.fn();
+  const { rerender } = render(
+    <div>
+      <FastPropertyView
+        result={fastResult}
+        onRetry={() => {}}
+        onSnapshotReady={onSnapshotReady}
+      />
+    </div>,
+  );
+
+  await waitFor(() =>
+    expect(onSnapshotReady).toHaveBeenCalledWith({
+      imageDataUrl: "data:image/png;base64,",
+      visibleLayerKeys: ["wastewater_assets"],
+    }),
+  );
+  await waitFor(() => expect(resizeCallbacks).toHaveLength(1));
+  onSnapshotReady.mockClear();
+  resizeMap.mockClear();
+  fitBounds.mockClear();
+
+  resizeCallbacks[0]!([], {} as ResizeObserver);
+
+  expect(onSnapshotReady).not.toHaveBeenCalled();
+  expect(resizeMap).toHaveBeenCalledTimes(1);
+  expect(fitBounds).toHaveBeenCalledTimes(1);
+  onSnapshotReady.mockClear();
+  resizeMap.mockClear();
+  fitBounds.mockClear();
+  canvasSnapshot.mockReturnValue("data:image/png;base64,hidden-map");
+
+  rerender(
+    <div hidden>
+      <FastPropertyView
+        result={fastResult}
+        onRetry={() => {}}
+        onSnapshotReady={onSnapshotReady}
+      />
+    </div>,
+  );
+  mapEventHandlers.get("movestart:map")?.({} as MapEvent);
+  resizeCallbacks[0]!([], {} as ResizeObserver);
+  mapEventHandlers.get("idle:map")?.({} as MapEvent);
+
+  expect(onSnapshotReady).not.toHaveBeenCalled();
+  expect(resizeMap).not.toHaveBeenCalled();
+  expect(fitBounds).not.toHaveBeenCalled();
 });
 
 it("draws the indicative investigation buffer around the selected pool", async () => {
