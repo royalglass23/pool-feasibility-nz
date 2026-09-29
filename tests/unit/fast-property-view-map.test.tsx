@@ -162,12 +162,6 @@ vi.mock("maplibre-gl", () => {
   };
 });
 
-const scrollIntoView = vi.fn();
-Object.defineProperty(Element.prototype, "scrollIntoView", {
-  configurable: true,
-  value: scrollIntoView,
-});
-
 afterEach(() => {
   cleanup();
   mapCreated.mockClear();
@@ -181,7 +175,6 @@ afterEach(() => {
   canvasSnapshot.mockReset().mockReturnValue("data:image/png;base64,");
   setWorkerUrl.mockClear();
   setLayoutProperty.mockClear();
-  scrollIntoView.mockClear();
 });
 
 function openMapLayers() {
@@ -236,7 +229,7 @@ it("keeps the route map source empty when no credible route exists", async () =>
   expect(style.sources["suggested-access-route"].data.features).toEqual([]);
 });
 
-it("goes to Needs Checking and opens map layers when homeowner constraints load", async () => {
+it("opens map layers when loaded constraints change the result to Needs Checking", async () => {
   const { rerender } = render(
     <FastPropertyView
       result={{
@@ -252,7 +245,6 @@ it("goes to Needs Checking and opens map layers when homeowner constraints load"
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
   const toggle = screen.getByRole("button", { name: /Map layers/ });
   expect(toggle).toHaveAttribute("aria-expanded", "false");
-  expect(scrollIntoView).not.toHaveBeenCalled();
   expect(
     screen.queryByRole("checkbox", { name: "Show pool-shell clearances" }),
   ).not.toBeInTheDocument();
@@ -267,18 +259,12 @@ it("goes to Needs Checking and opens map layers when homeowner constraints load"
 
   expect(screen.getByRole("heading", { name: "Needs Checking" })).toBeVisible();
   await waitFor(() => expect(toggle).toHaveAttribute("aria-expanded", "true"));
-  expect(scrollIntoView).toHaveBeenCalledOnce();
-  expect(scrollIntoView).toHaveBeenCalledWith({
-    behavior: "smooth",
-    block: "start",
-  });
   expect(
     screen.getByRole("checkbox", { name: "Show pool-shell clearances" }),
   ).toBeVisible();
 
   fireEvent.click(toggle);
   expect(toggle).toHaveAttribute("aria-expanded", "false");
-  expect(scrollIntoView).toHaveBeenCalledOnce();
 });
 
 it("keeps map layers collapsed for a pool builder when loaded constraints need checking", async () => {
@@ -1031,11 +1017,7 @@ it("keeps the completed report snapshot while resize recapture is interrupted by
   resizeCallbacks[0]!([], {} as ResizeObserver);
   mapEventHandlers.get("idle:map")?.({} as MapEvent);
 
-  expect(onSnapshotReady).toHaveBeenCalledOnce();
-  expect(onSnapshotReady).toHaveBeenCalledWith({
-    imageDataUrl: "data:image/png;base64,hidden-map",
-    visibleLayerKeys: ["wastewater_assets"],
-  });
+  expect(onSnapshotReady).not.toHaveBeenCalled();
   expect(resizeMap).not.toHaveBeenCalled();
   expect(fitBounds).not.toHaveBeenCalled();
 });

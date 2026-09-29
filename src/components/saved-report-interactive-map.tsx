@@ -41,16 +41,16 @@ export function SavedReportInteractiveMap({
       aria-label="Saved assessment map"
     >
       <div className="grid items-start">
-        <figure className="bg-pool-900 min-w-0">
+        <figure className="bg-pool-900 flex min-w-0 flex-col items-center">
           <Image
             src={report.mapImageDataUrl}
             alt="Saved aerial assessment map showing the mapped property and proposed pool"
             width={900}
             height={600}
             unoptimized
-            className="h-auto w-full object-contain"
+            className="h-auto max-h-[500px] w-auto max-w-full object-contain"
           />
-          <figcaption className="bg-pool-950 text-pool-200 border-t border-white/15 px-4 py-3 text-xs leading-5">
+          <figcaption className="bg-pool-950 text-pool-200 w-full border-t border-white/15 px-4 py-3 text-xs leading-5">
             {isFastPropertyViewCapture
               ? "Saved Fast Property View capture. This is the aerial map and layer selection used when this report was generated."
               : "Saved assessment map. This is the map capture used when this report was generated."}

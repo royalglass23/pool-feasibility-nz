@@ -393,8 +393,6 @@ export function FastPropertyView({
     Boolean(result.detailedChecks) &&
     poolWarning.status === "needs_checking";
   const mapLayersStateKey = `${result.resolvedAddress.addressId}:${result.detailedChecks?.retrievedAt ?? "not-loaded"}`;
-  const propertyCheckNoticesRef = useRef<HTMLDivElement>(null);
-  const previousMapLayersStateKeyRef = useRef(mapLayersStateKey);
   const [mapLayersPreference, setMapLayersPreference] = useState<{
     key: string;
     open: boolean;
@@ -403,22 +401,6 @@ export function FastPropertyView({
     mapLayersPreference?.key === mapLayersStateKey
       ? mapLayersPreference.open
       : shouldAutoOpenMapLayers;
-  useEffect(() => {
-    const previousMapLayersStateKey = previousMapLayersStateKeyRef.current;
-    previousMapLayersStateKeyRef.current = mapLayersStateKey;
-    if (
-      !shouldAutoOpenMapLayers ||
-      previousMapLayersStateKey === mapLayersStateKey
-    ) {
-      return;
-    }
-    const propertyCheckNotices = propertyCheckNoticesRef.current;
-    if (typeof propertyCheckNotices?.scrollIntoView !== "function") return;
-    propertyCheckNotices.scrollIntoView({
-      behavior: "smooth",
-      block: "start",
-    });
-  }, [mapLayersStateKey, shouldAutoOpenMapLayers]);
   const detailedLayers = result.detailedChecks?.layers;
   const detailedConstraintStatus = result.detailedChecks
     ? (result.detailedChecks.constraints?.status ??
@@ -940,15 +922,6 @@ export function FastPropertyView({
               }
             : null;
         };
-        map.on("movestart", () => {
-          if (!mapRef.current?.closest("[hidden]")) return;
-          try {
-            const snapshot = captureSnapshot();
-            if (snapshot) snapshotHandlerRef.current?.(snapshot);
-          } catch {
-            // Keep the last completed snapshot if the hidden canvas cannot be read.
-          }
-        });
         map.on("move", () =>
           positionPoolShellClearanceLabels(
             map!,
@@ -1363,9 +1336,8 @@ export function FastPropertyView({
           mapError ||
           result.aerial.state !== "ready") && (
           <div
-            ref={propertyCheckNoticesRef}
             aria-label="Property check notices"
-            className="border-pool-200 flex scroll-mt-24 flex-col gap-2 border-b bg-white p-3 sm:p-4"
+            className="border-pool-200 flex flex-col gap-2 border-b bg-white p-3 sm:p-4"
           >
             {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
             {placementMessage && (
