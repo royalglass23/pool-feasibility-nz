@@ -166,7 +166,9 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
     .getByLabel("Auckland property address")
     .fill("1 Test Street, Auckland");
   await page.keyboard.press("Enter");
-  await page.getByRole("button", { name: "Check for constraints" }).click();
+  await page
+    .getByRole("button", { name: "Continue to site questions" })
+    .click();
   await page
     .getByRole("button", { name: "Access and excavation conditions" })
     .click();

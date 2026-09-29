@@ -181,6 +181,7 @@ export function FastPropertyView({
   isDetailedRateLimited = false,
   planningStep,
   planningEnabled = true,
+  placementNextStep = "constraints",
   routeAdjustmentMode = false,
 }: {
   result: FastPropertyViewResult;
@@ -197,6 +198,7 @@ export function FastPropertyView({
   isDetailedRateLimited?: boolean;
   planningStep?: ReactNode;
   planningEnabled?: boolean;
+  placementNextStep?: "constraints" | "site-questions";
   routeAdjustmentMode?: boolean;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
@@ -1510,8 +1512,9 @@ export function FastPropertyView({
                   <strong className="text-pool-950 block font-semibold">
                     Happy with your pool position?
                   </strong>
-                  Check for potential site constraints, or start again with
-                  another property.
+                  {placementNextStep === "site-questions"
+                    ? "Continue to record the known site conditions, or start again with another property."
+                    : "Check for potential site constraints, or start again with another property."}
                 </>
               )}
             </p>
@@ -1523,7 +1526,9 @@ export function FastPropertyView({
                     onClick={onConfirmPlacement}
                     className="bg-pool-950 hover:bg-pool-800 focus-visible:outline-pool-blue-700 min-h-11 rounded-sm px-4 text-sm font-semibold text-white transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
                   >
-                    Check for constraints
+                    {placementNextStep === "site-questions"
+                      ? "Continue to site questions"
+                      : "Check for constraints"}
                   </button>
                 )}
                 {onStartAgain && (

@@ -1240,6 +1240,11 @@ export function PropertyCheckJourney({
               placementConfirmed={isPlacementLocked}
               isDetailedRateLimited={detailedRetryAfterSeconds !== null}
               planningEnabled
+              placementNextStep={
+                reportAudience === "pool_builder"
+                  ? "site-questions"
+                  : "constraints"
+              }
               routeAdjustmentMode={isAdjustingBuilderRoute}
             />
           </div>
