@@ -55,7 +55,9 @@ test("operates the compact builder details controls by keyboard with accessible 
     .getByLabel("Auckland property address")
     .fill("1 Test Street, Auckland");
   await page.keyboard.press("Enter");
-  await page.getByRole("button", { name: "Check for constraints" }).click();
+  await page
+    .getByRole("button", { name: "Continue to site questions" })
+    .click();
 
   const depth = page.getByRole("slider", {
     name: "Estimated pool depth (m)",

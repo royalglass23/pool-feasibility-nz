@@ -20,6 +20,7 @@ vi.mock("@/components/fast-property-view", () => ({
     onSnapshotReady,
     onConfirmPlacement,
     placementConfirmed,
+    placementNextStep,
     planningStep,
   }: {
     onPlacementChange: (placement: FastPoolPlacementSnapshot) => void;
@@ -29,6 +30,7 @@ vi.mock("@/components/fast-property-view", () => ({
     }) => void;
     onConfirmPlacement: () => void;
     placementConfirmed: boolean;
+    placementNextStep?: "constraints" | "site-questions";
     planningStep?: React.ReactNode;
   }) => {
     function update(
@@ -71,7 +73,9 @@ vi.mock("@/components/fast-property-view", () => ({
         <button onClick={() => update(174.77, false)}>Move pool</button>
         {planningStep}
         <button onClick={onConfirmPlacement} disabled={placementConfirmed}>
-          Check for constraints
+          {placementNextStep === "site-questions"
+            ? "Continue to site questions"
+            : "Check for constraints"}
         </button>
       </div>
     );
@@ -294,7 +298,7 @@ describe("Site answers in the property journey", () => {
     render(<PropertyCheckJourney />);
     await openValidPlacement(user, "pool_builder");
     await user.click(
-      screen.getByRole("button", { name: "Check for constraints" }),
+      screen.getByRole("button", { name: "Continue to site questions" }),
     );
     const depth = await screen.findByRole("slider", {
       name: "Estimated pool depth (m)",
@@ -360,7 +364,7 @@ describe("Site answers in the property journey", () => {
     render(<PropertyCheckJourney />);
     await openValidPlacement(user, "pool_builder");
     await user.click(
-      screen.getByRole("button", { name: "Check for constraints" }),
+      screen.getByRole("button", { name: "Continue to site questions" }),
     );
     await openChoiceGroup(user, "Access and excavation conditions");
     const access = screen.getByRole("group", {
@@ -461,7 +465,7 @@ describe("Site answers in the property journey", () => {
     render(<PropertyCheckJourney />);
     await openValidPlacement(user, "pool_builder");
     await user.click(
-      screen.getByRole("button", { name: "Check for constraints" }),
+      screen.getByRole("button", { name: "Continue to site questions" }),
     );
     await chooseNone(user);
 

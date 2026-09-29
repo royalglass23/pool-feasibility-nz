@@ -418,8 +418,12 @@ async function startJourney(
     .getByLabel("Auckland property address")
     .fill("42A Bahari Drive, Ranui, Auckland");
   await page.keyboard.press("Enter");
+  const placementActionLabel =
+    visitorType === "pool_builder"
+      ? "Continue to site questions"
+      : "Check for constraints";
   await expect(
-    page.getByRole("button", { name: "Check for constraints" }),
+    page.getByRole("button", { name: placementActionLabel }),
   ).toBeVisible();
   if (options.evidencePrefix) {
     await captureVisualEvidence(
@@ -430,7 +434,7 @@ async function startJourney(
   const depthInput = page.getByRole("slider", {
     name: "Estimated pool depth (m)",
   });
-  await page.getByRole("button", { name: "Check for constraints" }).click();
+  await page.getByRole("button", { name: placementActionLabel }).click();
   if (visitorType === "homeowner") {
     if (options.evidencePrefix) {
       await captureVisualEvidence(
