@@ -393,6 +393,8 @@ export function FastPropertyView({
     Boolean(result.detailedChecks) &&
     poolWarning.status === "needs_checking";
   const mapLayersStateKey = `${result.resolvedAddress.addressId}:${result.detailedChecks?.retrievedAt ?? "not-loaded"}`;
+  const propertyCheckNoticesRef = useRef<HTMLDivElement>(null);
+  const previousMapLayersStateKeyRef = useRef(mapLayersStateKey);
   const [mapLayersPreference, setMapLayersPreference] = useState<{
     key: string;
     open: boolean;
@@ -401,6 +403,22 @@ export function FastPropertyView({
     mapLayersPreference?.key === mapLayersStateKey
       ? mapLayersPreference.open
       : shouldAutoOpenMapLayers;
+  useEffect(() => {
+    const previousMapLayersStateKey = previousMapLayersStateKeyRef.current;
+    previousMapLayersStateKeyRef.current = mapLayersStateKey;
+    if (
+      !shouldAutoOpenMapLayers ||
+      previousMapLayersStateKey === mapLayersStateKey
+    ) {
+      return;
+    }
+    const propertyCheckNotices = propertyCheckNoticesRef.current;
+    if (typeof propertyCheckNotices?.scrollIntoView !== "function") return;
+    propertyCheckNotices.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  }, [mapLayersStateKey, shouldAutoOpenMapLayers]);
   const detailedLayers = result.detailedChecks?.layers;
   const detailedConstraintStatus = result.detailedChecks
     ? (result.detailedChecks.constraints?.status ??
@@ -908,8 +926,28 @@ export function FastPropertyView({
               if (!disposed) setMapApiError(error);
             });
         });
+        const captureSnapshot = (): FastPropertyViewMapSnapshot | null => {
+          if (!map) return null;
+          const imageDataUrl = captureFastPropertyViewMap({
+            map,
+            clearances: poolShellClearancesRef.current,
+            visible: clearancesVisibleRef.current,
+          });
+          return imageDataUrl
+            ? {
+                imageDataUrl,
+                visibleLayerKeys: [...visibleMapLayerKeysRef.current],
+              }
+            : null;
+        };
         map.on("movestart", () => {
-          snapshotHandlerRef.current?.(null);
+          if (!mapRef.current?.closest("[hidden]")) return;
+          try {
+            const snapshot = captureSnapshot();
+            if (snapshot) snapshotHandlerRef.current?.(snapshot);
+          } catch {
+            // Keep the last completed snapshot if the hidden canvas cannot be read.
+          }
         });
         map.on("move", () =>
           positionPoolShellClearanceLabels(
@@ -919,21 +957,15 @@ export function FastPropertyView({
           ),
         );
         map.on("idle", () => {
-          if (disposed || !map) return;
+          if (
+            disposed ||
+            !map ||
+            !mapRef.current ||
+            mapRef.current.closest("[hidden]")
+          )
+            return;
           try {
-            const imageDataUrl = captureFastPropertyViewMap({
-              map,
-              clearances: poolShellClearancesRef.current,
-              visible: clearancesVisibleRef.current,
-            });
-            snapshotHandlerRef.current?.(
-              imageDataUrl
-                ? {
-                    imageDataUrl,
-                    visibleLayerKeys: [...visibleMapLayerKeysRef.current],
-                  }
-                : null,
-            );
+            snapshotHandlerRef.current?.(captureSnapshot());
           } catch {
             snapshotHandlerRef.current?.(null);
           }
@@ -1093,8 +1125,8 @@ export function FastPropertyView({
       return;
 
     const observer = new ResizeObserver(() => {
-      if (mapInstanceRef.current !== map) return;
-      snapshotHandlerRef.current?.(null);
+      if (mapInstanceRef.current !== map || container.closest("[hidden]"))
+        return;
       map.resize();
       if (mapBoundaryGeometry) {
         map.fitBounds(boundaryBounds(mapBoundaryGeometry), {
@@ -1331,8 +1363,9 @@ export function FastPropertyView({
           mapError ||
           result.aerial.state !== "ready") && (
           <div
+            ref={propertyCheckNoticesRef}
             aria-label="Property check notices"
-            className="border-pool-200 flex flex-col gap-2 border-b bg-white p-3 sm:p-4"
+            className="border-pool-200 flex scroll-mt-24 flex-col gap-2 border-b bg-white p-3 sm:p-4"
           >
             {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
             {placementMessage && (
