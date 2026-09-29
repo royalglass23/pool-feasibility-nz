@@ -435,6 +435,119 @@ describe("homeowner report submission", () => {
     expect(body).not.toHaveProperty("report");
   });
 
+  it("keeps the complete assessment submission below the hosting request limit", async () => {
+    const user = userEvent.setup();
+    const request = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json({
+          assessmentSnapshot: "audience-signed-assessment-snapshot",
+        }),
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          {
+            assessment: {
+              id: "assessment-1",
+              reference: report.reference,
+              status: "new_enquiry",
+              created: true,
+              report,
+              reportAccessToken: "saved-report-access-token",
+              delivery: {
+                homeowner: "pending",
+                internal_test_report: "pending",
+              },
+            },
+          },
+          { status: 201 },
+        ),
+      );
+    vi.stubGlobal("fetch", request);
+    const oversizedMapImageDataUrl = `data:image/png;base64,${"A".repeat(4_800_000)}`;
+    vi.stubGlobal(
+      "Image",
+      class {
+        width = 1_026;
+        height = 750;
+        naturalWidth = 1_026;
+        naturalHeight = 750;
+        sourceDataUrl = "";
+        onload: (() => void) | null = null;
+        onerror: (() => void) | null = null;
+
+        set src(value: string) {
+          this.sourceDataUrl = value;
+          queueMicrotask(() => this.onload?.());
+        }
+      },
+    );
+    let capturedSource: CanvasImageSource | null = null;
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+      drawImage: (source: CanvasImageSource) => {
+        capturedSource = source;
+      },
+    } as unknown as CanvasRenderingContext2D);
+    vi.spyOn(HTMLCanvasElement.prototype, "toDataURL").mockImplementation(
+      function (this: HTMLCanvasElement) {
+        const sourceDataUrl = (
+          capturedSource as
+            (CanvasImageSource & { sourceDataUrl?: string }) | null
+        )?.sourceDataUrl;
+        return sourceDataUrl === oversizedMapImageDataUrl &&
+          this.width < 1_026 &&
+          this.height < 750
+          ? TEST_MAP_IMAGE_DATA_URL
+          : "data:image/png;base64,blank-map";
+      },
+    );
+
+    render(
+      <HomeownerSubmissionForm
+        assessmentSnapshot="server-issued-assessment-snapshot"
+        reportAudience="homeowner"
+        mapImageDataUrl={oversizedMapImageDataUrl}
+        placement={{
+          layoutId: "compact",
+          layoutName: "Compact",
+          position: [174.76, -36.85],
+          rotationDegrees: 12,
+          dimensions: { lengthMetres: 6.5, widthMetres: 3 },
+          poolGeometry: validPoolGeometry,
+          constructionEnvelopeGeometry: validPoolGeometry,
+          constructionEnvelopeWithinMappedArea: true,
+          clearancesVisible: false,
+          warning: {
+            status: "needs_checking",
+            label: "Needs Checking",
+            text: "Some mapped evidence is unavailable or uncertain.",
+            recommendation: null,
+            conflictingDatasets: [],
+            checkingDatasets: [],
+          },
+        }}
+        onSaved={() => undefined}
+      />,
+    );
+
+    await user.type(screen.getByLabelText("Name"), "Jane Homeowner");
+    await user.type(screen.getByLabelText("Phone"), "021 555 1234");
+    await user.type(screen.getByLabelText("Email"), "jane@example.com");
+    await user.click(screen.getByRole("checkbox"));
+    await user.click(
+      screen.getByRole("button", { name: "Save and show my report" }),
+    );
+
+    await waitFor(() => expect(request).toHaveBeenCalledTimes(2));
+    const requestBody = String(request.mock.calls[1]?.[1]?.body);
+    expect(
+      new TextEncoder().encode(requestBody).byteLength,
+    ).toBeLessThanOrEqual(4_500_000);
+    expect(JSON.parse(requestBody).mapImageDataUrl).toBe(
+      TEST_MAP_IMAGE_DATA_URL,
+    );
+  });
+
   it("does not submit a placement whose construction envelope is outside the mapped property", async () => {
     const user = userEvent.setup();
     const request = vi
