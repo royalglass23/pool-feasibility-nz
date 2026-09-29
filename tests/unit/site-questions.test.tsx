@@ -34,26 +34,30 @@ function renderQuestions(
   const onRouteEdit = vi.fn();
   const onDraftChange = vi.fn();
   const onContinue = vi.fn();
-  const view = render(
-    <SiteQuestions
-      placementKey="placement-1"
-      estimatedDepth="1.5"
-      depthLocked={false}
-      onEstimatedDepthChange={() => undefined}
-      onEditEstimatedDepth={() => undefined}
-      hasCompletedCheck={false}
-      hasSavedAnswers={false}
-      isChecking={false}
-      onCheckProperty={onCheckProperty}
-      onSaveRouteAdjustment={onSaveRouteAdjustment}
-      onRouteEdit={onRouteEdit}
-      onDraftChange={onDraftChange}
-      onContinue={onContinue}
-      {...overrides}
-    />,
-  );
+  const baseProps: React.ComponentProps<typeof SiteQuestions> = {
+    placementKey: "placement-1",
+    estimatedDepth: "1.5",
+    depthLocked: false,
+    onEstimatedDepthChange: () => undefined,
+    onEditEstimatedDepth: () => undefined,
+    hasCompletedCheck: false,
+    hasSavedAnswers: false,
+    isChecking: false,
+    onCheckProperty,
+    onSaveRouteAdjustment,
+    onRouteEdit,
+    onDraftChange,
+    onContinue,
+  };
+  const view = render(<SiteQuestions {...baseProps} {...overrides} />);
   return {
     ...view,
+    rerenderQuestions: (
+      nextOverrides: Partial<React.ComponentProps<typeof SiteQuestions>>,
+    ) =>
+      view.rerender(
+        <SiteQuestions {...baseProps} {...overrides} {...nextOverrides} />,
+      ),
     onCheckProperty,
     onSaveRouteAdjustment,
     onRouteEdit,
@@ -230,7 +234,7 @@ describe("Pool builder site questions", () => {
     expect(screen.queryByText(/Needs checking/i)).not.toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: "Check this property" }),
+      screen.getByRole("button", { name: "Check for constraints" }),
     );
     expect(onCheckProperty).toHaveBeenCalledWith({
       accessConditions: ["none_of_these"],
@@ -245,7 +249,7 @@ describe("Pool builder site questions", () => {
     renderQuestions({ onCheckProperty });
 
     await user.click(
-      screen.getByRole("button", { name: "Check this property" }),
+      screen.getByRole("button", { name: "Check for constraints" }),
     );
     expect(
       screen.getByText("Record at least one access or excavation condition."),
@@ -254,7 +258,7 @@ describe("Pool builder site questions", () => {
 
     await chooseNone(user);
     await user.click(
-      screen.getByRole("button", { name: "Check this property" }),
+      screen.getByRole("button", { name: "Check for constraints" }),
     );
     expect(
       await screen.findByText(/couldn’t complete the property check/i),
@@ -287,7 +291,7 @@ describe("Pool builder site questions", () => {
     ).toBeVisible();
     expect(screen.getByText(/has not been confirmed/i)).toBeVisible();
     expect(
-      screen.queryByRole("button", { name: "Check this property" }),
+      screen.queryByRole("button", { name: "Check for constraints" }),
     ).not.toBeInTheDocument();
 
     await user.click(
@@ -308,7 +312,15 @@ describe("Pool builder site questions", () => {
         [174.761, -36.851] as [number, number],
       ],
     };
-    const { onRouteEdit } = renderQuestions({
+    const {
+      rerenderQuestions,
+      onRouteEdit,
+      onCheckProperty,
+      onSaveRouteAdjustment,
+    } = renderQuestions();
+    await chooseNone(user);
+    onCheckProperty.mockClear();
+    rerenderQuestions({
       hasCompletedCheck: true,
       hasSavedAnswers: true,
       depthLocked: true,
@@ -322,15 +334,13 @@ describe("Pool builder site questions", () => {
     const restoredSuggestedRoute = onRouteEdit.mock.lastCall?.[0];
     expect(restoredSuggestedRoute?.coordinates).toHaveLength(2);
 
-    cleanup();
-    const { onCheckProperty, onSaveRouteAdjustment } = renderQuestions({
+    rerenderQuestions({
       hasCompletedCheck: true,
       hasSavedAnswers: false,
       depthLocked: true,
       routeSuggestion: credibleRoute,
       adjustedRoute: restoredSuggestedRoute,
     });
-    await chooseNone(user);
     await user.click(
       screen.getByRole("button", { name: "Save builder answers" }),
     );

@@ -40,7 +40,7 @@ test("keeps the builder entry URL through browser back and forward navigation", 
   await expect(page).toHaveURL(/audience=pool_builder/);
 });
 
-test("locks earlier steps and pool placement after checking constraints", async ({
+test("locks the property step and pool placement after checking constraints", async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -146,7 +146,7 @@ test("locks earlier steps and pool placement after checking constraints", async 
   ).toHaveAttribute("aria-current", "step");
   await expect(
     page.getByRole("button", { name: /Who is this for?.*Completed/ }),
-  ).toBeDisabled();
+  ).toBeEnabled();
   await expect(
     page.getByRole("button", { name: /Find the property.*Completed/ }),
   ).toBeDisabled();
@@ -375,6 +375,16 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       await expect.poll(() => detailedStageRequests).toBe(2);
     }
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "true");
+    if (initialOutcome !== "retryable") {
+      await expect(
+        page.getByRole("list", { name: "Fast view progress" }),
+      ).toContainText("Constraints loaded. Review the map and details below.");
+      await expect(
+        page.getByRole("heading", {
+          name: "42A Bahari Drive, Ranui, Auckland",
+        }),
+      ).toBeFocused();
+    }
     await expect(
       page.getByText(/No valid elevation data covers this property\./),
     ).toBeVisible();

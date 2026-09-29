@@ -46,7 +46,7 @@ describe("Property Check journey navigation", () => {
     expect(onNavigate).toHaveBeenCalledWith("property");
   });
 
-  it("locks completed earlier stages after constraint checking starts", async () => {
+  it("keeps the pathway available while locking the completed property stage", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
 
@@ -66,9 +66,11 @@ describe("Property Check journey navigation", () => {
       name: /Find the property.*Completed/,
     });
 
-    expect(audience).toBeDisabled();
+    expect(audience).toBeEnabled();
     expect(property).toBeDisabled();
+    await user.click(audience);
+    expect(onNavigate).toHaveBeenCalledWith("audience");
     await user.click(property);
-    expect(onNavigate).not.toHaveBeenCalled();
+    expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 });

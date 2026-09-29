@@ -80,6 +80,7 @@ function MultiSelectDropdown<T extends string>({
   open,
   error,
   errorText,
+  locked,
   buttonRef,
   onOpenChange,
   onChoiceChange,
@@ -92,6 +93,7 @@ function MultiSelectDropdown<T extends string>({
   open: boolean;
   error: boolean;
   errorText: string;
+  locked: boolean;
   buttonRef: React.RefObject<HTMLButtonElement | null>;
   onOpenChange: (open: boolean) => void;
   onChoiceChange: (choice: T) => void;
@@ -108,41 +110,52 @@ function MultiSelectDropdown<T extends string>({
       <p id={questionId} className="text-pool-950 font-semibold">
         {question}
       </p>
-      <button
-        ref={buttonRef}
-        type="button"
-        aria-expanded={open}
-        aria-controls={panelId}
-        aria-describedby={error ? errorId : questionId}
-        onClick={() => onOpenChange(!open)}
-        className="border-pool-300 focus-visible:outline-pool-blue-700 flex min-h-11 w-full items-center justify-between rounded-[3px] border bg-white px-4 py-2 text-left text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
-      >
-        <span>{label}</span>
-        <span aria-hidden="true">{open ? "Close" : "Choose"}</span>
-      </button>
+      {!locked && (
+        <button
+          ref={buttonRef}
+          type="button"
+          aria-expanded={open}
+          aria-controls={panelId}
+          aria-describedby={error ? errorId : questionId}
+          onClick={() => onOpenChange(!open)}
+          className="border-pool-300 focus-visible:outline-pool-blue-700 flex min-h-11 w-full items-center justify-between rounded-[3px] border bg-white px-4 py-2 text-left text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          <span>{label}</span>
+          <span aria-hidden="true">{open ? "Close" : "Choose"}</span>
+        </button>
+      )}
       {selectedChoices.length > 0 ? (
         <div
           className="flex flex-wrap gap-2"
           aria-label={`${label} selected answers`}
         >
-          {selectedChoices.map((choice) => (
-            <button
-              key={choice.id}
-              type="button"
-              aria-label={`Remove ${choice.label}`}
-              onClick={() => onChoiceChange(choice.id)}
-              className="bg-pool-blue-50 text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-9 rounded-full px-3 py-1 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2"
-            >
-              {choice.label} <span aria-hidden="true">×</span>
-            </button>
-          ))}
+          {selectedChoices.map((choice) =>
+            locked ? (
+              <span
+                key={choice.id}
+                className="bg-pool-blue-50 text-pool-blue-900 rounded-full px-3 py-2 text-sm font-medium"
+              >
+                {choice.label}
+              </span>
+            ) : (
+              <button
+                key={choice.id}
+                type="button"
+                aria-label={`Remove ${choice.label}`}
+                onClick={() => onChoiceChange(choice.id)}
+                className="bg-pool-blue-50 text-pool-blue-900 focus-visible:outline-pool-blue-700 min-h-9 rounded-full px-3 py-1 text-sm font-medium focus-visible:outline-2 focus-visible:outline-offset-2"
+              >
+                {choice.label} <span aria-hidden="true">×</span>
+              </button>
+            ),
+          )}
         </div>
       ) : (
         <p className="text-pool-600 text-sm">No answers selected</p>
       )}
       <fieldset
         id={panelId}
-        hidden={!open}
+        hidden={locked || !open}
         aria-describedby={error ? errorId : undefined}
         className="border-pool-200 space-y-3 rounded-[3px] border bg-white p-3"
       >
@@ -351,27 +364,33 @@ export function SiteQuestions({
               side of the selected pool outline; it is not an installation
               requirement.
             </p>
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
-              <input
-                type="range"
-                aria-label="Indicative excavation side clearance"
-                aria-valuetext={`${sideClearanceMillimetres} mm each side`}
-                min="200"
-                max="600"
-                step="50"
-                value={sideClearanceMillimetres}
-                onChange={(event) => {
-                  requestGenerationRef.current += 1;
-                  setSaving(false);
-                  onDraftChange();
-                  setSideClearanceMillimetres(Number(event.target.value));
-                }}
-                className="accent-pool-blue-800 min-h-11 w-full"
-              />
-              <output className="text-pool-950 min-w-28 text-sm font-semibold">
-                {sideClearanceMillimetres} mm each side
-              </output>
-            </div>
+            {hasCompletedCheck ? (
+              <p className="text-pool-950 text-sm font-semibold">
+                Selected allowance: {sideClearanceMillimetres} mm each side
+              </p>
+            ) : (
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:gap-4">
+                <input
+                  type="range"
+                  aria-label="Indicative excavation side clearance"
+                  aria-valuetext={`${sideClearanceMillimetres} mm each side`}
+                  min="200"
+                  max="600"
+                  step="50"
+                  value={sideClearanceMillimetres}
+                  onChange={(event) => {
+                    requestGenerationRef.current += 1;
+                    setSaving(false);
+                    onDraftChange();
+                    setSideClearanceMillimetres(Number(event.target.value));
+                  }}
+                  className="accent-pool-blue-800 min-h-11 w-full"
+                />
+                <output className="text-pool-950 min-w-28 text-sm font-semibold">
+                  {sideClearanceMillimetres} mm each side
+                </output>
+              </div>
+            )}
             {sideClearanceMillimetres < 300 && (
               <p role="status" className="text-sm font-semibold text-amber-800">
                 Confirm this allowance — it is below the provisional 300 mm
@@ -395,6 +414,7 @@ export function SiteQuestions({
           open={accessOpen}
           error={errors.access}
           errorText="Record at least one access or excavation condition."
+          locked={hasCompletedCheck}
           buttonRef={accessRef}
           onOpenChange={setAccessOpen}
           onChoiceChange={(choice) => {
@@ -414,6 +434,7 @@ export function SiteQuestions({
           open={nearbyOpen}
           error={errors.nearby}
           errorText="Record at least one nearby feature response."
+          locked={hasCompletedCheck}
           buttonRef={nearbyRef}
           onOpenChange={setNearbyOpen}
           onChoiceChange={(choice) => {
@@ -557,7 +578,7 @@ export function SiteQuestions({
               ? "Save route adjustment"
               : hasCompletedCheck
                 ? "Save builder answers"
-                : "Check this property"}
+                : "Check for constraints"}
         </button>
       )}
       {hasSavedAnswers && (adjustedRoute?.coordinates.length ?? 0) < 3 && (

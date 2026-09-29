@@ -16,6 +16,7 @@ const saveAssessmentMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/fast-property-view", () => ({
   FastPropertyView: ({
+    result,
     onPlacementChange,
     onSnapshotReady,
     onConfirmPlacement,
@@ -23,6 +24,7 @@ vi.mock("@/components/fast-property-view", () => ({
     placementNextStep,
     planningStep,
   }: {
+    result: { resolvedAddress: { fullAddress: string } };
     onPlacementChange: (placement: FastPoolPlacementSnapshot) => void;
     onSnapshotReady: (snapshot: {
       imageDataUrl: string;
@@ -40,6 +42,7 @@ vi.mock("@/components/fast-property-view", () => ({
       layoutName: "Compact" | "Family" | "Custom" = "Compact",
       lengthMetres = 6.5,
       widthMetres = 3,
+      emitSnapshot = true,
     ) {
       onPlacementChange({
         layoutId,
@@ -50,14 +53,35 @@ vi.mock("@/components/fast-property-view", () => ({
         constructionEnvelopeWithinMappedArea: true,
         clearancesVisible,
       } as FastPoolPlacementSnapshot);
-      onSnapshotReady({
-        imageDataUrl: "data:image/png;base64,AAAA",
-        visibleLayerKeys: [],
-      });
+      if (emitSnapshot)
+        onSnapshotReady({
+          imageDataUrl: "data:image/png;base64,AAAA",
+          visibleLayerKeys: [],
+        });
     }
     return (
       <div>
+        <h2 id="fast-view-heading" tabIndex={-1}>
+          {result.resolvedAddress.fullAddress}
+        </h2>
         <button onClick={() => update(174.76, true)}>Set pool layout</button>
+        <button
+          onClick={() =>
+            update(174.76, true, undefined, undefined, 6.5, 3, false)
+          }
+        >
+          Place pool without snapshot
+        </button>
+        <button
+          onClick={() =>
+            onSnapshotReady({
+              imageDataUrl: "data:image/png;base64,AAAA",
+              visibleLayerKeys: [],
+            })
+          }
+        >
+          Provide map snapshot
+        </button>
         <button onClick={() => update(174.76, true)}>
           Revisit pool layout
         </button>
@@ -141,7 +165,7 @@ afterEach(() => {
 });
 
 describe("Site answers in the property journey", () => {
-  it("checks homeowner constraints within Plan your pool and locks earlier stages", async () => {
+  it("checks homeowner constraints, returns to the address, and keeps pathway switching available", async () => {
     const user = userEvent.setup();
     vi.stubGlobal("fetch", createJourneyFetch());
 
@@ -157,16 +181,21 @@ describe("Site answers in the property journey", () => {
     ).toHaveAttribute("aria-current", "step");
     expect(
       screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     expect(
       screen.getByRole("button", { name: /Find the property.*Completed/ }),
     ).toBeDisabled();
     expect(
-      screen.queryByRole("button", { name: "Check this property" }),
-    ).not.toBeInTheDocument();
+      screen.getByRole("button", { name: "Check for constraints" }),
+    ).toBeDisabled();
     expect(
       await screen.findByRole("heading", { name: "Property details checked" }),
     ).toBeVisible();
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: "1 Test Street, Auckland" }),
+      ).toHaveFocus(),
+    );
 
     await continueToDetails(user);
     expect(await screen.findByTestId("details-form")).toBeVisible();
@@ -241,7 +270,7 @@ describe("Site answers in the property journey", () => {
     expect(homeownerDetailedRequest).not.toHaveProperty("estimatedDepthMetres");
     expect(
       screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     expect(
       screen.getByRole("button", { name: /Find the property.*Completed/ }),
     ).toBeDisabled();
@@ -250,6 +279,35 @@ describe("Site answers in the property journey", () => {
     expect(await screen.findByTestId("details-form")).toHaveTextContent(
       "stage-token as homeowner",
     );
+  });
+
+  it("keeps homeowner details locked until the map snapshot is ready", async () => {
+    const user = userEvent.setup();
+    vi.stubGlobal("fetch", createJourneyFetch());
+
+    render(<PropertyCheckJourney />);
+    await chooseAudienceAndOpenProperty(user, "homeowner");
+    await enterPropertyAddress(user);
+    await user.click(
+      screen.getByRole("button", {
+        name: "Place pool without snapshot",
+      }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Check for constraints" }),
+    );
+
+    const continueButton = await screen.findByRole("button", {
+      name: "Continue to your details",
+    });
+    expect(continueButton).toBeDisabled();
+
+    await user.click(
+      screen.getByRole("button", { name: "Provide map snapshot" }),
+    );
+    expect(continueButton).toBeEnabled();
+    await user.click(continueButton);
+    expect(await screen.findByTestId("details-form")).toBeVisible();
   });
 
   it("visibly preselects the switchable builder pathway for builder entry", async () => {
@@ -319,7 +377,7 @@ describe("Site answers in the property journey", () => {
     expect(depth).toBeEnabled();
     fireEvent.change(depth, { target: { value: "2" } });
     await user.click(
-      screen.getByRole("button", { name: "Check this property" }),
+      screen.getByRole("button", { name: "Check for constraints" }),
     );
     await waitFor(() =>
       expect(
@@ -332,7 +390,7 @@ describe("Site answers in the property journey", () => {
     );
   });
 
-  it("does not restore stale signed answers when the draft changes during saving", async () => {
+  it("locks builder planning answers while the signed answer save completes", async () => {
     const user = userEvent.setup();
     let resolveSiteAnswers!: (response: Response) => void;
     const siteAnswersResponse = new Promise<Response>((resolve) => {
@@ -381,7 +439,7 @@ describe("Site answers in the property journey", () => {
       within(nearby).getByRole("checkbox", { name: "None of these" }),
     );
     await user.click(
-      screen.getByRole("button", { name: "Check this property" }),
+      screen.getByRole("button", { name: "Check for constraints" }),
     );
     await waitFor(() =>
       expect(
@@ -389,11 +447,24 @@ describe("Site answers in the property journey", () => {
       ).toBe(true),
     );
 
-    await user.click(
-      within(access).getByRole("checkbox", {
-        name: "Restricted gate or narrow access",
+    expect(
+      screen.queryByRole("button", {
+        name: "Access and excavation conditions",
       }),
-    );
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("button", { name: "Nearby features" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("slider", {
+        name: "Indicative excavation side clearance",
+      }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Selected allowance: 300 mm each side"),
+    ).toBeVisible();
+    expect(within(access).queryByRole("checkbox")).not.toBeInTheDocument();
+    expect(within(nearby).queryByRole("checkbox")).not.toBeInTheDocument();
     await act(async () => {
       resolveSiteAnswers(
         Response.json({
@@ -410,11 +481,62 @@ describe("Site answers in the property journey", () => {
       await siteAnswersResponse;
     });
 
-    expect(screen.queryByTestId("details-form")).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: "Save builder answers" }),
+      screen.getByRole("button", { name: "Continue to your details" }),
     ).toBeVisible();
   });
+
+  it.each([
+    ["homeowner", "pool_builder"],
+    ["pool_builder", "homeowner"],
+  ] as const)(
+    "clears populated %s answers and results when switching to %s",
+    async (fromAudience, toAudience) => {
+      const user = userEvent.setup();
+      vi.stubGlobal("fetch", createJourneyFetchWithSiteAnswers());
+
+      render(<PropertyCheckJourney />);
+      await openValidPlacement(user, fromAudience);
+      await completeCurrentPlanningStep(user, fromAudience);
+      const name = screen.getByRole("textbox", { name: "Name" });
+      await user.type(name, "Previous contact");
+      expect(name).toHaveValue("Previous contact");
+
+      await user.click(
+        screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
+      );
+      await user.click(
+        screen.getByRole("radio", {
+          name:
+            toAudience === "homeowner" ? "My property" : "A customer property",
+        }),
+      );
+      await user.click(screen.getByRole("button", { name: "Continue" }));
+
+      expect(screen.getByLabelText("Auckland property address")).toHaveValue(
+        "",
+      );
+      expect(
+        screen.queryByRole("heading", { name: "1 Test Street, Auckland" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.getByRole("button", { name: /Plan your pool.*Locked/ }),
+      ).toBeDisabled();
+      expect(
+        screen.queryByRole("region", { name: "Access route result" }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("heading", { name: "Property details checked" }),
+      ).not.toBeInTheDocument();
+
+      await enterPropertyAddress(user);
+      await user.click(
+        await screen.findByRole("button", { name: "Set pool layout" }),
+      );
+      await completeCurrentPlanningStep(user, toAudience);
+      expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
+    },
+  );
 
   it("retries a failed site-answer save without rerunning detailed checks", async () => {
     const user = userEvent.setup();
@@ -506,7 +628,7 @@ async function chooseNone(user: ReturnType<typeof userEvent.setup>) {
   );
   await user.click(
     screen.getByRole("button", {
-      name: /Check this property|Save builder answers/,
+      name: /Check for constraints|Save builder answers/,
     }),
   );
 }
@@ -534,7 +656,8 @@ async function openChoiceGroup(
 }
 
 function createJourneyFetch() {
-  return vi.fn(async (url: string) => {
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    void init;
     if (url.endsWith("/property-check"))
       return Response.json({
         assessmentSnapshot: "initial-token",
@@ -556,9 +679,31 @@ function createJourneyFetch() {
   });
 }
 
-async function openValidPlacement(
+function createJourneyFetchWithSiteAnswers() {
+  const fetchJourney = createJourneyFetch();
+
+  return vi.fn(async (url: string, init?: RequestInit) => {
+    if (url.endsWith("/site-answers")) {
+      const answers = JSON.parse(String(init?.body));
+      return Response.json({
+        assessmentSnapshot: "signed-stage-token",
+        answers: {
+          version: 1,
+          estimatedDepthMetres: 1.5,
+          route: { provenance: "uncertain", geometry: null },
+          accessConditions: answers.accessConditions,
+          nearbyFeatures: answers.nearbyFeatures,
+        },
+      });
+    }
+
+    return fetchJourney(url, init);
+  });
+}
+
+async function chooseAudienceAndOpenProperty(
   user: ReturnType<typeof userEvent.setup>,
-  audience: "homeowner" | "pool_builder" = "homeowner",
+  audience: "homeowner" | "pool_builder",
 ) {
   const audienceRadio = screen.getByRole("radio", {
     name: audience === "homeowner" ? "My property" : "A customer property",
@@ -566,11 +711,40 @@ async function openValidPlacement(
   if (!(audienceRadio as HTMLInputElement).checked)
     await user.click(audienceRadio);
   await user.click(screen.getByRole("button", { name: "Continue" }));
+}
+
+async function enterPropertyAddress(user: ReturnType<typeof userEvent.setup>) {
   await user.type(
     screen.getByLabelText("Auckland property address"),
     "1 Test Street, Auckland",
   );
   await user.keyboard("{Enter}");
+}
+
+async function completeCurrentPlanningStep(
+  user: ReturnType<typeof userEvent.setup>,
+  audience: "homeowner" | "pool_builder",
+) {
+  if (audience === "homeowner") {
+    await user.click(
+      screen.getByRole("button", { name: "Check for constraints" }),
+    );
+  } else {
+    await user.click(
+      screen.getByRole("button", { name: "Continue to site questions" }),
+    );
+    await chooseNone(user);
+  }
+
+  await continueToDetails(user);
+}
+
+async function openValidPlacement(
+  user: ReturnType<typeof userEvent.setup>,
+  audience: "homeowner" | "pool_builder" = "homeowner",
+) {
+  await chooseAudienceAndOpenProperty(user, audience);
+  await enterPropertyAddress(user);
   await user.click(
     await screen.findByRole("button", { name: "Set pool layout" }),
   );

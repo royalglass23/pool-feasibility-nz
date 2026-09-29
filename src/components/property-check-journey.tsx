@@ -328,12 +328,15 @@ export function PropertyCheckJourney({
       focusedPlanningForRef.current = null;
       return;
     }
-    const focusKey = `${reportAudience}:${confirmedPlacementKey}`;
+    const constraintsLoaded = Boolean(fastResult?.detailedChecks);
+    const focusKey = `${reportAudience}:${confirmedPlacementKey}:${constraintsLoaded ? fastAssessmentSnapshot : "planning"}`;
     if (focusedPlanningForRef.current === focusKey) return;
     const heading = document.getElementById(
-      reportAudience === "pool_builder"
-        ? "site-questions-heading"
-        : "homeowner-check-heading",
+      constraintsLoaded
+        ? "fast-view-heading"
+        : reportAudience === "pool_builder"
+          ? "site-questions-heading"
+          : "homeowner-check-heading",
     );
     if (heading) {
       heading.focus();
@@ -341,6 +344,7 @@ export function PropertyCheckJourney({
     }
   }, [
     confirmedPlacementKey,
+    fastAssessmentSnapshot,
     fastResult?.detailedChecks,
     placementKey,
     reportAudience,
@@ -890,6 +894,30 @@ export function PropertyCheckJourney({
     setCurrentStage(reportAudience ? "property" : "audience");
   }
 
+  function changeReportAudience(nextAudience: ReportAudience) {
+    if (nextAudience === reportAudience) return;
+    fastRequestIdRef.current += 1;
+    detailedStartedRef.current = false;
+    detailedRequestInFlightRef.current = false;
+    reportAudienceRef.current = nextAudience;
+    invalidateJourneyEvidence("address");
+    setAddress("");
+    setSelectedAddressId(null);
+    setPendingSelectedAddress(null);
+    setEstimatedDepth(String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES));
+    setLockedDepth(null);
+    setContactDraft(emptyHomeownerContactDraft());
+    setError(null);
+    setAddressError(null);
+    setAddressOptions([]);
+    setSuggestionMessage(null);
+    setCanRetry(false);
+    setIsLoading(false);
+    setIsSuggesting(false);
+    setDetailedRetryAfterSeconds(null);
+    setReportAudience(nextAudience);
+  }
+
   const completedStages = useMemo<PropertyCheckStage[]>(() => {
     const completed: PropertyCheckStage[] = [];
     if (reportAudience) completed.push("audience");
@@ -944,32 +972,7 @@ export function PropertyCheckJourney({
           <div className="mt-4">
             <ReportAudiencePathway
               value={reportAudience}
-              onChange={(nextAudience) => {
-                if (nextAudience !== reportAudience) {
-                  reportAudienceRef.current = nextAudience;
-                  invalidateJourneyEvidence("pathway");
-                  if (preDetailedSnapshot) {
-                    setFastAssessmentSnapshot(preDetailedSnapshot);
-                    setPreDetailedSnapshot(null);
-                    setFastResult((current) =>
-                      current
-                        ? { ...current, detailedChecks: undefined }
-                        : current,
-                    );
-                    setLockedDepth(null);
-                    setEstimatedDepth(
-                      String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES),
-                    );
-                  }
-                  if (nextAudience === "homeowner") {
-                    setContactDraft((current) => ({
-                      ...current,
-                      builderCompanyName: "",
-                    }));
-                  }
-                }
-                setReportAudience(nextAudience);
-              }}
+              onChange={changeReportAudience}
             />
           </div>
           <button
@@ -1275,13 +1278,15 @@ export function PropertyCheckJourney({
                         Property details checked
                       </h3>
                       <p className="text-pool-700 mt-2 text-sm leading-6">
-                        Continue to add your details and create the property
-                        report.
+                        {fastMapSnapshot
+                          ? "Continue to add your details and create the property report."
+                          : "Constraints loaded. Preparing the map for your report…"}
                       </p>
                       <button
                         type="button"
                         onClick={() => setCurrentStage("contact")}
-                        className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 mt-5 min-h-11 rounded-[3px] px-5 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2"
+                        disabled={!fastMapSnapshot}
+                        className="bg-pool-950 hover:bg-pool-blue-800 focus-visible:outline-pool-blue-700 mt-5 min-h-11 rounded-[3px] px-5 font-semibold text-white focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-wait disabled:opacity-60"
                       >
                         Continue to your details
                       </button>

@@ -185,7 +185,7 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
     })
     .getByRole("checkbox", { name: "None of these" })
     .check();
-  await page.getByRole("button", { name: "Check this property" }).click();
+  await page.getByRole("button", { name: "Check for constraints" }).click();
   const routeResult = page.getByRole("region", {
     name: "Access route result",
   });

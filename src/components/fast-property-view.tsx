@@ -1291,6 +1291,7 @@ export function FastPropertyView({
         <div>
           <h2
             id="fast-view-heading"
+            tabIndex={-1}
             className="text-pool-950 text-2xl font-semibold"
           >
             {routeAdjustmentMode
@@ -1321,7 +1322,11 @@ export function FastPropertyView({
             label={
               isInitialAddressLoad
                 ? "Address found"
-                : "Address found. Next, choose a pool layout, then move it into your preferred position."
+                : detailedConstraintStatus === "complete"
+                  ? "Constraints loaded. Review the map and details below."
+                  : result.detailedChecks
+                    ? "Some constraints could not be loaded. Review the details below or try again."
+                    : "Address found. Next, choose a pool layout, then move it into your preferred position."
             }
             state="complete"
           />
