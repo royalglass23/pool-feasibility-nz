@@ -24,12 +24,18 @@ application must not turn unavailable data into a clear result.
 
 The current codebase contains:
 
-- an anonymous Auckland Property Check journey at `/`;
+- an anonymous, audience-first five-stage Property Check journey at `/` for
+  Homeowners and Pool Builders;
 - indexed LINZ address suggestions and official parcel/aerial evidence;
 - interactive pool-size, placement, and rotation controls;
 - an opt-in detailed constraint check with deterministic overlap reporting and
   indicative Auckland DEM terrain measurements when eligible evidence exists;
-- preliminary web reports, fixed three-page Homeowner PDF attachments, and expandable Pool Builder PDF attachments;
+- a Pool Builder planning path with editable depth and excavation-side
+  allowance, two observable site-condition questions, and an advisory
+  deterministic access route when the saved evidence supports one;
+- audience-aware preliminary web reports, fixed three-page Homeowner PDF
+  attachments, and Pool Builder PDF attachments that may expand to preserve
+  complete readable evidence;
 - persisted assessment requests backed by PostgreSQL/Neon;
 - an Admin-only Staff Workspace at `/staff` for saved assessments;
 - privacy controls, scheduled retention, shared public rate limits, and
@@ -55,24 +61,24 @@ migrations, provider credentials, email delivery, DNS, analytics collection,
 and security sign-off must each be verified separately for the exact target and
 commit.
 
-A candidate based on shared commit `6f97d6c` passed the complete local code gate
-on 11 September 2026. The terrain, report, analytics, and Property Check changes
-since then require a new exact-commit gate. The earlier development result is
-not a deployed-revision sign-off, and target-environment checks remain
-incomplete. See
+A candidate based on commit `3a2db91` passed the complete local code gate from
+an immutable archive on 28 September 2026. The journey, report-map,
+address-refresh, and builder-summary changes since then require a new
+exact-commit gate. The earlier development result is not a deployed-revision
+sign-off, and target-environment checks remain incomplete. See
 [`docs/release-readiness.md`](docs/release-readiness.md) before promoting a
 build.
 
 ## Main journeys
 
-| Route                                   | Audience                          | Purpose                                                                               |
-| --------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------- |
-| `/`                                     | Homeowners and pool professionals | Find a property, position a pool, check constraints, and request a preliminary report |
-| `/auckland-pool-planning-for-builders`  | Pool professionals                | Explain the early builder conversation                                                |
-| `/can-my-auckland-property-suit-a-pool` | Search/discovery visitors         | Explain the Auckland property-check use case                                          |
-| `/partners`                             | Prospective industry partners     | Founding Partner Program and enquiry form                                             |
-| `/privacy`                              | Public visitors                   | Privacy information and request guidance                                              |
-| `/staff`                                | Provisioned Admin                 | Search and review saved assessments                                                   |
+| Route                                   | Audience                          | Purpose                                                                                                            |
+| --------------------------------------- | --------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `/`                                     | Homeowners and pool professionals | Choose the report audience, find a property, plan the pool, provide details, and receive the audience-aware report |
+| `/auckland-pool-planning-for-builders`  | Pool professionals                | Explain the early builder conversation                                                                             |
+| `/can-my-auckland-property-suit-a-pool` | Search/discovery visitors         | Explain the Auckland property-check use case                                                                       |
+| `/partners`                             | Prospective industry partners     | Founding Partner Program and enquiry form                                                                          |
+| `/privacy`                              | Public visitors                   | Privacy information and request guidance                                                                           |
+| `/staff`                                | Provisioned Admin                 | Search and review saved assessments                                                                                |
 
 Public pages and `/api/public/*` are anonymous by design. Staff pages and saved
 assessment reads require the database-backed Admin session. The older
@@ -81,7 +87,7 @@ credentials; they are not the public browser journey.
 
 ## Technology
 
-- Next.js 16.3, React 19, strict TypeScript, Tailwind CSS, and Base UI
+- Next.js 16.3, React 19, strict TypeScript, Tailwind CSS, and shadcn tooling
 - MapLibre GL JS and Turf.js for the mapped property experience
 - GeoTIFF and Proj4 for bounded Auckland DEM readings and terrain calculations
 - PostgreSQL/Neon with Drizzle ORM for address indexing, assessments, and staff
@@ -126,8 +132,9 @@ Use [`.env.example`](.env.example) as the inventory. Important groups are:
 - Upstash REST credentials, required for deployed public routes;
 - report-signing, Resend, sender, and delivery-mode settings;
 - Admin bootstrap/reset inputs supplied interactively, never committed; and
-- optional GA4 and Hotjar identifiers; PostHog's public project key is embedded
-  in the client integration. All analytics remain gated by visitor consent.
+- optional Google Tag Manager, GA4, and Hotjar identifiers; PostHog's public
+  project key is embedded in the client integration. All analytics remain
+  gated by visitor consent.
 
 See [`docs/staff-admin-access.md`](docs/staff-admin-access.md),
 [`docs/public-rate-limiting.md`](docs/public-rate-limiting.md), and

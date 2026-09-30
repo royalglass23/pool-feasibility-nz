@@ -3,10 +3,22 @@
 ## Current Property Check path
 
 The public journey starts in `src/app/page.tsx`, which renders
-`src/components/property-check-journey.tsx`. That client module owns address
-selection, staged loading, placement and report-submission state. The map UI is
-in `src/components/fast-property-view.tsx`; the contact and consent step is in
-`src/components/homeowner-submission-form.tsx`.
+`src/components/property-check-journey.tsx`. That client module owns the
+audience-first five-stage state machine: `Who is this for?`, `Find the
+property`, `Plan your pool`, `Your details`, and `Your property report`.
+`src/components/property-check-journey-nav.tsx` exposes only stages that are
+current or complete. Once placement/planning evidence advances to contact or
+report access, the completed evidence stages are locked to prevent the saved
+submission from drifting from the reviewed map and inputs.
+
+The map and pool controls are in `src/components/fast-property-view.tsx`. The
+Homeowner path starts detailed checks after placement confirmation. The Pool
+Builder path continues through `src/components/site-questions.tsx`, where
+depth, excavation-side allowance, and the two observable Site questions are
+saved with the assessment. A deterministic suggested access route is shown
+only when the saved evidence passes the route policy; the current public path
+does not confirm or edit it. Contact and consent are handled by
+`src/components/homeowner-submission-form.tsx` for both audiences.
 
 | Step                                 | Route                                     | Main implementation                                                    |
 | ------------------------------------ | ----------------------------------------- | ---------------------------------------------------------------------- |
@@ -14,6 +26,13 @@ in `src/components/fast-property-view.tsx`; the contact and consent step is in
 | Aerial, boundary and detailed checks | `/api/public/property-check/stages`       | `src/modules/data-access-spike/handle-fast-property-stages-request.ts` |
 | Save the assessment                  | `/api/public/assessments`                 | `src/modules/assessment/handle-assessment-requests.ts`                 |
 | Deliver the saved report             | `/api/public/assessments/report/delivery` | `src/modules/reporting/deliver-assessment-report.ts`                   |
+
+Report submission uses
+`src/modules/reporting/assessment-submission-payload.ts` to send a bounded
+snapshot of the selected property, placement, captured map, audience, and
+applicable builder evidence. The web report, PDF, email delivery, and staff
+read model consume the persisted report rather than rerunning live property
+analysis.
 
 ## Audience evidence and projection boundary
 

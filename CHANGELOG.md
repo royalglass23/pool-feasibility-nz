@@ -8,6 +8,14 @@ that a change was deployed or enabled in production.
 
 ## Unreleased
 
+### Documentation
+
+- Reconciled the product, journey, architecture, report, and release-evidence
+  documents with the current audience-first Property Check and Pool Builder
+  constructability path.
+- Clarified the fixed Homeowner and expandable Pool Builder PDF contracts and
+  retained the distinction between repository evidence and deployment proof.
+
 ### Engineering gates
 
 - Separated the public-input attack suite from ordinary browser tests so each
@@ -18,7 +26,7 @@ that a change was deployed or enabled in production.
 - Pinned compatible formatting tooling across npm and pnpm and documented the
   repository line-ending policy.
 
-### Documentation
+### Earlier documentation work
 
 - Replaced the original internal-POC README with an onboarding guide for the
   current public Property Check, persisted reports, staff workspace, and
@@ -29,6 +37,57 @@ that a change was deployed or enabled in production.
   boundary between the green local candidate and outstanding target checks.
 - Updated professional-review onboarding for the anonymous Property Check and
   removed obsolete production-login and report-download instructions.
+
+## 29-30 September 2026
+
+### Property Check journey
+
+- Streamlined the public flow into five audience-first stages: audience,
+  property, pool planning, contact details, and property report.
+- Kept the selected property visible before contact capture, repaired pathway
+  reset and constraints transitions, and locked completed planning evidence so
+  saved submissions cannot diverge from what the visitor reviewed.
+- Preserved the report map snapshot across the Homeowner transition and kept
+  the full assessed map, visible layers, and clearances in saved web and PDF
+  reports.
+- Restored accessible pool rotation and made Map layers easier to discover when
+  a Homeowner or Pool Builder needs to review returned constraints.
+
+### Pool Builder planning
+
+- Added the compact builder planning row for estimated depth and excavation-side
+  allowance, followed by two observable Site questions.
+- Replaced public route confirmation/adjustment with an advisory deterministic
+  access-route notice; existing confirmed and user-supplied route provenance
+  remains readable in historical reports.
+- Refined builder report positioning, depth summaries, and report handoff while
+  keeping the shared evidence engine and audience-specific projections.
+
+### Reliability and report safety
+
+- Bounded LINZ refresh batches and runtime, added health monitoring, and
+  cancelled in-flight provider work when the runtime deadline was reached.
+- Bounded assessment submission payloads and added PDF layout guards for map
+  legends, full-map preservation, footer clearance, and expandable builder
+  evidence.
+
+## 22-28 September 2026
+
+### Audience-aware reporting and validation
+
+- Persisted trusted Homeowner and Pool Builder report audiences and applied the
+  same projection rules to saved web reports, PDFs, transactional email, and
+  staff review.
+- Added builder company details and constructability evidence to the applicable
+  saved report while keeping Homeowner output plain and bounded.
+- Passed the RG-364 immutable-archive code gate for commit `3a2db91`; later
+  changes still require their own exact-commit release gate.
+
+### Operations and analytics
+
+- Added compact LINZ address-index refresh and health-monitoring foundations.
+- Added consent-gated Google Tag Manager and hardened Vercel Chromium function
+  tracing without treating configuration as proof of a live deployment.
 
 ## 18 September 2026
 
