@@ -180,7 +180,7 @@ afterEach(() => {
 });
 
 describe("Site answers in the property journey", () => {
-  it("checks homeowner constraints, returns to the address, and keeps pathway switching available", async () => {
+  it("locks the audience after homeowner constraints load", async () => {
     const user = userEvent.setup();
     vi.stubGlobal("fetch", createJourneyFetch());
 
@@ -195,9 +195,6 @@ describe("Site answers in the property journey", () => {
       screen.getByRole("button", { name: /Plan your pool.*Current/ }),
     ).toHaveAttribute("aria-current", "step");
     expect(
-      screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
-    ).toBeEnabled();
-    expect(
       screen.getByRole("button", { name: /Find the property.*Completed/ }),
     ).toBeDisabled();
     expect(
@@ -206,6 +203,9 @@ describe("Site answers in the property journey", () => {
     expect(
       await screen.findByRole("heading", { name: "Property details checked" }),
     ).toBeVisible();
+    expect(
+      screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
+    ).toBeDisabled();
     const addressHeading = screen.getByRole("heading", {
       name: "1 Test Street, Auckland",
     });
@@ -289,7 +289,7 @@ describe("Site answers in the property journey", () => {
     expect(homeownerDetailedRequest).not.toHaveProperty("estimatedDepthMetres");
     expect(
       screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
-    ).toBeEnabled();
+    ).toBeDisabled();
     expect(
       screen.getByRole("button", { name: /Find the property.*Completed/ }),
     ).toBeDisabled();
@@ -590,12 +590,9 @@ describe("Site answers in the property journey", () => {
     ).toBeVisible();
   });
 
-  it.each([
-    ["homeowner", "pool_builder"],
-    ["pool_builder", "homeowner"],
-  ] as const)(
-    "clears populated %s answers and results when switching to %s",
-    async (fromAudience, toAudience) => {
+  it.each(["homeowner", "pool_builder"] as const)(
+    "locks the %s audience after constraints load",
+    async (fromAudience) => {
       const user = userEvent.setup();
       vi.stubGlobal("fetch", createJourneyFetchWithSiteAnswers());
 
@@ -606,40 +603,14 @@ describe("Site answers in the property journey", () => {
         screen.getByRole("button", { name: "Continue to your details" }),
       ).toBeVisible();
 
-      await user.click(
-        screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
-      );
-      await user.click(
-        screen.getByRole("radio", {
-          name:
-            toAudience === "homeowner" ? "My property" : "A customer property",
-        }),
-      );
-      await user.click(screen.getByRole("button", { name: "Continue" }));
-
-      expect(screen.getByLabelText("Auckland property address")).toHaveValue(
-        "",
-      );
+      const audienceStage = screen.getByRole("button", {
+        name: /Who is this for?.*Completed/,
+      });
+      expect(audienceStage).toBeDisabled();
+      await user.click(audienceStage);
       expect(
-        screen.queryByRole("heading", { name: "1 Test Street, Auckland" }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.getByRole("button", { name: /Plan your pool.*Locked/ }),
-      ).toBeDisabled();
-      expect(
-        screen.queryByRole("region", { name: "Access route result" }),
-      ).not.toBeInTheDocument();
-      expect(
-        screen.queryByRole("heading", { name: "Property details checked" }),
-      ).not.toBeInTheDocument();
-
-      await enterPropertyAddress(user);
-      await user.click(
-        await screen.findByRole("button", { name: "Set pool layout" }),
-      );
-      await completePlanningCheck(user, toAudience);
-      await continueToDetails(user);
-      expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
+        screen.getByRole("button", { name: "Continue to your details" }),
+      ).toBeVisible();
     },
   );
 

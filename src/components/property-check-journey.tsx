@@ -198,6 +198,7 @@ export function PropertyCheckJourney({
   const isPlacementLocked = Boolean(
     placementKey && confirmedPlacementKey === placementKey,
   );
+  const isAudienceLocked = Boolean(fastResult?.detailedChecks);
   const reportEvidenceVersion = reportEvidenceVersionRef.current;
   const routePoolLayout = useMemo(
     () =>
@@ -830,7 +831,7 @@ export function PropertyCheckJourney({
   }
 
   function changeReportAudience(nextAudience: ReportAudience) {
-    if (nextAudience === reportAudience) return;
+    if (isAudienceLocked || nextAudience === reportAudience) return;
     fastRequestIdRef.current += 1;
     detailedStartedRef.current = false;
     detailedRequestInFlightRef.current = false;
@@ -897,6 +898,7 @@ export function PropertyCheckJourney({
         onNavigate={setCurrentStage}
         disabled={isSavingReport}
         lockCompletedStages={isPlacementLocked}
+        lockAudienceStage={isAudienceLocked}
       />
 
       {currentStage === "audience" && (
@@ -908,6 +910,7 @@ export function PropertyCheckJourney({
             <ReportAudiencePathway
               value={reportAudience}
               onChange={changeReportAudience}
+              disabled={isAudienceLocked}
             />
           </div>
           <button

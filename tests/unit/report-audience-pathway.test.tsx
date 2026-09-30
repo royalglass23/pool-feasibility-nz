@@ -49,4 +49,25 @@ describe("report audience pathway", () => {
     await user.click(homeowner);
     expect(onChange).toHaveBeenCalledWith("homeowner");
   });
+
+  it("disables both choices when property constraints are loaded", async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(
+      <ReportAudiencePathway value="homeowner" onChange={onChange} disabled />,
+    );
+
+    expect(screen.getByRole("radio", { name: "My property" })).toBeDisabled();
+    const builder = screen.getByRole("radio", {
+      name: "A customer property",
+    });
+    expect(builder).toBeDisabled();
+    expect(
+      screen.getByText(
+        "This choice is locked because the property constraints are loaded.",
+      ),
+    ).toBeVisible();
+    await user.click(builder);
+    expect(onChange).not.toHaveBeenCalled();
+  });
 });

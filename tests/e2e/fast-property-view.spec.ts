@@ -146,7 +146,7 @@ test("locks the property step and pool placement after checking constraints", as
   ).toHaveAttribute("aria-current", "step");
   await expect(
     page.getByRole("button", { name: /Who is this for?.*Completed/ }),
-  ).toBeEnabled();
+  ).toBeDisabled();
   await expect(
     page.getByRole("button", { name: /Find the property.*Completed/ }),
   ).toBeDisabled();
