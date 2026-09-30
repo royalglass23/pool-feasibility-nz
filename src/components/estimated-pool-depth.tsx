@@ -18,7 +18,11 @@ export function EstimatedPoolDepth({
   return (
     <section
       aria-labelledby="estimated-pool-depth-heading"
-      aria-describedby="estimated-pool-depth-description estimated-pool-depth-help"
+      aria-describedby={
+        locked
+          ? "estimated-pool-depth-help"
+          : "estimated-pool-depth-description estimated-pool-depth-help"
+      }
       className="space-y-3"
     >
       <h3
@@ -27,13 +31,15 @@ export function EstimatedPoolDepth({
       >
         Estimated pool depth (m)
       </h3>
-      <p
-        id="estimated-pool-depth-description"
-        className="text-pool-700 text-sm leading-6 lg:min-h-12"
-      >
-        Choose an indicative depth from 1.0–2.0 m for this preliminary property
-        check.
-      </p>
+      {!locked && (
+        <p
+          id="estimated-pool-depth-description"
+          className="text-pool-700 text-sm leading-6 lg:min-h-12"
+        >
+          Choose an indicative depth from 1.0–2.0 m for this preliminary
+          property check.
+        </p>
+      )}
       {locked ? (
         <p className="text-pool-950 text-sm font-semibold">
           Selected depth: {formattedDepth} m

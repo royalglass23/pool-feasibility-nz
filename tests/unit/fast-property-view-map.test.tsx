@@ -212,6 +212,11 @@ it("draws a preliminary suggested route on the property map", async () => {
       expect.objectContaining({ id: "suggested-access-route" }),
     ]),
   );
+  expect(
+    screen.getByText(
+      "Possible construction access route shown on the map — confirm onsite.",
+    ),
+  ).toBeVisible();
 });
 
 it("keeps the route map source empty when no credible route exists", async () => {
@@ -227,6 +232,9 @@ it("keeps the route map source empty when no credible route exists", async () =>
     sources: Record<string, { data: { features?: unknown[] } }>;
   };
   expect(style.sources["suggested-access-route"].data.features).toEqual([]);
+  expect(
+    screen.queryByText(/Possible construction access route shown on the map/i),
+  ).not.toBeInTheDocument();
 });
 
 it("opens map layers when loaded constraints change the result to Needs Checking", async () => {

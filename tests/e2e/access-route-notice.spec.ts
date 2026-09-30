@@ -14,7 +14,7 @@ const signingKey =
   process.env.INTERNAL_REPORT_SIGNING_SECRET ??
   "playwright-report-signing-secret-2026-07-22-at-least-32-bytes";
 
-test("adjusts a credible access route by keyboard and signs the changed line", async ({
+test("shows a compact credible route notice and preserves the suggested line", async ({
   page,
 }) => {
   test.skip(!databaseUrl, "DATABASE_URL_DEV is required for persistence E2E.");
@@ -186,48 +186,20 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
     .getByRole("checkbox", { name: "None of these" })
     .check();
   await page.getByRole("button", { name: "Check for constraints" }).click();
-  const routeResult = page.getByRole("region", {
-    name: "Access route result",
-  });
-  await expect(routeResult).toBeVisible();
-  await routeResult
-    .getByRole("button", { name: "Adjust suggested route" })
-    .click();
-  const marker = page.getByRole("button", {
-    name: /Access route turning point 1/,
-  });
-  await expect(marker).toBeVisible();
-  await marker.focus();
-  await page.keyboard.press("ArrowRight");
-  const bounds = await marker.boundingBox();
-  expect(bounds).not.toBeNull();
-  await page.mouse.move(
-    bounds!.x + bounds!.width / 2,
-    bounds!.y + bounds!.height / 2,
-  );
-  await page.mouse.down();
-  await page.mouse.move(
-    bounds!.x + bounds!.width / 2 + 12,
-    bounds!.y + bounds!.height / 2 + 8,
-    { steps: 5 },
-  );
-  await page.mouse.up();
-  await expect(routeResult.getByText("Approximate length")).toBeVisible();
-  await routeResult
-    .getByRole("button", { name: "Adjust suggested route" })
-    .click();
   await expect(
-    routeResult.getByRole("button", { name: "Adjust suggested route" }),
-  ).toBeDisabled();
-  await page.getByRole("button", { name: "Save route adjustment" }).click();
-  await expect.poll(() => posted?.routeResponse).toBe("adjust");
+    page.getByText(
+      "Possible construction access route shown on the map — confirm onsite.",
+    ),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Access route result" }),
+  ).toHaveCount(0);
+  await expect.poll(() => posted?.routeResponse).toBe("suggested");
   expect(posted).toMatchObject({
-    routeResponse: "adjust",
-    adjustedRoute: { type: "LineString", coordinates: expect.any(Array) },
+    routeResponse: "suggested",
   });
-  expect(
-    (posted!.adjustedRoute as { coordinates: unknown[] }).coordinates,
-  ).toHaveLength(4);
+  expect(posted).not.toHaveProperty("adjustedRoute");
+  await page.getByRole("button", { name: "Continue to your details" }).click();
 
   const form = page.locator(
     'form[aria-labelledby="homeowner-details-heading"]',
@@ -253,7 +225,7 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
     expect(persisted?.constructability).toMatchObject({
       version: 1,
       route: {
-        provenance: "user-supplied",
+        provenance: "suggested",
         geometry: { type: "LineString", coordinates: expect.any(Array) },
       },
       routeFacts: expect.objectContaining({ valid: true }),
@@ -264,7 +236,7 @@ test("adjusts a credible access route by keyboard and signs the changed line", a
           route: { geometry: { coordinates: unknown[] } };
         }
       ).route.geometry.coordinates,
-    ).toHaveLength(4);
+    ).toHaveLength(2);
   } finally {
     await db
       .delete(schema.homeownerAssessments)

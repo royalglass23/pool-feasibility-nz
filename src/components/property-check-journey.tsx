@@ -44,11 +44,6 @@ import type { FastPropertyDetails } from "@/modules/data-access-spike/execute-fa
 import type { FastPropertyViewRequestError } from "@/modules/data-access-spike/execute-fast-property-view-request";
 import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
 import { suggestAccessRouteFromProperty } from "@/modules/spatial/suggest-access-route";
-import type { AccessRouteGeometry } from "@/modules/spatial/suggest-access-route";
-import {
-  analyseAccessRouteFromProperty,
-  type AccessRouteFacts,
-} from "@/modules/spatial/analyse-access-route";
 import { trackAnonymousFunnelEvent } from "@/modules/anonymous-funnel-analytics";
 import {
   readClientApiError,
@@ -151,14 +146,6 @@ export function PropertyCheckJourney({
     snapshot: string;
     answers: ConstructabilityAnswers;
   } | null>(null);
-  const [routeDraft, setRouteDraft] = useState<{
-    placementKey: string;
-    geometry: AccessRouteGeometry;
-  } | null>(null);
-  const [routeFacts, setRouteFacts] = useState<{
-    placementKey: string;
-    facts: AccessRouteFacts;
-  } | null>(null);
   const [fastPlacementSnapshot, setFastPlacementSnapshot] =
     useState<FastPoolPlacementSnapshot | null>(null);
   const [confirmedPlacementKey, setConfirmedPlacementKey] = useState<
@@ -211,11 +198,6 @@ export function PropertyCheckJourney({
   const isPlacementLocked = Boolean(
     placementKey && confirmedPlacementKey === placementKey,
   );
-  const isAdjustingBuilderRoute =
-    currentStage === "placement" &&
-    reportAudience === "pool_builder" &&
-    routeDraft?.placementKey === placementKey &&
-    routeDraft.geometry.coordinates.length > 2;
   const reportEvidenceVersion = reportEvidenceVersionRef.current;
   const routePoolLayout = useMemo(
     () =>
@@ -253,10 +235,6 @@ export function PropertyCheckJourney({
         setFastPlacementSnapshot(null);
       }
       if (invalidation.placementConfirmation) setConfirmedPlacementKey(null);
-      if (invalidation.routeResult) {
-        setRouteDraft(null);
-        setRouteFacts(null);
-      }
       if (invalidation.signedSiteAnswers) setSignedSiteAnswers(null);
       if (invalidation.signedPlacementSnapshot) setFastMapSnapshot(null);
       if (invalidation.reportFacts) {
@@ -293,23 +271,6 @@ export function PropertyCheckJourney({
     },
     [invalidateJourneyEvidence, isSavingReport],
   );
-  const handleRouteEdit = useCallback(
-    (geometry: AccessRouteGeometry, complete: boolean) => {
-      if (isSavingReport || !placementKey || !fastResult) return;
-      invalidateJourneyEvidence("route");
-      setRouteDraft({ placementKey, geometry });
-      setRouteFacts(
-        complete
-          ? {
-              placementKey,
-              facts: analyseAccessRouteFromProperty(fastResult, geometry),
-            }
-          : null,
-      );
-    },
-    [fastResult, invalidateJourneyEvidence, isSavingReport, placementKey],
-  );
-
   useEffect(() => {
     if (detailedRetryAfterSeconds === null) return;
     const timeout = window.setTimeout(
@@ -514,8 +475,6 @@ export function PropertyCheckJourney({
     setEstimatedDepth(String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES));
     setLockedDepth(null);
     setSignedSiteAnswers(null);
-    setRouteDraft(null);
-    setRouteFacts(null);
     setFastPlacementSnapshot(null);
     placementKeyRef.current = null;
     setConfirmedPlacementKey(null);
@@ -746,13 +705,11 @@ export function PropertyCheckJourney({
     assessmentSnapshot,
     draft,
     routeResponse,
-    adjustedRoute,
     expectedDraftVersion,
   }: {
     assessmentSnapshot: string;
     draft: BuilderSiteQuestionDraft;
-    routeResponse: "suggested" | "adjust" | "not_sure";
-    adjustedRoute?: AccessRouteGeometry;
+    routeResponse: "suggested" | "not_sure";
     expectedDraftVersion: number;
   }): Promise<boolean> {
     if (!placementKey || !routePoolLayout) return false;
@@ -766,7 +723,6 @@ export function PropertyCheckJourney({
             assessmentSnapshot,
             poolLayout: routePoolLayout,
             routeResponse,
-            ...(adjustedRoute ? { adjustedRoute } : {}),
             ...draft,
           }),
         },
@@ -774,7 +730,6 @@ export function PropertyCheckJourney({
       const body = (await response.json().catch(() => null)) as {
         assessmentSnapshot?: string;
         answers?: ConstructabilityAnswers;
-        routeFacts?: AccessRouteFacts | null;
       } | null;
       if (
         !response.ok ||
@@ -789,9 +744,6 @@ export function PropertyCheckJourney({
         snapshot: body.assessmentSnapshot,
         answers: body.answers,
       });
-      setRouteFacts(
-        body.routeFacts ? { placementKey, facts: body.routeFacts } : null,
-      );
       return true;
     } catch {
       return false;
@@ -831,20 +783,6 @@ export function PropertyCheckJourney({
       draft,
       routeResponse:
         suggestion.confidence === "credible" ? "suggested" : "not_sure",
-      expectedDraftVersion,
-    });
-  }
-
-  async function saveBuilderRouteAdjustment(
-    draft: BuilderSiteQuestionDraft & { adjustedRoute: AccessRouteGeometry },
-  ): Promise<boolean> {
-    if (!fastAssessmentSnapshot) return false;
-    const expectedDraftVersion = builderDraftVersionRef.current;
-    return saveBuilderSiteAnswers({
-      assessmentSnapshot: fastAssessmentSnapshot,
-      draft,
-      routeResponse: "adjust",
-      adjustedRoute: draft.adjustedRoute,
       expectedDraftVersion,
     });
   }
@@ -1199,29 +1137,14 @@ export function PropertyCheckJourney({
               </div>
             </div>
           )}
-          <div
-            hidden={currentStage !== "placement" && !isAdjustingBuilderRoute}
-          >
+          <div hidden={currentStage !== "placement"}>
             <FastPropertyView
               result={fastResult}
               suggestedRoute={
                 reportAudience === "pool_builder"
-                  ? routeDraft?.placementKey === placementKey
-                    ? routeDraft.geometry
-                    : (routeSuggestion?.geometry ?? null)
+                  ? (routeSuggestion?.geometry ?? null)
                   : null
               }
-              editableRoute={
-                reportAudience === "pool_builder" &&
-                routeSuggestion?.confidence === "credible" &&
-                placementKey &&
-                fastResult.detailedChecks
-                  ? routeDraft?.placementKey === placementKey
-                    ? routeDraft.geometry
-                    : routeSuggestion.geometry
-                  : null
-              }
-              onRouteEdit={handleRouteEdit}
               onConfirmPlacement={() => {
                 if (placementKey) {
                   setConfirmedPlacementKey(placementKey);
@@ -1245,7 +1168,6 @@ export function PropertyCheckJourney({
                   ? "site-questions"
                   : "constraints"
               }
-              routeAdjustmentMode={isAdjustingBuilderRoute}
               autoOpenMapLayersOnNeedsChecking={reportAudience === "homeowner"}
               autoOpenMapLayersAfterDetailedChecks={
                 reportAudience === "pool_builder"
@@ -1307,25 +1229,8 @@ export function PropertyCheckJourney({
                         signedSiteAnswers.placementKey === placementKey,
                       )}
                       isChecking={isLoadingDetailed}
-                      routeSuggestion={routeSuggestion ?? undefined}
-                      adjustedRoute={
-                        routeDraft?.placementKey === placementKey
-                          ? routeDraft.geometry
-                          : null
-                      }
-                      routeFacts={
-                        routeFacts?.placementKey === placementKey
-                          ? routeFacts.facts
-                          : null
-                      }
-                      onRouteEdit={handleRouteEdit}
                       onDraftChange={handleBuilderDraftChange}
                       onCheckProperty={checkBuilderProperty}
-                      onSaveRouteAdjustment={async (draft) => {
-                        const saved = await saveBuilderRouteAdjustment(draft);
-                        if (saved) setCurrentStage("contact");
-                        return saved;
-                      }}
                       onContinue={() => setCurrentStage("contact")}
                     />
                   </>

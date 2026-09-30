@@ -1348,6 +1348,15 @@ export function FastPropertyView({
             className="border-pool-200 flex flex-col gap-2 border-b bg-white p-3 sm:p-4"
           >
             {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
+            {!routeAdjustmentMode && suggestedRoute && (
+              <p
+                role="status"
+                className="border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900 rounded-sm border px-3 py-2 text-xs leading-5 font-semibold sm:px-4 sm:py-3 sm:text-sm sm:leading-6"
+              >
+                Possible construction access route shown on the map — confirm
+                onsite.
+              </p>
+            )}
             {placementMessage && (
               <p
                 role="alert"

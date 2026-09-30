@@ -1,6 +1,6 @@
 # Site Constructability Report Plan
 
-Status: Working draft for the wider constructability journey. The bounded report remediation authorised on 16 September 2026 is limited to preserving terrain audit evidence, keeping unpromoted DEM evidence out of homeowner conclusions, retaining complete report attribution, and conforming the existing three-page report implementation to [the approved report contract](./report-format.md). The provisional 300 mm side-only assumption was approved on 18 September 2026 under RG-337; its application and report presentation remain future RG-342/RG-343 work. The remaining Site questions, route interaction and barrier assessment are separate planned slices.
+Status: Working draft for the wider constructability journey. The bounded report remediation authorised on 16 September 2026 is limited to preserving terrain audit evidence, keeping unpromoted DEM evidence out of homeowner conclusions, retaining complete report attribution, and conforming the existing three-page report implementation to [the approved report contract](./report-format.md). The provisional 300 mm side-only assumption was approved on 18 September 2026 under RG-337. The current public route presentation is advisory-only; any future confirmation or adjustment interaction requires a separately approved slice.
 
 ## Objective
 
@@ -24,54 +24,50 @@ The existing report structure remains intact. The bounded remediation may change
 
 - Users receive one consolidated Preliminary report rather than a separate constructability report.
 - The report is saved and shown only after the existing contact-and-consent details step.
-- Before entering their details, users complete the same three short Site-question interactions for every property. The journey has a hard maximum of five interactions.
+- Before entering their details, Pool builders complete the same two short Site-question interactions for every property. The journey has a hard maximum of five interactions.
 - Every Site question includes an “I’m not sure” response.
 - Missing or uncertain evidence remains visibly `Not assessed` or requires onsite confirmation; it is not treated as a clear result or as a property constraint.
 - Automatic mapped/API evidence and user-declared Site answers both contribute to the report, with their provenance kept distinct.
 - The first version does not request or accept site-photo uploads. The report supports the first conversation between homeowner and pool professional; it does not attempt to replace that conversation with remote site inspection.
 - Existing report sharing, lead capture and post-report contact behaviour remain unchanged. Builder matching, referral routing and new communication workflows are outside this feature.
-- PoolReady proposes a Suggested access route from the street to the selected pool. The user confirms it, adjusts it or marks it uncertain before the report is generated.
-- Confirming, adjusting or marking the Suggested access route uncertain is the first Site question.
-- Access/excavation conditions and nearby barrier features are collected through two separate multi-select Site questions rather than several follow-up prompts. Together with route confirmation, the first version has three Site-question interactions and remains below the five-question cap.
+- PoolReady may show a deterministic Suggested access route from the street-facing parcel edge to the selected pool. A credible route appears as an advisory map line with a compact onsite-confirmation notice; an uncertain result adds no route-specific UI.
+- Access/excavation conditions and nearby barrier features are collected through two separate multi-select Site questions rather than several follow-up prompts. The route result is mapped evidence, not another user interaction.
 - Homeowner questions ask only about directly observable conditions. PoolReady or a pool professional interprets machinery and construction suitability; homeowners are not asked to make that judgement.
 - Selecting a condition does not trigger additional questions in the first version. PoolReady records it as a potential consideration in the report for later discussion with a pool professional.
 - The best result available to a new constructability section is **“No obvious concern identified — confirm onsite.”** Do not use wording that implies the section is clear, safe, compliant, suitable or professionally verified.
 - A critical “I’m not sure” answer or unavailable critical evidence prevents the overall report from saying “Appears suitable” and produces the neutral **Not fully assessed** state.
 - A mapped or user-declared Potential site consideration produces **Needs checking**.
-- Only when all three Site questions are answered and no mapped or declared concern is identified may the existing overall result remain **Appears suitable**; each new section still says **“No obvious concern identified — confirm onsite.”**
+- Only when both Site questions are answered and no mapped or declared concern is identified may the existing overall result remain **Appears suitable**; each new section still says **“No obvious concern identified — confirm onsite.”**
 - Constructability evidence uses the conservative merge policy in [ADR-0006](./adr/0006-conservative-constructability-evidence-merge.md): a concern identified by mapped/API evidence or a user answer is retained, neither source may clear a concern from the other, and disagreements are shown in the report.
 - Immediately after Pool layout, PoolReady shows an editable **Estimated pool depth**. It defaults to 1.5 m and supports preliminary residential modelling up to 2.0 m. The 2.0 m ceiling is a PoolReady scope limit, not a claim that deeper pools do not exist. Values greater than 1.8 m show **“Specialist depth — professional confirmation required,”** and deeper projects sit outside this estimate.
 - Estimated pool depth becomes locked when the user selects the existing **Check for constraints** action so downstream excavation and site-assessment results share one stable depth input.
 - Version one adds no new external data-provider integration. It uses the existing parcel, address, aerial, building, DEM/terrain, contour, flood, drainage, planning, stormwater, water/wastewater, electricity and gas evidence. Landslide susceptibility, groundwater bores, NZGD investigations, regional geology and transport/vehicle-crossing datasets are deferred.
-- The saved assessment snapshot preserves the Estimated pool depth, all three Site answers, access-route geometry and route provenance (`suggested`, `confirmed`, `user-supplied` or `uncertain`). Report results must be reproducible from that saved evidence rather than recalculated from later user or provider state.
+- The saved assessment snapshot preserves the Estimated pool depth, both Site answers, access-route geometry and route provenance. The current public journey writes `suggested` or `uncertain`; existing `confirmed` and `user-supplied` assessments remain readable. Report results must be reproducible from that saved evidence rather than recalculated from later user or provider state.
 - Failure or unavailability of terrain or another provider does not block the user from completing the journey or accessing the report. The affected result becomes **“Not assessed — data unavailable,”** confidence is reduced, and missing evidence cannot be treated as absence of a concern.
 - When terrain data alone is unavailable, PoolReady may still show the provisional pool-outline and 300 mm side-allowance geometry scenarios, labelled **“Base geometry estimate only — terrain adjustment unavailable.”** The section and overall result remain Not fully assessed. The side scenario does not include base depth or terrain cut.
 - Royal Glass staff can view the saved depth, route, Site answers, provenance and resulting findings through the existing staff assessment workflow. Staff correction, override and onsite-verification controls are deferred to a later slice.
-- The locked Estimated pool depth, the three Site answers, access-route geometry and route provenance are saved in the trusted assessment snapshot used to produce the consolidated report.
+- The locked Estimated pool depth, both Site answers, access-route geometry and route provenance are saved in the trusted assessment snapshot used to produce the consolidated report.
 
 ## Draft Site questions
 
-1. Show the **Proposed construction access route** when mapped evidence supports one. Ask the builder to use it, adjust it to reflect likely plant access, or record the route as unconfirmed pending an onsite check.
-2. Ask: **“Which visible site conditions could affect plant access or excavation?”** Choices use concise builder terminology: restricted gate or narrow access; steps or steep level change; overhead wires, branches, eaves or carport; fence, landscaping or structure that may require removal; access through neighbouring property; retaining wall near the proposed pool area; rocky ground; wet or soft ground; `None of these`; and `I’m not sure`.
-3. Ask: **“Which existing features are close to the proposed pool area?”** Choices are fences; walls; gates; doors or windows; decks; raised areas or level changes; trees or structures; `None of these`; and `I’m not sure`.
+1. Ask: **“Which visible site conditions could affect plant access or excavation?”** Choices use concise builder terminology: restricted gate or narrow access; steps or steep level change; overhead wires, branches, eaves or carport; fence, landscaping or structure that may require removal; access through neighbouring property; retaining wall near the proposed pool area; rocky ground; wet or soft ground; `None of these`; and `I’m not sure`.
+2. Ask: **“Which existing features are close to the proposed pool area?”** Choices are fences; walls; gates; doors or windows; decks; raised areas or level changes; trees or structures; `None of these`; and `I’m not sure`.
 
 Both questions permit multiple selections except that `None of these` and `I’m not sure` are exclusive. Selections do not trigger follow-up questions in version one.
 
-All three Site-question interactions are always shown. Data informs the suggested route, explanations and report findings rather than hiding questions. In particular, aerial imagery cannot reliably prove the absence, dimensions or condition of fences, gates, doors, windows or climbable objects.
+Both Site-question interactions are always shown. Data informs the suggested route, explanations and report findings rather than hiding questions. In particular, aerial imagery cannot reliably prove the absence, dimensions or condition of fences, gates, doors, windows or climbable objects.
 
-If available evidence cannot support a credible Suggested access route, PoolReady does not draw or invent one and does not require the user to create one. The route response is “I’m not sure.” Adjustment is offered only when PoolReady has displayed a credible suggestion.
+If available evidence cannot support a credible Suggested access route, PoolReady does not draw, announce or invent one and records uncertain route evidence. When evidence supports a credible route, PoolReady draws it with the compact notice **“Possible construction access route shown on the map — confirm onsite.”** The public journey does not ask the user to confirm or adjust either outcome.
 
 Suggested access routing follows [ADR-0007](./adr/0007-deterministic-construction-access-route.md). Deterministic spatial evidence owns the proposed route; aerial AI may add possible-obstacle findings but cannot choose, invent or alter the route.
 
-The first version adds no road-edge or vehicle-crossing API. It proposes a route only when the existing parcel, address, aerial, building and terrain evidence supports an obvious corridor; otherwise it records “I’m not sure.” Additional access datasets are deferred until observed outcomes demonstrate that they are needed.
+The first version adds no road-edge or vehicle-crossing API. It proposes a route only when the existing parcel, address, aerial, building and terrain evidence supports an obvious corridor; otherwise it records uncertain route evidence. Additional access datasets are deferred until observed outcomes demonstrate that they are needed.
 
-When a user adjusts the Suggested access route, it becomes a **User-supplied access route** labelled **“User-adjusted route — confirm onsite.”** PoolReady may calculate terrain and mapped intersections along it, but must preserve its user-declared provenance.
-
-Route adjustment uses the fixed start and pool-area endpoints plus at most two user-movable turning points. The visible line may update during interaction, but terrain and mapped-intersection analysis runs only after adjustment finishes or the user confirms the route.
+Existing reports may contain `confirmed` or `user-supplied` route provenance from the earlier interaction model. Those reports remain readable and retain their original route geometry and provenance; the current public journey creates only `suggested` or `uncertain` route evidence.
 
 ### Construction-access calculations
 
-For either a Suggested access route or User-supplied access route, the first version calculates only:
+For a saved route geometry, including legacy User-supplied routes, the first version calculates only:
 
 - approximate route length;
 - elevation change and steepest mapped gradient;
