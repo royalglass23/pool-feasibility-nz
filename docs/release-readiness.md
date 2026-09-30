@@ -14,16 +14,32 @@ The old July 2026 decision that described an internal, no-database,
 session-scoped POC is superseded as a product description. Its test results
 remain historical evidence only.
 
-A candidate based on shared commit `6f97d6c` passed the complete local code gate
-below on 11 September 2026, including the dedicated public-input safety lane.
-The documentation refresh that followed passed repository formatting and
-relative-link checks. This remains development evidence rather than an exact
+A candidate based on commit `3a2db91` passed the complete local code gate from
+an immutable archive on 28 September 2026 as part of RG-364. That gate covered
+947 unit/integration tests, 22 zero-retry general E2E tests, the isolated
+public-input safety modes, TypeScript, ESLint, the production build, and the
+production dependency audit. It remains development evidence rather than a
 deployed-revision sign-off.
 
-The current `features` history includes later DEM terrain, Property Check,
-three-page PDF, and PostHog changes. The 11 September gate does not cover those
+The current `features` history includes later address-refresh, streamlined
+journey, map-snapshot, submission-boundary, report-layout, and builder-summary
+changes from 29-30 September. The 28 September gate does not cover those
 commits. A new full code gate and target verification are needed for whichever
 exact revision is proposed for release.
+
+28 September RG-364 results for `3a2db91`:
+
+| Gate                                 | Result                                                                                       |
+| ------------------------------------ | -------------------------------------------------------------------------------------------- |
+| TypeScript, ESLint, production build | PASS                                                                                         |
+| Vitest                               | PASS; 947 passed                                                                             |
+| General Playwright E2E               | PASS; 22 passed, zero retries                                                                |
+| Public-input safety E2E              | PASS; 22 cases across the intended database-disabled and guarded development-database modes  |
+| Production dependency audit          | PASS; zero known production vulnerabilities                                                  |
+| Repository formatting                | Baseline warning only for unchanged `tsconfig.json`; scoped formatting and whitespace passed |
+
+The older 11 September baseline below remains useful historical comparison but
+is no longer the latest exact-commit code gate.
 
 11 September baseline results for `6f97d6c`:
 

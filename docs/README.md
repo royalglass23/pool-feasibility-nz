@@ -34,10 +34,13 @@ valuable context, but they may describe a candidate older than the current
 branch. Check the document date, reviewed commit, verdict, and later changelog
 entries before using one as a statement about current behavior.
 
-The Auckland DEM reader and indicative report slope are implemented. The wider
-site-constructability flow in [`site-constructability-report-plan.md`](site-constructability-report-plan.md)
-is still a plan; do not treat its route, excavation, or barrier questions as
-available in the current Property Check.
+The Auckland DEM reader and indicative report slope are implemented. The Pool
+Builder path also implements editable depth and side allowance, two Site
+questions, conservative constructability evidence, and an advisory deterministic
+access route when the evidence supports one. The broader ideas and deferred
+datasets in [`site-constructability-report-plan.md`](site-constructability-report-plan.md)
+remain plans; the current journey does not provide route adjustment, confirmed
+construction access, staff correction, barrier approval, or onsite verification.
 
 In particular, the July internal-only/no-database release decision is historical.
 The current codebase contains persistence and anonymous public routes, but that
