@@ -184,6 +184,7 @@ export function FastPropertyView({
   placementNextStep = "constraints",
   routeAdjustmentMode = false,
   autoOpenMapLayersOnNeedsChecking = false,
+  autoOpenMapLayersAfterDetailedChecks = false,
 }: {
   result: FastPropertyViewResult;
   suggestedRoute?: LineString | null;
@@ -202,6 +203,7 @@ export function FastPropertyView({
   placementNextStep?: "constraints" | "site-questions";
   routeAdjustmentMode?: boolean;
   autoOpenMapLayersOnNeedsChecking?: boolean;
+  autoOpenMapLayersAfterDetailedChecks?: boolean;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const rotationControlVisibleRef = useRef(false);
@@ -389,9 +391,10 @@ export function FastPropertyView({
     ],
   );
   const shouldAutoOpenMapLayers =
-    autoOpenMapLayersOnNeedsChecking &&
     Boolean(result.detailedChecks) &&
-    poolWarning.status === "needs_checking";
+    (autoOpenMapLayersAfterDetailedChecks ||
+      (autoOpenMapLayersOnNeedsChecking &&
+        poolWarning.status === "needs_checking"));
   const mapLayersStateKey = `${result.resolvedAddress.addressId}:${result.detailedChecks?.retrievedAt ?? "not-loaded"}`;
   const [mapLayersPreference, setMapLayersPreference] = useState<{
     key: string;
@@ -1291,7 +1294,8 @@ export function FastPropertyView({
         <div>
           <h2
             id="fast-view-heading"
-            className="text-pool-950 text-2xl font-semibold"
+            tabIndex={-1}
+            className="text-pool-950 scroll-mt-40 text-2xl font-semibold"
           >
             {routeAdjustmentMode
               ? "Adjust the suggested access route"
@@ -1321,7 +1325,11 @@ export function FastPropertyView({
             label={
               isInitialAddressLoad
                 ? "Address found"
-                : "Address found. Next, choose a pool layout, then move it into your preferred position."
+                : detailedConstraintStatus === "complete"
+                  ? "Constraints loaded. Review the map and details below."
+                  : result.detailedChecks
+                    ? "Some constraints could not be loaded. Review the details below or try again."
+                    : "Address found. Next, choose a pool layout, then move it into your preferred position."
             }
             state="complete"
           />
@@ -1340,6 +1348,15 @@ export function FastPropertyView({
             className="border-pool-200 flex flex-col gap-2 border-b bg-white p-3 sm:p-4"
           >
             {!isInitialAddressLoad && <FastPoolWarning warning={poolWarning} />}
+            {!routeAdjustmentMode && suggestedRoute && (
+              <p
+                role="status"
+                className="border-pool-blue-200 bg-pool-blue-50 text-pool-blue-900 rounded-sm border px-3 py-2 text-xs leading-5 font-semibold sm:px-4 sm:py-3 sm:text-sm sm:leading-6"
+              >
+                Possible construction access route shown on the map — confirm
+                onsite.
+              </p>
+            )}
             {placementMessage && (
               <p
                 role="alert"

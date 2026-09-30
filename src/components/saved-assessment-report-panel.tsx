@@ -104,6 +104,7 @@ export function SavedAssessmentReportPanel({
         onBack={onBack}
         showBackAction={false}
         onStartAgain={onStartAgain}
+        positionOnMount
       />
     );
   }

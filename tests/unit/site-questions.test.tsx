@@ -14,49 +14,34 @@ import {
 
 afterEach(cleanup);
 
-const credibleRoute = {
-  confidence: "credible" as const,
-  reason: "direct_clear_corridor" as const,
-  geometry: {
-    type: "LineString" as const,
-    coordinates: [
-      [174.76, -36.85] as [number, number],
-      [174.761, -36.851] as [number, number],
-    ],
-  },
-};
-
 function renderQuestions(
   overrides: Partial<React.ComponentProps<typeof SiteQuestions>> = {},
 ) {
   const onCheckProperty = vi.fn(async () => true);
-  const onSaveRouteAdjustment = vi.fn(async () => true);
-  const onRouteEdit = vi.fn();
   const onDraftChange = vi.fn();
   const onContinue = vi.fn();
-  const view = render(
-    <SiteQuestions
-      placementKey="placement-1"
-      estimatedDepth="1.5"
-      depthLocked={false}
-      onEstimatedDepthChange={() => undefined}
-      onEditEstimatedDepth={() => undefined}
-      hasCompletedCheck={false}
-      hasSavedAnswers={false}
-      isChecking={false}
-      onCheckProperty={onCheckProperty}
-      onSaveRouteAdjustment={onSaveRouteAdjustment}
-      onRouteEdit={onRouteEdit}
-      onDraftChange={onDraftChange}
-      onContinue={onContinue}
-      {...overrides}
-    />,
-  );
+  const baseProps: React.ComponentProps<typeof SiteQuestions> = {
+    placementKey: "placement-1",
+    estimatedDepth: "1.5",
+    depthLocked: false,
+    onEstimatedDepthChange: () => undefined,
+    hasCompletedCheck: false,
+    hasSavedAnswers: false,
+    isChecking: false,
+    onCheckProperty,
+    onDraftChange,
+    onContinue,
+  };
+  const view = render(<SiteQuestions {...baseProps} {...overrides} />);
   return {
     ...view,
+    rerenderQuestions: (
+      nextOverrides: Partial<React.ComponentProps<typeof SiteQuestions>>,
+    ) =>
+      view.rerender(
+        <SiteQuestions {...baseProps} {...overrides} {...nextOverrides} />,
+      ),
     onCheckProperty,
-    onSaveRouteAdjustment,
-    onRouteEdit,
     onDraftChange,
     onContinue,
   };
@@ -99,6 +84,12 @@ describe("Pool builder site questions", () => {
         name: "Indicative excavation side clearance",
       }),
     );
+    expect(
+      screen.getByRole("heading", { name: "Estimated pool depth (m)" }),
+    ).toHaveClass("text-lg");
+    expect(
+      screen.getByRole("heading", { name: "Excavation planning" }),
+    ).toHaveClass("text-lg");
   });
 
   it("uses the shared 3px treatment for rectangular builder controls", () => {
@@ -106,7 +97,6 @@ describe("Pool builder site questions", () => {
       hasCompletedCheck: true,
       hasSavedAnswers: true,
       depthLocked: true,
-      routeSuggestion: credibleRoute,
     });
 
     expect(
@@ -119,12 +109,38 @@ describe("Pool builder site questions", () => {
     ).not.toHaveLength(0);
   });
 
-  it("lets a builder review completed route evidence before continuing", async () => {
+  it("shows checked depth and excavation planning in matching read-only summaries", () => {
+    renderQuestions({
+      hasCompletedCheck: true,
+      hasSavedAnswers: true,
+      depthLocked: true,
+    });
+
+    expect(
+      screen.queryByRole("slider", { name: "Estimated pool depth (m)" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Selected depth: 1.5 m")).toBeVisible();
+    expect(
+      screen.getByText("Selected allowance: 300 mm each side"),
+    ).toBeVisible();
+    expect(
+      screen.queryByRole("button", { name: "Edit estimated depth" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(
+        "Choose an indicative depth from 1.0–2.0 m for this preliminary property check.",
+      ),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Choose a planning allowance from 200–600 mm\./i),
+    ).not.toBeInTheDocument();
+  });
+
+  it("lets a builder continue after the completed answers are saved", async () => {
     const user = userEvent.setup();
     const { onContinue } = renderQuestions({
       hasCompletedCheck: true,
       hasSavedAnswers: true,
-      routeSuggestion: credibleRoute,
     });
 
     await user.click(
@@ -230,7 +246,7 @@ describe("Pool builder site questions", () => {
     expect(screen.queryByText(/Needs checking/i)).not.toBeInTheDocument();
 
     await user.click(
-      screen.getByRole("button", { name: "Check this property" }),
+      screen.getByRole("button", { name: "Check for constraints" }),
     );
     expect(onCheckProperty).toHaveBeenCalledWith({
       accessConditions: ["none_of_these"],
@@ -245,7 +261,7 @@ describe("Pool builder site questions", () => {
     renderQuestions({ onCheckProperty });
 
     await user.click(
-      screen.getByRole("button", { name: "Check this property" }),
+      screen.getByRole("button", { name: "Check for constraints" }),
     );
     expect(
       screen.getByText("Record at least one access or excavation condition."),
@@ -254,7 +270,7 @@ describe("Pool builder site questions", () => {
 
     await chooseNone(user);
     await user.click(
-      screen.getByRole("button", { name: "Check this property" }),
+      screen.getByRole("button", { name: "Check for constraints" }),
     );
     expect(
       await screen.findByText(/couldn’t complete the property check/i),
@@ -264,94 +280,54 @@ describe("Pool builder site questions", () => {
       .forEach((checkbox) => expect(checkbox).toBeChecked());
   });
 
-  it("shows the suggested route as a result and saves an optional adjustment without another check", async () => {
-    const user = userEvent.setup();
-    const adjustedRoute = {
-      type: "LineString" as const,
-      coordinates: [
-        [174.76, -36.85] as [number, number],
-        [174.7605, -36.8505] as [number, number],
-        [174.761, -36.851] as [number, number],
-      ],
-    };
-    const { onSaveRouteAdjustment } = renderQuestions({
+  it("keeps credible route details out of the completed questions", () => {
+    renderQuestions({
       hasCompletedCheck: true,
       hasSavedAnswers: true,
       depthLocked: true,
-      routeSuggestion: credibleRoute,
-      adjustedRoute,
     });
 
     expect(
-      screen.getByRole("heading", { name: "Access route result" }),
-    ).toBeVisible();
-    expect(screen.getByText(/has not been confirmed/i)).toBeVisible();
-    expect(
-      screen.queryByRole("button", { name: "Check this property" }),
+      screen.queryByRole("heading", { name: "Access route result" }),
     ).not.toBeInTheDocument();
-
-    await user.click(
-      screen.getByRole("button", { name: "Save route adjustment" }),
-    );
-    expect(onSaveRouteAdjustment).toHaveBeenCalledWith(
-      expect.objectContaining({ adjustedRoute }),
-    );
+    expect(
+      screen.queryByRole("button", { name: "Adjust suggested route" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Continue to your details" }),
+    ).toBeVisible();
   });
 
-  it("returns to saving builder answers after the final route turning point is removed", async () => {
+  it("saves builder answers when constraints loaded before the answers were signed", async () => {
     const user = userEvent.setup();
-    const adjustedRoute = {
-      type: "LineString" as const,
-      coordinates: [
-        [174.76, -36.85] as [number, number],
-        [174.7605, -36.8505] as [number, number],
-        [174.761, -36.851] as [number, number],
-      ],
-    };
-    const { onRouteEdit } = renderQuestions({
-      hasCompletedCheck: true,
-      hasSavedAnswers: true,
-      depthLocked: true,
-      routeSuggestion: credibleRoute,
-      adjustedRoute,
-    });
-
-    await user.click(
-      screen.getByRole("button", { name: "Remove last turning point" }),
-    );
-    const restoredSuggestedRoute = onRouteEdit.mock.lastCall?.[0];
-    expect(restoredSuggestedRoute?.coordinates).toHaveLength(2);
-
-    cleanup();
-    const { onCheckProperty, onSaveRouteAdjustment } = renderQuestions({
+    const { rerenderQuestions, onCheckProperty } = renderQuestions();
+    await chooseNone(user);
+    onCheckProperty.mockClear();
+    rerenderQuestions({
       hasCompletedCheck: true,
       hasSavedAnswers: false,
       depthLocked: true,
-      routeSuggestion: credibleRoute,
-      adjustedRoute: restoredSuggestedRoute,
     });
-    await chooseNone(user);
     await user.click(
       screen.getByRole("button", { name: "Save builder answers" }),
     );
 
     expect(onCheckProperty).toHaveBeenCalledOnce();
-    expect(onSaveRouteAdjustment).not.toHaveBeenCalled();
   });
 
-  it("reports an unconfirmed route when mapped evidence is insufficient", () => {
+  it("hides uncertain route results from the completed questions", () => {
     renderQuestions({
       hasCompletedCheck: true,
       hasSavedAnswers: true,
       depthLocked: true,
-      routeSuggestion: {
-        confidence: "uncertain",
-        geometry: null,
-        reason: "terrain_unavailable_or_steep",
-      },
     });
 
-    expect(screen.getByText(/Access route not confirmed/i)).toBeVisible();
+    expect(
+      screen.queryByRole("heading", { name: "Access route result" }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByText(/Access route not confirmed/i),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Adjust suggested route" }),
     ).not.toBeInTheDocument();
