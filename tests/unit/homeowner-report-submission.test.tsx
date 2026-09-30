@@ -17,6 +17,7 @@ import {
 
 const trackAnonymousFunnelEvent = vi.hoisted(() => vi.fn());
 const hasAnalyticsConsent = vi.hoisted(() => vi.fn(() => false));
+const scrollIntoViewMock = vi.fn();
 
 vi.mock("@/modules/anonymous-funnel-analytics", () => ({
   trackAnonymousFunnelEvent,
@@ -108,9 +109,47 @@ afterEach(() => {
   trackAnonymousFunnelEvent.mockReset();
   hasAnalyticsConsent.mockReset();
   hasAnalyticsConsent.mockReturnValue(false);
+  scrollIntoViewMock.mockReset();
+  Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
 });
 
 describe("homeowner report submission", () => {
+  it("positions the public saved report at its start", async () => {
+    Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+      configurable: true,
+      value: scrollIntoViewMock,
+    });
+
+    render(
+      <SavedAssessmentReportPanel
+        assessment={{
+          id: "assessment-positioned-report",
+          reference: report.reference,
+          status: "new_enquiry",
+          created: true,
+          report,
+          reportAccessToken: "saved-report-access-token",
+          delivery: { homeowner: "pending", internal_test_report: "pending" },
+        }}
+        showReport
+        onOpen={() => undefined}
+        onBack={() => undefined}
+      />,
+    );
+
+    const heading = screen.getByRole("heading", {
+      name: "Preliminary Pool Feasibility Report",
+    });
+    await waitFor(() => expect(heading).toHaveFocus());
+    expect(scrollIntoViewMock).toHaveBeenLastCalledWith({
+      behavior: "smooth",
+      block: "start",
+    });
+    expect(scrollIntoViewMock.mock.instances.at(-1)).toBe(
+      heading.closest("article"),
+    );
+  });
+
   it("shows the saved Pool Builder company name in the web report", () => {
     render(
       <SavedAssessmentReportPanel

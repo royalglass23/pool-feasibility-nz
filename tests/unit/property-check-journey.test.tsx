@@ -1131,7 +1131,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     ).not.toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     expect(
       screen.getByRole("button", { name: /Find the property.*Completed/ }),
     ).toBeDisabled();

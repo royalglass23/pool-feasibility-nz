@@ -1,15 +1,44 @@
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { HomeownerFeasibilityReportView } from "@/components/homeowner-feasibility-report-view";
 import { buildConstructabilitySnapshot } from "@/modules/assessment/constructability-evidence";
 import { buildTestPreliminaryReport } from "../fixtures/preliminary-report";
 
-afterEach(cleanup);
+const scrollIntoViewMock = vi.fn();
+
+beforeEach(() => {
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    value: scrollIntoViewMock,
+  });
+});
+
+afterEach(() => {
+  cleanup();
+  scrollIntoViewMock.mockReset();
+  Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
+});
 
 const delivery = { homeowner: "sent", internal_test_report: "sent" } as const;
 
 describe("saved report views", () => {
+  it("does not reposition the shared report view by default", () => {
+    render(
+      <HomeownerFeasibilityReportView
+        report={buildTestPreliminaryReport()}
+        delivery={delivery}
+        onBack={() => undefined}
+      />,
+    );
+
+    const heading = screen.getByRole("heading", {
+      name: "Preliminary Pool Feasibility Report",
+    });
+    expect(heading).not.toHaveFocus();
+    expect(scrollIntoViewMock).not.toHaveBeenCalled();
+  });
+
   it("exposes exactly three associated tabs with one selected panel", async () => {
     const user = userEvent.setup();
     const report = buildTestPreliminaryReport();

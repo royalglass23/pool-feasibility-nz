@@ -40,7 +40,7 @@ test("keeps the builder entry URL through browser back and forward navigation", 
   await expect(page).toHaveURL(/audience=pool_builder/);
 });
 
-test("locks earlier steps and pool placement after checking constraints", async ({
+test("locks the property step and pool placement after checking constraints", async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -146,7 +146,7 @@ test("locks earlier steps and pool placement after checking constraints", async 
   ).toHaveAttribute("aria-current", "step");
   await expect(
     page.getByRole("button", { name: /Who is this for?.*Completed/ }),
-  ).toBeDisabled();
+  ).toBeEnabled();
   await expect(
     page.getByRole("button", { name: /Find the property.*Completed/ }),
   ).toBeDisabled();
@@ -162,6 +162,15 @@ test("locks earlier steps and pool placement after checking constraints", async 
     'form[aria-labelledby="homeowner-details-heading"]',
   );
   await expect(contactForm.getByLabel("Name")).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: /Who is this for?.*Completed/ }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: /Find the property.*Completed/ }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: /Plan your pool.*Completed/ }),
+  ).toBeDisabled();
   await expect(
     page.getByRole("button", { name: "Edit pool size or position" }),
   ).toHaveCount(0);
@@ -375,6 +384,29 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       await expect.poll(() => detailedStageRequests).toBe(2);
     }
     await expect(mapLayersToggle).toHaveAttribute("aria-expanded", "true");
+    if (initialOutcome !== "retryable") {
+      await expect(
+        page.getByRole("list", { name: "Fast view progress" }),
+      ).toContainText("Constraints loaded. Review the map and details below.");
+      const addressHeading = page.getByRole("heading", {
+        name: "42A Bahari Drive, Ranui, Auckland",
+      });
+      await expect(addressHeading).toBeFocused();
+      await expect
+        .poll(async () => {
+          const [headerBounds, headingBounds] = await Promise.all([
+            page.locator("body > header").boundingBox(),
+            addressHeading.boundingBox(),
+          ]);
+          if (!headerBounds || !headingBounds) return false;
+          const headerBottom = headerBounds.y + headerBounds.height;
+          return (
+            headingBounds.y >= headerBottom &&
+            headingBounds.y <= headerBottom + 120
+          );
+        })
+        .toBe(true);
+    }
     await expect(
       page.getByText(/No valid elevation data covers this property\./),
     ).toBeVisible();

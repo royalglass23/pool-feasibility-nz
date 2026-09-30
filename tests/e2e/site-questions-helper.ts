@@ -82,7 +82,7 @@ export async function answerSiteQuestions(
       response.request().method() === "POST",
     { timeout: 30_000 },
   );
-  await page.getByRole("button", { name: "Check this property" }).click();
+  await page.getByRole("button", { name: "Check for constraints" }).click();
   const response = await signingResponse;
   expect(response.status(), await response.text()).toBe(200);
   await expect(

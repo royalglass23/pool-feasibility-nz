@@ -47,8 +47,9 @@ it("uses an exact, keyboard-operable 1.0-2.0 m slider and explains specialist de
   ).toBeVisible();
   rerender(<EstimatedPoolDepth value="2" locked={true} onChange={onChange} />);
   expect(
-    screen.getByRole("slider", { name: "Estimated pool depth (m)" }),
-  ).toBeDisabled();
+    screen.queryByRole("slider", { name: "Estimated pool depth (m)" }),
+  ).not.toBeInTheDocument();
+  expect(screen.getByText("Selected depth: 2.0 m")).toBeVisible();
 });
 
 it.each(["", "0", "0.9", "2.1", "Infinity", "NaN", "1e309"])(
