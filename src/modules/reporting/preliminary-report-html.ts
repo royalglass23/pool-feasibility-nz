@@ -21,6 +21,12 @@ import {
 } from "@/modules/reporting/preliminary-feasibility-copy";
 import { escapeHtml } from "@/shared/html/escape-html";
 import { reportAudiencePresentation } from "@/modules/reporting/report-audience-presentation";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+const POOL_READY_REPORT_LOGO_DATA_URL = `data:image/png;base64,${readFileSync(
+  join(process.cwd(), "public", "brand", "pool-ready-logo.png"),
+).toString("base64")}`;
 
 export type PreliminaryReportRenderContext = {
   builderCompanyName?: string | null;
@@ -38,7 +44,7 @@ export function renderCanonicalPreliminaryReportHtml(
   const poolLayout = formatNamedPoolLayout(report.pool);
   const header = () => `
     <header class="report-header">
-      <div class="report-brand"><strong>PoolReady</strong><span>Powered by Blue Haven</span></div>
+      <div class="report-brand"><img class="report-logo" src="${POOL_READY_REPORT_LOGO_DATA_URL}" alt="PoolReady"><span>Powered by BlueHaven</span></div>
       <div class="report-heading"><strong>Preliminary Feasibility Report</strong><h3>${esc(report.property.address)}</h3><div class="page-meta">${esc(generatedDate)}</div></div>
     </header>`;
   const continuationHeader = () => `
@@ -143,8 +149,8 @@ export function renderCanonicalPreliminaryReportHtml(
     .page+.page{break-before:page;page-break-before:always}
     .page:last-child{page-break-after:auto}
     .report-header{min-height:19mm;padding-bottom:3mm;border-bottom:.25mm solid var(--report-border);display:flex;gap:8mm;align-items:flex-start;justify-content:space-between;color:var(--report-muted);font-size:8pt}
-    .report-brand{display:flex;flex-direction:column;gap:.8mm;flex-shrink:0;color:var(--report-ink)}
-    .report-brand strong{font-size:18pt;line-height:1;font-weight:800;letter-spacing:-.035em}
+    .report-brand{display:flex;flex-direction:column;align-items:flex-start;gap:.8mm;flex-shrink:0;color:var(--report-ink)}
+    .report-logo{display:block;width:33mm;height:auto}
     .report-brand span{color:var(--report-muted);font-size:8pt;font-weight:600}
     .report-heading{text-align:right;min-width:0;overflow-wrap:anywhere}
     .report-heading>strong{display:block;color:var(--report-muted);font-size:8pt;font-weight:400;line-height:1.3}
@@ -203,20 +209,21 @@ export function renderCanonicalPreliminaryReportHtml(
     .map-clearances ul{display:grid;grid-template-columns:1fr 1fr;gap:.6mm 1mm;margin:1mm 0 0;padding:0;list-style:none;font-size:8pt;font-weight:700;line-height:1.2}
     .map-clearances p{margin-top:.8mm;color:var(--report-muted);font-size:8pt;line-height:1.2}
     .assessment-intro{margin-top:4.5mm;max-width:150mm;color:var(--report-muted)}
-    .assessment-grid{margin-top:2mm;display:grid;grid-template-columns:1fr 1fr;gap:1.5mm;align-items:start}
-    .assessment-card{break-inside:avoid;padding:1.8mm 2mm;border:.25mm solid var(--report-border);border-radius:var(--radius)}
-    .assessment-card header{display:flex;align-items:flex-start;justify-content:space-between;gap:3mm}
-    .assessment-card h2{font-size:12pt;line-height:1.25}
+    .assessment-grid{margin-top:2mm;display:grid;grid-template-columns:1fr 1fr;gap:1.5mm;align-items:stretch}
+    .assessment-card{break-inside:avoid;padding:1.6mm 2mm;border:.25mm solid var(--report-border);border-radius:var(--radius)}
+    .assessment-card:last-child:nth-child(odd){grid-column:1/-1}
+    .assessment-card header{display:flex;align-items:baseline;justify-content:space-between;gap:3mm}
+    .assessment-card h2{font-size:10pt;line-height:1.2}
     .later h2,.plain-section h2,.disclaimer h2{font-size:12pt;line-height:1.25}
-    .status-pill{max-width:50mm;color:var(--state-ink);font-size:8pt;font-weight:700;text-align:right}
-    .assessment-card>p{margin-top:1.5mm;color:var(--report-muted)}
-    .detail-list{margin:1.5mm 0 0;padding:0;list-style:none}
-    .detail-list li{display:flex;justify-content:space-between;gap:3mm;padding-top:1mm;border-top:.2mm solid var(--report-border);font-size:8pt}
+    .status-pill{max-width:50mm;color:var(--state-ink);font-size:7pt;font-weight:700;text-align:right}
+    .assessment-card>p{margin-top:1.2mm;color:var(--report-muted)}
+    .detail-list{margin:1.2mm 0 0;padding:0;list-style:none}
+    .detail-list li{display:flex;justify-content:space-between;gap:3mm;margin-top:.55mm;font-size:7.2pt;line-height:1.15}
     .detail-list strong{text-align:right}
     .constructability{margin-top:1.8mm}
     .constructability>h2{font-size:12pt}
-    .constructability-grid{margin-top:1.2mm;display:grid;grid-template-columns:1fr 1fr;gap:1.2mm;align-items:start}
-    .constructability-card{--card-heading-size:12pt;--card-body-size:8pt;break-inside:avoid;padding:1.6mm;border:.25mm solid var(--report-border);border-radius:var(--radius)}
+    .constructability-grid{margin-top:1.2mm;display:grid;grid-template-columns:1fr 1fr;gap:1.2mm;align-items:stretch}
+    .constructability-card{--card-heading-size:10pt;--card-body-size:7.2pt;break-inside:avoid;padding:1.6mm 2mm;border:.25mm solid var(--report-border);border-radius:var(--radius)}
     .constructability-card.access_excavation{grid-column:1/-1}
     .constructability-card.needs_checking{--state-ink:#92400e}
     .constructability-card.not_fully_assessed{--state-ink:var(--report-muted)}
@@ -228,13 +235,14 @@ export function renderCanonicalPreliminaryReportHtml(
     .constructability-details li,.constructability-evidence li,.excavation-scenarios li{margin-top:.35mm;font-size:var(--card-body-size);line-height:1.15;break-inside:avoid}
     .constructability-evidence strong{color:var(--report-ink)}
     .constructability-note{padding:.6mm;background:var(--report-soft)}
-    .access-layout{display:grid;grid-template-columns:minmax(0,2fr) minmax(0,1fr);gap:2.5mm;align-items:start}
-    .access-layout>div{columns:2;column-gap:2.5mm;column-fill:balance}
+    .access-layout{display:block}
+    .access-layout>div{columns:3;column-gap:3mm;column-fill:balance}
     .excavation{margin-top:.6mm;padding-top:.6mm;border-top:.2mm solid var(--report-border)}
+    .excavation-scenarios{display:grid;grid-template-columns:1fr 1fr;gap:.35mm 3mm}
     .excavation p{margin-top:.4mm;color:var(--report-muted);font-size:var(--card-body-size);line-height:1.15}
     .excavation a{color:var(--report-blue)}
     .needs-checking{margin-top:1mm;padding:1mm 1.5mm;background:var(--report-soft);border-radius:var(--radius)}
-    .needs-checking h2{font-size:12pt}
+    .needs-checking h2{font-size:10pt}
     .needs-checking ul{margin:.5mm 0 0;padding:0;list-style:none;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:.4mm 3mm}
     .needs-checking li{display:block;font-size:8pt;line-height:1.15}
     .needs-checking li strong{flex:0 0 auto}
@@ -242,7 +250,7 @@ export function renderCanonicalPreliminaryReportHtml(
     .later{margin-top:1mm;padding:1mm 1.5mm;background:var(--report-soft);border-radius:var(--radius)}
     .later ul{columns:2;column-gap:8mm;margin:1.5mm 0 0;padding-left:4mm}
     .later li{break-inside:avoid;margin-bottom:.4mm;font-size:8pt;line-height:1.15}
-    .page-two-bottom{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:1.5mm;align-items:start}
+    .page-two-bottom{display:grid;grid-template-columns:1fr 1fr;gap:1.5mm;align-items:stretch}
     .recommended-stage{margin-top:3mm;padding:4mm 5mm;background:var(--report-ink);color:#fff;display:flex;align-items:center;justify-content:space-between;gap:5mm}
     .recommended-stage h2{font-size:12pt}
     .recommended-stage strong{font-size:12pt;text-align:right}

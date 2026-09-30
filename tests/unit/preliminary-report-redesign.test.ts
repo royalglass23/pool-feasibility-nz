@@ -352,7 +352,9 @@ describe("canonical homeowner feasibility report", () => {
     expect(html).toContain(report.overall.recommendedStage);
     expect(html).not.toContain("Mapping information &amp; licences");
     expect(html).toContain("PoolReady");
-    expect(html).toContain("Powered by Blue Haven");
+    expect(html).toContain('class="report-logo"');
+    expect(html).toContain('src="data:image/png;base64,');
+    expect(html).toContain("Powered by BlueHaven");
     expect(html).not.toContain('alt="Blue Haven"');
     expect(html).toContain("Captured map layers");
     expect(html).toContain('class="map-legend"');
@@ -455,7 +457,7 @@ describe("canonical homeowner feasibility report", () => {
     expect(pageTwo?.textContent).toContain("1.2 m");
     expect(pageTwo?.textContent).toContain("Steepest route gradient");
     expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
-      ".constructability-card{--card-heading-size:12pt;--card-body-size:8pt",
+      ".constructability-card{--card-heading-size:10pt;--card-body-size:7.2pt",
     );
     expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
       ".constructability-card h3,.constructability-card h4{font-size:var(--card-heading-size)",
@@ -464,13 +466,19 @@ describe("canonical homeowner feasibility report", () => {
       "p,li{font-size:8pt",
     );
     expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
-      ".assessment-card h2{font-size:12pt",
+      ".assessment-card h2{font-size:10pt",
     );
     expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
       ".recommended-stage h2{font-size:12pt",
     );
     expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
       ".report-brand span{color:var(--report-muted);font-size:8pt",
+    );
+    expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
+      ".detail-list li{display:flex;justify-content:space-between;gap:3mm;margin-top:.55mm;font-size:7.2pt",
+    );
+    expect(renderCanonicalPreliminaryReportHtml(report)).toContain(
+      ".assessment-card:last-child:nth-child(odd){grid-column:1/-1}",
     );
     expect(renderCanonicalPreliminaryReportHtml(report)).toMatch(
       /footer\{[^}]*font-size:8pt\}/,
