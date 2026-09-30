@@ -102,6 +102,12 @@ describe("Pool builder site questions", () => {
         name: "Indicative excavation side clearance",
       }),
     );
+    expect(
+      screen.getByRole("heading", { name: "Estimated pool depth (m)" }),
+    ).toHaveClass("text-lg");
+    expect(
+      screen.getByRole("heading", { name: "Excavation planning" }),
+    ).toHaveClass("text-lg");
   });
 
   it("uses the shared 3px treatment for rectangular builder controls", () => {
@@ -122,7 +128,7 @@ describe("Pool builder site questions", () => {
     ).not.toHaveLength(0);
   });
 
-  it("shows a checked depth as read-only without an edit action", () => {
+  it("shows checked depth and excavation planning in matching read-only summaries", () => {
     renderQuestions({
       hasCompletedCheck: true,
       hasSavedAnswers: true,
@@ -131,8 +137,12 @@ describe("Pool builder site questions", () => {
     });
 
     expect(
-      screen.getByRole("slider", { name: "Estimated pool depth (m)" }),
-    ).toBeDisabled();
+      screen.queryByRole("slider", { name: "Estimated pool depth (m)" }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByText("Selected depth: 1.5 m")).toBeVisible();
+    expect(
+      screen.getByText("Selected allowance: 300 mm each side"),
+    ).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Edit estimated depth" }),
     ).not.toBeInTheDocument();

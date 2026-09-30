@@ -1,6 +1,6 @@
 "use client";
 
-import { type KeyboardEvent, useId, useRef, useState } from "react";
+import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { SavedReportInteractiveMap } from "@/components/saved-report-interactive-map";
 import type { ReportDeliveryState } from "@/modules/reporting/report-delivery-policy";
 import { type SavedPreliminaryReport } from "@/modules/reporting/preliminary-report";
@@ -37,6 +37,7 @@ export function HomeownerFeasibilityReportView({
   onBack,
   showBackAction = true,
   onStartAgain,
+  positionOnMount = false,
 }: {
   report: SavedPreliminaryReport;
   builderCompanyName?: string | null;
@@ -47,6 +48,7 @@ export function HomeownerFeasibilityReportView({
   onBack: () => void;
   showBackAction?: boolean;
   onStartAgain?: () => void;
+  positionOnMount?: boolean;
 }) {
   void delivery;
   const audiencePresentation = reportWebAudiencePresentation(
@@ -61,6 +63,16 @@ export function HomeownerFeasibilityReportView({
   const [activeView, setActiveView] = useState<ReportViewId>("overview");
   const tabSetId = useId();
   const tabRefs = useRef<Array<HTMLButtonElement | null>>([]);
+  const reportRef = useRef<HTMLElement | null>(null);
+
+  useEffect(() => {
+    if (!positionOnMount) return;
+    const reportElement = reportRef.current;
+    const heading = document.getElementById("saved-report-heading");
+    if (!reportElement || !heading) return;
+    heading.focus({ preventScroll: true });
+    reportElement.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  }, [positionOnMount, report.reference]);
 
   function selectView(view: ReportViewId, focus = false) {
     setActiveView(view);
@@ -92,8 +104,9 @@ export function HomeownerFeasibilityReportView({
 
   return (
     <article
+      ref={reportRef}
       aria-labelledby="saved-report-heading"
-      className="border-pool-200 text-pool-900 mx-auto w-full max-w-6xl overflow-hidden rounded-2xl border bg-white shadow-sm"
+      className="border-pool-200 text-pool-900 mx-auto w-full max-w-6xl scroll-mt-24 overflow-hidden rounded-2xl border bg-white shadow-sm"
     >
       <AssessmentReadingGuide />
       <header className="border-pool-200 border-b px-5 py-5 sm:px-8 lg:px-10">
@@ -104,6 +117,7 @@ export function HomeownerFeasibilityReportView({
             </p>
             <h2
               id="saved-report-heading"
+              tabIndex={-1}
               className="text-pool-950 mt-2 text-2xl font-semibold tracking-[-0.025em] sm:text-3xl"
             >
               Preliminary Pool Feasibility Report

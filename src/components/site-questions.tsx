@@ -355,7 +355,7 @@ export function SiteQuestions({
             </h3>
             <p
               id="excavation-side-clearance-help"
-              className="text-pool-700 text-sm leading-6"
+              className="text-pool-700 text-sm leading-6 lg:min-h-12"
             >
               Choose a planning allowance from 200–600 mm. This is added on each
               side of the selected pool outline; it is not an installation

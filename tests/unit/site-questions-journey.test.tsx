@@ -382,7 +382,7 @@ describe("Site answers in the property journey", () => {
     });
     fireEvent.change(depth, { target: { value: "1.9" } });
     await chooseNone(user);
-    await waitFor(() => expect(depth).toBeDisabled());
+    expect(await screen.findByText("Selected depth: 1.9 m")).toBeVisible();
     expect(
       fetchMock.mock.calls.some(
         ([url, init]) =>
@@ -390,7 +390,9 @@ describe("Site answers in the property journey", () => {
           JSON.parse(String(init?.body)).estimatedDepthMetres === 1.9,
       ),
     ).toBe(true);
-    expect(depth).toBeDisabled();
+    expect(
+      screen.queryByRole("slider", { name: "Estimated pool depth (m)" }),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId("map-layers-auto-open")).toHaveTextContent(
       "true",
     );
@@ -467,15 +469,26 @@ describe("Site answers in the property journey", () => {
     expect(
       await screen.findByText(/couldn’t complete the property check/i),
     ).toBeVisible();
-    expect(depth).toBeEnabled();
+    const retryDepth = screen.getByRole("slider", {
+      name: "Estimated pool depth (m)",
+    });
+    expect(retryDepth).toBeEnabled();
 
-    fireEvent.change(depth, { target: { value: "2" } });
+    fireEvent.change(retryDepth, { target: { value: "2" } });
     await user.click(
       screen.getByRole("button", { name: "Check for constraints" }),
     );
 
-    await waitFor(() => expect(depth).toBeDisabled());
-    expect(detailedDepths).toEqual([1.9, 2]);
+    await waitFor(() => {
+      expect(detailedDepths).toEqual([1.9, 2]);
+      expect(
+        fetchMock.mock.calls.some(([url]) => url.endsWith("/site-answers")),
+      ).toBe(true);
+    });
+    expect(await screen.findByText("Selected depth: 2.0 m")).toBeVisible();
+    expect(
+      screen.queryByRole("slider", { name: "Estimated pool depth (m)" }),
+    ).not.toBeInTheDocument();
     expect(
       screen.queryByRole("button", { name: "Edit estimated depth" }),
     ).not.toBeInTheDocument();

@@ -62,6 +62,9 @@ test("operates the compact builder details controls by keyboard with accessible 
   const depth = page.getByRole("slider", {
     name: "Estimated pool depth (m)",
   });
+  const excavationClearance = page.getByRole("slider", {
+    name: "Indicative excavation side clearance",
+  });
   await expect(depth).toHaveValue("1.5");
   const depthPlanning = page.getByTestId("estimated-depth-planning");
   const excavationPlanning = page.getByTestId("excavation-planning");
@@ -74,6 +77,15 @@ test("operates the compact builder details controls by keyboard with accessible 
   expect(Math.abs(desktopDepth!.y - desktopExcavation!.y)).toBeLessThanOrEqual(
     1,
   );
+  const [desktopDepthSlider, desktopExcavationSlider] = await Promise.all([
+    depth.boundingBox(),
+    excavationClearance.boundingBox(),
+  ]);
+  expect(desktopDepthSlider).not.toBeNull();
+  expect(desktopExcavationSlider).not.toBeNull();
+  expect(
+    Math.abs(desktopDepthSlider!.y - desktopExcavationSlider!.y),
+  ).toBeLessThanOrEqual(1);
 
   await page.setViewportSize({ width: 390, height: 844 });
   const [mobileDepth, mobileExcavation] = await Promise.all([
