@@ -16,12 +16,14 @@ export function PropertyCheckJourneyNav({
   onNavigate,
   disabled = false,
   lockCompletedStages = false,
+  lockAudienceStage = false,
 }: {
   currentStage: PropertyCheckStage;
   completedStages: readonly PropertyCheckStage[];
   onNavigate: (stage: PropertyCheckStage) => void;
   disabled?: boolean;
   lockCompletedStages?: boolean;
+  lockAudienceStage?: boolean;
 }) {
   const completed = new Set(completedStages);
 
@@ -46,6 +48,7 @@ export function PropertyCheckJourneyNav({
                   disabled ||
                   (!isCurrent &&
                     (!isCompleted ||
+                      (lockAudienceStage && stage.id === "audience") ||
                       (lockCompletedStages &&
                         (currentStage === "contact" ||
                           currentStage === "report" ||

@@ -26,6 +26,7 @@ describe("Vercel native package tracing", () => {
 
     expect(internalAssessmentReportIncludes).toEqual([
       "./node_modules/@sparticuz/chromium/bin/**/*",
+      "./public/brand/pool-ready-logo.png",
     ]);
     expect(assessmentIncludes).toEqual([
       "./node_modules/@img/sharp-linux-x64/package.json",
@@ -35,14 +36,17 @@ describe("Vercel native package tracing", () => {
       "./node_modules/@img/sharp-libvips-linux-x64/versions.json",
       "./node_modules/@img/sharp-libvips-linux-x64/lib/**/*",
       "./node_modules/@sparticuz/chromium/bin/**/*",
+      "./public/brand/pool-ready-logo.png",
     ]);
     expect(assessmentIncludes).not.toContain("./node_modules/sharp/**/*");
     expect(deliveryIncludes).toEqual([
       "./node_modules/@sparticuz/chromium/bin/**/*",
+      "./public/brand/pool-ready-logo.png",
     ]);
     expect(deliveryStatusIncludes).toBeUndefined();
     expect(savedReportIncludes).toEqual([
       "./node_modules/@sparticuz/chromium/bin/**/*",
+      "./public/brand/pool-ready-logo.png",
     ]);
   });
 });
