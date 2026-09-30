@@ -74,6 +74,28 @@ describe("Property Check journey navigation", () => {
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
 
+  it("locks the completed audience stage after constraints load", async () => {
+    const user = userEvent.setup();
+    const onNavigate = vi.fn();
+
+    render(
+      <PropertyCheckJourneyNav
+        currentStage="placement"
+        completedStages={["audience", "property"]}
+        onNavigate={onNavigate}
+        lockCompletedStages
+        lockAudienceStage
+      />,
+    );
+
+    const audience = screen.getByRole("button", {
+      name: /Who is this for?.*Completed/,
+    });
+    expect(audience).toBeDisabled();
+    await user.click(audience);
+    expect(onNavigate).not.toHaveBeenCalled();
+  });
+
   it.each(["contact", "report"] as const)(
     "locks every earlier stage while the user is on %s",
     async (currentStage) => {

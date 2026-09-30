@@ -2,6 +2,7 @@ import type { NextConfig } from "next";
 import { isSiteIndexingEnabled } from "./src/config/site-indexing";
 
 const CHROMIUM_BINARY_GLOB = "./node_modules/@sparticuz/chromium/bin/**/*";
+const REPORT_BRAND_ASSET = "./public/brand/pool-ready-logo.png";
 
 const nextConfig: NextConfig = {
   allowedDevOrigins: ["127.0.0.1"],
@@ -26,11 +27,20 @@ const nextConfig: NextConfig = {
     // descendants such as `delivery/status`; test:build-tracing verifies the
     // emitted .nft.json files so Chromium does not leak into unrelated routes.
     // Dynamic route brackets are escaped because these keys are picomatch globs.
-    "/api/internal/assessments/\\[id\\]/report/route": [CHROMIUM_BINARY_GLOB],
-    "/api/internal/report/pdf/route": [CHROMIUM_BINARY_GLOB],
-    "/api/public/report/pdf/route": [CHROMIUM_BINARY_GLOB],
-    "/api/public/assessments/report/delivery/route": [CHROMIUM_BINARY_GLOB],
-    "/api/public/assessments/report/pdf/route": [CHROMIUM_BINARY_GLOB],
+    "/api/internal/assessments/\\[id\\]/report/route": [
+      CHROMIUM_BINARY_GLOB,
+      REPORT_BRAND_ASSET,
+    ],
+    "/api/internal/report/pdf/route": [CHROMIUM_BINARY_GLOB, REPORT_BRAND_ASSET],
+    "/api/public/report/pdf/route": [CHROMIUM_BINARY_GLOB, REPORT_BRAND_ASSET],
+    "/api/public/assessments/report/delivery/route": [
+      CHROMIUM_BINARY_GLOB,
+      REPORT_BRAND_ASSET,
+    ],
+    "/api/public/assessments/report/pdf/route": [
+      CHROMIUM_BINARY_GLOB,
+      REPORT_BRAND_ASSET,
+    ],
     "/api/public/assessments/route": [
       "./node_modules/@img/sharp-linux-x64/package.json",
       "./node_modules/@img/sharp-linux-x64/index.cjs",
@@ -39,6 +49,7 @@ const nextConfig: NextConfig = {
       "./node_modules/@img/sharp-libvips-linux-x64/versions.json",
       "./node_modules/@img/sharp-libvips-linux-x64/lib/**/*",
       CHROMIUM_BINARY_GLOB,
+      REPORT_BRAND_ASSET,
     ],
   },
 };
