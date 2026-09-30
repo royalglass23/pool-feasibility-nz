@@ -46,7 +46,10 @@ export function PropertyCheckJourneyNav({
                   disabled ||
                   (!isCurrent &&
                     (!isCompleted ||
-                      (lockCompletedStages && stage.id !== "audience")))
+                      (lockCompletedStages &&
+                        (currentStage === "contact" ||
+                          currentStage === "report" ||
+                          stage.id !== "audience"))))
                 }
                 onClick={() => onNavigate(stage.id)}
                 className="border-pool-200 text-pool-950 focus-visible:outline-pool-blue-700 aria-[current=step]:border-pool-blue-700 aria-[current=step]:bg-pool-blue-50 disabled:text-pool-500 hover:border-pool-blue-500 flex min-h-16 w-full flex-col items-start justify-center rounded-[3px] border bg-white px-3 py-2 text-left text-sm font-semibold transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:bg-slate-50"

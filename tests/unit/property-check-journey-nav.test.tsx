@@ -73,4 +73,44 @@ describe("Property Check journey navigation", () => {
     await user.click(property);
     expect(onNavigate).toHaveBeenCalledTimes(1);
   });
+
+  it.each(["contact", "report"] as const)(
+    "locks every earlier stage while the user is on %s",
+    async (currentStage) => {
+      const user = userEvent.setup();
+      const onNavigate = vi.fn();
+
+      render(
+        <PropertyCheckJourneyNav
+          currentStage={currentStage}
+          completedStages={
+            currentStage === "contact"
+              ? ["audience", "property", "placement"]
+              : ["audience", "property", "placement", "contact"]
+          }
+          onNavigate={onNavigate}
+          lockCompletedStages
+        />,
+      );
+
+      for (const name of [
+        /Who is this for?.*Completed/,
+        /Find the property.*Completed/,
+        /Plan your pool.*Completed/,
+      ]) {
+        const stage = screen.getByRole("button", { name });
+        expect(stage).toBeDisabled();
+        await user.click(stage);
+      }
+      if (currentStage === "report") {
+        const details = screen.getByRole("button", {
+          name: /Your details.*Completed/,
+        });
+        expect(details).toBeDisabled();
+        await user.click(details);
+      }
+
+      expect(onNavigate).not.toHaveBeenCalled();
+    },
+  );
 });

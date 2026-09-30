@@ -267,7 +267,7 @@ it("opens map layers when loaded constraints change the result to Needs Checking
   expect(toggle).toHaveAttribute("aria-expanded", "false");
 });
 
-it("keeps map layers collapsed for a pool builder when loaded constraints need checking", async () => {
+it("opens map layers for a pool builder after detailed constraints load", async () => {
   const { rerender } = render(
     <FastPropertyView
       result={{
@@ -276,7 +276,7 @@ it("keeps map layers collapsed for a pool builder when loaded constraints need c
         detailedChecks: undefined,
       }}
       onRetry={() => {}}
-      autoOpenMapLayersOnNeedsChecking={false}
+      autoOpenMapLayersAfterDetailedChecks
     />,
   );
 
@@ -288,12 +288,12 @@ it("keeps map layers collapsed for a pool builder when loaded constraints need c
     <FastPropertyView
       result={fastResult}
       onRetry={() => {}}
-      autoOpenMapLayersOnNeedsChecking={false}
+      autoOpenMapLayersAfterDetailedChecks
     />,
   );
 
   expect(screen.getByRole("heading", { name: "Needs Checking" })).toBeVisible();
-  await waitFor(() => expect(toggle).toHaveAttribute("aria-expanded", "false"));
+  await waitFor(() => expect(toggle).toHaveAttribute("aria-expanded", "true"));
 });
 
 it("keeps map layers collapsed for a homeowner when loaded constraints have no warning", async () => {

@@ -191,7 +191,6 @@ export function SiteQuestions({
   estimatedDepth,
   depthLocked,
   onEstimatedDepthChange,
-  onEditEstimatedDepth,
   hasCompletedCheck,
   hasSavedAnswers,
   isChecking,
@@ -208,7 +207,6 @@ export function SiteQuestions({
   estimatedDepth: string;
   depthLocked: boolean;
   onEstimatedDepthChange: (value: string) => void;
-  onEditEstimatedDepth: () => void;
   hasCompletedCheck: boolean;
   hasSavedAnswers: boolean;
   isChecking: boolean;
@@ -341,7 +339,6 @@ export function SiteQuestions({
               value={estimatedDepth}
               locked={depthLocked}
               onChange={onEstimatedDepthChange}
-              onEdit={onEditEstimatedDepth}
             />
           </div>
           <section

@@ -145,9 +145,6 @@ export function PropertyCheckJourney({
     String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES),
   );
   const [lockedDepth, setLockedDepth] = useState<number | null>(null);
-  const [preDetailedSnapshot, setPreDetailedSnapshot] = useState<string | null>(
-    null,
-  );
   const [signedSiteAnswers, setSignedSiteAnswers] = useState<{
     sourceSnapshot: string;
     placementKey: string;
@@ -249,7 +246,6 @@ export function PropertyCheckJourney({
         setResult(null);
         setFastResult(null);
         setFastAssessmentSnapshot(null);
-        setPreDetailedSnapshot(null);
       }
       if (invalidation.placement) {
         placementSnapshotRef.current = null;
@@ -339,7 +335,10 @@ export function PropertyCheckJourney({
           : "homeowner-check-heading",
     );
     if (heading) {
-      heading.focus();
+      heading.focus({ preventScroll: constraintsLoaded });
+      if (constraintsLoaded) {
+        heading.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
       focusedPlanningForRef.current = focusKey;
     }
   }, [
@@ -514,7 +513,6 @@ export function PropertyCheckJourney({
     setFastAssessmentSnapshot(null);
     setEstimatedDepth(String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES));
     setLockedDepth(null);
-    setPreDetailedSnapshot(null);
     setSignedSiteAnswers(null);
     setRouteDraft(null);
     setRouteFacts(null);
@@ -677,10 +675,12 @@ export function PropertyCheckJourney({
     const requestId = fastRequestIdRef.current;
     const evidenceVersion = reportEvidenceVersionRef.current;
     const requestedAudience = reportAudience;
-    const sourceSnapshot = fastAssessmentSnapshot;
+    const requestIsCurrent = () =>
+      fastRequestIdRef.current === requestId &&
+      reportEvidenceVersionRef.current === evidenceVersion &&
+      reportAudienceRef.current === requestedAudience;
     detailedRequestInFlightRef.current = true;
     detailedStartedRef.current = true;
-    if (preDetailedSnapshot === null) setPreDetailedSnapshot(sourceSnapshot);
     if (reportAudience === "pool_builder") setLockedDepth(builderDepth);
     setIsLoadingDetailed(true);
     try {
@@ -707,15 +707,10 @@ export function PropertyCheckJourney({
         !response.ok ||
         !body?.data ||
         !body.assessmentSnapshot ||
-        fastRequestIdRef.current !== requestId ||
-        reportEvidenceVersionRef.current !== evidenceVersion ||
-        reportAudienceRef.current !== requestedAudience
+        !requestIsCurrent()
       ) {
-        if (
-          fastRequestIdRef.current === requestId &&
-          reportEvidenceVersionRef.current === evidenceVersion &&
-          reportAudienceRef.current === requestedAudience
-        ) {
+        if (requestIsCurrent()) {
+          if (requestedAudience === "pool_builder") setLockedDepth(null);
           setDetailedRetryAfterSeconds(
             responseError?.retryAfterSeconds ?? null,
           );
@@ -736,6 +731,8 @@ export function PropertyCheckJourney({
         assessmentSnapshot: body.assessmentSnapshot,
       };
     } catch {
+      if (requestedAudience === "pool_builder" && requestIsCurrent())
+        setLockedDepth(null);
       setError(detailedChecksIssue());
       setCanRetry(true);
       return null;
@@ -1250,6 +1247,9 @@ export function PropertyCheckJourney({
               }
               routeAdjustmentMode={isAdjustingBuilderRoute}
               autoOpenMapLayersOnNeedsChecking={reportAudience === "homeowner"}
+              autoOpenMapLayersAfterDetailedChecks={
+                reportAudience === "pool_builder"
+              }
             />
           </div>
           {(currentStage === "placement" || currentStage === "contact") &&
@@ -1300,23 +1300,6 @@ export function PropertyCheckJourney({
                       estimatedDepth={estimatedDepth}
                       depthLocked={lockedDepth !== null}
                       onEstimatedDepthChange={setEstimatedDepth}
-                      onEditEstimatedDepth={() => {
-                        if (
-                          isSavingReport ||
-                          !preDetailedSnapshot ||
-                          isLoadingDetailed
-                        )
-                          return;
-                        invalidateJourneyEvidence("depth");
-                        setFastAssessmentSnapshot(preDetailedSnapshot);
-                        setPreDetailedSnapshot(null);
-                        setFastResult((current) =>
-                          current
-                            ? { ...current, detailedChecks: undefined }
-                            : current,
-                        );
-                        setLockedDepth(null);
-                      }}
                       hasCompletedCheck={Boolean(fastResult.detailedChecks)}
                       hasSavedAnswers={Boolean(
                         signedSiteAnswers?.sourceSnapshot ===

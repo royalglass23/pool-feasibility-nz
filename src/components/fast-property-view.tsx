@@ -184,6 +184,7 @@ export function FastPropertyView({
   placementNextStep = "constraints",
   routeAdjustmentMode = false,
   autoOpenMapLayersOnNeedsChecking = false,
+  autoOpenMapLayersAfterDetailedChecks = false,
 }: {
   result: FastPropertyViewResult;
   suggestedRoute?: LineString | null;
@@ -202,6 +203,7 @@ export function FastPropertyView({
   placementNextStep?: "constraints" | "site-questions";
   routeAdjustmentMode?: boolean;
   autoOpenMapLayersOnNeedsChecking?: boolean;
+  autoOpenMapLayersAfterDetailedChecks?: boolean;
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const rotationControlVisibleRef = useRef(false);
@@ -389,9 +391,10 @@ export function FastPropertyView({
     ],
   );
   const shouldAutoOpenMapLayers =
-    autoOpenMapLayersOnNeedsChecking &&
     Boolean(result.detailedChecks) &&
-    poolWarning.status === "needs_checking";
+    (autoOpenMapLayersAfterDetailedChecks ||
+      (autoOpenMapLayersOnNeedsChecking &&
+        poolWarning.status === "needs_checking"));
   const mapLayersStateKey = `${result.resolvedAddress.addressId}:${result.detailedChecks?.retrievedAt ?? "not-loaded"}`;
   const [mapLayersPreference, setMapLayersPreference] = useState<{
     key: string;
@@ -1292,7 +1295,7 @@ export function FastPropertyView({
           <h2
             id="fast-view-heading"
             tabIndex={-1}
-            className="text-pool-950 text-2xl font-semibold"
+            className="text-pool-950 scroll-mt-40 text-2xl font-semibold"
           >
             {routeAdjustmentMode
               ? "Adjust the suggested access route"

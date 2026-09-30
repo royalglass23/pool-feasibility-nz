@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   act,
   cleanup,
@@ -13,6 +13,7 @@ import { PropertyCheckJourney } from "@/components/property-check-journey";
 import type { FastPoolPlacementSnapshot } from "@/modules/data-access-spike/fast-pool-warning";
 
 const saveAssessmentMock = vi.hoisted(() => vi.fn());
+const scrollIntoViewMock = vi.hoisted(() => vi.fn());
 
 vi.mock("@/components/fast-property-view", () => ({
   FastPropertyView: ({
@@ -23,6 +24,7 @@ vi.mock("@/components/fast-property-view", () => ({
     placementConfirmed,
     placementNextStep,
     planningStep,
+    autoOpenMapLayersAfterDetailedChecks,
   }: {
     result: { resolvedAddress: { fullAddress: string } };
     onPlacementChange: (placement: FastPoolPlacementSnapshot) => void;
@@ -34,6 +36,7 @@ vi.mock("@/components/fast-property-view", () => ({
     placementConfirmed: boolean;
     placementNextStep?: "constraints" | "site-questions";
     planningStep?: React.ReactNode;
+    autoOpenMapLayersAfterDetailedChecks?: boolean;
   }) => {
     function update(
       longitude: number,
@@ -64,6 +67,9 @@ vi.mock("@/components/fast-property-view", () => ({
         <h2 id="fast-view-heading" tabIndex={-1}>
           {result.resolvedAddress.fullAddress}
         </h2>
+        <output data-testid="map-layers-auto-open">
+          {String(autoOpenMapLayersAfterDetailedChecks)}
+        </output>
         <button onClick={() => update(174.76, true)}>Set pool layout</button>
         <button
           onClick={() =>
@@ -105,6 +111,13 @@ vi.mock("@/components/fast-property-view", () => ({
     );
   },
 }));
+
+beforeEach(() => {
+  Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+    configurable: true,
+    value: scrollIntoViewMock,
+  });
+});
 
 vi.mock("@/components/homeowner-submission-form", () => ({
   emptyHomeownerContactDraft: () => ({
@@ -162,6 +175,8 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
   saveAssessmentMock.mockReset();
+  scrollIntoViewMock.mockReset();
+  Reflect.deleteProperty(HTMLElement.prototype, "scrollIntoView");
 });
 
 describe("Site answers in the property journey", () => {
@@ -191,11 +206,15 @@ describe("Site answers in the property journey", () => {
     expect(
       await screen.findByRole("heading", { name: "Property details checked" }),
     ).toBeVisible();
-    await waitFor(() =>
-      expect(
-        screen.getByRole("heading", { name: "1 Test Street, Auckland" }),
-      ).toHaveFocus(),
-    );
+    const addressHeading = screen.getByRole("heading", {
+      name: "1 Test Street, Auckland",
+    });
+    await waitFor(() => expect(addressHeading).toHaveFocus());
+    expect(scrollIntoViewMock).toHaveBeenLastCalledWith({
+      behavior: "smooth",
+      block: "start",
+    });
+    expect(scrollIntoViewMock.mock.instances.at(-1)).toBe(addressHeading);
 
     await continueToDetails(user);
     expect(await screen.findByTestId("details-form")).toBeVisible();
@@ -325,7 +344,7 @@ describe("Site answers in the property journey", () => {
     expect(screen.getByLabelText("Auckland property address")).toBeVisible();
   });
 
-  it("locks the chosen depth for checks and requires a new check after editing", async () => {
+  it("keeps the chosen builder depth permanently locked after checking constraints", async () => {
     const user = userEvent.setup();
     const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
       if (url.endsWith("/property-check"))
@@ -371,23 +390,95 @@ describe("Site answers in the property journey", () => {
           JSON.parse(String(init?.body)).estimatedDepthMetres === 1.9,
       ),
     ).toBe(true);
-    await user.click(
-      screen.getByRole("button", { name: "Edit estimated depth" }),
+    expect(depth).toBeDisabled();
+    expect(screen.getByTestId("map-layers-auto-open")).toHaveTextContent(
+      "true",
     );
+    expect(
+      screen.queryByRole("button", { name: "Edit estimated depth" }),
+    ).not.toBeInTheDocument();
+  });
+
+  it("unlocks builder depth after a failed constraints request and locks the successful retry", async () => {
+    const user = userEvent.setup();
+    const detailedDepths: number[] = [];
+    let detailedAttempts = 0;
+    const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
+      if (url.endsWith("/property-check"))
+        return Response.json({
+          assessmentSnapshot: "initial-token",
+          data: {
+            resolvedAddress: {
+              addressId: "address-1",
+              fullAddress: "1 Test Street, Auckland",
+              coordinates: [174.76, -36.85],
+            },
+            boundary: { state: "confirmed" },
+          },
+        });
+      if (url.endsWith("/stages")) {
+        const body = JSON.parse(String(init?.body));
+        if (body.mode === "detailed") {
+          detailedAttempts += 1;
+          detailedDepths.push(body.estimatedDepthMetres);
+          if (detailedAttempts === 1)
+            return Response.json(
+              {
+                error: {
+                  code: "UPSTREAM_UNAVAILABLE",
+                  message: "Detailed constraints are temporarily unavailable.",
+                },
+              },
+              { status: 503 },
+            );
+        }
+        return Response.json({
+          data: { status: "complete", layers: [], limitations: [] },
+          assessmentSnapshot:
+            body.mode === "detailed" ? "detailed-token" : "stage-token",
+        });
+      }
+      if (url.endsWith("/site-answers"))
+        return Response.json({
+          assessmentSnapshot: "signed-stage-token",
+          answers: {
+            version: 1,
+            estimatedDepthMetres: 2,
+            route: { provenance: "uncertain", geometry: null },
+            accessConditions: ["none_of_these"],
+            nearbyFeatures: ["none_of_these"],
+          },
+        });
+      return Response.json({ suggestions: [] });
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<PropertyCheckJourney />);
+    await openValidPlacement(user, "pool_builder");
+    await user.click(
+      screen.getByRole("button", { name: "Continue to site questions" }),
+    );
+    const depth = await screen.findByRole("slider", {
+      name: "Estimated pool depth (m)",
+    });
+    fireEvent.change(depth, { target: { value: "1.9" } });
+    await chooseNone(user);
+
+    expect(
+      await screen.findByText(/couldn’t complete the property check/i),
+    ).toBeVisible();
     expect(depth).toBeEnabled();
+
     fireEvent.change(depth, { target: { value: "2" } });
     await user.click(
       screen.getByRole("button", { name: "Check for constraints" }),
     );
-    await waitFor(() =>
-      expect(
-        fetchMock.mock.calls.some(
-          ([url, init]) =>
-            url.endsWith("/stages") &&
-            JSON.parse(String(init?.body)).estimatedDepthMetres === 2,
-        ),
-      ).toBe(true),
-    );
+
+    await waitFor(() => expect(depth).toBeDisabled());
+    expect(detailedDepths).toEqual([1.9, 2]);
+    expect(
+      screen.queryByRole("button", { name: "Edit estimated depth" }),
+    ).not.toBeInTheDocument();
   });
 
   it("locks builder planning answers while the signed answer save completes", async () => {
@@ -497,10 +588,10 @@ describe("Site answers in the property journey", () => {
 
       render(<PropertyCheckJourney />);
       await openValidPlacement(user, fromAudience);
-      await completeCurrentPlanningStep(user, fromAudience);
-      const name = screen.getByRole("textbox", { name: "Name" });
-      await user.type(name, "Previous contact");
-      expect(name).toHaveValue("Previous contact");
+      await completePlanningCheck(user, fromAudience);
+      expect(
+        screen.getByRole("button", { name: "Continue to your details" }),
+      ).toBeVisible();
 
       await user.click(
         screen.getByRole("button", { name: /Who is this for?.*Completed/ }),
@@ -533,7 +624,8 @@ describe("Site answers in the property journey", () => {
       await user.click(
         await screen.findByRole("button", { name: "Set pool layout" }),
       );
-      await completeCurrentPlanningStep(user, toAudience);
+      await completePlanningCheck(user, toAudience);
+      await continueToDetails(user);
       expect(screen.getByRole("textbox", { name: "Name" })).toHaveValue("");
     },
   );
@@ -721,7 +813,7 @@ async function enterPropertyAddress(user: ReturnType<typeof userEvent.setup>) {
   await user.keyboard("{Enter}");
 }
 
-async function completeCurrentPlanningStep(
+async function completePlanningCheck(
   user: ReturnType<typeof userEvent.setup>,
   audience: "homeowner" | "pool_builder",
 ) {
@@ -735,8 +827,6 @@ async function completeCurrentPlanningStep(
     );
     await chooseNone(user);
   }
-
-  await continueToDetails(user);
 }
 
 async function openValidPlacement(

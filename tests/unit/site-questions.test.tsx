@@ -39,7 +39,6 @@ function renderQuestions(
     estimatedDepth: "1.5",
     depthLocked: false,
     onEstimatedDepthChange: () => undefined,
-    onEditEstimatedDepth: () => undefined,
     hasCompletedCheck: false,
     hasSavedAnswers: false,
     isChecking: false,
@@ -121,6 +120,22 @@ describe("Pool builder site questions", () => {
     expect(
       container.querySelectorAll('[class*="rounded-[3px]"]'),
     ).not.toHaveLength(0);
+  });
+
+  it("shows a checked depth as read-only without an edit action", () => {
+    renderQuestions({
+      hasCompletedCheck: true,
+      hasSavedAnswers: true,
+      depthLocked: true,
+      routeSuggestion: credibleRoute,
+    });
+
+    expect(
+      screen.getByRole("slider", { name: "Estimated pool depth (m)" }),
+    ).toBeDisabled();
+    expect(
+      screen.queryByRole("button", { name: "Edit estimated depth" }),
+    ).not.toBeInTheDocument();
   });
 
   it("lets a builder review completed route evidence before continuing", async () => {

@@ -6,12 +6,10 @@ export function EstimatedPoolDepth({
   value,
   locked,
   onChange,
-  onEdit,
 }: {
   value: string;
   locked: boolean;
   onChange: (value: string) => void;
-  onEdit?: () => void;
 }) {
   const depth = parseEstimatedPoolDepth(value);
   const isValidSliderDepth = depth !== null && depth >= 1;
@@ -54,15 +52,6 @@ export function EstimatedPoolDepth({
         <span>Minimum 1.0 m</span>
         <span>Maximum 2.0 m</span>
       </div>
-      {locked && onEdit && (
-        <button
-          type="button"
-          onClick={onEdit}
-          className="text-pool-800 ml-3 text-sm font-semibold underline"
-        >
-          Edit estimated depth
-        </button>
-      )}
       <p
         id="estimated-pool-depth-help"
         className="text-pool-600 text-xs leading-5"
