@@ -1223,7 +1223,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       screen.getByRole("button", { name: /Plan your pool.*Current/ }),
     ).toHaveAttribute("aria-current", "step");
     expect(
-      screen.getByRole("button", { name: /Your details.*Locked/ }),
+      screen.getByRole("button", { name: /Your details.*Upcoming/ }),
     ).toBeDisabled();
     expect(
       await screen.findByRole("heading", { name: "Indicative property slope" }),
