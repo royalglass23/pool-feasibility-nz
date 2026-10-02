@@ -240,7 +240,7 @@ describe("Site answers in the property journey", () => {
       screen.queryByLabelText("Auckland property address"),
     ).not.toBeInTheDocument();
     expect(
-      screen.getByRole("button", { name: /Find the property.*Locked/ }),
+      screen.getByRole("button", { name: /Find the property.*Upcoming/ }),
     ).toBeDisabled();
 
     screen.getByRole("radio", { name: "My property" }).focus();

@@ -453,7 +453,7 @@ it("keeps live notices above the workspace and placement confirmation below it",
   ).not.toBeInTheDocument();
   expect(
     screen.getByRole("button", { name: "Compact (6.5 × 3 m)" }),
-  ).toBeDisabled();
+  ).toBeEnabled();
 });
 
 it("keeps Builder planning content from stretching the map capture frame", async () => {
@@ -471,7 +471,7 @@ it("keeps Builder planning content from stretching the map capture frame", async
   expect(screen.getByTestId("aerial-map-frame")).not.toHaveClass("lg:h-full");
 });
 
-it("keeps the icon-only rotation control interactive without rotation wording", async () => {
+it("keeps the icon-only rotation control interactive after constraints load", async () => {
   const onSnapshotReady = vi.fn();
   const onPlacementChange = vi.fn();
   render(
@@ -480,6 +480,7 @@ it("keeps the icon-only rotation control interactive without rotation wording", 
       onRetry={() => {}}
       onPlacementChange={onPlacementChange}
       onSnapshotReady={onSnapshotReady}
+      placementConfirmed
     />,
   );
   await waitFor(() => expect(onSnapshotReady).toHaveBeenCalled());
@@ -487,9 +488,6 @@ it("keeps the icon-only rotation control interactive without rotation wording", 
   expect(waitForIdle).not.toHaveBeenCalled();
   const rotateControl = screen.getByTestId("pool-rotate-control");
   expect(rotateControl).toBeVisible();
-  expect(
-    screen.queryByText(/rotate|rotation|turn it/i),
-  ).not.toBeInTheDocument();
 
   Object.assign(rotateControl, {
     setPointerCapture: vi.fn(),

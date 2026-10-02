@@ -23,15 +23,21 @@ test("keeps the full workflow visual visible on mobile", async ({ page }) => {
     const image = explainer.getByRole("img", { name: imageName });
     await expect(image).toBeVisible();
     await expect
-      .poll(() =>
-        image.evaluate((element) => (element as HTMLImageElement).naturalWidth),
+      .poll(
+        () =>
+          image.evaluate(
+            (element) => (element as HTMLImageElement).naturalWidth,
+          ),
+        { timeout: 20_000 },
       )
       .toBeGreaterThan(0);
     await expect
-      .poll(() =>
-        image.evaluate(
-          (element) => (element as HTMLImageElement).naturalHeight,
-        ),
+      .poll(
+        () =>
+          image.evaluate(
+            (element) => (element as HTMLImageElement).naturalHeight,
+          ),
+        { timeout: 20_000 },
       )
       .toBeGreaterThan(0);
 

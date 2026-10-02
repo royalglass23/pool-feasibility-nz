@@ -40,7 +40,7 @@ test("keeps the builder entry URL through browser back and forward navigation", 
   await expect(page).toHaveURL(/audience=pool_builder/);
 });
 
-test("locks the property step and pool placement after checking constraints", async ({
+test("locks earlier steps but keeps pool placement editable after checking constraints", async ({
   page,
 }) => {
   test.setTimeout(90_000);
@@ -155,7 +155,7 @@ test("locks the property step and pool placement after checking constraints", as
   ).toHaveCount(0);
   await expect(
     page.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
-  ).toBeDisabled();
+  ).toBeEnabled();
 
   await page.getByRole("button", { name: "Continue to your details" }).click();
   const contactForm = page.locator(
@@ -476,11 +476,11 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       const requestCountBeforePlacementChanges = detailedStageRequests;
       await expect(
         page.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
-      ).toBeDisabled();
+      ).toBeEnabled();
       await expect(
         page.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }),
-      ).toBeDisabled();
-      await expect(page.getByTestId("pool-rotate-control")).toBeHidden();
+      ).toBeEnabled();
+      await expect(page.getByTestId("pool-rotate-control")).toBeVisible();
 
       await expect
         .poll(() => detailedStageRequests)

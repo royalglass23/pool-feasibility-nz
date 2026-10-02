@@ -31,7 +31,10 @@ const nextConfig: NextConfig = {
       CHROMIUM_BINARY_GLOB,
       REPORT_BRAND_ASSET,
     ],
-    "/api/internal/report/pdf/route": [CHROMIUM_BINARY_GLOB, REPORT_BRAND_ASSET],
+    "/api/internal/report/pdf/route": [
+      CHROMIUM_BINARY_GLOB,
+      REPORT_BRAND_ASSET,
+    ],
     "/api/public/report/pdf/route": [CHROMIUM_BINARY_GLOB, REPORT_BRAND_ASSET],
     "/api/public/assessments/report/delivery/route": [
       CHROMIUM_BINARY_GLOB,

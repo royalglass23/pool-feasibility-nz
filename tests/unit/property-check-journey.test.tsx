@@ -4,6 +4,7 @@ import {
 } from "../fixtures/normalized-data-access";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -1069,6 +1070,17 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
 
   it("disables detailed checks for the server retry interval without suggesting another address", async () => {
     const user = userEvent.setup();
+    const originalSetTimeout = globalThis.setTimeout.bind(globalThis);
+    let finishRetryCooldown: (() => void) | undefined;
+    vi.spyOn(globalThis, "setTimeout").mockImplementation(
+      (handler, timeout) => {
+        if (timeout === 75_000 && typeof handler === "function") {
+          finishRetryCooldown = () => handler(undefined);
+          return originalSetTimeout(() => undefined, 0);
+        }
+        return originalSetTimeout(handler, timeout);
+      },
+    );
     const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
       requestedAddress,
@@ -1144,9 +1156,25 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     expect(
       screen.queryByText(new RegExp(correlationId)),
     ).not.toBeInTheDocument();
+
+    const retry = screen.getByRole("button", {
+      name: "Try property check again",
+    });
+    expect(retry).toBeDisabled();
+
+    expect(finishRetryCooldown).toBeTypeOf("function");
+    await act(async () => finishRetryCooldown?.());
+
+    expect(retry).toBeEnabled();
+    expect(
+      screen.getByText("You can try the detailed checks again now."),
+    ).toBeVisible();
+    expect(
+      screen.queryByText("Please try again in 1 minute 15 seconds."),
+    ).not.toBeInTheDocument();
   });
 
-  it("keeps parcel slope loaded and locks pool controls after constraint checking", async () => {
+  it("keeps parcel slope loaded and lets the pool layout change after constraint checking", async () => {
     const user = userEvent.setup();
     const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
@@ -1223,7 +1251,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
       screen.getByRole("button", { name: /Plan your pool.*Current/ }),
     ).toHaveAttribute("aria-current", "step");
     expect(
-      screen.getByRole("button", { name: /Your details.*Locked/ }),
+      screen.getByRole("button", { name: /Your details.*Upcoming/ }),
     ).toBeDisabled();
     expect(
       await screen.findByRole("heading", { name: "Indicative property slope" }),
@@ -1231,17 +1259,26 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     expect(screen.getByText("2.4°")).toBeVisible();
     expect(
       screen.getByRole("button", { name: /Plunge \(4 × 2.4 m\)/ }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     expect(
       screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
-    ).toBeDisabled();
+    ).toBeEnabled();
+    await user.click(
+      screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+    );
+    expect(
+      screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("heading", { name: "Property details checked" }),
+    ).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Check for constraints" }),
     ).not.toBeInTheDocument();
     await waitFor(() => expect(detailedRequestCount).toBe(1));
   });
 
-  it("keeps completed constraints disabled when parcel slope needs checking", async () => {
+  it("keeps constraints loaded and pool controls enabled when parcel slope needs checking", async () => {
     const user = userEvent.setup();
     const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
@@ -1309,7 +1346,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     ).toBeVisible();
     expect(
       screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     await waitFor(() => expect(detailedRequestCount).toBe(1));
     expect(
       screen.queryByRole("button", { name: "Check for constraints" }),
