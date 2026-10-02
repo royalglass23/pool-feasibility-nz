@@ -213,12 +213,12 @@ test("one signed session separates automatic stages and constraints, then respec
   await page.getByLabel("Auckland property address").fill(address);
   await page.getByRole("option", { name: address }).click();
   await page.getByRole("button", { name: "Check for constraints" }).click();
-  await page.getByRole("button", { name: "Retry property check" }).click();
+  await page.getByRole("button", { name: "Try property check again" }).click();
   await expect(
     page.getByText("Please try again in 1 minute 15 seconds."),
   ).toBeVisible();
   await expect(
-    page.getByRole("button", { name: "Retry property check" }),
+    page.getByRole("button", { name: "Try property check again" }),
   ).toBeDisabled();
   await expect(
     page.getByRole("button", { name: "Search a different address" }),

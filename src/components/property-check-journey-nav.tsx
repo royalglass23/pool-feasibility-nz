@@ -1,5 +1,7 @@
 "use client";
 
+import { useState } from "react";
+
 export const PROPERTY_CHECK_STAGES = [
   { id: "audience", title: "Who is this for?" },
   { id: "property", title: "Find the property" },
@@ -26,21 +28,33 @@ export function PropertyCheckJourneyNav({
   lockAudienceStage?: boolean;
 }) {
   const completed = new Set(completedStages);
+  const [expandedStage, setExpandedStage] = useState<PropertyCheckStage | null>(
+    null,
+  );
+  const showAllSteps = expandedStage === currentStage;
 
   return (
     <nav aria-label="Property Check journey">
-      <ol className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-        {PROPERTY_CHECK_STAGES.map((stage) => {
+      <ol
+        id="property-check-journey-stages"
+        className="grid gap-2 sm:grid-cols-2 lg:grid-cols-5"
+      >
+        {PROPERTY_CHECK_STAGES.map((stage, index) => {
           const isCurrent = stage.id === currentStage;
           const isCompleted = completed.has(stage.id);
           const status = isCurrent
-            ? "Current"
+            ? `Step ${index + 1} of ${PROPERTY_CHECK_STAGES.length} · Current`
             : isCompleted
               ? "Completed"
-              : "Locked";
+              : "Upcoming";
 
           return (
-            <li key={stage.id}>
+            <li
+              key={stage.id}
+              className={
+                showAllSteps || isCurrent ? "block" : "hidden sm:block"
+              }
+            >
               <button
                 type="button"
                 aria-current={isCurrent ? "step" : undefined}
@@ -66,6 +80,17 @@ export function PropertyCheckJourneyNav({
           );
         })}
       </ol>
+      <div className="mt-2 flex justify-end sm:hidden">
+        <button
+          type="button"
+          aria-controls="property-check-journey-stages"
+          aria-expanded={showAllSteps}
+          onClick={() => setExpandedStage(showAllSteps ? null : currentStage)}
+          className="text-pool-blue-700 hover:text-pool-950 focus-visible:outline-pool-blue-700 min-h-11 px-1 text-sm font-semibold underline decoration-1 underline-offset-4 transition-colors focus-visible:outline-2 focus-visible:outline-offset-2"
+        >
+          {showAllSteps ? "Hide steps" : "View all steps"}
+        </button>
+      </div>
     </nav>
   );
 }

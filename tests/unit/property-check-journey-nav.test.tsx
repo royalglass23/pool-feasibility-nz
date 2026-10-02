@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { PropertyCheckJourneyNav } from "@/components/property-check-journey-nav";
@@ -6,7 +6,7 @@ import { PropertyCheckJourneyNav } from "@/components/property-check-journey-nav
 afterEach(cleanup);
 
 describe("Property Check journey navigation", () => {
-  it("shows one five-stage journey with accessible current, completed, and locked states", async () => {
+  it("shows the current step first on mobile with an expandable journey overview", async () => {
     const user = userEvent.setup();
     const onNavigate = vi.fn();
 
@@ -21,22 +21,36 @@ describe("Property Check journey navigation", () => {
     const navigation = screen.getByRole("navigation", {
       name: "Property Check journey",
     });
-    const buttons = screen.getAllByRole("button");
+    const stageList = within(navigation).getByRole("list");
+    const stageButtons = within(stageList).getAllByRole("button");
+    const journeyToggle = within(navigation).getByRole("button", {
+      name: "View all steps",
+    });
 
     expect(navigation).toBeVisible();
-    expect(buttons.map((button) => button.textContent)).toEqual([
+    expect(stageButtons.map((button) => button.textContent)).toEqual([
       "Who is this for?Completed",
       "Find the propertyCompleted",
-      "Plan your poolCurrent",
-      "Your detailsLocked",
-      "Your property reportLocked",
+      "Plan your poolStep 3 of 5 · Current",
+      "Your detailsUpcoming",
+      "Your property reportUpcoming",
     ]);
+    expect(journeyToggle).toHaveAttribute("aria-expanded", "false");
+    expect(stageButtons[0].closest("li")).toHaveClass("hidden", "sm:block");
+    expect(stageButtons[2].closest("li")).not.toHaveClass("hidden");
     expect(
-      screen.getByRole("button", { name: /Plan your pool.*Current/ }),
+      screen.getByRole("button", {
+        name: /Plan your pool.*Step 3 of 5.*Current/,
+      }),
     ).toHaveAttribute("aria-current", "step");
     expect(
-      screen.getByRole("button", { name: /Your details.*Locked/ }),
+      screen.getByRole("button", { name: /Your details.*Upcoming/ }),
     ).toBeDisabled();
+
+    await user.click(journeyToggle);
+    expect(journeyToggle).toHaveAccessibleName("Hide steps");
+    expect(journeyToggle).toHaveAttribute("aria-expanded", "true");
+    expect(stageButtons[0].closest("li")).not.toHaveClass("hidden");
 
     const property = screen.getByRole("button", {
       name: /Find the property.*Completed/,

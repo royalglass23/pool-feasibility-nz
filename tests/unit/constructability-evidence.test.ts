@@ -368,6 +368,30 @@ describe("constructability evidence", () => {
     ).toThrow();
   });
 
+  it("recalculates excavation for changed pool dimensions while retaining the locked allowance", () => {
+    const compact = buildConstructabilitySnapshot({
+      answers,
+      excavation: {
+        dimensions: { lengthMetres: 6, widthMetres: 3 },
+        terrainAdjustment: "unavailable",
+      },
+    });
+    const family = buildConstructabilitySnapshot({
+      answers,
+      excavation: {
+        dimensions: { lengthMetres: 8, widthMetres: 4 },
+        terrainAdjustment: "unavailable",
+      },
+    });
+
+    expect(family.excavationGeometry).toMatchObject({
+      sideAllowanceMetres: compact.excavationGeometry?.sideAllowanceMetres,
+      inputs: { lengthMetres: 8, widthMetres: 4 },
+      poolOutlineCubicMetres: 48,
+      sideAllowanceCubicMetres: 59.34,
+    });
+  });
+
   it("rejects saved excavation inputs that contradict the saved pool layout", () => {
     const submission = buildTestPersistedAssessmentSubmission(
       "rg-342-layout-integrity",

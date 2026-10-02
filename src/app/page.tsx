@@ -50,18 +50,16 @@ export default function Home() {
           aria-label="Property check"
         >
           <div id="property-search-intro" className="mb-6 max-w-2xl">
-            <p className="text-sm font-semibold tracking-[0.02em] text-[#5c7e96]">
-              Start with your Auckland property
-            </p>
             <h2
               id="property-search-heading"
-              className="mt-2 text-2xl font-semibold tracking-[-0.03em] text-[#062f5d] sm:text-3xl"
+              className="text-2xl font-semibold tracking-[-0.03em] text-[#062f5d] sm:text-3xl"
             >
               Check your property
             </h2>
             <p className="mt-3 text-base leading-7 text-[#426b87]">
-              Enter the address of the property you want to check, then select
-              the matching address.
+              Complete one step at a time: choose who the check is for, find the
+              property, plan the pool position and create your preliminary
+              report.
             </p>
           </div>
           <div data-hj-suppress>
