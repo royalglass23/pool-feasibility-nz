@@ -136,6 +136,36 @@ describe("Pool builder site questions", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("preserves the locked excavation allowance when the pool layout changes", () => {
+    renderQuestions({
+      placementKey: "changed-pool-layout",
+      initialDraft: {
+        accessConditions: ["none_of_these"],
+        nearbyFeatures: ["not_sure"],
+        sideClearanceMillimetres: 450,
+      },
+      hasCompletedCheck: true,
+      hasSavedAnswers: false,
+      depthLocked: true,
+    });
+
+    expect(
+      screen.getByText("Selected allowance: 450 mm each side"),
+    ).toBeVisible();
+    expect(
+      within(
+        screen.getByLabelText(
+          "Access and excavation conditions selected answers",
+        ),
+      ).getByText("None of these"),
+    ).toBeVisible();
+    expect(
+      within(
+        screen.getByLabelText("Nearby features selected answers"),
+      ).getByText("I’m not sure"),
+    ).toBeVisible();
+  });
+
   it("lets a builder continue after the completed answers are saved", async () => {
     const user = userEvent.setup();
     const { onContinue } = renderQuestions({

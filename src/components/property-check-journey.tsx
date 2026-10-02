@@ -26,6 +26,7 @@ import {
   type HomeownerContactDraft,
 } from "@/components/homeowner-submission-form";
 import {
+  DEFAULT_BUILDER_SITE_QUESTION_DRAFT,
   SiteQuestions,
   type BuilderSiteQuestionDraft,
 } from "@/components/site-questions";
@@ -146,6 +147,8 @@ export function PropertyCheckJourney({
     snapshot: string;
     answers: ConstructabilityAnswers;
   } | null>(null);
+  const [builderSiteDraft, setBuilderSiteDraft] =
+    useState<BuilderSiteQuestionDraft>(DEFAULT_BUILDER_SITE_QUESTION_DRAFT);
   const [fastPlacementSnapshot, setFastPlacementSnapshot] =
     useState<FastPoolPlacementSnapshot | null>(null);
   const [confirmedPlacementKey, setConfirmedPlacementKey] = useState<
@@ -195,8 +198,9 @@ export function PropertyCheckJourney({
   const placementKey = fastPlacementSnapshot
     ? placementIdentity(fastPlacementSnapshot)
     : null;
-  const isPlacementLocked = Boolean(
-    placementKey && confirmedPlacementKey === placementKey,
+  const isPlacementConfirmed = Boolean(
+    placementKey &&
+    (confirmedPlacementKey === placementKey || fastResult?.detailedChecks),
   );
   const isAudienceLocked = Boolean(fastResult?.detailedChecks);
   const reportEvidenceVersion = reportEvidenceVersionRef.current;
@@ -299,7 +303,7 @@ export function PropertyCheckJourney({
     if (heading) {
       heading.focus({ preventScroll: constraintsLoaded });
       if (constraintsLoaded) {
-        heading.scrollIntoView({ behavior: "smooth", block: "start" });
+        heading.scrollIntoView?.({ behavior: "smooth", block: "start" });
       }
       focusedPlanningForRef.current = focusKey;
     }
@@ -476,6 +480,7 @@ export function PropertyCheckJourney({
     setEstimatedDepth(String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES));
     setLockedDepth(null);
     setSignedSiteAnswers(null);
+    setBuilderSiteDraft(DEFAULT_BUILDER_SITE_QUESTION_DRAFT);
     setFastPlacementSnapshot(null);
     placementKeyRef.current = null;
     setConfirmedPlacementKey(null);
@@ -788,8 +793,9 @@ export function PropertyCheckJourney({
     });
   }
 
-  function handleBuilderDraftChange() {
+  function handleBuilderDraftChange(draft: BuilderSiteQuestionDraft) {
     if (isSavingReport) return;
+    setBuilderSiteDraft(draft);
     invalidateJourneyEvidence("details");
   }
 
@@ -823,6 +829,7 @@ export function PropertyCheckJourney({
     setPendingSelectedAddress(null);
     setEstimatedDepth(String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES));
     setLockedDepth(null);
+    setBuilderSiteDraft(DEFAULT_BUILDER_SITE_QUESTION_DRAFT);
     setError(null);
     setCanRetry(false);
     setAddressOptions([]);
@@ -842,6 +849,7 @@ export function PropertyCheckJourney({
     setPendingSelectedAddress(null);
     setEstimatedDepth(String(DEFAULT_ESTIMATED_POOL_DEPTH_METRES));
     setLockedDepth(null);
+    setBuilderSiteDraft(DEFAULT_BUILDER_SITE_QUESTION_DRAFT);
     setContactDraft(emptyHomeownerContactDraft());
     setError(null);
     setAddressError(null);
@@ -860,7 +868,7 @@ export function PropertyCheckJourney({
     if (fastResult || result) completed.push("property");
     const placementComplete = Boolean(
       placementKey &&
-      confirmedPlacementKey === placementKey &&
+      isPlacementConfirmed &&
       fastPlacementSnapshot?.constructionEnvelopeWithinMappedArea,
     );
     if (placementComplete) {
@@ -871,11 +879,11 @@ export function PropertyCheckJourney({
     }
     return completed;
   }, [
-    confirmedPlacementKey,
     fastPlacementSnapshot?.constructionEnvelopeWithinMappedArea,
     fastResult,
     fastSavedReport.assessment,
     placementKey,
+    isPlacementConfirmed,
     reportAudience,
     result,
   ]);
@@ -897,7 +905,7 @@ export function PropertyCheckJourney({
         completedStages={completedStages}
         onNavigate={setCurrentStage}
         disabled={isSavingReport}
-        lockCompletedStages={isPlacementLocked}
+        lockCompletedStages={isPlacementConfirmed}
         lockAudienceStage={isAudienceLocked}
       />
 
@@ -1119,7 +1127,7 @@ export function PropertyCheckJourney({
                   <button
                     type="button"
                     onClick={() =>
-                      void (isPlacementLocked
+                      void (isPlacementConfirmed
                         ? requestDetailedPropertyData()
                         : requestPropertyData())
                     }
@@ -1128,15 +1136,16 @@ export function PropertyCheckJourney({
                     Try property check again
                   </button>
                 )}
-                {error.allowAddressChange !== false && !isPlacementLocked && (
-                  <button
-                    type="button"
-                    onClick={startAgain}
-                    className="min-h-11 font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
-                  >
-                    Search a different address
-                  </button>
-                )}
+                {error.allowAddressChange !== false &&
+                  !isPlacementConfirmed && (
+                    <button
+                      type="button"
+                      onClick={startAgain}
+                      className="min-h-11 font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
+                    >
+                      Search a different address
+                    </button>
+                  )}
               </div>
             </div>
           )}
@@ -1163,7 +1172,7 @@ export function PropertyCheckJourney({
               onSnapshotReady={(snapshot) => {
                 if (!isSavingReport) setFastMapSnapshot(snapshot);
               }}
-              placementConfirmed={isPlacementLocked}
+              placementConfirmed={isPlacementConfirmed}
               isDetailedRateLimited={detailedRetryAfterSeconds !== null}
               planningEnabled
               placementNextStep={
@@ -1182,7 +1191,7 @@ export function PropertyCheckJourney({
           fastPlacementSnapshot.constructionEnvelopeWithinMappedArea &&
           fastAssessmentSnapshot &&
           reportAudience &&
-          confirmedPlacementKey === placementKey &&
+          isPlacementConfirmed &&
           placementKey ? (
             <>
               {currentStage === "contact" && (
@@ -1222,6 +1231,7 @@ export function PropertyCheckJourney({
                     <SiteQuestions
                       key={placementKey}
                       placementKey={placementKey}
+                      initialDraft={builderSiteDraft}
                       estimatedDepth={estimatedDepth}
                       depthLocked={lockedDepth !== null}
                       onEstimatedDepthChange={setEstimatedDepth}

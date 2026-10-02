@@ -14,6 +14,12 @@ export type BuilderSiteQuestionDraft = {
   sideClearanceMillimetres: number;
 };
 
+export const DEFAULT_BUILDER_SITE_QUESTION_DRAFT: BuilderSiteQuestionDraft = {
+  accessConditions: [],
+  nearbyFeatures: [],
+  sideClearanceMillimetres: 300,
+};
+
 const accessChoices: Choice<AccessCondition>[] = [
   { id: "gate_or_narrow_passage", label: "Restricted gate or narrow access" },
   {
@@ -180,6 +186,7 @@ function MultiSelectDropdown<T extends string>({
 
 export function SiteQuestions({
   placementKey,
+  initialDraft = DEFAULT_BUILDER_SITE_QUESTION_DRAFT,
   estimatedDepth,
   depthLocked,
   onEstimatedDepthChange,
@@ -191,21 +198,26 @@ export function SiteQuestions({
   onContinue,
 }: {
   placementKey: string;
+  initialDraft?: BuilderSiteQuestionDraft;
   estimatedDepth: string;
   depthLocked: boolean;
   onEstimatedDepthChange: (value: string) => void;
   hasCompletedCheck: boolean;
   hasSavedAnswers: boolean;
   isChecking: boolean;
-  onDraftChange: () => void;
+  onDraftChange: (draft: BuilderSiteQuestionDraft) => void;
   onCheckProperty: (draft: BuilderSiteQuestionDraft) => Promise<boolean>;
   onContinue: () => void;
 }) {
   const [accessConditions, setAccessConditions] = useState<AccessCondition[]>(
-    [],
+    initialDraft.accessConditions,
   );
-  const [nearbyFeatures, setNearbyFeatures] = useState<NearbyFeature[]>([]);
-  const [sideClearanceMillimetres, setSideClearanceMillimetres] = useState(300);
+  const [nearbyFeatures, setNearbyFeatures] = useState<NearbyFeature[]>(
+    initialDraft.nearbyFeatures,
+  );
+  const [sideClearanceMillimetres, setSideClearanceMillimetres] = useState(
+    initialDraft.sideClearanceMillimetres,
+  );
   const [errors, setErrors] = useState({ access: false, nearby: false });
   const [accessOpen, setAccessOpen] = useState(false);
   const [nearbyOpen, setNearbyOpen] = useState(false);
@@ -335,10 +347,16 @@ export function SiteQuestions({
                   step="50"
                   value={sideClearanceMillimetres}
                   onChange={(event) => {
+                    const nextSideClearanceMillimetres = Number(
+                      event.target.value,
+                    );
                     requestGenerationRef.current += 1;
                     setSaving(false);
-                    onDraftChange();
-                    setSideClearanceMillimetres(Number(event.target.value));
+                    onDraftChange({
+                      ...currentDraft(),
+                      sideClearanceMillimetres: nextSideClearanceMillimetres,
+                    });
+                    setSideClearanceMillimetres(nextSideClearanceMillimetres);
                   }}
                   className="accent-pool-blue-800 min-h-11 w-full"
                 />
@@ -377,10 +395,17 @@ export function SiteQuestions({
           buttonRef={accessRef}
           onOpenChange={setAccessOpen}
           onChoiceChange={(choice) => {
+            const nextAccessConditions = toggleExclusive(
+              accessConditions,
+              choice,
+            );
             requestGenerationRef.current += 1;
             setSaving(false);
-            onDraftChange();
-            setAccessConditions((current) => toggleExclusive(current, choice));
+            onDraftChange({
+              ...currentDraft(),
+              accessConditions: nextAccessConditions,
+            });
+            setAccessConditions(nextAccessConditions);
             setErrors((current) => ({ ...current, access: false }));
           }}
         />
@@ -397,10 +422,14 @@ export function SiteQuestions({
           buttonRef={nearbyRef}
           onOpenChange={setNearbyOpen}
           onChoiceChange={(choice) => {
+            const nextNearbyFeatures = toggleExclusive(nearbyFeatures, choice);
             requestGenerationRef.current += 1;
             setSaving(false);
-            onDraftChange();
-            setNearbyFeatures((current) => toggleExclusive(current, choice));
+            onDraftChange({
+              ...currentDraft(),
+              nearbyFeatures: nextNearbyFeatures,
+            });
+            setNearbyFeatures(nextNearbyFeatures);
             setErrors((current) => ({ ...current, nearby: false }));
           }}
         />

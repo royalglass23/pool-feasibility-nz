@@ -207,7 +207,6 @@ export function FastPropertyView({
 }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const rotationControlVisibleRef = useRef(false);
-  const placementConfirmedRef = useRef(placementConfirmed);
   const syncRotationControlRef = useRef<() => void>(() => {});
   const mapInstanceRef = useRef<import("maplibre-gl").Map | null>(null);
   const suggestedRouteRef = useRef(suggestedRoute);
@@ -262,10 +261,6 @@ export function FastPropertyView({
   useEffect(() => {
     snapshotHandlerRef.current = onSnapshotReady;
   }, [onSnapshotReady]);
-  useEffect(() => {
-    placementConfirmedRef.current = placementConfirmed;
-    syncRotationControlRef.current();
-  }, [placementConfirmed]);
   const selectedPool = useMemo(
     () => FAST_POOL_CATALOGUE.find((pool) => pool.id === selectedPoolId)!,
     [selectedPoolId],
@@ -522,7 +517,7 @@ export function FastPropertyView({
   ]);
 
   const setCandidatePosition = (candidate: [number, number]) => {
-    if (isInitialAddressLoad || placementConfirmed) return;
+    if (isInitialAddressLoad) return;
     if (
       constructionEnvelopeDimensions &&
       result.boundary.geometry &&
@@ -540,7 +535,7 @@ export function FastPropertyView({
   };
 
   const setCandidateRotation = (candidate: number) => {
-    if (isInitialAddressLoad || placementConfirmed) return;
+    if (isInitialAddressLoad) return;
     const normalized = ((candidate % 360) + 360) % 360;
     if (
       constructionEnvelopeDimensions &&
@@ -564,7 +559,7 @@ export function FastPropertyView({
   });
 
   const choosePool = (poolId: FastPoolId) => {
-    if (isInitialAddressLoad || placementConfirmed) return;
+    if (isInitialAddressLoad) return;
     setSelectedPoolId(poolId);
     const pool = FAST_POOL_CATALOGUE.find((item) => item.id === poolId)!;
     const nextDimensions =
@@ -864,8 +859,7 @@ export function FastPropertyView({
           const handle = geometry.features.find(
             (entry) => entry.geometry.type === "Point",
           );
-          control.style.display =
-            handle && !placementConfirmedRef.current ? "grid" : "none";
+          control.style.display = handle ? "grid" : "none";
           if (handle?.geometry.type === "Point")
             rotationMarker?.setLngLat(
               handle.geometry.coordinates as [number, number],
@@ -951,7 +945,6 @@ export function FastPropertyView({
           | import("maplibre-gl").MapMouseEvent
           | import("maplibre-gl").MapTouchEvent;
         const updateRotationFromCursor = (cursor: [number, number]) => {
-          if (placementConfirmedRef.current) return;
           const active = placementRef.current;
           if (!active) return;
           rotationHandlerRef.current(
@@ -959,7 +952,6 @@ export function FastPropertyView({
           );
         };
         const updateInteraction = (event: PoolInteractionEvent) => {
-          if (placementConfirmedRef.current) return;
           if (!interaction && event.type === "mousemove" && map) {
             // Pointer events can arrive before the style's layers are ready.
             // Querying a missing layer emits a MapLibre error even when the
@@ -988,7 +980,6 @@ export function FastPropertyView({
           event: PoolInteractionEvent,
           cursor: "grabbing" | null,
         ) => {
-          if (placementConfirmedRef.current) return;
           interaction = nextInteraction;
           map?.dragPan.disable();
           if (cursor) map?.getCanvas().style.setProperty("cursor", cursor);
@@ -1001,7 +992,6 @@ export function FastPropertyView({
           map?.getCanvas().style.setProperty("cursor", "");
         };
         control.addEventListener("pointerdown", (event) => {
-          if (placementConfirmedRef.current) return;
           event.preventDefault();
           event.stopPropagation();
           interaction = "rotate";
@@ -1029,7 +1019,6 @@ export function FastPropertyView({
         control.addEventListener("pointerup", releaseRotation);
         control.addEventListener("pointercancel", releaseRotation);
         control.addEventListener("keydown", (event) => {
-          if (placementConfirmedRef.current) return;
           const active = placementRef.current;
           if (!active) return;
           const candidate =
@@ -1451,7 +1440,6 @@ export function FastPropertyView({
                     type="button"
                     aria-pressed={selectedPoolId === pool.id}
                     aria-label={`${pool.label} (${pool.lengthMetres} × ${pool.widthMetres} m)`}
-                    disabled={placementConfirmed}
                     onClick={() => choosePool(pool.id)}
                     className="group grid min-h-16 grid-cols-[3rem_1fr_auto_1rem] items-center gap-3 border-b border-[#c8dce8] bg-white px-3 py-3 text-left text-sm text-[#0d3050] transition-colors hover:bg-[#edf8fd] focus-visible:z-10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#0077bd] disabled:cursor-default disabled:opacity-70 aria-pressed:bg-[#03a9ee]"
                   >
@@ -1491,7 +1479,6 @@ export function FastPropertyView({
                   <DimensionInput
                     label="Custom length (m)"
                     value={customLength}
-                    disabled={placementConfirmed}
                     min={2}
                     max={20}
                     onChange={setCustomLength}
@@ -1505,7 +1492,6 @@ export function FastPropertyView({
                   <DimensionInput
                     label="Custom width (m)"
                     value={customWidth}
-                    disabled={placementConfirmed}
                     min={1.5}
                     max={10}
                     onChange={setCustomWidth}
@@ -1538,10 +1524,10 @@ export function FastPropertyView({
               ) : placementConfirmed ? (
                 <>
                   <strong className="text-pool-950 block font-semibold">
-                    Pool position confirmed
+                    Constraints loaded
                   </strong>
-                  Review the property constraints below, then continue to your
-                  details.
+                  You can keep adjusting the pool size, position and rotation.
+                  The current layout will be used for your report.
                 </>
               ) : (
                 <>

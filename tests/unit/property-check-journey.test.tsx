@@ -1146,7 +1146,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     ).not.toBeInTheDocument();
   });
 
-  it("keeps parcel slope loaded and locks pool controls after constraint checking", async () => {
+  it("keeps parcel slope loaded and lets the pool layout change after constraint checking", async () => {
     const user = userEvent.setup();
     const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
@@ -1231,17 +1231,26 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     expect(screen.getByText("2.4°")).toBeVisible();
     expect(
       screen.getByRole("button", { name: /Plunge \(4 × 2.4 m\)/ }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     expect(
       screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
-    ).toBeDisabled();
+    ).toBeEnabled();
+    await user.click(
+      screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+    );
+    expect(
+      screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      screen.getByRole("heading", { name: "Property details checked" }),
+    ).toBeVisible();
     expect(
       screen.queryByRole("button", { name: "Check for constraints" }),
     ).not.toBeInTheDocument();
     await waitFor(() => expect(detailedRequestCount).toBe(1));
   });
 
-  it("keeps completed constraints disabled when parcel slope needs checking", async () => {
+  it("keeps constraints loaded and pool controls enabled when parcel slope needs checking", async () => {
     const user = userEvent.setup();
     const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
@@ -1309,7 +1318,7 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     ).toBeVisible();
     expect(
       screen.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
-    ).toBeDisabled();
+    ).toBeEnabled();
     await waitFor(() => expect(detailedRequestCount).toBe(1));
     expect(
       screen.queryByRole("button", { name: "Check for constraints" }),
