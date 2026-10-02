@@ -476,11 +476,11 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       const requestCountBeforePlacementChanges = detailedStageRequests;
       await expect(
         page.getByRole("button", { name: /Family \(8 × 4 m\)/ }),
-      ).toBeDisabled();
+      ).toBeEnabled();
       await expect(
         page.getByRole("button", { name: /Custom \(6.5 × 3 m\)/ }),
-      ).toBeDisabled();
-      await expect(page.getByTestId("pool-rotate-control")).toBeHidden();
+      ).toBeEnabled();
+      await expect(page.getByTestId("pool-rotate-control")).toBeVisible();
 
       await expect
         .poll(() => detailedStageRequests)

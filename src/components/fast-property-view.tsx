@@ -1308,7 +1308,7 @@ export function FastPropertyView({
       {!routeAdjustmentMode && (
         <ol
           aria-label="Fast view progress"
-          className="grid gap-2 text-sm lg:mr-[22rem]"
+          className="grid min-h-20 gap-2 text-sm sm:min-h-0 lg:mr-[22rem]"
         >
           <Progress
             label={

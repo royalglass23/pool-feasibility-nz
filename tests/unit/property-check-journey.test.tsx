@@ -4,6 +4,7 @@ import {
 } from "../fixtures/normalized-data-access";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
+  act,
   cleanup,
   fireEvent,
   render,
@@ -1069,6 +1070,17 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
 
   it("disables detailed checks for the server retry interval without suggesting another address", async () => {
     const user = userEvent.setup();
+    const originalSetTimeout = globalThis.setTimeout.bind(globalThis);
+    let finishRetryCooldown: (() => void) | undefined;
+    vi.spyOn(globalThis, "setTimeout").mockImplementation(
+      (handler, timeout) => {
+        if (timeout === 75_000 && typeof handler === "function") {
+          finishRetryCooldown = () => handler(undefined);
+          return originalSetTimeout(() => undefined, 0);
+        }
+        return originalSetTimeout(handler, timeout);
+      },
+    );
     const gateway = createDataAccessGateway();
     const fastResult = await runFastPropertyView({
       requestedAddress,
@@ -1143,6 +1155,22 @@ describe("PropertyCheckJourney", { timeout: 10_000 }, () => {
     ).not.toBeInTheDocument();
     expect(
       screen.queryByText(new RegExp(correlationId)),
+    ).not.toBeInTheDocument();
+
+    const retry = screen.getByRole("button", {
+      name: "Try property check again",
+    });
+    expect(retry).toBeDisabled();
+
+    expect(finishRetryCooldown).toBeTypeOf("function");
+    await act(async () => finishRetryCooldown?.());
+
+    expect(retry).toBeEnabled();
+    expect(
+      screen.getByText("You can try the detailed checks again now."),
+    ).toBeVisible();
+    expect(
+      screen.queryByText("Please try again in 1 minute 15 seconds."),
     ).not.toBeInTheDocument();
   });
 

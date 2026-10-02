@@ -278,10 +278,18 @@ export function PropertyCheckJourney({
   );
   useEffect(() => {
     if (detailedRetryAfterSeconds === null) return;
-    const timeout = window.setTimeout(
-      () => setDetailedRetryAfterSeconds(null),
-      detailedRetryAfterSeconds * 1_000,
-    );
+    const timeout = window.setTimeout(() => {
+      setDetailedRetryAfterSeconds(null);
+      setCanRetry(true);
+      setError((current) =>
+        current?.allowAddressChange === false
+          ? {
+              ...current,
+              troubleshooting: "You can try the detailed checks again now.",
+            }
+          : current,
+      );
+    }, detailedRetryAfterSeconds * 1_000);
     return () => window.clearTimeout(timeout);
   }, [detailedRetryAfterSeconds]);
 
@@ -1123,15 +1131,16 @@ export function PropertyCheckJourney({
                 {error.troubleshooting}
               </p>
               <div className="mt-3 flex flex-wrap gap-4">
-                {canRetry && (
+                {(canRetry || error.allowAddressChange === false) && (
                   <button
                     type="button"
+                    disabled={!canRetry}
                     onClick={() =>
                       void (isPlacementConfirmed
                         ? requestDetailedPropertyData()
                         : requestPropertyData())
                     }
-                    className="min-h-11 font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800"
+                    className="min-h-11 font-semibold text-amber-950 underline underline-offset-2 hover:text-amber-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-800 disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     Try property check again
                   </button>
