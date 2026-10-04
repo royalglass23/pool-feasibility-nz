@@ -85,10 +85,19 @@ export async function answerSiteQuestions(
   await page.getByRole("button", { name: "Check for constraints" }).click();
   const response = await signingResponse;
   expect(response.status(), await response.text()).toBe(200);
+  const continueButton = page.getByRole("button", {
+    name: "Continue to your details",
+  });
+  await expect(continueButton).toBeVisible({ timeout: 30_000 });
   await expect(
     page.getByRole("region", { name: "Access route result" }),
-  ).toBeVisible({ timeout: 30_000 });
-  await page.getByRole("button", { name: "Continue to your details" }).click();
+  ).toHaveCount(0);
+  await expect(
+    page.getByText(
+      "Possible construction access route shown on the map — confirm onsite.",
+    ),
+  ).toHaveCount(0);
+  await continueButton.click();
   await expect(
     page.getByRole("heading", {
       name: "Your details for the preliminary report",
