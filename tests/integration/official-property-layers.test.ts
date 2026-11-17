@@ -37,6 +37,17 @@ describe("official property layer integration", () => {
           String(input).startsWith(entry.queryUrl),
         )?.[0] as keyof typeof providerFixtures | undefined;
         if (!dataset) return new Response(null, { status: 404 });
+        if (dataset === "contours") {
+          const features = providerFixtures.contours.features.map(
+            (feature, index) => ({ ...feature, id: index + 1 }),
+          );
+          if (url.searchParams.get("returnIdsOnly") === "true")
+            return Response.json({
+              objectIdFieldName: "OBJECTID",
+              objectIds: features.map((feature) => feature.id),
+            });
+          return Response.json({ type: "FeatureCollection", features });
+        }
         return Response.json(providerFixtures[dataset]);
       }),
     });

@@ -7,6 +7,7 @@ import type {
   Polygon,
 } from "geojson";
 import { z } from "zod";
+import { readBoundedContours } from "./bounded-contours";
 import {
   BodyLimitError,
   fetchProviderBody,
@@ -152,6 +153,7 @@ const mappedGeometrySchema = z.discriminatedUnion("type", [
 ]);
 const mappedFeatureCollectionSchema = z.object({
   type: z.literal("FeatureCollection"),
+  exceededTransferLimit: z.boolean().optional(),
   features: z
     .array(
       z.object({
@@ -403,14 +405,33 @@ export class OfficialGisGateway
     url.searchParams.set("outFields", "*");
     url.searchParams.set("returnGeometry", "true");
     url.searchParams.set("outSR", "4326");
-    url.searchParams.set("maxAllowableOffset", "0.000001");
+    // Contours use roughly half-metre horizontal display generalization;
+    // other constraints retain finer geometry. The contour reader below
+    // enforces the transfer and completeness budgets.
+    url.searchParams.set(
+      "maxAllowableOffset",
+      dataset === "contours" ? "0.000005" : "0.000001",
+    );
     url.searchParams.set("geometryPrecision", "7");
     url.searchParams.set("f", "geojson");
 
+    if (dataset === "contours") {
+      return readBoundedContours({
+        url,
+        envelope,
+        timeoutMs: this.#timeoutMs,
+        maxResponseBytes: this.#maxResponseBytes,
+        readJson: (requestUrl, limits) =>
+          this.#getJsonResult(requestUrl, limits),
+      });
+    }
     const response = parseProviderJson(
       mappedFeatureCollectionSchema,
       await this.#getJson(url),
     );
+    if (response.exceededTransferLimit) {
+      throw new Error("PROVIDER_RESPONSE_INVALID: incomplete feature response");
+    }
     return {
       type: "FeatureCollection",
       features: response.features.map((feature) => ({
@@ -451,6 +472,18 @@ export class OfficialGisGateway
   }
 
   async #getJson(url: URL): Promise<unknown> {
+    return (await this.#getJsonResult(url)).data;
+  }
+
+  async #getJsonResult(
+    url: URL,
+    limits: {
+      maxBytes?: number;
+      timeoutMs?: number;
+      signal?: AbortSignal;
+      retryCount?: number;
+    } = {},
+  ): Promise<{ data: unknown; bytes: number }> {
     assertAllowedProviderUrl(url);
 
     let result: Awaited<ReturnType<typeof fetchProviderBody>>;
@@ -462,8 +495,10 @@ export class OfficialGisGateway
         init: {
           headers: { Accept: "application/json, application/geo+json" },
         },
-        timeoutMs: this.#timeoutMs,
-        maxBytes: this.#maxResponseBytes,
+        timeoutMs: limits.timeoutMs ?? this.#timeoutMs,
+        maxBytes: limits.maxBytes ?? this.#maxResponseBytes,
+        signal: limits.signal,
+        retryCount: limits.retryCount,
       });
     } catch (error) {
       if (error instanceof ProviderFetchError) {
@@ -483,7 +518,10 @@ export class OfficialGisGateway
     }
 
     try {
-      return JSON.parse(new TextDecoder().decode(result.bytes)) as unknown;
+      return {
+        data: JSON.parse(new TextDecoder().decode(result.bytes)) as unknown,
+        bytes: result.bytes.byteLength,
+      };
     } catch {
       throw new Error("PROVIDER_RESPONSE_INVALID");
     }

@@ -8,6 +8,22 @@ that a change was deployed or enabled in production.
 
 ## Unreleased
 
+### Property lookup and contours
+
+- Configure Vercel functions for Sydney, near the address database and NZ
+  visitors, to avoid the current Virginia-to-Sydney lookup round trips. The
+  deployed latency improvement still requires verification after release.
+- Request indicative contour display geometry at roughly half-metre horizontal
+  tolerance and clip it to the property query envelope. Long Council contour
+  lines no longer exhaust the provider byte limit for the reproduced Whitford
+  case. Other mapped constraints retain their existing detail and byte limits;
+  contours remain the 2016 reference layer, separate from 2024 DEM slope data.
+- Retrieve a complete contour ID list and fetch geometry in bounded batches,
+  splitting oversized or truncated pages while retaining the 2 MB response
+  limit. Match every expected ID before returning results; incomplete responses
+  become unavailable evidence rather than verified empty results. The operation
+  also bounds time, requests, aggregate transfers and clipped map complexity.
+
 ### Documentation
 
 - Reconciled the product, journey, architecture, report, and release-evidence
@@ -18,6 +34,8 @@ that a change was deployed or enabled in production.
 
 ### Engineering gates
 
+- Re-read relative map layout in browser assertions while notice and viewport
+  transitions settle, preserving the existing alignment checks.
 - Separated the public-input attack suite from ordinary browser tests so each
   lane runs with its intended database and delivery boundary.
 - Made the general browser gate deterministic with one worker, zero retries,

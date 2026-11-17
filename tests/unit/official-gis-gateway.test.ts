@@ -7,6 +7,131 @@ import addressesFixture from "../fixtures/linz/42-bahari-addresses.json";
 import parcelsFixture from "../fixtures/linz/42-bahari-parcels.json";
 
 describe("OfficialGisGateway", () => {
+  it("loads long property contours within the byte limit and clips them to the requested area", async () => {
+    // The Whitford response was 3,948,943 bytes at the generic offset;
+    // contour display generalization returned all 77 features in 1,557,508 bytes.
+    const fetchStub = vi.fn<typeof fetch>(async (input) => {
+      const url = new URL(String(input));
+      if (url.searchParams.get("returnIdsOnly") === "true")
+        return Response.json({
+          objectIdFieldName: "OBJECTID",
+          objectIds: [7474],
+        });
+      return Response.json(
+        {
+          type: "FeatureCollection",
+          features: [
+            {
+              type: "Feature",
+              id: 7474,
+              properties: { Elevation: 10.25, Year: "2016" },
+              geometry: {
+                type: "LineString",
+                coordinates: [
+                  [174.95, -36.9285],
+                  [174.955, -36.9285],
+                  [174.96, -36.9285],
+                ],
+              },
+            },
+          ],
+        },
+        {
+          headers: {
+            "Content-Length":
+              url.searchParams.get("maxAllowableOffset") === "0.000005"
+                ? "1557508"
+                : "3948943",
+          },
+        },
+      );
+    });
+    const result = await new OfficialGisGateway({
+      fetch: fetchStub,
+    }).queryFeatures("contours", [174.954, -36.929, 174.957, -36.928]);
+    expect(result.features).toEqual([
+      {
+        type: "Feature",
+        id: "7474",
+        properties: { Elevation: 10.25, Year: "2016" },
+        geometry: {
+          type: "LineString",
+          coordinates: [
+            [174.954, -36.9285],
+            [174.955, -36.9285],
+            [174.957, -36.9285],
+          ],
+        },
+      },
+    ]);
+  });
+
+  it("clips multipart contours without joining separate lines or keeping outside parts", async () => {
+    const gateway = new OfficialGisGateway({
+      fetch: vi.fn<typeof fetch>(async (input) =>
+        new URL(String(input)).searchParams.get("returnIdsOnly") === "true"
+          ? Response.json({ objectIdFieldName: "OBJECTID", objectIds: [1, 2] })
+          : Response.json({
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  id: 1,
+                  geometry: {
+                    type: "MultiLineString",
+                    coordinates: [
+                      [
+                        [174.95, -36.9284],
+                        [174.96, -36.9284],
+                      ],
+                      [
+                        [174.95, -36.9286],
+                        [174.96, -36.9286],
+                      ],
+                      [
+                        [174.95, -36.94],
+                        [174.96, -36.94],
+                      ],
+                    ],
+                  },
+                  properties: { Elevation: 11 },
+                },
+                {
+                  type: "Feature",
+                  id: 2,
+                  geometry: {
+                    type: "LineString",
+                    coordinates: [
+                      [174.95, -36.94],
+                      [174.96, -36.94],
+                    ],
+                  },
+                  properties: { Elevation: 12 },
+                },
+              ],
+            }),
+      ),
+    });
+    const result = await gateway.queryFeatures(
+      "contours",
+      [174.954, -36.929, 174.957, -36.928],
+    );
+    expect(result.features).toHaveLength(1);
+    expect(result.features[0]?.geometry).toEqual({
+      type: "MultiLineString",
+      coordinates: [
+        [
+          [174.954, -36.9284],
+          [174.957, -36.9284],
+        ],
+        [
+          [174.954, -36.9286],
+          [174.957, -36.9286],
+        ],
+      ],
+    });
+  });
+
   it("rejects provider requests outside the explicit origin allow-list", () => {
     expect(() =>
       assertAllowedProviderUrl(new URL("https://example.com/private")),
@@ -129,32 +254,31 @@ describe("OfficialGisGateway", () => {
 
   it("normalizes provider elevation ordinates to 2D WGS84 geometry", async () => {
     const gateway = new OfficialGisGateway({
-      fetch: vi.fn<typeof fetch>(async () =>
-        Response.json({
-          type: "FeatureCollection",
-          features: [
-            {
-              type: "Feature",
-              id: "contour-16.75",
-              geometry: {
-                type: "LineString",
-                coordinates: [
-                  [174.60779, -36.8603, 16.75],
-                  [174.60801, -36.86011, 16.75],
-                ],
-              },
-              properties: { elevation: 16.75 },
-            },
-          ],
-        }),
+      fetch: vi.fn<typeof fetch>(async (input) =>
+        new URL(String(input)).searchParams.get("returnIdsOnly") === "true"
+          ? Response.json({ objectIdFieldName: "OBJECTID", objectIds: [1] })
+          : Response.json({
+              type: "FeatureCollection",
+              features: [
+                {
+                  type: "Feature",
+                  id: 1,
+                  geometry: {
+                    type: "LineString",
+                    coordinates: [
+                      [174.60779, -36.8603, 16.75],
+                      [174.60801, -36.86011, 16.75],
+                    ],
+                  },
+                  properties: { elevation: 16.75 },
+                },
+              ],
+            }),
       ),
     });
 
     await expect(
-      gateway.queryFeatures(
-        "contours",
-        [174.6078, -36.8603, 174.608, -36.8601],
-      ),
+      gateway.queryFeatures("contours", [174.6077, -36.8604, 174.6081, -36.86]),
     ).resolves.toMatchObject({
       features: [
         {

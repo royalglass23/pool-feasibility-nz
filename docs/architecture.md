@@ -66,6 +66,48 @@ still serve the public journey. The older data-access result is handled by
 disposable prototype code. Route files apply public rate limits and adapt HTTP
 requests; assessment, provider, spatial and reporting modules hold the work.
 
+## Bounded contour evidence
+
+`providers/bounded-contours.ts` owns complete contour retrieval for the existing
+Council 2016 layer. The gateway first requests the IDs intersecting the property
+envelope, then fetches geometry in batches of up to 64 IDs with two workers.
+Oversized or explicitly truncated batches are split. All expected IDs must be
+returned exactly once; missing, repeated, foreign or inconsistent IDs fail the
+operation. A complete empty ID list is accepted; a truncated empty response is not.
+
+The reader clips each successful batch immediately and retains only the clipped
+geometry. It returns a complete collection or an error, never a partial collection.
+The shared gateway also rejects explicitly truncated responses for other mapped
+layers rather than treating them as complete evidence.
+
+The current operation limits are:
+
+| Resource                                                    | Limit                                            |
+| ----------------------------------------------------------- | ------------------------------------------------ |
+| Individual geometry response                                | 2,000,000 decoded bytes                          |
+| ID manifest                                                 | 100,000 bytes and 2,000 IDs                      |
+| Provider calls, including discovery and splits              | 64                                               |
+| Decoded-byte budget, charging failed reads their allocation | 16,000,000 bytes                                 |
+| Clipped geometry                                            | 500,000 bytes and 20,000 vertices                |
+| Simultaneous contour reads                                  | 2                                                |
+| Whole operation                                             | Configured provider timeout, normally 10 seconds |
+
+An individual line that cannot fit a bounded response, or an operation exceeding
+these limits, stays unavailable/needs checking. These limits are not a maximum
+property area: full source lines can extend kilometres outside a small parcel.
+The reader keeps the existing approximate half-metre horizontal display tolerance
+and the 2016 contour interval; it does not substitute the separate 2024 DEM.
+
+Increasing an upstream response cap to 5 MB can admit more raw geometry but also
+permits larger buffers, parsed coordinate arrays and validation/clipping work.
+It does not establish completeness or solve provider pagination. The function's
+outbound provider download is separate from Vercel's
+[4.5 MB ordinary function request/response limit](https://vercel.com/docs/functions/limitations#request-body-size).
+The response contains geometry in both evidence and layer data, and also returns
+a signed snapshot containing those findings, so retained geometry is amplified.
+The clipped-output budget leaves room for other mapped evidence and the snapshot;
+it is not a guarantee that unrelated layers can never exceed the overall payload limit.
+
 ## Historical architecture proposal
 
 The sections below record the original modular-monolith design. They are a
