@@ -10,6 +10,11 @@ that a change was deployed or enabled in production.
 
 ### Property lookup and contours
 
+- Show contour elevations in metres along the lines, with readable outlined
+  labels that follow the Contours visibility control and appear in new map
+  captures. Missing elevation values remain unlabelled.
+- Keep contours and their elevation labels hidden when switched off during map
+  loading by applying the latest selection when the lazy map import completes.
 - Configure Vercel functions for Sydney, near the address database and NZ
   visitors, to avoid the current Virginia-to-Sydney lookup round trips. The
   deployed latency improvement still requires verification after release.

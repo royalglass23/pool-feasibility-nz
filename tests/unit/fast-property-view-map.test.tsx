@@ -1242,7 +1242,7 @@ it("keeps hidden pool-shell clearances hidden when a map input update recreates 
   );
 });
 
-it("draws returned contours and lets the user hide them", async () => {
+it("draws contour elevations and toggles their labels with the lines", async () => {
   const user = userEvent.setup();
   const detailedChecks = fastResult.detailedChecks!;
   const result = {
@@ -1279,7 +1279,9 @@ it("draws returned contours and lets the user hide them", async () => {
       ],
     },
   } as unknown as FastPropertyViewResult;
-  render(<FastPropertyView result={result} onRetry={() => {}} />);
+  const { rerender } = render(
+    <FastPropertyView result={result} onRetry={() => {}} />,
+  );
 
   await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(1));
   const style = mapStyles.mock.calls[0]?.[0] as {
@@ -1288,13 +1290,59 @@ it("draws returned contours and lets the user hide them", async () => {
   };
   expect(style.sources).toHaveProperty("contours");
   expect(style.layers).toEqual(
-    expect.arrayContaining([expect.objectContaining({ id: "contours" })]),
+    expect.arrayContaining([
+      expect.objectContaining({ id: "contours" }),
+      expect.objectContaining({
+        id: "contour-elevation-labels",
+        type: "symbol",
+        source: "contours",
+        layout: expect.objectContaining({
+          "symbol-placement": "line",
+          "text-field": ["get", "contourElevationLabel"],
+        }),
+      }),
+    ]),
   );
+  expect(style.sources.contours).toMatchObject({
+    data: { features: [{ properties: { contourElevationLabel: "20 m" } }] },
+  });
   openMapLayers();
   const contours = screen.getByRole("checkbox", { name: "Contours" });
   expect(contours).toBeChecked();
   await user.click(contours);
   expect(contours).not.toBeChecked();
+  expect(setLayoutProperty).toHaveBeenCalledWith(
+    "contours",
+    "visibility",
+    "none",
+  );
+  expect(setLayoutProperty).toHaveBeenCalledWith(
+    "contour-elevation-labels",
+    "visibility",
+    "none",
+  );
+  rerender(
+    <FastPropertyView
+      result={{ ...result, aerial: { ...result.aerial, state: "error" } }}
+      onRetry={() => {}}
+    />,
+  );
+  await waitFor(() => expect(mapCreated).toHaveBeenCalledTimes(2));
+  const recreatedStyle = mapStyles.mock.calls[1]?.[0] as {
+    layers: Array<{ id: string; layout?: { visibility?: string } }>;
+  };
+  for (const id of ["contours", "contour-elevation-labels"]) {
+    expect(
+      recreatedStyle.layers.find((layer) => layer.id === id)?.layout
+        ?.visibility,
+    ).toBe("none");
+  }
+  await user.click(contours);
+  expect(setLayoutProperty).toHaveBeenCalledWith(
+    "contour-elevation-labels",
+    "visibility",
+    "visible",
+  );
 });
 
 it("does not run an aerial existing-pool check when the map becomes ready", async () => {

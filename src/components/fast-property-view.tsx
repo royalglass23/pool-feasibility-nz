@@ -40,6 +40,7 @@ import {
 import type { DatasetKey } from "@/modules/data-access-spike/dataset-catalog";
 import type { AccessRouteGeometry } from "@/modules/spatial/suggest-access-route";
 import { configureMapLibreWorker } from "@/components/map/configure-maplibre-worker";
+import { withContourElevationLabels } from "@/components/map/contour-elevation-labels";
 import { aerialTileRateLimitMessage } from "@/components/map/aerial-tile-error";
 import { FieldValidationMessage } from "@/components/field-validation-message";
 import {
@@ -247,6 +248,7 @@ export function FastPropertyView({
     allUtilityCategoriesVisible,
   );
   const [contoursVisible, setContoursVisible] = useState(true);
+  const contoursVisibleRef = useRef(contoursVisible);
   const [terrainSlopeVisible, setTerrainSlopeVisible] = useState(true);
   const [clearancesVisible, setClearancesVisible] = useState(true);
   const [initialPlacement] = useState(() => defaultPlacement(result));
@@ -649,7 +651,7 @@ export function FastPropertyView({
       if (mappedContours?.geometry) {
         sources.contours = {
           type: "geojson",
-          data: mappedContours.geometry,
+          data: withContourElevationLabels(mappedContours.geometry),
         };
       }
       if (terrainSlopeGeometry.features.length > 0) {
@@ -726,10 +728,34 @@ export function FastPropertyView({
           id: "contours",
           type: "line",
           source: "contours",
+          layout: {
+            visibility: contoursVisibleRef.current ? "visible" : "none",
+          },
           paint: {
             "line-color": contourLayer.color,
             "line-width": 1.5,
             "line-dasharray": [2, 1.5],
+          },
+        });
+        layers.push({
+          id: "contour-elevation-labels",
+          type: "symbol",
+          source: "contours",
+          minzoom: 15,
+          layout: {
+            visibility: contoursVisibleRef.current ? "visible" : "none",
+            "symbol-placement": "line",
+            "symbol-spacing": 220,
+            "text-field": ["get", "contourElevationLabel"],
+            "text-font": ["Arial", "sans-serif"],
+            "text-size": 12,
+            "text-padding": 6,
+            "text-allow-overlap": false,
+          },
+          paint: {
+            "text-color": "#1e293b",
+            "text-halo-color": "#ffffff",
+            "text-halo-width": 2,
           },
         });
       }
@@ -1190,15 +1216,19 @@ export function FastPropertyView({
   }, [editableRoute]);
 
   useEffect(() => {
+    // The lazy map import can finish after the user changes this setting.
+    contoursVisibleRef.current = contoursVisible;
     const map = mapInstanceRef.current;
     if (!map) return;
     snapshotHandlerRef.current?.(null);
-    if (map.getLayer("contours")) {
-      map.setLayoutProperty(
-        "contours",
-        "visibility",
-        contoursVisible ? "visible" : "none",
-      );
+    for (const layerId of ["contours", "contour-elevation-labels"]) {
+      if (map.getLayer(layerId)) {
+        map.setLayoutProperty(
+          layerId,
+          "visibility",
+          contoursVisible ? "visible" : "none",
+        );
+      }
     }
     if (map.getLayer(terrainSlopeLayer.key)) {
       map.setLayoutProperty(
@@ -1744,7 +1774,7 @@ export function FastPropertyView({
                     </label>
                     <p className="text-pool-500 mt-1 ml-11 text-xs">
                       {mappedContours
-                        ? "Terrain contours (2016, indicative only)"
+                        ? "Elevation labels in metres above sea level. Terrain contours (2016, indicative only)."
                         : contourResult
                           ? "No contour geometry returned"
                           : "Contour data was not checked"}
