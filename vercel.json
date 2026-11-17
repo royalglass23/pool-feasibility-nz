@@ -1,5 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "regions": ["syd1"],
   "functions": {
     "src/app/api/internal/assessments/[[]id[]]/report/route.ts": {
       "maxDuration": 300

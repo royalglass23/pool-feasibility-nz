@@ -415,58 +415,34 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
       const slopePanel = legend.getByTestId("map-layer-slope");
       const contoursPanel = legend.getByTestId("map-layer-contours");
       const servicesPanel = legend.getByTestId("map-layer-services");
-      const desktopPanels = await Promise.all([
-        clearancesPanel.boundingBox(),
-        slopePanel.boundingBox(),
-        contoursPanel.boundingBox(),
-        servicesPanel.boundingBox(),
-      ]);
-      const [
-        desktopClearances,
-        desktopSlope,
-        desktopContours,
-        desktopServices,
-      ] = desktopPanels;
-
-      expect(desktopClearances).not.toBeNull();
-      expect(desktopSlope).not.toBeNull();
-      expect(desktopContours).not.toBeNull();
-      expect(desktopServices).not.toBeNull();
-      expect(
-        Math.abs(desktopClearances!.y - desktopSlope!.y),
-      ).toBeLessThanOrEqual(1);
-      expect(
-        Math.abs(desktopClearances!.y - desktopContours!.y),
-      ).toBeLessThanOrEqual(1);
-      expect(
-        Math.abs(desktopClearances!.width - desktopSlope!.width),
-      ).toBeLessThanOrEqual(1);
-      expect(
-        Math.abs(desktopClearances!.width - desktopContours!.width),
-      ).toBeLessThanOrEqual(1);
-      expect(desktopServices!.y).toBeGreaterThanOrEqual(
-        desktopClearances!.y + desktopClearances!.height,
+      // Re-read both boxes while notices and viewport transitions settle.
+      for (const panel of [slopePanel, contoursPanel]) {
+        await expectRelativeLayout(
+          clearancesPanel,
+          panel,
+          (first, second) =>
+            Math.abs(first.y - second.y) <= 1 &&
+            Math.abs(first.width - second.width) <= 1,
+        );
+      }
+      await expectRelativeLayout(
+        clearancesPanel,
+        servicesPanel,
+        (first, second) => second.y >= first.y + first.height,
       );
 
       await page.setViewportSize({ width: 390, height: 844 });
-      const mobilePanels = await Promise.all([
-        clearancesPanel.boundingBox(),
-        slopePanel.boundingBox(),
-        contoursPanel.boundingBox(),
-        servicesPanel.boundingBox(),
-      ]);
-      const [mobileClearances, mobileSlope, mobileContours, mobileServices] =
-        mobilePanels;
-
-      expect(mobileSlope!.y).toBeGreaterThanOrEqual(
-        mobileClearances!.y + mobileClearances!.height,
-      );
-      expect(mobileContours!.y).toBeGreaterThanOrEqual(
-        mobileSlope!.y + mobileSlope!.height,
-      );
-      expect(mobileServices!.y).toBeGreaterThanOrEqual(
-        mobileContours!.y + mobileContours!.height,
-      );
+      for (const [first, second] of [
+        [clearancesPanel, slopePanel],
+        [slopePanel, contoursPanel],
+        [contoursPanel, servicesPanel],
+      ]) {
+        await expectRelativeLayout(
+          first,
+          second,
+          (above, below) => below.y >= above.y + above.height,
+        );
+      }
       await page.setViewportSize({ width: 1280, height: 720 });
     }
     await expect(
@@ -502,19 +478,17 @@ for (const initialOutcome of ["complete", "retryable", "error"] as const) {
         .getByLabel("Property check notices")
         .getByRole("heading", { name: /Needs Checking|No Warning/ }),
     ).toBeVisible();
-    const mapBounds = await page
-      .getByLabel("Fast aerial map for 42A Bahari Drive, Ranui, Auckland")
-      .boundingBox();
-    const noticeBounds = await page
-      .getByLabel("Property check notices")
-      .boundingBox();
-    const poolLayoutBounds = await poolLayout.boundingBox();
-    expect(noticeBounds!.y + noticeBounds!.height).toBeLessThanOrEqual(
-      mapBounds!.y,
+    const notices = page.getByLabel("Property check notices");
+    await expectRelativeLayout(
+      notices,
+      page.getByLabel("Fast aerial map for 42A Bahari Drive, Ranui, Auckland"),
+      (notice, map) => notice.y + notice.height <= map.y && notice.x <= map.x,
     );
-    expect(noticeBounds!.x).toBeLessThanOrEqual(mapBounds!.x);
-    expect(noticeBounds!.x + noticeBounds!.width).toBeGreaterThanOrEqual(
-      poolLayoutBounds!.x + poolLayoutBounds!.width,
+    await expectRelativeLayout(
+      notices,
+      poolLayout,
+      (notice, controls) =>
+        notice.x + notice.width >= controls.x + controls.width,
     );
     const wastewaterLayer = legend.getByRole("checkbox", {
       name: "Wastewater",
